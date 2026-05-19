@@ -403,6 +403,49 @@ def _build_district_metrics_table() -> pd.DataFrame:
             })
             out = out.merge(keep, on="DIST_CODE", how="left")
 
+    # ─── 9b. Plans of HS Graduates (next-step destinations) ───────────────────
+    plans_path = e2c_raw / "plans_of_graduates.csv"
+    if plans_path.exists():
+        plans = pd.read_csv(plans_path, low_memory=False)
+        plans["DIST_CODE"] = plans["DIST_CODE"].astype(str).str.zfill(8)
+        plans_d = plans[plans["ORG_TYPE"] == "District"].sort_values("SY") \
+            .groupby("DIST_CODE").tail(1)
+        if "COLL_4YRPUB_PCT" in plans_d.columns:
+            plans_d = plans_d.copy()
+            for col in ["COLL_4YRPRV_PCT", "COLL_4YRPUB_PCT", "COLL_2YRPRV_PCT",
+                          "COLL_2YRPUB_PCT", "PSTSEC_PCT", "WORK_PCT", "MILITARY_PCT"]:
+                plans_d[col] = pd.to_numeric(plans_d.get(col), errors="coerce")
+            plans_d["pct_4yr_college"] = (
+                plans_d["COLL_4YRPRV_PCT"].fillna(0) + plans_d["COLL_4YRPUB_PCT"].fillna(0)
+            )
+            plans_d["pct_2yr_college"] = (
+                plans_d["COLL_2YRPRV_PCT"].fillna(0) + plans_d["COLL_2YRPUB_PCT"].fillna(0)
+            )
+            plans_d["pct_any_college"] = (
+                plans_d["pct_4yr_college"] + plans_d["pct_2yr_college"]
+                + plans_d["PSTSEC_PCT"].fillna(0)
+            )
+            plans_d["pct_work_after_hs"] = plans_d["WORK_PCT"]
+            plans_d["pct_military"] = plans_d["MILITARY_PCT"]
+            keep_plans = ["DIST_CODE", "pct_4yr_college", "pct_2yr_college",
+                           "pct_any_college", "pct_work_after_hs", "pct_military"]
+            out = out.merge(plans_d[keep_plans], on="DIST_CODE", how="left")
+
+    # ─── 9c. Attendance rate (overall, not just chronic) ──────────────────────
+    if att_path.exists() and "ATTEND_RATE" in pd.read_csv(att_path, nrows=1, low_memory=False).columns:
+        att_full = pd.read_csv(att_path, low_memory=False)
+        att_full["DIST_CODE"] = att_full["DIST_CODE"].astype(str).str.zfill(8)
+        att_r = att_full[
+            (att_full["STU_GRP"] == "All Students")
+            & (att_full["ORG_TYPE"] == "District")
+            & (att_full.get("ATTEND_PERIOD", "FY") == "FY")
+        ].sort_values("SY").groupby("DIST_CODE").tail(1)
+        att_r = att_r[["DIST_CODE", "ATTEND_RATE"]].rename(
+            columns={"ATTEND_RATE": "attendance_rate"}
+        )
+        att_r["attendance_rate"] = pd.to_numeric(att_r["attendance_rate"], errors="coerce")
+        out = out.merge(att_r, on="DIST_CODE", how="left")
+
     # ─── 10. Staff retention rate ─────────────────────────────────────────────
     ret_path = e2c_raw / "staff_retention.csv"
     if ret_path.exists():
