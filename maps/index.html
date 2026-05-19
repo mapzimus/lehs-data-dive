@@ -45,13 +45,13 @@
         <div class="panel-section">
             <div class="panel-header">
                 <span class="section-label">// Lynn Data Dive</span>
-                <a href="../" class="back-link">← Back to dashboard</a>
+                <a href="../" class="back-link">← Dashboard</a>
             </div>
-            <h1 class="panel-title">Interactive Maps</h1>
+            <h1 class="panel-title">Lynn Maps</h1>
             <p class="panel-desc">
-                Color polygons by any of 35+ metrics across MA municipalities,
-                school districts, and Lynn census tracts. Pick a palette,
-                classification method, and visual mode.
+                Census-tract demographics across Lynn's 22 tracts, every Lynn
+                school pinned, and how Lynn fits in. For the full statewide
+                view, see <a href="../../ma-atlas/" target="_top" style="color:#0A1F44;font-weight:600;">MA Education Atlas →</a>
             </p>
         </div>
 
@@ -199,6 +199,34 @@
 
     <!-- HOVER TOOLTIP (positioned via JS) -->
     <div class="map-tooltip" id="mapTooltip" aria-hidden="true"></div>
+
+    <!-- MAP CONTROLS HELP -->
+    <button class="help-button" id="helpButton" type="button"
+            title="Map controls help" aria-label="Map controls help">?</button>
+    <div class="help-modal" id="helpModal" aria-hidden="true">
+        <div class="help-modal-inner">
+            <button class="help-modal-close" id="helpModalClose"
+                    aria-label="Close help">&times;</button>
+            <h2>Map controls</h2>
+            <div class="help-grid">
+                <div class="help-row"><span class="help-key">Drag</span><span>Pan the map</span></div>
+                <div class="help-row"><span class="help-key">Scroll</span><span>Zoom in / out</span></div>
+                <div class="help-row"><span class="help-key">Ctrl + Drag</span><span>Rotate the map</span></div>
+                <div class="help-row"><span class="help-key">Right-click + Drag</span><span>Rotate &amp; tilt (alternate)</span></div>
+                <div class="help-row"><span class="help-key">Shift + Drag</span><span>Box zoom</span></div>
+                <div class="help-row"><span class="help-key">Click feature</span><span>Open detail panel (right)</span></div>
+                <div class="help-row"><span class="help-key">Hover</span><span>Quick metric value tooltip</span></div>
+            </div>
+            <div class="help-section">
+                <strong>Buttons (top-right):</strong>
+                <div class="help-row"><span class="help-key">+ / −</span><span>Zoom in / out</span></div>
+                <div class="help-row"><span class="help-key">Compass</span><span>Reset bearing &amp; pitch to north / flat</span></div>
+            </div>
+            <div class="help-footer">
+                <button class="help-got-it" id="helpGotIt">Got it</button>
+            </div>
+        </div>
+    </div>
 
     <!-- FEATURE DETAIL SIDE PANEL (sticky, right side) -->
     <aside class="feature-panel" id="featurePanel" aria-hidden="true">

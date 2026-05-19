@@ -1,15 +1,12 @@
 /* ============================================================================
-   Lynn Data Dive — Interactive Maps
-   MapLibre GL JS · OpenFreeMap vector tiles · MassGIS polygons · MA DESE data
-
-   Architecture:
-     - Always-on reference layers (muni borders, district borders, town labels)
-     - One configurable CHOROPLETH layer (target = muni | district | tract)
-     - 35+ metrics across demographics, academic, outcomes, finance, workforce
-     - 12 color palettes (ColorBrewer-style sequential + diverging)
-     - 3 classification methods: continuous / 5 quantiles / 5 equal-interval
-     - Click any polygon for an info popup
+   Lynn Data Dive — Lynn-Focused Maps
+   Hyper-focused on Lynn: census-tract demographics, Lynn schools, and Lynn
+   compared to other Gateway city high schools. For the FULL statewide
+   experience (351 munis, 274 districts, 40+ metrics, etc.) see
+   maxwellhowegis.com/ma-atlas/
    ============================================================================ */
+
+const LYNN_FOCUS = true;  // hides statewide reference layers + filters metric catalog
 
 // ─── DATA SOURCES (same-origin, slim simplified GeoJSON) ─────────────────────
 const SOURCES = {
@@ -103,10 +100,10 @@ const METRICS = [
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
 const state = {
-    level: "muni",
-    metric: "EL_PCT",
+    level: "tract",                    // Lynn-focused → start at the tract level
+    metric: "non_english_pct",         // ACS linguistic landscape: Lynn's defining demographic story
     palette: "Greens",
-    classify: "jenks",  // Fisher-Jenks natural breaks — standard cartographic default
+    classify: "jenks",                 // Fisher-Jenks natural breaks (standard cartographic default)
     extrude3d: false,
     labels: true,
     townLabels: true,
@@ -280,8 +277,8 @@ function paintExpression(metricId, paletteName, classify, level) {
 const map = new maplibregl.Map({
     container: "map",
     style: "https://tiles.openfreemap.org/styles/positron",
-    center: [-70.95, 42.47],
-    zoom: 11.6,
+    center: [-70.95, 42.47],   // Lynn close-up — Lynn-focused default
+    zoom: 12.3,
     minZoom: 6,
     maxZoom: 18,
     attributionControl: false,
