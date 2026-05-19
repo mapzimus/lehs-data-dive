@@ -22,7 +22,7 @@ REPORTS_DIR = PROJECT_ROOT / "reports"
 # ---------------------------------------------------------------------------
 
 LEHS_SCHOOL_NAME = "Lynn English High"
-LEHS_SCHOOL_CODE = "01630505"          # TODO verify against E2C Hub MCAS dataset
+LEHS_SCHOOL_CODE = "01630510"          # verified 2026-05-18 from MCAS dataset
 LYNN_DISTRICT_CODE = "01630000"
 LYNN_DISTRICT_NAME = "Lynn"
 
@@ -33,12 +33,14 @@ LYNN_DISTRICT_NAME = "Lynn"
 # ---------------------------------------------------------------------------
 
 LYNN_SIBLING_HS = {
-    # name in DESE data           : school code (filled in by 07_identify_peer_schools.py)
-    "Lynn English High":                       None,  # focus school
-    "Classical High":                          None,  # Lynn Classical
-    "Lynn Vocational Technical Institute":     None,  # Lynn Tech — confirm district
-    "Fecteau-Leary Junior/Senior High School": None,  # alternative HS
-    "Fredrick Douglass Collegiate Academy":    None,  # alternative HS (note spelling)
+    # All verified from MCAS dataset 2026-05-18
+    "Lynn English High":                       "01630510",  # focus school
+    "Classical High":                          "01630505",  # Lynn Classical
+    "Lynn Vocational Technical Institute":     "01630605",  # Lynn Tech
+    "Fredrick Douglass Collegiate Academy":    "01630575",  # alternative HS (note 'Fredrick' spelling)
+    "Harold Durgin Success Academy":           "01630525",  # alternative HS
+    # Fecteau-Leary Junior/Senior HS — no grade-10 MCAS rows in dataset;
+    # serves grades 7-9, look up enrollment via demographics file instead
 }
 
 # ---------------------------------------------------------------------------

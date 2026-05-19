@@ -2,18 +2,20 @@
 Identify peer schools by inspecting downloaded MCAS data.
 
 Outputs to data/processed/_peer_schools.json:
-  - LEHS_SCHOOL_CODE: confirmed code for Lynn English High
-  - LYNN_SIBLING_HS:  codes for Classical, Lynn Tech, Fecteau-Leary, Frederick Douglass
-  - LYNN_DISTRICT_HS: all Lynn district schools with grade 9-12 enrollment
-  - GATEWAY_MAIN_HS:  one main comprehensive HS per gateway city
+  - lehs_school_code:  confirmed code for Lynn English High
+  - lynn_district_hs:  every school in Lynn with any grade-9-12 MCAS rows
+  - lynn_sibling_hs:   resolved codes for Classical, Lynn Tech, Fecteau-Leary,
+                       Frederick Douglass, Harold Durgin Success Academy
+  - gateway_main_hs:   for each gateway city, the school with highest grade-10
+                       STU_CNT (excluding district rows) — i.e., the main
+                       comprehensive HS
 
-Rule for "main comprehensive HS in a gateway city":
-  - District is the city in question
-  - School serves grade 10
-  - Among such schools, pick the one with highest grade-10 enrollment
+Rules:
+  - Only ORG_TYPE in ("Public School", "Charter School") — never district rows
+  - "Main HS" = highest sum of STU_CNT in grade 10 across all years/subjects
+  - Sibling matching: require name overlap on a distinctive word (not just "Lynn")
 
-Run AFTER 01_download_e2c.py has produced data/raw/e2c_hub/mcas_achievement.csv
-and enrollment_demographics.csv.
+Run AFTER 01_download_e2c.py has produced data/raw/e2c_hub/mcas_achievement.csv.
 """
 
 from __future__ import annotations
@@ -29,102 +31,125 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from utils.constants import (  # noqa: E402
     GATEWAY_CITIES,
     LYNN_DISTRICT_CODE,
-    LYNN_SIBLING_HS,
     PROCESSED_DIR,
     RAW_DIR,
 )
 
 MCAS_CSV = RAW_DIR / "e2c_hub" / "mcas_achievement.csv"
-ENROLLMENT_CSV = RAW_DIR / "e2c_hub" / "enrollment_demographics.csv"
 OUTPUT_JSON = PROCESSED_DIR / "_peer_schools.json"
 
+SCHOOL_ORG_TYPES = ("Public School", "Charter School")
 
-def _find_column(df: pd.DataFrame, candidates: list[str]) -> str | None:
-    """Find the first column whose name (case-insensitive) matches a candidate."""
-    cols_lower = {c.lower(): c for c in df.columns}
-    for cand in candidates:
-        if cand.lower() in cols_lower:
-            return cols_lower[cand.lower()]
-    return None
+# Sibling target -> distinctive keywords that MUST appear in the school name
+# (avoids matching the bare district "Lynn" row when looking for Lynn English)
+SIBLING_TARGETS = {
+    "Lynn English High":                     ["english"],
+    "Classical High (Lynn)":                 ["classical"],
+    "Lynn Vocational Technical Institute":   ["vocational", "technical", "lynn tech"],
+    "Fecteau-Leary Junior/Senior HS":        ["fecteau", "leary"],
+    "Fredrick Douglass Collegiate Academy":  ["douglass"],
+    "Harold Durgin Success Academy":         ["durgin"],
+}
 
 
-def load_mcas() -> pd.DataFrame:
+def load_mcas_min() -> pd.DataFrame:
+    """Load only the columns we need from MCAS (faster than full load)."""
     if not MCAS_CSV.exists():
-        raise FileNotFoundError(
-            f"{MCAS_CSV} not found. Run scripts/01_download_e2c.py first."
-        )
-    return pd.read_csv(MCAS_CSV, low_memory=False)
+        raise FileNotFoundError(f"{MCAS_CSV} not found. Run scripts/01_download_e2c.py first.")
+    return pd.read_csv(
+        MCAS_CSV,
+        usecols=[
+            "SY", "DIST_CODE", "DIST_NAME", "ORG_CODE", "ORG_NAME",
+            "ORG_TYPE", "TEST_GRADE", "STU_CNT",
+        ],
+        dtype={"DIST_CODE": str, "ORG_CODE": str, "TEST_GRADE": str},
+        low_memory=False,
+    )
 
 
-def identify_lynn_high_schools(mcas: pd.DataFrame) -> dict[str, str]:
-    """Find all Lynn schools that serve grade 10."""
-    org_code_col = _find_column(mcas, ["org_code", "school_code", "orgcode"])
-    school_code_col = _find_column(mcas, ["school_code", "sch_code"]) or org_code_col
-    name_col = _find_column(mcas, ["school_name", "org_name", "schoolname"])
-    district_code_col = _find_column(mcas, ["district_code", "dist_code", "districtcode"])
-    grade_col = _find_column(mcas, ["grade", "test_grade"])
-
-    if not (name_col and school_code_col and grade_col):
-        raise RuntimeError(
-            f"Could not find expected columns in MCAS. Columns: {list(mcas.columns)}"
-        )
-
-    # filter: Lynn district + grade 10
-    if district_code_col:
-        in_lynn = mcas[district_code_col].astype(str).str.zfill(8) == LYNN_DISTRICT_CODE
-    else:
-        in_lynn = mcas[school_code_col].astype(str).str.startswith("01630")
-    grade10 = mcas[grade_col].astype(str).str.contains("10")
-
-    sub = mcas[in_lynn & grade10][[school_code_col, name_col]].drop_duplicates()
-    return dict(zip(sub[name_col], sub[school_code_col].astype(str).str.zfill(8)))
+def normalize_codes(df: pd.DataFrame) -> pd.DataFrame:
+    """Zero-pad 8-digit codes."""
+    df = df.copy()
+    df["DIST_CODE"] = df["DIST_CODE"].fillna("").str.zfill(8)
+    df["ORG_CODE"] = df["ORG_CODE"].fillna("").str.zfill(8)
+    return df
 
 
-def fuzzy_match_sibling(name: str, lynn_hs: dict[str, str]) -> str | None:
-    """Match a sibling-school target name to a DESE name (case-insensitive contains)."""
-    target = name.lower()
-    for actual_name, code in lynn_hs.items():
-        if target in actual_name.lower() or actual_name.lower() in target:
-            return code
+def lynn_district_high_schools(mcas: pd.DataFrame) -> dict[str, str]:
+    """All Lynn schools with any high-school grade (9-12) MCAS data.
+
+    Includes grades 9, 10, 11, 12 — Fecteau-Leary may serve different grades
+    than the main HS, so we cast a wide net.
+    """
+    hs_grades = mcas["TEST_GRADE"].astype(str).isin(["09", "10", "11", "12", "9", "10", "11", "12"])
+    in_lynn = mcas["DIST_CODE"] == LYNN_DISTRICT_CODE
+    is_school = mcas["ORG_TYPE"].isin(SCHOOL_ORG_TYPES)
+    sub = mcas[hs_grades & in_lynn & is_school][["ORG_CODE", "ORG_NAME"]].drop_duplicates()
+    return dict(zip(sub["ORG_NAME"], sub["ORG_CODE"]))
+
+
+def lynn_all_schools(mcas: pd.DataFrame) -> dict[str, str]:
+    """Every Lynn district school (any grade)."""
+    in_lynn = mcas["DIST_CODE"] == LYNN_DISTRICT_CODE
+    is_school = mcas["ORG_TYPE"].isin(SCHOOL_ORG_TYPES)
+    sub = mcas[in_lynn & is_school][["ORG_CODE", "ORG_NAME"]].drop_duplicates()
+    return dict(zip(sub["ORG_NAME"], sub["ORG_CODE"]))
+
+
+def lynn_tech_lookup(mcas: pd.DataFrame) -> tuple[str, str] | None:
+    """Lynn Vocational Technical Institute may be its own district outside
+    the Lynn Public Schools district code. Find it statewide by name."""
+    is_school = mcas["ORG_TYPE"].isin(SCHOOL_ORG_TYPES)
+    name_match = mcas["ORG_NAME"].str.contains("Lynn Vocational", case=False, na=False)
+    sub = mcas[is_school & name_match][["ORG_CODE", "ORG_NAME", "DIST_NAME"]].drop_duplicates()
+    if sub.empty:
+        return None
+    row = sub.iloc[0]
+    return row["ORG_NAME"], row["ORG_CODE"]
+
+
+def fuzzy_match_sibling(keywords: list[str], schools: dict[str, str]) -> tuple[str, str] | None:
+    """Pick the school whose name contains ALL the distinctive keywords (case-insensitive)."""
+    for name, code in schools.items():
+        name_lower = name.lower()
+        if all(kw.lower() in name_lower for kw in keywords):
+            return name, code
+    # Fallback: any keyword match
+    for name, code in schools.items():
+        name_lower = name.lower()
+        if any(kw.lower() in name_lower for kw in keywords):
+            return name, code
     return None
 
 
-def identify_gateway_main_hs(enrollment: pd.DataFrame, mcas: pd.DataFrame) -> dict[str, dict]:
-    """For each gateway city, pick the school with the highest grade-10 enrollment."""
-    org_code_col = _find_column(mcas, ["org_code", "school_code", "orgcode"])
-    name_col = _find_column(mcas, ["school_name", "org_name"])
-    district_name_col = _find_column(mcas, ["district_name", "dist_name", "districtname"])
-    student_count_col = _find_column(mcas, ["student_count", "tested_count", "n_tested", "students_included"])
-    grade_col = _find_column(mcas, ["grade", "test_grade"])
+def identify_gateway_main_hs(mcas: pd.DataFrame) -> dict[str, dict]:
+    """For each gateway city, pick the school with the highest grade-10 STU_CNT
+    (summed across years and subjects), restricted to actual school rows."""
+    is_school = mcas["ORG_TYPE"].isin(SCHOOL_ORG_TYPES)
+    is_g10 = mcas["TEST_GRADE"].astype(str).isin(["10"])
+    g10_schools = mcas[is_school & is_g10].copy()
+    g10_schools["STU_CNT"] = pd.to_numeric(g10_schools["STU_CNT"], errors="coerce").fillna(0)
 
     out: dict[str, dict] = {}
-    if not (name_col and district_name_col and grade_col):
-        print(f"  warning: missing columns for gateway main-HS detection. cols={list(mcas.columns)[:20]}")
-        return out
-
-    grade10 = mcas[grade_col].astype(str).str.contains("10")
-    g10 = mcas[grade10]
-
     for city in GATEWAY_CITIES:
-        in_city = g10[district_name_col].astype(str).str.lower() == city.lower()
-        city_data = g10[in_city]
-        if city_data.empty:
-            out[city] = {"name": None, "school_code": None}
+        in_city = g10_schools["DIST_NAME"].astype(str).str.lower() == city.lower()
+        sub = g10_schools[in_city]
+        if sub.empty:
+            out[city] = {"name": None, "school_code": None, "district_code": None, "total_stu_cnt": 0}
             continue
-        # pick school with highest student count if available, else first
-        if student_count_col and student_count_col in city_data.columns:
-            picked = (
-                city_data.groupby([name_col, org_code_col])[student_count_col]
-                .sum()
-                .reset_index()
-                .sort_values(student_count_col, ascending=False)
-                .iloc[0]
-            )
-        else:
-            picked = city_data[[name_col, org_code_col]].drop_duplicates().iloc[0]
+        ranked = (
+            sub.groupby(["ORG_NAME", "ORG_CODE", "DIST_CODE"])["STU_CNT"]
+            .sum()
+            .reset_index()
+            .sort_values("STU_CNT", ascending=False)
+        )
+        top = ranked.iloc[0]
         out[city] = {
-            "name": picked[name_col],
-            "school_code": str(picked[org_code_col]).zfill(8),
+            "name": top["ORG_NAME"],
+            "school_code": top["ORG_CODE"],
+            "district_code": top["DIST_CODE"],
+            "total_stu_cnt": int(top["STU_CNT"]),
+            "runner_up": ranked.iloc[1].to_dict() if len(ranked) > 1 else None,
         }
     return out
 
@@ -132,44 +157,67 @@ def identify_gateway_main_hs(enrollment: pd.DataFrame, mcas: pd.DataFrame) -> di
 def main() -> None:
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
-    print("Loading MCAS dataset...")
-    mcas = load_mcas()
-    print(f"  {len(mcas):,} rows, {len(mcas.columns)} columns")
-    print(f"  columns: {list(mcas.columns)[:15]}")
+    print("Loading MCAS dataset (relevant columns only)...")
+    mcas = load_mcas_min()
+    mcas = normalize_codes(mcas)
+    print(f"  {len(mcas):,} rows loaded")
 
-    print("\nIdentifying Lynn district high schools (grade 10)...")
-    lynn_hs = identify_lynn_high_schools(mcas)
-    for name, code in lynn_hs.items():
+    print("\n--- Lynn district schools (HS grades 9-12) ---")
+    lynn_hs = lynn_district_high_schools(mcas)
+    for name, code in sorted(lynn_hs.items(), key=lambda x: x[1]):
         print(f"  {code}  {name}")
 
-    sibling_codes = {}
-    for sibling_name in LYNN_SIBLING_HS:
-        code = fuzzy_match_sibling(sibling_name, lynn_hs)
-        sibling_codes[sibling_name] = code
-        status = "[OK]" if code else "[X]"
-        print(f"  {status} sibling match: '{sibling_name}' --> {code or 'NOT FOUND'}")
+    print("\n--- Lynn district: all schools ---")
+    lynn_all = lynn_all_schools(mcas)
+    print(f"  {len(lynn_all)} total Lynn schools")
 
-    lehs_code = sibling_codes.get("Lynn English High") or fuzzy_match_sibling(
-        "Lynn English", lynn_hs
-    )
+    # Lynn Tech may live outside the Lynn district code
+    tech_match = lynn_tech_lookup(mcas)
+    if tech_match:
+        print(f"\n--- Lynn Vocational Technical Institute (statewide search) ---")
+        print(f"  {tech_match[1]}  {tech_match[0]}")
 
-    print("\nIdentifying main comprehensive HS in each gateway city...")
-    gateway_main = identify_gateway_main_hs(None, mcas)
+    print("\n--- Sibling school matching ---")
+    sibling_codes: dict[str, dict | None] = {}
+    # Combine Lynn district HS + Lynn Tech (if found elsewhere) for matching pool
+    candidates = dict(lynn_hs)
+    if tech_match:
+        candidates[tech_match[0]] = tech_match[1]
+
+    for sibling_name, keywords in SIBLING_TARGETS.items():
+        match = fuzzy_match_sibling(keywords, candidates)
+        if match:
+            actual_name, code = match
+            sibling_codes[sibling_name] = {"name": actual_name, "school_code": code}
+            print(f"  [OK]  {sibling_name:50s} -> {code}  {actual_name}")
+        else:
+            sibling_codes[sibling_name] = None
+            print(f"  [X]   {sibling_name:50s} -> NOT FOUND")
+
+    lehs = sibling_codes.get("Lynn English High")
+    lehs_code = lehs["school_code"] if lehs else None
+
+    print("\n--- Gateway city main HS (by grade-10 enrollment) ---")
+    gateway_main = identify_gateway_main_hs(mcas)
     for city, info in gateway_main.items():
         if info["school_code"]:
-            print(f"  {city:15s} --> {info['school_code']}  {info['name']}")
+            ru = info.get("runner_up")
+            ru_str = f"  (runner-up: {ru['ORG_NAME']}, n={int(ru['STU_CNT'])})" if ru else ""
+            print(f"  {city:15s} -> {info['school_code']}  {info['name']}  (n={info['total_stu_cnt']:,}){ru_str}")
         else:
-            print(f"  {city:15s} --> (none found)")
+            print(f"  {city:15s} -> (none found with grade-10 data)")
 
     payload = {
         "lehs_school_code": lehs_code,
         "lynn_district_code": LYNN_DISTRICT_CODE,
         "lynn_district_hs": lynn_hs,
+        "lynn_all_schools": lynn_all,
         "lynn_sibling_hs": sibling_codes,
         "gateway_main_hs": gateway_main,
     }
-    OUTPUT_JSON.write_text(json.dumps(payload, indent=2))
+    OUTPUT_JSON.write_text(json.dumps(payload, indent=2, default=str))
     print(f"\nWrote: {OUTPUT_JSON}")
+    print(f"\nLEHS school code: {lehs_code}")
 
 
 if __name__ == "__main__":

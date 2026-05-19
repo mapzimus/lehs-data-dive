@@ -1,0 +1,137 @@
+"""
+Build processed Parquet files for the dashboard.
+
+For each downloaded E2C Hub CSV, filter to our schools of interest:
+  - LEHS specifically  (org code 01630510)
+  - All Lynn district schools  (district code 01630000)
+  - All gateway-city main comprehensive HS  (26 schools)
+
+Output to data/processed/<dataset_name>.parquet (small, joinable, committable).
+
+Run AFTER 01_download_e2c.py and 07_identify_peer_schools.py.
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from utils.constants import (  # noqa: E402
+    LEHS_SCHOOL_CODE,
+    LYNN_DISTRICT_CODE,
+    PROCESSED_DIR,
+    RAW_DIR,
+)
+
+E2C_RAW = RAW_DIR / "e2c_hub"
+PEER_FILE = PROCESSED_DIR / "_peer_schools.json"
+
+
+def load_peer_schools() -> dict:
+    if not PEER_FILE.exists():
+        raise FileNotFoundError(
+            f"{PEER_FILE} not found. Run scripts/07_identify_peer_schools.py first."
+        )
+    return json.loads(PEER_FILE.read_text())
+
+
+def build_school_filter_codes(peers: dict) -> dict[str, set[str]]:
+    """All school codes we care about, partitioned into useful groups."""
+    lynn_schools = set((peers.get("lynn_all_schools") or {}).values())
+    gateway_main = {
+        info["school_code"]
+        for info in peers.get("gateway_main_hs", {}).values()
+        if info.get("school_code")
+    }
+    return {
+        "lehs":         {LEHS_SCHOOL_CODE},
+        "lynn_all":     lynn_schools,
+        "gateway_main": gateway_main,
+        "everything":   {LEHS_SCHOOL_CODE} | lynn_schools | gateway_main,
+    }
+
+
+def build_district_filter_codes(peers: dict) -> set[str]:
+    """District codes for Lynn + every gateway city."""
+    codes = {LYNN_DISTRICT_CODE}
+    for info in peers.get("gateway_main_hs", {}).values():
+        if info.get("district_code"):
+            codes.add(info["district_code"])
+    return codes
+
+
+def filter_school_csv(
+    csv_path: Path,
+    out_path: Path,
+    school_codes: set[str],
+    district_codes: set[str] | None = None,
+) -> int:
+    """Read a CSV, filter to ORG_CODE in school_codes or DIST_CODE in district_codes."""
+    df = pd.read_csv(csv_path, low_memory=False, dtype={"DIST_CODE": str, "ORG_CODE": str})
+    if "ORG_CODE" in df.columns:
+        df["ORG_CODE"] = df["ORG_CODE"].fillna("").str.zfill(8)
+    if "DIST_CODE" in df.columns:
+        df["DIST_CODE"] = df["DIST_CODE"].fillna("").str.zfill(8)
+
+    if "ORG_CODE" in df.columns:
+        mask = df["ORG_CODE"].isin(school_codes)
+        if district_codes and "DIST_CODE" in df.columns:
+            mask |= df["DIST_CODE"].isin(district_codes) & (
+                df.get("ORG_CODE", "").fillna("") == ""
+            )
+        filtered = df[mask]
+    elif "DIST_CODE" in df.columns:
+        filtered = df[df["DIST_CODE"].isin(district_codes or set())]
+    else:
+        print(f"  WARN: no DIST_CODE or ORG_CODE column — skipping {csv_path.name}")
+        return 0
+
+    filtered.to_parquet(out_path, index=False)
+    return len(filtered)
+
+
+def main() -> None:
+    PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+    peers = load_peer_schools()
+    school_filters = build_school_filter_codes(peers)
+    district_codes = build_district_filter_codes(peers)
+
+    print("Filtering targets:")
+    print(f"  LEHS                = {len(school_filters['lehs'])}")
+    print(f"  Lynn district HS    = {len(school_filters['lynn_all'])}")
+    print(f"  Gateway main HS     = {len(school_filters['gateway_main'])}")
+    print(f"  Total unique schools= {len(school_filters['everything'])}")
+    print(f"  Districts           = {len(district_codes)}")
+    print()
+
+    csv_files = sorted(E2C_RAW.glob("*.csv"))
+    print(f"Processing {len(csv_files)} E2C CSV files...\n")
+
+    summary = []
+    for csv in csv_files:
+        out = PROCESSED_DIR / f"{csv.stem}.parquet"
+        try:
+            n = filter_school_csv(
+                csv, out, school_filters["everything"], district_codes
+            )
+            print(f"  [OK] {csv.name:42s} -> {n:>8,} rows -> {out.name}")
+            summary.append((csv.name, n))
+        except Exception as e:
+            print(f"  [X]  {csv.name}: {e}")
+            summary.append((csv.name, -1))
+
+    print()
+    print("=" * 70)
+    print("Done. Summary:")
+    for name, n in summary:
+        print(f"  {name:42s} {n:>8,} rows")
+    print(f"\nProcessed files written to: {PROCESSED_DIR}")
+
+
+if __name__ == "__main__":
+    main()

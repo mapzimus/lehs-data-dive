@@ -6,8 +6,8 @@ Run locally: `streamlit run app.py`
 
 import streamlit as st
 
-from utils.constants import LEHS_SCHOOL_NAME
-from utils.data_loader import load_lehs_master
+from utils.constants import LEHS_SCHOOL_CODE
+from utils.data_loader import load_dataset
 
 st.set_page_config(
     page_title="LEHS Data Center",
@@ -30,26 +30,37 @@ st.markdown(
 st.divider()
 
 # ---------------------------------------------------------------------------
-# Hero stats (placeholder — wired up after data pipeline runs)
+# Hero stats from real LEHS data
 # ---------------------------------------------------------------------------
 
-df = load_lehs_master()
+enrollment = load_dataset("enrollment_demographics")
+grad = load_dataset("graduation_rates")
+mcas = load_dataset("mcas_achievement")
+dart = load_dataset("dart_success_after_hs")
 
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    st.metric("Total Enrollment", "—", help="From DESE enrollment dataset")
-with col2:
-    st.metric("4-Year Graduation Rate", "—", help="From DART Success After High School")
-with col3:
-    st.metric("Gr 10 MCAS — Math (% M+E)", "—")
-with col4:
-    st.metric("Immediate College Enrollment", "—")
-
-if df.empty:
+if enrollment.empty:
     st.info(
-        "**Data not yet loaded.** Run `python scripts/refresh_all.py` to download "
-        "and process the source datasets. Then refresh this page."
+        "**Data not yet loaded.** Run `python scripts/refresh_all.py` (after "
+        "creating the conda env) to download and process the source datasets. "
+        "Then refresh this page."
     )
+    st.stop()
+
+lehs = enrollment[enrollment["ORG_CODE"] == LEHS_SCHOOL_CODE].sort_values("SY")
+current = lehs.iloc[-1]
+current_sy = int(current["SY"])
+
+st.caption(f"All metrics below are for school year {current_sy} (most recent available).")
+
+c1, c2, c3, c4 = st.columns(4)
+with c1:
+    st.metric("Total Enrollment", f"{int(current['TOTAL_CNT']):,}")
+with c2:
+    st.metric("% English Learners", f"{current['EL_PCT']:.0%}")
+with c3:
+    st.metric("% Low Income", f"{current['LI_PCT']:.0%}")
+with c4:
+    st.metric("% High Needs", f"{current['HN_PCT']:.0%}")
 
 st.divider()
 
@@ -65,7 +76,7 @@ Navigate the sections in the sidebar to explore:
 
 - **School Profile** — Demographics, enrollment trends, headline accountability indicators
 - **Academic Performance** — MCAS Grade 10 ELA, Math, STE trends with subgroup gaps
-- **ELL Pipeline** — WIDA proficiency, former-EL outcomes, ELL achievement gaps (central narrative thread)
+- **ELL Pipeline** — WIDA proficiency, former-EL outcomes, ELL achievement gaps *(central narrative thread)*
 - **College & Career** — AP access and performance, FAFSA, MassCore, graduate plans
 - **Success After HS** — Graduation rates, college enrollment, persistence
 - **Teachers & Workforce** — Diversity, experience, retention, support staff ratios
