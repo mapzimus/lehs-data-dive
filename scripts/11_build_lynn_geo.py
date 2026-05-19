@@ -623,6 +623,24 @@ def main() -> None:
     lynn_town.to_file(out, driver="GeoJSON")
     print(f"  [OK] {out.name}: {len(lynn_town)} polygons")
 
+    print("\nBuilding MA-wide public schools point layer...")
+    all_schools = gpd.read_file(SCHOOLS_SHP).to_crs(WEB_CRS)
+    keep_public = {"Public Elementary", "Public Middle", "Public Secondary",
+                   "Public Other", "Public Unknown", "Public Voc/Tech/Ag Reg'l HS",
+                   "Charter"}
+    ma_pub = all_schools[all_schools["TYPE_DESC"].isin(keep_public)].copy()
+    ma_pub["lon"] = ma_pub.geometry.x
+    ma_pub["lat"] = ma_pub.geometry.y
+    # Slim the properties before export
+    keep_school_cols = {"SCHID", "NAME", "TOWN", "GRADES", "TYPE_DESC",
+                        "DIST_NAME", "DIST_CODE", "lat", "lon", "geometry"}
+    ma_pub = ma_pub[[c for c in ma_pub.columns if c in keep_school_cols]]
+    out = PROCESSED_DIR / "ma_public_schools.geojson"
+    ma_pub.to_file(out, driver="GeoJSON")
+    print(f"  [OK] {out.name}: {len(ma_pub)} MA public+charter schools")
+    print(f"     by type: {ma_pub['TYPE_DESC'].value_counts().to_dict()}")
+    print(f"     file size: {out.stat().st_size // 1024:,} KB")
+
     print("\nLoading Lynn schools...")
     lynn_schools = load_lynn_schools()
     print(f"  found {len(lynn_schools)} schools in Lynn (incl. private + charter)")
