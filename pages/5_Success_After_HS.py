@@ -23,7 +23,7 @@ st.markdown(
 dart = load_dataset("dart_success_after_hs")
 grad = load_dataset("graduation_rates")
 if dart.empty or grad.empty:
-    st.warning("Data pipeline not yet run.")
+    st.info("Data is temporarily unavailable. Please check back later.")
     st.stop()
 
 # ---------------------------------------------------------------------------

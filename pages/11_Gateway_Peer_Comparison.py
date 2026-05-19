@@ -62,7 +62,7 @@ grad = load_dataset("graduation_rates")
 school_exp = load_dataset("school_expenditures")
 
 if enrollment.empty:
-    st.warning("Data pipeline not yet run.")
+    st.info("Data is temporarily unavailable. Please check back later.")
     st.stop()
 
 # ---------------------------------------------------------------------------

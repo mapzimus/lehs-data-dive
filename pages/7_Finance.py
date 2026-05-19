@@ -24,7 +24,7 @@ st.markdown(
 school_exp = load_dataset("school_expenditures")
 dist_exp = load_dataset("district_expenditures")
 if school_exp.empty:
-    st.warning("Data pipeline not yet run.")
+    st.info("Data is temporarily unavailable. Please check back later.")
     st.stop()
 
 lehs_exp = school_exp[school_exp["ORG_CODE"] == LEHS_SCHOOL_CODE].copy()

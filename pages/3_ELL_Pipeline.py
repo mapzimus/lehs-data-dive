@@ -30,7 +30,7 @@ st.markdown(
 enrollment = load_dataset("enrollment_demographics")
 mcas = load_dataset("mcas_achievement")
 if enrollment.empty or mcas.empty:
-    st.warning("Data pipeline not yet run.")
+    st.info("Data is temporarily unavailable. Please check back later.")
     st.stop()
 
 # ---------------------------------------------------------------------------

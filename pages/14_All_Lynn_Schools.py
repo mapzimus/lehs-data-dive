@@ -26,7 +26,7 @@ mcas = load_dataset("mcas_achievement")
 attendance = load_dataset("student_attendance")
 
 if enrollment.empty:
-    st.warning("Data pipeline not yet run.")
+    st.info("Data is temporarily unavailable. Please check back later.")
     st.stop()
 
 # Filter to Lynn district schools (any year)

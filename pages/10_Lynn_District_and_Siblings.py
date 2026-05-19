@@ -61,7 +61,7 @@ st.header("Lynn Public Schools — District Snapshot")
 
 enrollment = load_dataset("enrollment_demographics")
 if enrollment.empty:
-    st.warning("Data pipeline not yet run.")
+    st.info("Data is temporarily unavailable. Please check back later.")
     st.stop()
 
 district = enrollment[

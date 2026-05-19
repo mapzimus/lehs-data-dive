@@ -26,7 +26,7 @@ pathways = load_dataset("pathways_enrollment")
 ec_part = load_dataset("early_college_participation")
 
 if ap.empty:
-    st.warning("Data pipeline not yet run.")
+    st.info("Data is temporarily unavailable. Please check back later.")
     st.stop()
 
 # ---------------------------------------------------------------------------

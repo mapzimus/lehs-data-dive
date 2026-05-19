@@ -26,7 +26,7 @@ st.caption(
 staffing = load_dataset("staffing_race_gender")
 enrollment = load_dataset("enrollment_demographics")
 if staffing.empty:
-    st.warning("Data pipeline not yet run.")
+    st.info("Data is temporarily unavailable. Please check back later.")
     st.stop()
 
 lehs_staff = staffing[staffing["ORG_CODE"] == LEHS_SCHOOL_CODE].copy()
