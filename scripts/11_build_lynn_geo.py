@@ -12,7 +12,8 @@ Outputs (data/processed/, all in EPSG:4326 WGS84 for plotly mapbox):
   - lynn_tracts.geojson          — census tracts within Lynn town boundary
   - lynn_town.geojson            — Lynn town outline + neighboring towns
   - ma_districts_metrics.geojson — all MA districts + joined DESE metrics
-  - gateway_hs.geojson           — main HS in each gateway city
+  - ma_municipalities.geojson    — all 351 MA towns w/ gateway/Lynn flags + joined district metrics
+  - gateway_hs.geojson           — main HS in each gateway city (legacy, for compatibility)
 
 Run with:
     python scripts/11_build_lynn_geo.py
@@ -234,6 +235,75 @@ def load_ma_districts_with_metrics() -> gpd.GeoDataFrame:
     return out
 
 
+def load_ma_municipalities() -> gpd.GeoDataFrame:
+    """
+    All 351 MA municipalities as polygons, with:
+      - is_gateway: bool, whether it's one of the 26 Gateway Cities
+      - is_lynn: bool, whether this is Lynn itself
+      - county: county name
+      - pop_2020: population
+      - joined district metrics where the town's primary school district
+        can be identified (grad rate, per-pupil, % ELL, etc.)
+    """
+    towns = gpd.read_file(TOWNS_SHP).to_crs(WEB_CRS)
+
+    # Gateway flag
+    gateway_upper = {c.upper() for c in GATEWAY_CITIES}
+    towns["is_gateway"] = towns["TOWN"].isin(gateway_upper)
+    towns["is_lynn"] = towns["TOWN"] == "LYNN"
+
+    # Friendlier population column
+    if "POP2020" in towns.columns:
+        towns["pop_2020"] = pd.to_numeric(towns["POP2020"], errors="coerce")
+
+    # Title-case town names for display
+    towns["town_display"] = towns["TOWN"].str.title()
+
+    # Try to join the primary school district's DESE metrics via name match.
+    # MA towns and districts aren't strictly 1:1, but for most municipalities
+    # the district name contains or equals the town name.
+    e2c_raw = RAW_DIR / "e2c_hub"
+    if (e2c_raw / "enrollment_demographics.csv").exists():
+        enr = pd.read_csv(e2c_raw / "enrollment_demographics.csv", low_memory=False)
+        enr["DIST_CODE"] = enr["DIST_CODE"].astype(str).str.zfill(8)
+        enr_d = enr[
+            (enr["ORG_TYPE"] == "District") & (enr["SY"] == enr["SY"].max())
+        ][["DIST_CODE", "DIST_NAME", "TOTAL_CNT", "EL_PCT", "LI_PCT", "HN_PCT"]]
+        # Match: where DIST_NAME == town name (case-insensitive)
+        enr_d["DIST_NAME_upper"] = enr_d["DIST_NAME"].astype(str).str.upper()
+        towns_with_dist = towns.merge(
+            enr_d, left_on="TOWN", right_on="DIST_NAME_upper", how="left",
+        )
+
+        # Add grad rate
+        grad = pd.read_csv(e2c_raw / "graduation_rates.csv", low_memory=False)
+        grad["DIST_CODE"] = grad["DIST_CODE"].astype(str).str.zfill(8)
+        grad_d = grad[
+            (grad["STU_GRP"] == "All Students")
+            & (grad["GRAD_RATE_TYPE"] == "4-Year Adjusted Cohort Graduation Rate")
+            & (grad["ORG_TYPE"] == "District")
+        ].sort_values("SY").groupby("DIST_CODE").tail(1)
+        grad_d = grad_d[["DIST_CODE", "GRAD_PCT"]].rename(columns={"GRAD_PCT": "grad_4yr"})
+        towns_with_dist = towns_with_dist.merge(grad_d, on="DIST_CODE", how="left")
+
+        # Add per-pupil
+        dexp = pd.read_csv(e2c_raw / "district_expenditures.csv", low_memory=False)
+        dexp["DIST_CODE"] = dexp["DIST_CODE"].astype(str).str.zfill(8)
+        dexp["IND_VALUE"] = pd.to_numeric(dexp["IND_VALUE"], errors="coerce")
+        pp = dexp[
+            dexp["IND_SUBCAT"].astype(str).str.contains("Total Expenditures", case=False, na=False)
+        ].sort_values("SY").groupby("DIST_CODE").tail(1)[["DIST_CODE", "IND_VALUE"]].rename(
+            columns={"IND_VALUE": "per_pupil"}
+        )
+        towns_with_dist = towns_with_dist.merge(pp, on="DIST_CODE", how="left")
+
+        # Drop helper col
+        towns_with_dist = towns_with_dist.drop(columns=["DIST_NAME_upper"], errors="ignore")
+        return towns_with_dist
+
+    return towns
+
+
 def load_gateway_main_hs() -> gpd.GeoDataFrame:
     """One row per gateway-city main HS, with coordinates."""
     schools = gpd.read_file(SCHOOLS_SHP).to_crs(WEB_CRS)
@@ -303,6 +373,15 @@ def main() -> None:
     has_grad = ma_districts["grad_4yr"].notna().sum()
     has_pp = ma_districts["per_pupil"].notna().sum()
     print(f"     {has_grad} have grad rate, {has_pp} have per-pupil")
+
+    print("\nLoading MA municipalities (all 351 towns)...")
+    ma_munis = load_ma_municipalities()
+    out = PROCESSED_DIR / "ma_municipalities.geojson"
+    ma_munis.to_file(out, driver="GeoJSON")
+    print(f"  [OK] {out.name}: {len(ma_munis)} municipalities")
+    print(f"     {ma_munis['is_gateway'].sum()} flagged as Gateway Cities")
+    if "grad_4yr" in ma_munis.columns:
+        print(f"     {ma_munis['grad_4yr'].notna().sum()} matched a district by name")
 
     print("\nLoading gateway-city main HS...")
     gateway = load_gateway_main_hs()
