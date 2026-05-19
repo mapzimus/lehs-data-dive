@@ -40,6 +40,22 @@ from utils.constants import (  # noqa: E402
 
 GIS_DIR = RAW_DIR / "gis"
 WEB_CRS = "EPSG:4326"  # plotly mapbox wants lat/lon
+PROJ_CRS = "EPSG:26986"  # MA State Plane (meters), for simplification
+
+# Geometry simplification tolerance (in meters in PROJ_CRS) for statewide
+# polygon layers. 50m is invisible at MA-statewide zoom and shrinks file
+# size dramatically (10x+ reduction common). For Lynn close-up layers we
+# keep full precision.
+SIMPLIFY_TOL_STATEWIDE = 50
+
+
+def simplify_for_web(gdf: gpd.GeoDataFrame, tolerance_m: int = SIMPLIFY_TOL_STATEWIDE) -> gpd.GeoDataFrame:
+    """Simplify polygons in projected meters, then return in web CRS."""
+    if gdf.crs is None:
+        return gdf
+    projected = gdf.to_crs(PROJ_CRS).copy()
+    projected.geometry = projected.geometry.simplify(tolerance_m, preserve_topology=True)
+    return projected.to_crs(WEB_CRS)
 
 SCHOOLS_SHP = GIS_DIR / "schools_pt" / "Schools" / "SCHOOLS_PT.shp"
 DISTRICTS_SHP = GIS_DIR / "school_districts" / "SCHOOLDISTRICTS_CCUV_POLY.shp"
@@ -367,21 +383,35 @@ def main() -> None:
 
     print("\nLoading MA school districts + DESE metrics...")
     ma_districts = load_ma_districts_with_metrics()
+    # Drop fields we don't surface in popups to slim the file
+    keep_d = {"ORG8CODE", "DIST_NAME", "TYPE", "TOTAL_CNT", "EL_PCT", "LI_PCT",
+              "HN_PCT", "HL_PCT", "grad_4yr", "per_pupil", "geometry"}
+    ma_districts = ma_districts[[c for c in ma_districts.columns if c in keep_d]]
+    ma_districts = simplify_for_web(ma_districts)
     out = PROCESSED_DIR / "ma_districts_metrics.geojson"
     ma_districts.to_file(out, driver="GeoJSON")
     print(f"  [OK] {out.name}: {len(ma_districts)} districts")
     has_grad = ma_districts["grad_4yr"].notna().sum()
     has_pp = ma_districts["per_pupil"].notna().sum()
     print(f"     {has_grad} have grad rate, {has_pp} have per-pupil")
+    print(f"     file size: {out.stat().st_size // 1024:,} KB")
 
     print("\nLoading MA municipalities (all 351 towns)...")
     ma_munis = load_ma_municipalities()
+    # Drop fields not used in popups: AREA_*, SHAPE_*, FOURCOLOR, POP1960-2000, etc.
+    keep_m = {"TOWN", "town_display", "TOWN_ID", "COUNTY", "TYPE", "POP2020",
+              "pop_2020", "is_gateway", "is_lynn", "DIST_NAME", "DIST_CODE",
+              "TOTAL_CNT", "EL_PCT", "LI_PCT", "HN_PCT", "grad_4yr", "per_pupil",
+              "geometry"}
+    ma_munis = ma_munis[[c for c in ma_munis.columns if c in keep_m]]
+    ma_munis = simplify_for_web(ma_munis)
     out = PROCESSED_DIR / "ma_municipalities.geojson"
     ma_munis.to_file(out, driver="GeoJSON")
     print(f"  [OK] {out.name}: {len(ma_munis)} municipalities")
     print(f"     {ma_munis['is_gateway'].sum()} flagged as Gateway Cities")
     if "grad_4yr" in ma_munis.columns:
         print(f"     {ma_munis['grad_4yr'].notna().sum()} matched a district by name")
+    print(f"     file size: {out.stat().st_size // 1024:,} KB")
 
     print("\nLoading gateway-city main HS...")
     gateway = load_gateway_main_hs()

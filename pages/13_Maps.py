@@ -44,30 +44,56 @@ and an ArcGIS-style layer panel.
 
 MAPS_URL = "https://maxwellhowegis.com/Lynn-data-dive/maps/"
 
-st.markdown(
+import streamlit.components.v1 as components
+
+# Render the launch button via st.components.v1.html so the anchor's
+# target="_top" actually escapes the parent (maxwellhowegis.com) iframe.
+# Streamlit's markdown html sanitization can drop target attributes.
+components.html(
     f"""
-    <div style='margin: 32px 0; text-align: center;'>
-        <a href='{MAPS_URL}'
-           target='_top'
-           style='display: inline-block;
-                  padding: 18px 36px;
-                  background: #0A1F44;
-                  color: white;
-                  text-decoration: none;
-                  font-size: 18px;
-                  font-weight: 600;
-                  border-radius: 8px;
-                  box-shadow: 0 4px 12px rgba(10, 31, 68, 0.2);
-                  transition: all 0.15s;
-                  font-family: sans-serif;'>
-            🗺️&nbsp;&nbsp;Open the Maps&nbsp;&nbsp;→
-        </a>
-        <div style='margin-top: 10px; color: #607D8B; font-size: 13px; font-family: sans-serif;'>
-            Opens in the same browser tab — full screen, vector tiles, layer panel.
+    <html>
+      <head>
+        <style>
+          body {{ margin: 0; font-family: sans-serif; }}
+          .wrap {{ text-align: center; padding: 24px 0; }}
+          .btn {{
+            display: inline-block;
+            padding: 18px 36px;
+            background: #0A1F44;
+            color: white !important;
+            text-decoration: none;
+            font-size: 18px;
+            font-weight: 600;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(10, 31, 68, 0.2);
+            transition: all 0.15s;
+            cursor: pointer;
+          }}
+          .btn:hover {{
+            background: #1a3a6b;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(10, 31, 68, 0.28);
+          }}
+          .sub {{
+            margin-top: 12px;
+            color: #607D8B;
+            font-size: 13px;
+          }}
+        </style>
+      </head>
+      <body>
+        <div class="wrap">
+          <a class="btn"
+             href="{MAPS_URL}"
+             target="_top"
+             rel="noopener">Open the Maps &rarr;</a>
+          <div class="sub">Opens in the same browser tab — full screen, vector tiles, layer panel.</div>
         </div>
-    </div>
+      </body>
+    </html>
     """,
-    unsafe_allow_html=True,
+    height=140,
+    scrolling=False,
 )
 
 st.divider()
