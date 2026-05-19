@@ -844,6 +844,11 @@ function wireUI() {
     document.getElementById("yearSlider").addEventListener("input", e => {
         document.getElementById("yearLabel").textContent = e.target.value;
     });
+    // Student-group filter — scaffolded; activates when group-sliced columns
+    // are baked into the geojson properties.
+    document.getElementById("groupSelect").addEventListener("change", e => {
+        state.studentGroup = e.target.value;
+    });
     document.getElementById("paletteSelect").addEventListener("change", e => {
         state.palette = e.target.value;
         applyChoropleth();
