@@ -538,19 +538,190 @@ function addLayers() {
     map.on("mouseleave", "schools-circles", () => map.getCanvas().style.cursor = "");
 }
 
-// ─── POPUPS ──────────────────────────────────────────────────────────────────
+// ─── FEATURE DETAIL — STICKY SIDE PANEL (replaces popup) ─────────────────────
 function showPopup(e, kind) {
     if (!e.features.length) return;
-    const p = e.features[0].properties;
-    new maplibregl.Popup({ closeButton: true, maxWidth: "340px" })
-        .setLngLat(e.lngLat)
-        .setHTML(buildPopupHtml(p, kind))
-        .addTo(map);
+    openFeaturePanel(e.features[0].properties, kind);
+}
+
+function openFeaturePanel(p, kind) {
+    const panel = document.getElementById("featurePanel");
+    const title = document.getElementById("featurePanelTitle");
+    const body = document.getElementById("featurePanelBody");
+    title.textContent = featureName(p, kind);
+    body.innerHTML = buildPanelHtml(p, kind);
+    panel.classList.add("open");
+    panel.setAttribute("aria-hidden", "false");
+}
+
+function closeFeaturePanel() {
+    const panel = document.getElementById("featurePanel");
+    panel.classList.remove("open");
+    panel.setAttribute("aria-hidden", "true");
+}
+
+function featureName(p, kind) {
+    if (kind === "school")   return p.NAME || "School";
+    if (kind === "tract")    return p.NAMELSAD || "Census Tract";
+    if (kind === "muni")     return p.town_display || p.TOWN || "Municipality";
+    if (kind === "district") return p.dist_display || p.DIST_NAME || "District";
+    return "Feature";
+}
+
+function fpSection(title, rowsHtml) {
+    return rowsHtml.trim()
+        ? `<div class="feature-panel-section"><h3>${title}</h3>${rowsHtml}</div>`
+        : "";
+}
+
+function fpRow(label, value, kind = "num", highlight = false) {
+    const v = fmt(+value, kind);
+    if (value == null || !isFinite(+value)) return "";
+    return `<div class="feature-panel-row"><span class="label">${label}</span><span class="value${highlight ? ' highlight' : ''}">${v}</span></div>`;
+}
+
+function buildPanelHtml(p, kind) {
+    if (kind === "school") {
+        const isLehs = p.ORG_CODE === "01630510";
+        return `
+            ${isLehs ? '<div class="feature-panel-tag">Focus school</div>' : ""}
+            <div class="feature-panel-section">
+                <div class="feature-panel-row"><span class="label">Type</span><span class="value">${p.TYPE_DESC || "—"}</span></div>
+                <div class="feature-panel-row"><span class="label">Grades</span><span class="value">${p.GRADES || "—"}</span></div>
+                ${fpRow("Enrollment", p.TOTAL_CNT, "num")}
+            </div>
+            ${fpSection("Student composition", [
+                fpRow("% English Learner", p.EL_PCT, "pct"),
+                fpRow("% Low Income", p.LI_PCT, "pct"),
+                fpRow("% High Needs", p.HN_PCT, "pct"),
+                fpRow("% Hispanic/Latino", p.HL_PCT, "pct"),
+                fpRow("% Black/African Am.", p.BAA_PCT, "pct"),
+                fpRow("% Asian", p.AS_PCT, "pct"),
+                fpRow("% White", p.WH_PCT, "pct"),
+                fpRow("% SPED", p.SWD_PCT, "pct"),
+            ].join(""))}
+        `;
+    }
+    if (kind === "tract") {
+        return `
+            <div class="feature-panel-section">
+                <div class="feature-panel-row"><span class="label">GEOID</span><span class="value">${p.GEOID}</span></div>
+                ${fpRow("Population (age 5+)", p.lang_total, "num")}
+            </div>
+            ${fpSection("Census ACS — economic", [
+                fpRow("Median household income", p.median_household_income, "usd"),
+                fpRow("% Severely rent-burdened", p.severe_burden_pct, "pct"),
+            ].join(""))}
+            ${fpSection("Census ACS — demographic", [
+                fpRow("% Foreign-born", p.foreign_born_pct, "pct"),
+                fpRow("% non-English at home", p.non_english_pct, "pct"),
+                fpRow("% Bachelor's or higher", p.bachelors_or_higher_pct, "pct"),
+            ].join(""))}
+            ${state.metric ? fpSection("Active metric", [
+                fpRow(getMetric(state.metric).label, p[state.metric], getMetric(state.metric).format, true)
+            ].join("")) : ""}
+        `;
+    }
+    if (kind === "muni") {
+        let tagHtml = "";
+        if (p.is_lynn) tagHtml = '<div class="feature-panel-tag" style="background:#FFE082;">Lynn — dashboard focus</div>';
+        else if (p.is_gateway) tagHtml = '<div class="feature-panel-tag" style="background:#E1BEE7;">Gateway City</div>';
+        return `
+            ${tagHtml}
+            <div class="feature-panel-section">
+                <div class="feature-panel-row"><span class="label">County</span><span class="value">${p.COUNTY || "—"}</span></div>
+                ${fpRow("Population (2020)", p.pop_2020 || p.POP2020, "num")}
+                ${p.DIST_NAME ? `<div class="feature-panel-row"><span class="label">Matched district</span><span class="value">${p.DIST_NAME}</span></div>` : ""}
+            </div>
+            ${fpSection("District composition", [
+                fpRow("Enrollment", p.TOTAL_CNT, "num"),
+                fpRow("% English Learner", p.EL_PCT, "pct"),
+                fpRow("% Low Income", p.LI_PCT, "pct"),
+                fpRow("% High Needs", p.HN_PCT, "pct"),
+            ].join(""))}
+            ${fpSection("District outcomes", [
+                fpRow("4-yr Graduation", p.grad_4yr, "pct"),
+                fpRow("Dropout", p.dropout_pct, "pct"),
+                fpRow("MCAS Gr10 ELA % M+E", p.mcas_g10_ela_me, "pct"),
+                fpRow("MCAS Gr10 Math % M+E", p.mcas_g10_math_me, "pct"),
+                fpRow("Chronic absent", p.chronic_absent_pct, "pct"),
+            ].join(""))}
+            ${fpSection("Finance", [
+                fpRow("Per-pupil $", p.per_pupil, "usd"),
+            ].join(""))}
+            ${fpSection("Active metric", [
+                fpRow(getMetric(state.metric).label, p[state.metric], getMetric(state.metric).format, true)
+            ].join(""))}
+        `;
+    }
+    if (kind === "district") {
+        const isLynn = p.DIST_CODE === "01630000" || p.is_lynn === true;
+        return `
+            ${isLynn ? '<div class="feature-panel-tag" style="background:#FFE082;">Lynn Public Schools</div>' : ""}
+            <div class="feature-panel-section">
+                <div class="feature-panel-row"><span class="label">District code</span><span class="value">${p.DIST_CODE || "—"}</span></div>
+                ${fpRow("Enrollment", p.TOTAL_CNT, "num")}
+            </div>
+            ${fpSection("Student composition", [
+                fpRow("% English Learner", p.EL_PCT, "pct"),
+                fpRow("% Low Income", p.LI_PCT, "pct"),
+                fpRow("% High Needs", p.HN_PCT, "pct"),
+                fpRow("% Hispanic/Latino", p.HL_PCT, "pct"),
+                fpRow("% Black/African Am.", p.BAA_PCT, "pct"),
+                fpRow("% White", p.WH_PCT, "pct"),
+                fpRow("% SPED", p.SWD_PCT, "pct"),
+            ].join(""))}
+            ${fpSection("Academic outcomes", [
+                fpRow("MCAS Gr10 ELA % M+E", p.mcas_g10_ela_me, "pct"),
+                fpRow("MCAS Gr10 Math % M+E", p.mcas_g10_math_me, "pct"),
+                fpRow("MCAS Gr10 STE % M+E", p.mcas_g10_sci_me, "pct"),
+                fpRow("4-yr Graduation", p.grad_4yr, "pct"),
+                fpRow("5-yr Graduation", p.grad_5yr, "pct"),
+                fpRow("Dropout", p.dropout_pct, "pct"),
+                fpRow("Attendance", p.attendance_rate, "pct"),
+                fpRow("Chronic absent", p.chronic_absent_pct, "pct"),
+                fpRow("MassCore completion", p.masscore_pct, "pct"),
+                fpRow("AP % scoring 3+", p.ap_pct_3plus, "pct"),
+            ].join(""))}
+            ${fpSection("Postsecondary plans", [
+                fpRow("% Any college", p.pct_any_college, "pct"),
+                fpRow("% 4-yr college", p.pct_4yr_college, "pct"),
+                fpRow("% 2-yr college", p.pct_2yr_college, "pct"),
+                fpRow("% Work after HS", p.pct_work_after_hs, "pct"),
+                fpRow("% Military", p.pct_military, "pct"),
+            ].join(""))}
+            ${fpSection("Finance — per-pupil $", [
+                fpRow("Total", p.per_pupil, "usd"),
+                fpRow("Teachers", p.per_pupil_teachers, "usd"),
+                fpRow("Administration", p.per_pupil_admin, "usd"),
+                fpRow("Pupil services", p.per_pupil_pupil_services, "usd"),
+            ].join(""))}
+            ${fpSection("Workforce", [
+                fpRow("Student : Teacher", p.stu_tchr_ratio, "num"),
+                fpRow("% Experienced teachers", p.teacher_experienced_pct, "pct"),
+                fpRow("% Teachers in-field", p.teacher_infield_pct, "pct"),
+                fpRow("Teacher retention", p.teacher_retention_pct, "pct"),
+                fpRow("% Staff: White", p.staff_white_pct, "pct"),
+                fpRow("% Staff: Hispanic", p.staff_hispanic_pct, "pct"),
+                fpRow("% Staff: Black", p.staff_black_pct, "pct"),
+            ].join(""))}
+            ${fpSection("Active metric", [
+                fpRow(getMetric(state.metric).label, p[state.metric], getMetric(state.metric).format, true)
+            ].join(""))}
+        `;
+    }
+    return `<div class="feature-panel-section">Click a feature on the map.</div>`;
 }
 
 function row(label, value, kind = "num") {
     return `<div class="popup-row"><span class="label">${label}</span><span class="value">${fmt(+value, kind)}</span></div>`;
 }
+
+// Wire close button (added once on load)
+document.addEventListener("DOMContentLoaded", () => {
+    const closeBtn = document.getElementById("featurePanelClose");
+    if (closeBtn) closeBtn.addEventListener("click", closeFeaturePanel);
+});
 
 function buildPopupHtml(p, kind) {
     if (kind === "school") {

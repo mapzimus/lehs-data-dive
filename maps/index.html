@@ -194,6 +194,15 @@
     <!-- HOVER TOOLTIP (positioned via JS) -->
     <div class="map-tooltip" id="mapTooltip" aria-hidden="true"></div>
 
+    <!-- FEATURE DETAIL SIDE PANEL (sticky, right side) -->
+    <aside class="feature-panel" id="featurePanel" aria-hidden="true">
+        <header class="feature-panel-header">
+            <div class="feature-panel-title" id="featurePanelTitle">Feature</div>
+            <button class="feature-panel-close" id="featurePanelClose" aria-label="Close">&times;</button>
+        </header>
+        <div class="feature-panel-body" id="featurePanelBody"></div>
+    </aside>
+
     <!-- LOADING -->
     <div class="map-loading" id="mapLoading">
         <div class="map-loading-spinner"></div>
