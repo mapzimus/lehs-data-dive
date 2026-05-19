@@ -23,8 +23,18 @@ REPORTS_DIR = PROJECT_ROOT / "reports"
 
 LEHS_SCHOOL_NAME = "Lynn English High"
 LEHS_SCHOOL_CODE = "01630510"          # verified 2026-05-18 from MCAS dataset
+LCHS_SCHOOL_NAME = "Classical High"
+LCHS_SCHOOL_CODE = "01630505"          # Lynn Classical High — Lynn's other comprehensive HS
 LYNN_DISTRICT_CODE = "01630000"
-LYNN_DISTRICT_NAME = "Lynn"
+LYNN_DISTRICT_NAME = "Lynn Public Schools"   # the district — distinct from LEHS the school
+
+# Reminder: "Lynn" by itself almost always refers to the DISTRICT (16,000+
+# students, 22 schools). When you want to talk about Lynn English High
+# specifically, use LEHS. When the comparison is school-to-school
+# (e.g., gateway-city main HS) use LEHS_SCHOOL_CODE. When the comparison
+# is district-to-district, use LYNN_DISTRICT_CODE. LCHS is the other
+# major comprehensive HS in the same district and belongs alongside LEHS
+# in any school-to-school chart.
 
 # ---------------------------------------------------------------------------
 # Lynn sibling high schools — the closest comparison group
