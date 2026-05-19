@@ -200,14 +200,10 @@ with c1:
 with c2:
     st.markdown(
         """
-**Lynn maps (13–17)**
-- **Lynn Overview Map** — all schools pinned
-- **Lynn Equity Maps** — tract demographics + linguistic landscape
-- **Lynn Novel Maps** — Voronoi catchments + bivariate
-- **MA Districts Statewide** — every district colored by metric
-- **Gateway Cities Map** — 26 cities on the MA map
+**Maps (13)**
+- **Maps** — Four tabs: Lynn Schools / Lynn Demographics / Massachusetts / Gateway Cities
 
-**Companion + research (18–20, 99)**
+**Companion + research (14–16, 99)**
 - **All Lynn Schools** — filter/sort all 22 LPS schools
 - **Lynn District Dashboard** — LPS as a whole
 - **Catchment Research** — original geospatial analysis

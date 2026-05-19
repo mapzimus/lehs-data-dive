@@ -161,9 +161,8 @@ This research informs three other dashboard pages:
   relation to the school helps explain attendance patterns specific
   to that population.
 
-- **[Lynn Maps Overview](/Maps_Lynn_Overview)** — the public schools
-  map shows where the schools *are*; this research shows where the
-  *students* are, which can be very different.
+- **[Maps](/Maps)** (Lynn Schools tab) — shows where the schools *are*;
+  this research shows where the *students* are, which can be very different.
 """
 )
 

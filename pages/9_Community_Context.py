@@ -88,8 +88,8 @@ Lynn's community context vs. each of the other 25 gateway cities — answers
 )
 
 st.markdown(
-    "**Available now via the Lynn Maps section:**\n"
-    "- The [Lynn Equity Maps](/Maps_Lynn_Equity) page has tract-level Census ACS "
+    "**Available now via the Maps section:**\n"
+    "- The [Maps](/Maps) page (Lynn Demographics tab) has tract-level Census ACS "
     "data for median income, foreign-born share, educational attainment, and "
     "the linguistic landscape — Lynn-area census tracts colored by these "
     "indicators. That's the community context, rendered geographically."
