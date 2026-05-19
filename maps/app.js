@@ -735,14 +735,26 @@ function updateLegend() {
 }
 
 // ─── UI WIRING ───────────────────────────────────────────────────────────────
-function populateMetricSelect() {
+function populateMetricSelect(searchTerm = "") {
     const sel = document.getElementById("metricSelect");
-    const categories = [...new Set(METRICS.filter(m => m.levels.includes(state.level)).map(m => m.cat))];
+    const term = searchTerm.trim().toLowerCase();
+    const matches = m =>
+        m.levels.includes(state.level) &&
+        (!term || m.label.toLowerCase().includes(term) || m.cat.toLowerCase().includes(term));
+    const candidates = METRICS.filter(matches);
+    const categories = [...new Set(candidates.map(m => m.cat))];
     sel.innerHTML = "";
+    if (candidates.length === 0) {
+        const opt = document.createElement("option");
+        opt.textContent = `No metrics match "${searchTerm}"`;
+        opt.disabled = true;
+        sel.appendChild(opt);
+        return;
+    }
     categories.forEach(cat => {
         const grp = document.createElement("optgroup");
         grp.label = cat;
-        METRICS.filter(m => m.cat === cat && m.levels.includes(state.level)).forEach(m => {
+        candidates.filter(m => m.cat === cat).forEach(m => {
             const opt = document.createElement("option");
             opt.value = m.id;
             opt.textContent = m.label;
@@ -750,11 +762,9 @@ function populateMetricSelect() {
         });
         sel.appendChild(grp);
     });
-    // If current metric isn't available at this level, pick the first option
-    const avail = METRICS.filter(m => m.levels.includes(state.level)).map(m => m.id);
-    if (!avail.includes(state.metric)) state.metric = avail[0];
+    const availIds = candidates.map(m => m.id);
+    if (!availIds.includes(state.metric)) state.metric = availIds[0];
     sel.value = state.metric;
-    // Also reset palette to metric's default
     state.palette = getMetric(state.metric).palette;
     document.getElementById("paletteSelect").value = state.palette;
     updateMetricSummary();
@@ -823,6 +833,11 @@ function wireUI() {
         applyChoropleth();
         updateLegend();
         updateMetricSummary();
+    });
+    document.getElementById("metricSearch").addEventListener("input", e => {
+        populateMetricSelect(e.target.value);
+        applyChoropleth();
+        updateLegend();
     });
     document.getElementById("paletteSelect").addEventListener("change", e => {
         state.palette = e.target.value;
