@@ -205,119 +205,266 @@ def load_lynn_tracts(lynn_town: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     return essex_in_lynn
 
 
-def load_ma_districts_with_metrics() -> gpd.GeoDataFrame:
-    """MA school district polygons + DESE per-district metrics.
-
-    Reads from RAW (unfiltered) E2C CSVs so we get ALL ~400 districts statewide,
-    not just the 26 we filtered to in data/processed/.
+def _build_district_metrics_table() -> pd.DataFrame:
     """
+    Join every available district-level metric from the raw E2C CSVs into a
+    single wide DataFrame keyed by DIST_CODE. Latest year per dataset.
+
+    Returns a DataFrame with columns:
+      DIST_CODE, DIST_NAME, plus ~25 numeric metric columns.
+    """
+    e2c_raw = RAW_DIR / "e2c_hub"
+
+    # ─── 1. Enrollment / demographics ─────────────────────────────────────────
+    enr = pd.read_csv(e2c_raw / "enrollment_demographics.csv", low_memory=False)
+    enr["DIST_CODE"] = enr["DIST_CODE"].astype(str).str.zfill(8)
+    enr_d = enr[(enr["ORG_TYPE"] == "District") & (enr["SY"] == enr["SY"].max())]
+    enr_cols = ["DIST_CODE", "DIST_NAME", "TOTAL_CNT", "EL_PCT", "LI_PCT",
+                "HN_PCT", "HL_PCT", "BAA_PCT", "AS_PCT", "WH_PCT",
+                "SWD_PCT", "FLNE_PCT", "FE_PCT"]
+    out = enr_d[[c for c in enr_cols if c in enr_d.columns]].copy()
+
+    # ─── 2. Graduation rates (4-yr + 5-yr All Students) ───────────────────────
+    grad = pd.read_csv(e2c_raw / "graduation_rates.csv", low_memory=False)
+    grad["DIST_CODE"] = grad["DIST_CODE"].astype(str).str.zfill(8)
+    grad_4yr = grad[
+        (grad["STU_GRP"] == "All Students")
+        & (grad["GRAD_RATE_TYPE"] == "4-Year Adjusted Cohort Graduation Rate")
+        & (grad["ORG_TYPE"] == "District")
+    ].sort_values("SY").groupby("DIST_CODE").tail(1)[["DIST_CODE", "GRAD_PCT", "DRPOUT_PCT"]]
+    grad_4yr = grad_4yr.rename(columns={"GRAD_PCT": "grad_4yr", "DRPOUT_PCT": "dropout_pct"})
+    out = out.merge(grad_4yr, on="DIST_CODE", how="left")
+
+    grad_5yr = grad[
+        (grad["STU_GRP"] == "All Students")
+        & (grad["GRAD_RATE_TYPE"] == "5-Year Adjusted Cohort Graduation Rate")
+        & (grad["ORG_TYPE"] == "District")
+    ].sort_values("SY").groupby("DIST_CODE").tail(1)[["DIST_CODE", "GRAD_PCT"]]
+    grad_5yr = grad_5yr.rename(columns={"GRAD_PCT": "grad_5yr"})
+    out = out.merge(grad_5yr, on="DIST_CODE", how="left")
+
+    # ─── 3. MCAS grade 10 (district, all students) ────────────────────────────
+    mcas = pd.read_csv(e2c_raw / "mcas_achievement.csv", low_memory=False)
+    mcas["DIST_CODE"] = mcas["DIST_CODE"].astype(str).str.zfill(8)
+    mcas["TEST_GRADE"] = mcas["TEST_GRADE"].astype(str)
+    g10 = mcas[
+        (mcas["TEST_GRADE"] == "10")
+        & (mcas["STU_GRP"] == "All Students")
+        & (mcas["ORG_TYPE"] == "District")
+    ].sort_values("SY").groupby(["DIST_CODE", "SUBJECT_CODE"]).tail(1)
+    g10_pivot = g10.pivot_table(
+        index="DIST_CODE", columns="SUBJECT_CODE", values="M_PLUS_E_PCT", aggfunc="first"
+    ).reset_index()
+    g10_pivot.columns = ["DIST_CODE"] + [f"mcas_g10_{c.lower()}_me" for c in g10_pivot.columns[1:]]
+    out = out.merge(g10_pivot, on="DIST_CODE", how="left")
+
+    # Grade 3-8 average M+E (across grades, all students)
+    g38 = mcas[
+        (mcas["TEST_GRADE"].isin(["03", "04", "05", "06", "07", "08", "3", "4", "5", "6", "7", "8"]))
+        & (mcas["STU_GRP"] == "All Students")
+        & (mcas["ORG_TYPE"] == "District")
+    ].copy()
+    if not g38.empty:
+        latest_g38_sy = g38["SY"].max()
+        g38_latest = g38[g38["SY"] == latest_g38_sy]
+        g38_avg = (g38_latest.groupby(["DIST_CODE", "SUBJECT_CODE"])["M_PLUS_E_PCT"]
+                    .mean().reset_index()
+                    .pivot_table(index="DIST_CODE", columns="SUBJECT_CODE",
+                                  values="M_PLUS_E_PCT", aggfunc="first").reset_index())
+        g38_avg.columns = ["DIST_CODE"] + [f"mcas_g38_{c.lower()}_me" for c in g38_avg.columns[1:]]
+        out = out.merge(g38_avg, on="DIST_CODE", how="left")
+
+    # ─── 4. Attendance (chronic absenteeism, district) ────────────────────────
+    att_path = e2c_raw / "student_attendance.csv"
+    if att_path.exists():
+        att = pd.read_csv(att_path, low_memory=False)
+        att["DIST_CODE"] = att["DIST_CODE"].astype(str).str.zfill(8)
+        att_d = att[
+            (att["STU_GRP"] == "All Students")
+            & (att["ORG_TYPE"] == "District")
+            & (att.get("ATTEND_PERIOD", "FY") == "FY")
+        ].sort_values("SY").groupby("DIST_CODE").tail(1)
+        if "PCT_CHRON_ABS_10" in att_d.columns:
+            att_d = att_d[["DIST_CODE", "PCT_CHRON_ABS_10"]].rename(
+                columns={"PCT_CHRON_ABS_10": "chronic_absent_pct"}
+            )
+            att_d["chronic_absent_pct"] = pd.to_numeric(att_d["chronic_absent_pct"], errors="coerce")
+            out = out.merge(att_d, on="DIST_CODE", how="left")
+
+    # ─── 5. AP performance (district aggregate — % scoring 3+) ────────────────
+    ap_path = e2c_raw / "ap_performance.csv"
+    if ap_path.exists():
+        ap = pd.read_csv(ap_path, low_memory=False)
+        ap["DIST_CODE"] = ap["DIST_CODE"].astype(str).str.zfill(8)
+        ap_d = ap[
+            (ap["ORG_TYPE"] == "District")
+            & (ap["STU_GRP"] == "All Students")
+            & (ap["SUBJ_CAT"].astype(str).str.lower() == "all subjects")
+        ].sort_values("SY").groupby("DIST_CODE").tail(1)
+        if "PCT_3_5" in ap_d.columns:
+            ap_d["ap_pct_3plus"] = pd.to_numeric(ap_d["PCT_3_5"], errors="coerce")
+            ap_d["ap_tests_taken"] = pd.to_numeric(ap_d["TESTS_TAKEN"], errors="coerce")
+            out = out.merge(ap_d[["DIST_CODE", "ap_pct_3plus", "ap_tests_taken"]],
+                             on="DIST_CODE", how="left")
+
+    # ─── 6. MassCore completion ───────────────────────────────────────────────
+    mc_path = e2c_raw / "masscore_completion.csv"
+    if mc_path.exists():
+        mc = pd.read_csv(mc_path, low_memory=False)
+        mc["DIST_CODE"] = mc["DIST_CODE"].astype(str).str.zfill(8)
+        mc_d = mc[
+            (mc["ORG_TYPE"] == "District")
+            & (mc["STU_GRP"] == "All Students")
+        ].sort_values("SY").groupby("DIST_CODE").tail(1)
+        if "PCT_COMPL_MASSCORE" in mc_d.columns:
+            mc_d = mc_d[["DIST_CODE", "PCT_COMPL_MASSCORE"]].rename(
+                columns={"PCT_COMPL_MASSCORE": "masscore_pct"}
+            )
+            out = out.merge(mc_d, on="DIST_CODE", how="left")
+
+    # ─── 7. Finance (per-pupil by category) ───────────────────────────────────
+    # IND_CAT="Expenditures Per Pupil" + IND_SUBCAT picks the category.
+    # IND_CAT="Total Expenditures" gives the total district spend (not per-pupil).
+    dexp = pd.read_csv(e2c_raw / "district_expenditures.csv", low_memory=False)
+    dexp["DIST_CODE"] = dexp["DIST_CODE"].astype(str).str.zfill(8)
+    dexp["IND_VALUE"] = pd.to_numeric(dexp["IND_VALUE"], errors="coerce")
+    pp_all = dexp[dexp["IND_CAT"] == "Expenditures Per Pupil"]
+
+    pp_total = pp_all[pp_all["IND_SUBCAT"] == "Total Expenditures"].sort_values("SY") \
+        .groupby("DIST_CODE").tail(1)[["DIST_CODE", "IND_VALUE"]].rename(
+            columns={"IND_VALUE": "per_pupil"}
+        )
+    out = out.merge(pp_total, on="DIST_CODE", how="left")
+
+    pp_teachers = pp_all[pp_all["IND_SUBCAT"] == "Teachers"].sort_values("SY") \
+        .groupby("DIST_CODE").tail(1)[["DIST_CODE", "IND_VALUE"]].rename(
+            columns={"IND_VALUE": "per_pupil_teachers"}
+        )
+    out = out.merge(pp_teachers, on="DIST_CODE", how="left")
+
+    pp_admin = pp_all[pp_all["IND_SUBCAT"] == "Administration"].sort_values("SY") \
+        .groupby("DIST_CODE").tail(1)[["DIST_CODE", "IND_VALUE"]].rename(
+            columns={"IND_VALUE": "per_pupil_admin"}
+        )
+    out = out.merge(pp_admin, on="DIST_CODE", how="left")
+
+    pp_pupil_svc = pp_all[pp_all["IND_SUBCAT"] == "Pupil Services"].sort_values("SY") \
+        .groupby("DIST_CODE").tail(1)[["DIST_CODE", "IND_VALUE"]].rename(
+            columns={"IND_VALUE": "per_pupil_pupil_services"}
+        )
+    out = out.merge(pp_pupil_svc, on="DIST_CODE", how="left")
+
+    # ─── 8. Staffing (teacher diversity, district level) ──────────────────────
+    sr_path = e2c_raw / "staffing_race_gender.csv"
+    if sr_path.exists():
+        sr = pd.read_csv(sr_path, low_memory=False)
+        sr["DIST_CODE"] = sr["DIST_CODE"].astype(str).str.zfill(8)
+        all_staff = sr[
+            (sr["ORG_TYPE"] == "District")
+            & (sr["JOBCLASS_CAT"] == "All")
+            & (sr["JOBCLASS"] == "All")
+        ].sort_values("SY").groupby("DIST_CODE").tail(1)
+        keep_sr = ["DIST_CODE", "FTE_TOTAL", "WH_PCT", "HL_PCT", "BAA_PCT", "AS_PCT", "FE_PCT"]
+        keep_sr = [c for c in keep_sr if c in all_staff.columns]
+        all_staff = all_staff[keep_sr].rename(columns={
+            "FTE_TOTAL": "staff_fte_total",
+            "WH_PCT": "staff_white_pct",
+            "HL_PCT": "staff_hispanic_pct",
+            "BAA_PCT": "staff_black_pct",
+            "AS_PCT": "staff_asian_pct",
+            "FE_PCT": "staff_female_pct",
+        })
+        out = out.merge(all_staff, on="DIST_CODE", how="left")
+
+    # ─── 9. Teacher data — student:teacher ratio + experienced % + in-field % ─
+    td_path = e2c_raw / "teacher_data.csv"
+    if td_path.exists():
+        td = pd.read_csv(td_path, low_memory=False)
+        td["DIST_CODE"] = td["DIST_CODE"].astype(str).str.zfill(8)
+        td_d = td[
+            (td["ORG_TYPE"] == "District")
+            & (td["SUBJECT"].astype(str).str.lower() == "all teachers")
+        ].sort_values("SY").groupby("DIST_CODE").tail(1)
+        cols_avail = [c for c in ["TCHR_LIC_PCT", "STU_TCHR_RATIO", "EXP_TCHR_PCT", "TCHR_INFLD_PCT"]
+                       if c in td_d.columns]
+        if cols_avail:
+            keep = td_d[["DIST_CODE"] + cols_avail].copy()
+            # stu_tchr_ratio comes as "11.7 to 1" — extract the number
+            if "STU_TCHR_RATIO" in keep.columns:
+                keep["stu_tchr_ratio"] = pd.to_numeric(
+                    keep["STU_TCHR_RATIO"].astype(str).str.extract(r"([\d.]+)")[0],
+                    errors="coerce",
+                )
+                keep = keep.drop(columns=["STU_TCHR_RATIO"])
+            keep = keep.rename(columns={
+                "TCHR_LIC_PCT":    "teacher_licensed_pct",
+                "EXP_TCHR_PCT":    "teacher_experienced_pct",
+                "TCHR_INFLD_PCT":  "teacher_infield_pct",
+            })
+            out = out.merge(keep, on="DIST_CODE", how="left")
+
+    # ─── 10. Staff retention rate ─────────────────────────────────────────────
+    ret_path = e2c_raw / "staff_retention.csv"
+    if ret_path.exists():
+        ret = pd.read_csv(ret_path, low_memory=False)
+        ret["DIST_CODE"] = ret["DIST_CODE"].astype(str).str.zfill(8)
+        # "All staff" rollup
+        ret_d = ret[
+            (ret["ORG_TYPE"] == "District")
+            & (ret["STAFF_DESC"].astype(str).str.lower().isin(["all staff", "teachers"]))
+        ].sort_values("SY").groupby(["DIST_CODE", "STAFF_DESC"]).tail(1)
+        # Pick "Teachers" first if available, else "All staff"
+        teachers_ret = ret_d[ret_d["STAFF_DESC"].astype(str).str.lower() == "teachers"][
+            ["DIST_CODE", "RETND_PCT"]].rename(columns={"RETND_PCT": "teacher_retention_pct"})
+        out = out.merge(teachers_ret, on="DIST_CODE", how="left")
+
+    # Ensure all-numeric for the metric columns
+    metric_cols = [c for c in out.columns if c not in ("DIST_CODE", "DIST_NAME")]
+    for c in metric_cols:
+        out[c] = pd.to_numeric(out[c], errors="coerce")
+
+    return out
+
+
+def load_ma_districts_with_metrics() -> gpd.GeoDataFrame:
+    """MA school district polygons + ALL available DESE per-district metrics."""
     dist = gpd.read_file(DISTRICTS_SHP).to_crs(WEB_CRS)
     dist["ORG8CODE"] = dist["ORG8CODE"].astype(str).str.zfill(8)
     dist["TYPE"] = dist["TYPE"].astype(str)
 
-    e2c_raw = RAW_DIR / "e2c_hub"
+    metrics = _build_district_metrics_table()
+    metrics = metrics.rename(columns={"DIST_CODE": "ORG8CODE"})
+    return dist.merge(metrics, on="ORG8CODE", how="left")
 
-    # Enrollment (district-level only)
-    enr = pd.read_csv(e2c_raw / "enrollment_demographics.csv", low_memory=False)
-    enr["DIST_CODE"] = enr["DIST_CODE"].astype(str).str.zfill(8)
-    enr["ORG_CODE"] = enr["ORG_CODE"].astype(str).str.zfill(8) if "ORG_CODE" in enr.columns else ""
-    dist_enr = enr[
-        (enr["ORG_TYPE"] == "District") & (enr["SY"] == enr["SY"].max())
-    ][["DIST_CODE", "DIST_NAME", "TOTAL_CNT", "EL_PCT", "LI_PCT", "HN_PCT", "HL_PCT"]]
-    dist_enr = dist_enr.rename(columns={"DIST_CODE": "ORG8CODE"})
 
-    # Graduation rate
-    grad = pd.read_csv(e2c_raw / "graduation_rates.csv", low_memory=False)
-    grad["DIST_CODE"] = grad["DIST_CODE"].astype(str).str.zfill(8)
-    grad_d = grad[
-        (grad["STU_GRP"] == "All Students")
-        & (grad["GRAD_RATE_TYPE"] == "4-Year Adjusted Cohort Graduation Rate")
-        & (grad["ORG_TYPE"] == "District")
-    ].sort_values("SY").groupby("DIST_CODE").tail(1)
-    grad_d = grad_d[["DIST_CODE", "GRAD_PCT"]].rename(columns={"DIST_CODE": "ORG8CODE", "GRAD_PCT": "grad_4yr"})
-
-    # District per-pupil
-    dist_exp = pd.read_csv(e2c_raw / "district_expenditures.csv", low_memory=False)
-    dist_exp["DIST_CODE"] = dist_exp["DIST_CODE"].astype(str).str.zfill(8)
-    dist_exp["IND_VALUE"] = pd.to_numeric(dist_exp["IND_VALUE"], errors="coerce")
-    pp = dist_exp[
-        dist_exp["IND_SUBCAT"].str.contains("Total Expenditures", case=False, na=False)
-    ].sort_values("SY").groupby("DIST_CODE").tail(1)[["DIST_CODE", "IND_VALUE"]]
-    pp = pp.rename(columns={"DIST_CODE": "ORG8CODE", "IND_VALUE": "per_pupil"})
-
-    out = dist.merge(dist_enr, on="ORG8CODE", how="left") \
-              .merge(grad_d, on="ORG8CODE", how="left") \
-              .merge(pp, on="ORG8CODE", how="left")
-    return out
 
 
 def load_ma_municipalities() -> gpd.GeoDataFrame:
     """
     All 351 MA municipalities as polygons, with:
-      - is_gateway: bool, whether it's one of the 26 Gateway Cities
-      - is_lynn: bool, whether this is Lynn itself
-      - county: county name
-      - pop_2020: population
-      - joined district metrics where the town's primary school district
-        can be identified (grad rate, per-pupil, % ELL, etc.)
+      - is_gateway: bool — whether this is one of the 26 Gateway Cities
+      - is_lynn:    bool — whether this is Lynn itself
+      - county, pop_2020 — context
+      - 25+ joined district-level DESE metrics where the town's primary
+        school district can be identified by name match. Multi-town
+        regional districts and charter districts won't match.
     """
     towns = gpd.read_file(TOWNS_SHP).to_crs(WEB_CRS)
 
-    # Gateway flag
     gateway_upper = {c.upper() for c in GATEWAY_CITIES}
     towns["is_gateway"] = towns["TOWN"].isin(gateway_upper)
     towns["is_lynn"] = towns["TOWN"] == "LYNN"
 
-    # Friendlier population column
     if "POP2020" in towns.columns:
         towns["pop_2020"] = pd.to_numeric(towns["POP2020"], errors="coerce")
 
-    # Title-case town names for display
     towns["town_display"] = towns["TOWN"].str.title()
 
-    # Try to join the primary school district's DESE metrics via name match.
-    # MA towns and districts aren't strictly 1:1, but for most municipalities
-    # the district name contains or equals the town name.
-    e2c_raw = RAW_DIR / "e2c_hub"
-    if (e2c_raw / "enrollment_demographics.csv").exists():
-        enr = pd.read_csv(e2c_raw / "enrollment_demographics.csv", low_memory=False)
-        enr["DIST_CODE"] = enr["DIST_CODE"].astype(str).str.zfill(8)
-        enr_d = enr[
-            (enr["ORG_TYPE"] == "District") & (enr["SY"] == enr["SY"].max())
-        ][["DIST_CODE", "DIST_NAME", "TOTAL_CNT", "EL_PCT", "LI_PCT", "HN_PCT"]]
-        # Match: where DIST_NAME == town name (case-insensitive)
-        enr_d["DIST_NAME_upper"] = enr_d["DIST_NAME"].astype(str).str.upper()
-        towns_with_dist = towns.merge(
-            enr_d, left_on="TOWN", right_on="DIST_NAME_upper", how="left",
-        )
-
-        # Add grad rate
-        grad = pd.read_csv(e2c_raw / "graduation_rates.csv", low_memory=False)
-        grad["DIST_CODE"] = grad["DIST_CODE"].astype(str).str.zfill(8)
-        grad_d = grad[
-            (grad["STU_GRP"] == "All Students")
-            & (grad["GRAD_RATE_TYPE"] == "4-Year Adjusted Cohort Graduation Rate")
-            & (grad["ORG_TYPE"] == "District")
-        ].sort_values("SY").groupby("DIST_CODE").tail(1)
-        grad_d = grad_d[["DIST_CODE", "GRAD_PCT"]].rename(columns={"GRAD_PCT": "grad_4yr"})
-        towns_with_dist = towns_with_dist.merge(grad_d, on="DIST_CODE", how="left")
-
-        # Add per-pupil
-        dexp = pd.read_csv(e2c_raw / "district_expenditures.csv", low_memory=False)
-        dexp["DIST_CODE"] = dexp["DIST_CODE"].astype(str).str.zfill(8)
-        dexp["IND_VALUE"] = pd.to_numeric(dexp["IND_VALUE"], errors="coerce")
-        pp = dexp[
-            dexp["IND_SUBCAT"].astype(str).str.contains("Total Expenditures", case=False, na=False)
-        ].sort_values("SY").groupby("DIST_CODE").tail(1)[["DIST_CODE", "IND_VALUE"]].rename(
-            columns={"IND_VALUE": "per_pupil"}
-        )
-        towns_with_dist = towns_with_dist.merge(pp, on="DIST_CODE", how="left")
-
-        # Drop helper col
-        towns_with_dist = towns_with_dist.drop(columns=["DIST_NAME_upper"], errors="ignore")
-        return towns_with_dist
-
-    return towns
+    # Pull the full district metrics table and join by name
+    metrics = _build_district_metrics_table()
+    metrics["DIST_NAME_upper"] = metrics["DIST_NAME"].astype(str).str.upper()
+    result = towns.merge(metrics, left_on="TOWN", right_on="DIST_NAME_upper", how="left")
+    return result.drop(columns=["DIST_NAME_upper"], errors="ignore")
 
 
 def load_gateway_main_hs() -> gpd.GeoDataFrame:
