@@ -85,9 +85,9 @@ components.html(
         <div class="wrap">
           <a class="btn"
              href="{MAPS_URL}"
-             target="_top"
-             rel="noopener">Open the Maps &rarr;</a>
-          <div class="sub">Opens in the same browser tab — full screen, vector tiles, layer panel.</div>
+             target="_blank"
+             rel="noopener noreferrer">Open the Maps &rarr;</a>
+          <div class="sub">Opens in a new tab — full screen, vector tiles, layer panel.</div>
         </div>
       </body>
     </html>
