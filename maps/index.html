@@ -85,9 +85,10 @@
 
             <label class="form-label" style="margin-top:12px;">Classification</label>
             <div class="radio-group">
-                <label><input type="radio" name="classify" value="continuous" checked> Continuous (linear)</label>
+                <label><input type="radio" name="classify" value="jenks" checked> Jenks natural breaks (recommended)</label>
                 <label><input type="radio" name="classify" value="quantile"> 5 quantiles</label>
                 <label><input type="radio" name="classify" value="equal"> 5 equal-interval</label>
+                <label><input type="radio" name="classify" value="continuous"> Continuous (linear)</label>
             </div>
 
             <label class="form-label" style="margin-top:12px;">Year (most recent data shown)</label>
@@ -141,6 +142,11 @@
                 <input type="checkbox" id="ref-lynn-schools" checked>
                 <span class="layer-swatch swatch-schools"></span>
                 <span class="layer-name">Lynn schools (35)</span>
+            </label>
+            <label class="layer-row">
+                <input type="checkbox" id="ref-all-ma-schools">
+                <span class="layer-swatch swatch-ma-schools"></span>
+                <span class="layer-name">All MA public schools (~1700)</span>
             </label>
             <label class="layer-row">
                 <input type="checkbox" id="ref-lynn-town" checked>

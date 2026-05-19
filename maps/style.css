@@ -221,6 +221,7 @@ body.maps-page {
 .swatch-academic-outline{ background: transparent; border: 1.8px solid #1a3a6b; }
 .swatch-voctech-overlay { background: rgba(106, 27, 154, 0.15); border: 1.5px dashed #6a1b9a; }
 .swatch-charter-overlay { background: rgba(0, 137, 123, 0.15); border: 1.3px dotted #00695C; }
+.swatch-ma-schools      { background: #1976D2; border-radius: 50%; }
 .swatch-lynn            { background: rgba(255, 184, 28, 0.3); border: 2px solid var(--lehs-navy); }
 
 /* Form labels for select inputs */

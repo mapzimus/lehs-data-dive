@@ -19,6 +19,7 @@ const SOURCES = {
     academic:      "data/ma_academic_districts.geojson",   // dissolved town polygons (~250)
     ccuv:          "data/ma_districts_metrics.geojson",    // charter/voc-tech/collab (150)
     municipalities:"data/ma_municipalities.geojson",
+    maSchools:     "data/ma_public_schools.geojson",       // all MA public + charter schools (~1700)
 };
 
 // ─── COLOR PALETTES (ColorBrewer-style) ──────────────────────────────────────
@@ -105,7 +106,7 @@ const state = {
     level: "muni",
     metric: "EL_PCT",
     palette: "Greens",
-    classify: "continuous",
+    classify: "jenks",  // Fisher-Jenks natural breaks — standard cartographic default
     extrude3d: false,
     labels: true,
     townLabels: true,
@@ -114,8 +115,10 @@ const state = {
     showVoctechOverlay: false,
     showCharterOverlay: false,
     showLynnSchools: true,
+    showAllMaSchools: false,
     showLynnTown: true,
     showGatewayHighlight: true,
+    studentGroup: "all",
 };
 
 let GEO_DATA = null;  // populated after load
@@ -158,6 +161,60 @@ function equalIntervalBreaks(values, n) {
     return Array.from({ length: n - 1 }, (_, i) => min + step * (i + 1));
 }
 
+// Fisher-Jenks natural breaks — minimizes within-class variance, maximizes
+// between-class variance. The standard cartographic choice for thematic maps.
+// Runs O(n² · k) which is fine for n < 500 polygons.
+function jenksBreaks(values, n) {
+    if (values.length <= n) return values.slice(0, -1);
+    const sorted = [...values].sort((a, b) => a - b);
+    const len = sorted.length;
+
+    // Lower class limits and variance combinations matrices
+    const lc = Array.from({ length: len + 1 }, () => new Array(n + 1).fill(0));
+    const vc = Array.from({ length: len + 1 }, () => new Array(n + 1).fill(0));
+    for (let j = 1; j <= n; j++) {
+        lc[1][j] = 1;
+        vc[1][j] = 0;
+        for (let i = 2; i <= len; i++) vc[i][j] = Infinity;
+    }
+
+    for (let l = 2; l <= len; l++) {
+        let s1 = 0, s2 = 0, w = 0;
+        for (let m = 1; m <= l; m++) {
+            const i3 = l - m + 1;
+            const val = sorted[i3 - 1];
+            s2 += val * val;
+            s1 += val;
+            w++;
+            const v = s2 - (s1 * s1) / w;
+            const i4 = i3 - 1;
+            if (i4 !== 0) {
+                for (let j = 2; j <= n; j++) {
+                    if (vc[l][j] >= v + vc[i4][j - 1]) {
+                        lc[l][j] = i3;
+                        vc[l][j] = v + vc[i4][j - 1];
+                    }
+                }
+            }
+        }
+        lc[l][1] = 1;
+        vc[l][1] = s2 - (s1 * s1) / w;
+    }
+
+    // Walk back through lc[] to recover the class boundaries
+    const kclass = new Array(n + 1).fill(0);
+    kclass[n] = sorted[len - 1];
+    kclass[0] = sorted[0];
+    let k = len;
+    for (let countNum = n; countNum > 1; countNum--) {
+        const id = lc[k][countNum] - 1;
+        kclass[countNum - 1] = sorted[id];
+        k = lc[k][countNum] - 1;
+    }
+    // Return only the inner breaks (n - 1 of them)
+    return kclass.slice(1, -1);
+}
+
 // Pick N evenly-spaced colors from a palette
 function sampleColors(palette, n) {
     if (palette.length === n) return palette;
@@ -196,10 +253,26 @@ function paintExpression(metricId, paletteName, classify, level) {
 
     const breaks = classify === "quantile"
         ? quantileBreaks(values, 5)
-        : equalIntervalBreaks(values, 5);
+        : classify === "jenks"
+            ? jenksBreaks(values, 5)
+            : equalIntervalBreaks(values, 5);
     const stops = sampleColors(colors, 5);
+    // Ensure breaks are strictly increasing for MapLibre's step expression.
+    // Jenks/quantile can return duplicates when the data has ties.
+    const cleanBreaks = [];
+    let prev = -Infinity;
+    breaks.forEach(b => {
+        const v = Number(b);
+        if (isFinite(v) && v > prev) {
+            cleanBreaks.push(v);
+            prev = v;
+        }
+    });
+    if (cleanBreaks.length === 0) {
+        return ["case", valid, stops[Math.floor(stops.length / 2)], NO_DATA_COLOR];
+    }
     const expr = ["step", ["to-number", ["get", metricId]], stops[0]];
-    breaks.forEach((b, i) => { expr.push(b, stops[i + 1]); });
+    cleanBreaks.forEach((b, i) => { expr.push(b, stops[Math.min(i + 1, stops.length - 1)]); });
     return ["case", valid, expr, NO_DATA_COLOR];
 }
 
@@ -222,13 +295,14 @@ map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: "imperial" }),
 
 map.on("load", async () => {
     try {
-        const [tracts, schools, town, academic, ccuv, munis] = await Promise.all([
+        const [tracts, schools, town, academic, ccuv, munis, maSchools] = await Promise.all([
             fetch(SOURCES.tracts).then(r => r.json()),
             fetch(SOURCES.schools).then(r => r.json()),
             fetch(SOURCES.town).then(r => r.json()),
             fetch(SOURCES.academic).then(r => r.json()),
             fetch(SOURCES.ccuv).then(r => r.json()),
             fetch(SOURCES.municipalities).then(r => r.json()),
+            fetch(SOURCES.maSchools).then(r => r.json()).catch(() => ({ type: "FeatureCollection", features: [] })),
         ]);
         GEO_DATA = { tract: tracts, district: academic, muni: munis };
 
@@ -250,6 +324,7 @@ map.on("load", async () => {
         map.addSource("ccuv-voctech",   { type: "geojson", data: voctech,   generateId: true });
         map.addSource("ccuv-charter",   { type: "geojson", data: charter,   generateId: true });
         map.addSource("municipalities", { type: "geojson", data: munis,     generateId: true });
+        map.addSource("ma-schools",     { type: "geojson", data: maSchools, generateId: true });
         map.addSource("lynn-only", {
             type: "geojson",
             data: {
@@ -440,6 +515,31 @@ function addLayers() {
         minzoom: 10,
     });
 
+    // ── ALL MA PUBLIC SCHOOLS (~1700) — toggleable, small markers ────────────
+    map.addLayer({
+        id: "ma-schools-circles", type: "circle", source: "ma-schools",
+        paint: {
+            "circle-radius": [
+                "interpolate", ["linear"], ["zoom"],
+                8, 1.5, 11, 3, 14, 5,
+            ],
+            "circle-color": [
+                "match", ["get", "TYPE_DESC"],
+                "Charter",                       "#00897B",
+                "Public Voc/Tech/Ag Reg'l HS",   "#6a1b9a",
+                "Public Elementary",             "#1976D2",
+                "Public Middle",                 "#F57C00",
+                "Public Secondary",              "#C62828",
+                "#455A64",
+            ],
+            "circle-stroke-color": "#ffffff",
+            "circle-stroke-width": 0.8,
+            "circle-opacity": 0.85,
+        },
+        layout: { visibility: state.showAllMaSchools ? "visible" : "none" },
+        minzoom: 7,
+    });
+
     // ── LYNN SCHOOLS (point markers + labels) ────────────────────────────────
     map.addLayer({
         id: "schools-circles", type: "circle", source: "schools",
@@ -536,6 +636,24 @@ function addLayers() {
 
     map.on("mouseenter", "schools-circles", () => map.getCanvas().style.cursor = "pointer");
     map.on("mouseleave", "schools-circles", () => map.getCanvas().style.cursor = "");
+
+    // MA-wide schools click → simple popup with school info
+    map.on("click", "ma-schools-circles", e => {
+        if (!e.features.length) return;
+        const p = e.features[0].properties;
+        new maplibregl.Popup({ closeButton: true, maxWidth: "300px" })
+            .setLngLat(e.lngLat)
+            .setHTML(`
+                <div class="popup-title">${p.NAME}</div>
+                <div class="popup-row"><span class="label">Type</span><span class="value">${p.TYPE_DESC || "—"}</span></div>
+                <div class="popup-row"><span class="label">Grades</span><span class="value">${p.GRADES || "—"}</span></div>
+                <div class="popup-row"><span class="label">Town</span><span class="value">${p.TOWN || "—"}</span></div>
+                <div class="popup-row"><span class="label">District</span><span class="value">${p.DIST_NAME || "—"}</span></div>
+            `)
+            .addTo(map);
+    });
+    map.on("mouseenter", "ma-schools-circles", () => map.getCanvas().style.cursor = "pointer");
+    map.on("mouseleave", "ma-schools-circles", () => map.getCanvas().style.cursor = "");
 }
 
 // ─── FEATURE DETAIL — STICKY SIDE PANEL (replaces popup) ─────────────────────
@@ -885,7 +1003,9 @@ function updateLegend() {
     } else {
         breaks = classify === "quantile"
             ? quantileBreaks(values, 5)
-            : equalIntervalBreaks(values, 5);
+            : classify === "jenks"
+                ? jenksBreaks(values, 5)
+                : equalIntervalBreaks(values, 5);
         const ranges = [`&lt; ${fmt(breaks[0], m.format)}`];
         for (let i = 0; i < breaks.length - 1; i++) {
             ranges.push(`${fmt(breaks[i], m.format)} – ${fmt(breaks[i+1], m.format)}`);
@@ -1042,6 +1162,7 @@ function wireUI() {
         "ref-voctech-overlay":   ["voctech-fill", "voctech-outline"],
         "ref-charter-overlay":   ["charter-fill", "charter-outline"],
         "ref-lynn-schools":      ["schools-circles", "schools-labels"],
+        "ref-all-ma-schools":    ["ma-schools-circles"],
         "ref-lynn-town":         ["lynn-highlight-fill", "lynn-highlight-line"],
         "ref-gateway-highlight": ["gateway-highlight-fill", "gateway-highlight-line"],
     };
