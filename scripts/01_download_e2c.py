@@ -62,6 +62,12 @@ TARGETS = [
     ("postsecondary_awards",            "Public Postsecondary Awards (Degrees) Conferred by Institution: Detail"),
     ("postsecondary_tuition",           "Public Postsecondary Tuition and Fees"),
     ("student_progression_hs_to_postsec","Student Progression from High School through Postsecondary Education"),
+
+    # Teacher / workforce — added after audit revealed gaps on Teachers & Workforce page
+    ("class_size",                      "Class Size by Gender, Race/Ethnicity, and Selected Populations"),
+    ("teacher_experience_infield",      "Experienced and In-Field Teachers by Race/Ethnicity"),
+    ("staff_retention",                 "Elementary and Secondary Staff Retention Rates"),
+    ("teacher_data",                    "Elementary and Secondary Teacher Data"),
 ]
 
 USER_AGENT = "lehs-data-dive/0.1 (https://github.com/mapzimus/lehs-data-dive)"

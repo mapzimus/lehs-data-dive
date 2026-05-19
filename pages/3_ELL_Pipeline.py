@@ -105,15 +105,25 @@ if wida_path.exists():
     fig = go.Figure(go.Bar(
         x=prof_df["Domain"], y=prof_df["Avg Score"],
         text=prof_df["Avg Score"].round(1), textposition="outside",
+        textfont=dict(size=13, color="#0A1F44"),
         marker_color=SUBGROUP_PALETTE["English Learner"],
+        cliponaxis=False,
     ))
     fig.update_layout(
         **DEFAULT_LAYOUT,
         title="MA statewide avg WIDA score by domain (2025)",
-        yaxis=dict(title="Score (1-6)", range=[0, 6]),
+        yaxis=dict(title="Score (1-6)", range=[0, 6.5]),
     )
-    fig.add_hline(y=4.2, line_dash="dash", line_color="gray",
-                  annotation_text="Reclassification threshold (4.2 overall)")
+    # Widen right margin so the threshold-line annotation has room
+    fig.update_layout(margin=dict(l=40, r=200, t=50, b=40))
+    # Threshold line — keep the annotation BELOW the line so it doesn't
+    # collide with the "4.1" bar-value label sitting just above the Listening bar
+    fig.add_hline(
+        y=4.2, line_dash="dash", line_color="gray",
+        annotation_text="Reclassification threshold (overall ≥ 4.2)",
+        annotation_position="bottom right",
+        annotation_font=dict(size=11, color="gray"),
+    )
     st.plotly_chart(fig, width="stretch")
 
 st.divider()
@@ -239,15 +249,14 @@ st.divider()
 st.subheader("Why this matters")
 st.markdown(
     """
-LEHS's student body has shifted significantly toward English Learners and
-First-Language-Not-English students over the last 20 years. This isn't just a
-demographic fact — it shapes everything: which MCAS scores get reported,
-which interventions get funded, which staff capacities matter most, and how
-graduation cohorts evolve.
+LEHS serves more English Learners and first language not English students
+today than at any point in its history. That changes which MCAS scores get
+reported, which interventions get funded, which staff capacities matter most,
+and how a graduating class looks four years after it walks in.
 
-The dashboard's **Correlation Lab** explores whether the ELL share correlates
-with school-level outcomes across the gateway HS, and the **Teachers &
-Workforce** section tracks whether teacher capacity in ELL endorsement has
-kept pace with student need.
+The **Correlation Lab** lets you cross reference ELL share against outcomes
+across all 26 gateway high schools. The **Teachers & Workforce** section
+tracks whether staff capacity for ELL instruction has kept pace with the
+population growth shown above.
 """
 )

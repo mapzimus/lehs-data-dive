@@ -15,8 +15,12 @@ sidebar_attribution()
 
 st.title("Teachers & Workforce")
 st.markdown(
-    "Teacher diversity, FTE counts, and student-support staffing — drawn from "
-    "DESE's Staffing by Race/Ethnicity and Gender dataset."
+    "Teacher diversity, FTE counts, retention, experience, in-field rates, "
+    "and class size — drawn from DESE's staffing and educator datasets."
+)
+st.caption(
+    "**FTE** = full-time equivalent. One full-time staff member = 1.0 FTE; "
+    "a half-time staff member = 0.5 FTE. Sums across people, not headcount."
 )
 
 staffing = load_dataset("staffing_race_gender")
@@ -39,8 +43,11 @@ st.header("Staff Headcount (FTE)")
 latest_year = int(lehs_staff["SY"].max())
 latest = lehs_staff[lehs_staff["SY"] == latest_year]
 
-# JOBCLASS is the specific role; JOBCLASS_CAT is the category
-all_staff = latest[latest["JOBCLASS_CAT"] == "All Staff"]
+# JOBCLASS is the specific role; JOBCLASS_CAT is the category.
+# DESE uses the literal "All" (not "All Staff") for the rolled-up row.
+all_staff = latest[
+    (latest["JOBCLASS_CAT"] == "All") & (latest["JOBCLASS"] == "All")
+]
 teachers = latest[latest["JOBCLASS"].astype(str).str.lower() == "teacher"]
 
 c1, c2, c3, c4 = st.columns(4)

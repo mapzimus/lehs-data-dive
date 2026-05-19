@@ -179,6 +179,16 @@ if not pathway.empty:
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="% of cohort",
                        yaxis_ticksuffix="%", yaxis_range=[0, 100])
     st.plotly_chart(fig, width="stretch")
+    st.caption(
+        "**Indicator definitions** — "
+        "**Any college (immediate)**: % of HS graduates who enrolled in any "
+        "postsecondary institution the fall directly after graduation. "
+        "**2-year / 4-year college**: subsets of the above, by institution type. "
+        "**Persisted 2 years**: of the students who enrolled in college, the % "
+        "who were still enrolled in their second fall semester (i.e., didn't drop "
+        "out after year one). Persistence is a strong predictor of degree "
+        "completion."
+    )
 
 st.divider()
 

@@ -204,12 +204,12 @@ st.caption(
 if not pathways.empty:
     p = pathways[pathways["ORG_CODE"] == LEHS_SCHOOL_CODE].copy()
     if not p.empty:
-        # The dataset is wide; show total enrollment in pathway programs over time
         pathway_cols = [c for c in p.columns if "TOTAL" in c.upper() and "PCT" not in c.upper()]
         if pathway_cols:
-            # Use total counts if available
-            st.dataframe(p[["SY"] + pathway_cols[:8]].sort_values("SY"),
-                         width="stretch", hide_index=True)
+            display_p = p[["SY"] + pathway_cols[:8]].sort_values("SY")
+            # Drop columns that are entirely null for LEHS
+            display_p = display_p.dropna(axis=1, how="all")
+            st.dataframe(display_p, width="stretch", hide_index=True)
     else:
         st.info("No LEHS pathways enrollment data (program may not be designated here).")
 
@@ -218,4 +218,10 @@ if not ec_part.empty:
     ec_lehs = ec_part[ec_part["ORG_CODE"] == LEHS_SCHOOL_CODE].copy()
     if not ec_lehs.empty:
         st.subheader("Early College participation")
-        st.dataframe(ec_lehs, width="stretch", hide_index=True)
+        # Drop noisy/empty columns: CEEB_CODE is null at the school level here,
+        # and the raw DESE columns aren't user friendly
+        drop_cols = ["CEEB_CODE", "DIST_CODE", "ORG_CODE", "ORG_TYPE"]
+        ec_display = ec_lehs.drop(columns=[c for c in drop_cols if c in ec_lehs.columns])
+        ec_display = ec_display.dropna(axis=1, how="all")
+        ec_display = ec_display.sort_values("SY", ascending=False) if "SY" in ec_display else ec_display
+        st.dataframe(ec_display, width="stretch", hide_index=True)

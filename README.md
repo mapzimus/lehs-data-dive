@@ -57,7 +57,7 @@ pip install -r requirements.txt
 python scripts/refresh_all.py
 
 # Run the app
-streamlit run app.py
+streamlit run Home.py
 ```
 
 ---
