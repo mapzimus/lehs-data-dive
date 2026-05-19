@@ -1,0 +1,14 @@
+[theme]
+# Lynn English colors: navy blue + gold (school colors)
+primaryColor = "#FFB81C"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F4F8"
+textColor = "#0A1F44"
+font = "sans serif"
+
+[server]
+headless = true
+runOnSave = true
+
+[browser]
+gatherUsageStats = false

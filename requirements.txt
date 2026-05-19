@@ -1,0 +1,37 @@
+# Core data
+pandas>=2.2
+numpy>=1.26
+scipy>=1.13
+statsmodels>=0.14
+pyarrow>=15.0
+
+# HTTP + APIs
+requests>=2.31
+sodapy>=2.2
+beautifulsoup4>=4.12
+lxml>=5.0
+
+# File parsing
+openpyxl>=3.1
+python-docx>=1.1
+pdfplumber>=0.10
+
+# Census / external data
+census>=0.8.21
+us>=3.2
+
+# Geospatial (for community context maps)
+geopandas>=1.0
+shapely>=2.0
+
+# Web app + charts
+streamlit>=1.36
+plotly>=5.22
+altair>=5.3
+
+# PDF report generation
+reportlab>=4.2
+
+# Dev / notebooks
+jupyter>=1.0
+ipykernel>=6.29

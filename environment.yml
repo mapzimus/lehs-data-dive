@@ -1,0 +1,41 @@
+name: lehs
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+
+  # Core data — conda-forge has wheels for everything
+  - pandas>=2.2
+  - numpy>=1.26
+  - scipy>=1.13
+  - statsmodels>=0.14
+  - pyarrow>=15.0
+
+  # HTTP + parsing
+  - requests>=2.31
+  - beautifulsoup4>=4.12
+  - lxml>=5.0
+
+  # File parsing
+  - openpyxl>=3.1
+  - python-docx>=1.1
+  - pdfplumber>=0.10
+
+  # Geospatial (conda-forge avoids the pip-install pain on Windows)
+  - geopandas>=1.0
+  - shapely>=2.0
+
+  # Notebooks
+  - jupyter>=1.0
+  - ipykernel>=6.29
+
+  # Pip-only packages
+  - pip:
+      - sodapy>=2.2
+      - census>=0.8.21
+      - us>=3.2
+      - streamlit>=1.36
+      - plotly>=5.22
+      - altair>=5.3
+      - reportlab>=4.2

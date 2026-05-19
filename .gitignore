@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Conda
+.conda/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Raw downloaded data (large, regenerable via scripts/refresh_all.py)
+data/raw/
+
+# Keep processed data (small, needed by app)
+!data/processed/
+
+# Logs
+*.log
+logs/
+
+# Local environment files
+.env
+.env.local
+
+# Cache
+.cache/
+.pytest_cache/
+
+# OneDrive sync junk
+*~
