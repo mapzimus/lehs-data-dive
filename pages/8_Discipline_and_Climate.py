@@ -1,35 +1,141 @@
 """Section 8 — Discipline, Climate & Safety."""
 
+import pandas as pd
+import plotly.express as px
 import streamlit as st
 
-from utils.data_loader import load_lehs_master
+from utils.branding import sidebar_attribution
+from utils.charts import DEFAULT_LAYOUT, LEHS_NAVY, SUBGROUP_PALETTE
+from utils.constants import LEHS_SCHOOL_CODE
+from utils.data_loader import get_dart_indicator, load_dataset
 
 st.set_page_config(page_title="Discipline & Climate | LEHS", page_icon="⚖️", layout="wide")
+sidebar_attribution()
 
 st.title("Discipline, Climate & Safety")
 st.markdown(
-    "Suspension and expulsion rates with subgroup disproportionality analysis, "
-    "federal CRDC data (restraint, school-based arrests, bullying), and VOCAL "
-    "Survey climate results."
+    "Out-of-school suspension rates, chronic absenteeism, and student-reported "
+    "climate. Some of the richest data here (granular discipline by race × "
+    "disability × gender) lives in the federal CRDC and DESE Profiles statereport — "
+    "those layers will be added once those scrapers are built."
 )
 
-df = load_lehs_master()
-
-if df.empty:
-    st.warning("Data pipeline not yet run. See README for setup.")
+attendance = load_dataset("student_attendance")
+if attendance.empty:
+    st.warning("Data pipeline not yet run.")
     st.stop()
 
-st.subheader("Suspension rates over time (in-school and out-of-school)")
-st.info("Chart placeholder")
+# ---------------------------------------------------------------------------
+# Suspension rate (from DART)
+# ---------------------------------------------------------------------------
 
-st.subheader("Suspensions by race, gender, ELL, SPED — disproportionality")
-st.info("Chart placeholder")
+st.header("Out-of-School Suspension Rate")
 
-st.subheader("Expulsions")
-st.info("Chart placeholder")
+susp = get_dart_indicator(LEHS_SCHOOL_CODE, "Students suspended out-of-school at least once")
+if not susp.empty:
+    latest = susp.iloc[-1]
+    c1, c2 = st.columns([1, 3])
+    with c1:
+        st.metric(f"Suspended at least once (SY {int(latest['SY'])})", f"{latest['VALUE']:.1%}")
+    fig = px.line(susp, x="SY", y="VALUE", markers=True)
+    fig.update_traces(line=dict(color="#D32F2F", width=3))
+    fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".1%",
+                       yaxis_title="% suspended at least once")
+    with c2:
+        st.plotly_chart(fig, width="stretch")
 
-st.subheader("Federal CRDC data")
-st.info("Chart placeholder — school-based arrests, restraint and seclusion, bullying incidents")
+st.divider()
 
-st.subheader("VOCAL Survey — student-reported climate")
-st.info("Chart placeholder — belonging, safety, engagement (when LEHS participates)")
+# ---------------------------------------------------------------------------
+# Chronic absenteeism — overall and by group
+# ---------------------------------------------------------------------------
+
+st.header("Chronic Absenteeism")
+st.caption(
+    "DESE defines 'chronically absent' as missing 10% or more of enrolled days "
+    "(~18 days in a typical 180-day year). Strong predictor of dropout and "
+    "of low college-going rates."
+)
+
+att = attendance[attendance["ORG_CODE"] == LEHS_SCHOOL_CODE].copy()
+att["STU_GRP"] = att["STU_GRP"].astype(str).str.replace("\xa0", " ")
+att["PCT_CHRON_ABS_10"] = pd.to_numeric(att["PCT_CHRON_ABS_10"], errors="coerce")
+
+# Overall trend
+all_stu = att[(att["STU_GRP"] == "All Students") & (att["ATTEND_PERIOD"] == "FY")].sort_values("SY")
+if not all_stu.empty:
+    fig = px.line(all_stu, x="SY", y="PCT_CHRON_ABS_10", markers=True)
+    fig.update_traces(line=dict(color="#F57C00", width=3))
+    fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
+                       yaxis_title="% Chronically Absent (10%+ missed)",
+                       title="LEHS chronic absenteeism — all students")
+    st.plotly_chart(fig, width="stretch")
+
+# By subgroup
+priority = ["All Students", "English Learners", "Hispanic or Latino",
+            "Black or African American", "Asian", "White", "Low Income",
+            "Students with Disabilities", "High Needs"]
+sub_g = att[(att["STU_GRP"].isin(priority)) & (att["ATTEND_PERIOD"] == "FY")].copy()
+
+if not sub_g.empty:
+    fig = px.line(
+        sub_g.sort_values("SY"), x="SY", y="PCT_CHRON_ABS_10", color="STU_GRP",
+        markers=True,
+        color_discrete_map={
+            "All Students":               LEHS_NAVY,
+            "English Learners":           SUBGROUP_PALETTE["English Learner"],
+            "Hispanic or Latino":         SUBGROUP_PALETTE["Hispanic/Latino"],
+            "Black or African American":  SUBGROUP_PALETTE["African American/Black"],
+            "Asian":                      SUBGROUP_PALETTE["Asian"],
+            "White":                      SUBGROUP_PALETTE["White"],
+            "Low Income":                 SUBGROUP_PALETTE["Low Income"],
+            "Students with Disabilities": SUBGROUP_PALETTE["Students w/ Disabilities"],
+            "High Needs":                 SUBGROUP_PALETTE["High Needs"],
+        },
+        title="Chronic absenteeism by student group",
+    )
+    fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
+                       yaxis_title="% Chronically Absent")
+    st.plotly_chart(fig, width="stretch")
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Attendance rate trend
+# ---------------------------------------------------------------------------
+
+st.header("Attendance Rate")
+att_rate = att[(att["STU_GRP"] == "All Students") & (att["ATTEND_PERIOD"] == "FY")].copy()
+att_rate["ATTEND_RATE"] = pd.to_numeric(att_rate["ATTEND_RATE"], errors="coerce")
+if not att_rate.empty:
+    fig = px.line(att_rate.sort_values("SY"), x="SY", y="ATTEND_RATE", markers=True)
+    fig.update_traces(line=dict(color=LEHS_NAVY, width=3))
+    fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
+                       yaxis_title="Attendance rate")
+    st.plotly_chart(fig, width="stretch")
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# What's missing
+# ---------------------------------------------------------------------------
+
+st.subheader("Coming with future data layers")
+st.markdown(
+    """
+DESE publishes much richer discipline data in the Profiles statereport bulk
+downloads — and federal **CRDC** (Civil Rights Data Collection) adds even more
+granular cross-tabs:
+
+- **Suspensions by race × ELL × SPED** — disproportionality analysis
+- **In-school suspensions** (vs. out-of-school)
+- **Expulsions** — counts and rates
+- **Federal CRDC**: school-based arrests, referrals to law enforcement,
+  restraint and seclusion, bullying incidents by basis
+- **VOCAL Survey**: student-reported climate, belonging, safety, engagement
+  (when LEHS participates — not all schools every year)
+
+These layers go in once `scripts/02_download_dese_profiles.py` and
+`scripts/03_download_crdc.py` are filled in.
+"""
+)

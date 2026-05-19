@@ -86,7 +86,7 @@ fig = px.line(
 )
 fig.update_traces(line=dict(color=LEHS_NAVY, width=3), marker=dict(size=7))
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Students", xaxis_title="School Year")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 peak_year = lehs.loc[lehs["TOTAL_CNT"].idxmax()]
 trough_year = lehs.loc[lehs["TOTAL_CNT"].idxmin()]
@@ -130,7 +130,7 @@ with col_a:
     )
     fig.update_traces(textposition="inside", textinfo="percent+label")
     fig.update_layout(**DEFAULT_LAYOUT, showlegend=False)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 with col_b:
     st.subheader("Race / Ethnicity Composition Over Time")
@@ -160,7 +160,7 @@ with col_b:
         },
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -197,7 +197,7 @@ fig = px.line(
     },
 )
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share of Students")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 st.caption(
     "Lynn English serves a high-needs, English-Learner-rich student body. The "
@@ -226,7 +226,7 @@ fig = go.Figure(go.Bar(
     marker_color=LEHS_NAVY,
 ))
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Students", xaxis_title="Grade")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 if current["G9_CNT"] < current["G12_CNT"]:
     drop = (current["G12_CNT"] - current["G9_CNT"]) / current["G12_CNT"]

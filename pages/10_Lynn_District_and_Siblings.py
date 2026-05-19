@@ -87,7 +87,7 @@ if not district.empty:
     fig = px.line(district, x="SY", y="TOTAL_CNT", markers=True)
     fig.update_traces(line=dict(color=LEHS_NAVY, width=3))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Students", xaxis_title="School Year", height=300)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -135,7 +135,7 @@ def highlight_lehs(row):
         return ["background-color: #FFF4D6"] * len(row)
     return [""] * len(row)
 
-st.dataframe(scorecard.style.apply(highlight_lehs, axis=1), use_container_width=True)
+st.dataframe(scorecard.style.apply(highlight_lehs, axis=1), width="stretch")
 st.caption(f"School year {latest_year}. LEHS highlighted in gold.")
 
 # ---------------------------------------------------------------------------
@@ -151,7 +151,7 @@ fig = px.line(
     markers=True,
 )
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Students", xaxis_title="School Year")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 st.caption(
     "Lynn English is by far the largest of the Lynn high schools, followed "
@@ -183,7 +183,7 @@ fig = px.bar(
     color_discrete_map={NAME_OVERRIDES[code]: SIBLING_COLORS[code] for code in NAME_OVERRIDES},
 )
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", xaxis_title="")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 st.caption(
     "Each Lynn HS serves a slightly different student population. Lynn Tech "
@@ -227,7 +227,7 @@ else:
             yaxis_title="% Meeting + Exceeding",
             xaxis_title="School Year",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -260,7 +260,7 @@ else:
         yaxis_title="4-Year Graduation Rate",
         xaxis_title="Cohort Year",
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     # Side-by-side latest year
     latest_grad_year = int(grad_lynn["SY"].max())
@@ -282,7 +282,7 @@ else:
         x="School", y="Pct", color="Outcome", barmode="stack",
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", xaxis_title="")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 st.divider()
 

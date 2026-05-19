@@ -57,3 +57,27 @@ def load_dataset(name: str) -> pd.DataFrame:
     if not path.exists():
         return pd.DataFrame()
     return pd.read_parquet(path)
+
+
+@st.cache_data(show_spinner=False)
+def get_dart_indicator(
+    org_codes: list[str] | tuple[str, ...] | str,
+    indicator: str,
+    student_group: str = "All Students",
+) -> pd.DataFrame:
+    """Pull a single DART indicator for one or more schools.
+
+    Returns DataFrame with SY, ORG_CODE, ORG_NAME, VALUE columns.
+    """
+    df = load_dataset("dart_success_after_hs")
+    if df.empty:
+        return df
+    if isinstance(org_codes, str):
+        org_codes = [org_codes]
+    sub = df[
+        df["ORG_CODE"].isin(org_codes)
+        & (df["INDICATOR"] == indicator)
+        & (df["STU_GRP"] == student_group)
+    ].copy()
+    sub["VALUE"] = pd.to_numeric(sub["VALUE"], errors="coerce")
+    return sub[["SY", "ORG_CODE", "ORG_NAME", "VALUE", "STU_CNT"]].sort_values("SY")

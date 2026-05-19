@@ -4,51 +4,171 @@ Section 12 — Cross-Reference Lab: correlation discovery across domains.
 The novel analytical layer no DESE tool provides.
 """
 
+import json
+
+import numpy as np
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 
-from utils.data_loader import load_gateway_hs_panel
+from utils.branding import sidebar_attribution
+from utils.charts import DEFAULT_LAYOUT, GATEWAY_PEER_COLOR, LEHS_GOLD, LEHS_NAVY
+from utils.constants import PROCESSED_DIR
+from utils.correlations import interpret_r, pearson, regression_line
+from utils.data_loader import load_dataset
 
 st.set_page_config(page_title="Correlation Lab | LEHS", page_icon="🔬", layout="wide")
+sidebar_attribution()
 
-st.title("Cross-Reference Lab — Correlation Discovery")
+st.title("Cross-Reference Lab")
 st.markdown(
-    "Because every dataset lives in the same data model joined on (school_code, year), "
-    "we can ask questions DESE's siloed tools can't. This section surfaces curated "
-    "cross-domain correlations and lets you explore your own."
+    "Because every dataset lives in the same data model joined on (school, year), "
+    "we can ask questions DESE's siloed tools can't. Pick any two metrics "
+    "below to explore relationships across the 26 gateway-city high schools."
 )
 
 st.caption(
-    "**Note:** Correlation is not causation. Patterns here are starting points for "
-    "questions, not proof of cause and effect."
+    "**Note:** Correlation is not causation. Patterns here are starting points "
+    "for questions, not proof of cause and effect."
 )
 
-df = load_gateway_hs_panel()
+# ---------------------------------------------------------------------------
+# Build the master panel: one row per (school, year) with key indicators
+# ---------------------------------------------------------------------------
 
-if df.empty:
-    st.warning("Master panel not yet loaded. See README for setup.")
+@st.cache_data(show_spinner=False)
+def build_master_panel() -> pd.DataFrame:
+    """Wide panel: rows = (school_code, year), cols = key metrics from all sources."""
+    peers = json.loads((PROCESSED_DIR / "_peer_schools.json").read_text())
+    gateway_codes = [
+        info["school_code"] for info in peers["gateway_main_hs"].values()
+        if info.get("school_code")
+    ]
+
+    # 1) Enrollment + demographics
+    enr = load_dataset("enrollment_demographics")
+    enr = enr[enr["ORG_CODE"].isin(gateway_codes)].copy()
+    enr_cols = ["SY", "ORG_CODE", "ORG_NAME", "DIST_NAME",
+                "TOTAL_CNT", "EL_PCT", "LI_PCT", "SWD_PCT", "HN_PCT",
+                "HL_PCT", "BAA_PCT", "AS_PCT", "WH_PCT", "FLNE_PCT"]
+    base = enr[[c for c in enr_cols if c in enr.columns]].rename(columns={
+        "TOTAL_CNT": "Enrollment",
+        "EL_PCT": "ELL_pct", "LI_PCT": "LowIncome_pct",
+        "SWD_PCT": "SPED_pct", "HN_PCT": "HighNeeds_pct",
+        "HL_PCT": "Hispanic_pct", "BAA_PCT": "Black_pct",
+        "AS_PCT": "Asian_pct", "WH_PCT": "White_pct",
+        "FLNE_PCT": "FirstLangNotEnglish_pct",
+    })
+
+    # 2) DART indicators (long → wide)
+    dart = load_dataset("dart_success_after_hs")
+    dart = dart[(dart["ORG_CODE"].isin(gateway_codes)) & (dart["STU_GRP"] == "All Students")].copy()
+    dart["VALUE"] = pd.to_numeric(dart["VALUE"], errors="coerce")
+
+    indicator_aliases = {
+        "4-year cohort graduation rate": "GradRate_4yr",
+        "5-year cohort graduation rate": "GradRate_5yr",
+        "9th to 10th grade promotion rate (first-time 9th graders only)": "Promotion_9to10",
+        "Annual dropout rate": "Dropout",
+        "Chronically absent rate (% of students absent 10% or more each year)": "ChronicAbsence",
+        "Student attendance rate": "AttendanceRate",
+        "Students suspended out-of-school at least once": "Suspension_pct",
+        "Average student growth percentiles (SGP) in ELA": "SGP_ELA",
+        "Average student growth percentiles (SGP) in mathematics": "SGP_Math",
+        "Grade 10 students meeting or exceeding expectations in ELA": "MCAS_G10_ELA",
+        "Grade 10 students meeting or exceeding expectations in mathematics": "MCAS_G10_Math",
+        "Jr/Sr enrolled in one or more AP / IB courses": "AP_Enrolled",
+        "Jr/Sr AP test takers scoring 3 or above": "AP_3plus",
+        "SAT average score - Mathematics": "SAT_Math",
+        "SAT average score - Reading": "SAT_Reading",
+        "Grade 12 students who completed FAFSA": "FAFSA",
+        "Students enrolled in postsecondary education in the immediate fall after high school graduation": "ImmediateCollege",
+        "High school graduates enrolled in 2-year postsecondary education": "College_2yr",
+        "High school graduates enrolled in 4-year postsecondary education": "College_4yr",
+        "College students persistently enrolled in postsecondary education for the first two years": "CollegePersist",
+        "High school graduates who completed MassCore": "MassCore",
+    }
+    dart_filt = dart[dart["INDICATOR"].isin(indicator_aliases.keys())].copy()
+    dart_filt["alias"] = dart_filt["INDICATOR"].map(indicator_aliases)
+    dart_wide = dart_filt.pivot_table(
+        index=["SY", "ORG_CODE"], columns="alias", values="VALUE", aggfunc="mean"
+    ).reset_index()
+
+    # 3) Finance: per-pupil + teacher salary
+    sp = load_dataset("school_expenditures")
+    sp = sp[sp["ORG_CODE"].isin(gateway_codes)].copy()
+    sp["IND_VALUE"] = pd.to_numeric(sp["IND_VALUE"], errors="coerce")
+    pp = sp[(sp["IND_CAT"] == "Total A+B+C") & (sp["IND_SUBCAT"] == "Total Expenditures")] \
+            [["SY", "ORG_CODE", "IND_VALUE"]].rename(columns={"IND_VALUE": "PerPupil"})
+    sal = sp[(sp["IND_CAT"] == "Teacher Salaries") & (sp["IND_SUBCAT"] == "Average Teacher Salary")] \
+            [["SY", "ORG_CODE", "IND_VALUE"]].rename(columns={"IND_VALUE": "AvgTeacherSalary"})
+    t_ratio = sp[(sp["IND_CAT"] == "Teacher Salaries") & (sp["IND_SUBCAT"] == "Teachers per 100 FTE students")] \
+            [["SY", "ORG_CODE", "IND_VALUE"]].rename(columns={"IND_VALUE": "TeachersPer100"})
+
+    # Join everything
+    panel = base.merge(dart_wide, on=["SY", "ORG_CODE"], how="outer")
+    panel = panel.merge(pp, on=["SY", "ORG_CODE"], how="left")
+    panel = panel.merge(sal, on=["SY", "ORG_CODE"], how="left")
+    panel = panel.merge(t_ratio, on=["SY", "ORG_CODE"], how="left")
+    return panel
+
+
+panel = build_master_panel()
+if panel.empty:
+    st.error("Master panel empty.")
     st.stop()
 
+NUMERIC_COLS = sorted([c for c in panel.columns if pd.api.types.is_numeric_dtype(panel[c]) and c != "SY"])
+
 # ---------------------------------------------------------------------------
-# Curated correlation views
+# Curated correlations
 # ---------------------------------------------------------------------------
 
-st.header("Curated correlations")
+st.header("Curated Correlations")
+st.caption(
+    "Cross-domain questions answered with the latest available year for each "
+    "gateway-city HS."
+)
 
-curated = [
-    "Spending category → outcomes",
-    "Teacher diversity → subgroup growth",
-    "Counselor ratio → college-going",
-    "Early-warning chain: absenteeism → promotion → graduation → college",
-    "AP access → AP equity by subgroup",
-    "ELL reclassification timing → MCAS outcomes",
-    "Discipline disproportionality → academic gaps",
-    "Class size → student growth",
-    "Community poverty → school spending → outcomes",
+# Use most recent year per school
+latest = panel.sort_values("SY").groupby("ORG_CODE").tail(1).copy()
+latest["City"] = latest["DIST_NAME"]
+latest["is_lehs"] = latest["ORG_CODE"] == "01630510"
+
+curated_pairs = [
+    ("PerPupil", "GradRate_4yr", "Does per-pupil spending correlate with graduation?"),
+    ("PerPupil", "MCAS_G10_Math", "Does per-pupil spending correlate with grade-10 math?"),
+    ("ELL_pct", "GradRate_4yr", "How does ELL share relate to graduation?"),
+    ("ChronicAbsence", "GradRate_4yr", "Chronic absence vs. graduation"),
+    ("Promotion_9to10", "GradRate_4yr", "9-to-10 promotion vs. graduation"),
+    ("AP_Enrolled", "ImmediateCollege", "AP enrollment vs. immediate college enrollment"),
+    ("FAFSA", "ImmediateCollege", "FAFSA completion vs. immediate college"),
+    ("LowIncome_pct", "MCAS_G10_ELA", "Low income share vs. grade-10 ELA"),
+    ("AvgTeacherSalary", "GradRate_4yr", "Teacher salary vs. graduation"),
 ]
 
-for item in curated:
-    with st.expander(item):
-        st.info("Chart placeholder — Phase 4")
+for x, y, label in curated_pairs:
+    if x not in latest.columns or y not in latest.columns:
+        continue
+    sub = latest[["City", x, y, "is_lehs"]].dropna()
+    if len(sub) < 5:
+        continue
+    stats = pearson(sub, x, y)
+    with st.expander(f"{label}  ·  r = {stats['r']:+.2f}  ({interpret_r(stats['r'])})"):
+        sub["highlight"] = sub["is_lehs"].map({True: "LEHS", False: "Other Gateway HS"})
+        fig = px.scatter(
+            sub, x=x, y=y, text="City", color="highlight",
+            color_discrete_map={"LEHS": LEHS_GOLD, "Other Gateway HS": GATEWAY_PEER_COLOR},
+            trendline="ols",
+        )
+        fig.update_traces(textposition="top center", textfont_size=10)
+        fig.update_layout(**DEFAULT_LAYOUT, xaxis_title=x, yaxis_title=y)
+        st.plotly_chart(fig, width="stretch")
+        st.caption(
+            f"Pearson r = {stats['r']:+.3f} (p = {stats['p']:.3f}, n = {stats['n']}). "
+            f"**Caveat:** correlation across 26 districts doesn't establish cause."
+        )
 
 st.divider()
 
@@ -56,20 +176,53 @@ st.divider()
 # Custom explorer
 # ---------------------------------------------------------------------------
 
-st.header("Custom correlation explorer")
-st.markdown("Pick any X and Y variable from the master panel to explore their relationship.")
+st.header("Custom Correlation Explorer")
+st.markdown("Pick any two metrics from the panel.")
 
-numeric_cols = df.select_dtypes("number").columns.tolist() if not df.empty else []
+c1, c2 = st.columns(2)
+with c1:
+    x_var = st.selectbox("X variable", options=NUMERIC_COLS,
+                          index=NUMERIC_COLS.index("PerPupil") if "PerPupil" in NUMERIC_COLS else 0)
+with c2:
+    y_var = st.selectbox("Y variable", options=NUMERIC_COLS,
+                          index=NUMERIC_COLS.index("GradRate_4yr") if "GradRate_4yr" in NUMERIC_COLS else 1)
 
-if numeric_cols:
-    col1, col2 = st.columns(2)
-    with col1:
-        x_var = st.selectbox("X variable", options=numeric_cols, index=0)
-    with col2:
-        y_var = st.selectbox("Y variable", options=numeric_cols, index=min(1, len(numeric_cols) - 1))
-    st.info(f"Scatter chart placeholder — {x_var} vs. {y_var}, LEHS highlighted")
+scope = st.radio(
+    "Scope",
+    options=["Gateway HS (cross-section, latest year)",
+             "All gateway HS x all years (panel)"],
+    horizontal=True,
+)
+
+if scope.startswith("Gateway HS (cross"):
+    data = latest[["ORG_CODE", "City", x_var, y_var, "is_lehs"]].dropna()
 else:
-    st.info("Numeric columns will appear once master panel is built.")
+    data = panel[["SY", "ORG_CODE", "DIST_NAME", x_var, y_var]].dropna()
+    data["City"] = data["DIST_NAME"]
+    data["is_lehs"] = data["ORG_CODE"] == "01630510"
+
+if len(data) >= 3:
+    data["highlight"] = data["is_lehs"].map({True: "LEHS", False: "Other"})
+    fig = px.scatter(
+        data, x=x_var, y=y_var, color="highlight",
+        color_discrete_map={"LEHS": LEHS_GOLD, "Other": GATEWAY_PEER_COLOR},
+        trendline="ols",
+        hover_data=["City"],
+    )
+    fig.update_layout(**DEFAULT_LAYOUT, xaxis_title=x_var, yaxis_title=y_var)
+    st.plotly_chart(fig, width="stretch")
+
+    stats = pearson(data, x_var, y_var)
+    reg = regression_line(data, x_var, y_var)
+    c1, c2, c3, c4 = st.columns(4)
+    with c1: st.metric("Pearson r", f"{stats['r']:+.3f}")
+    with c2: st.metric("p-value", f"{stats['p']:.4f}")
+    with c3: st.metric("R²", f"{reg['r_squared']:.3f}")
+    with c4: st.metric("n", f"{stats['n']:,}")
+
+    st.caption(f"**Interpretation:** {interpret_r(stats['r'])}")
+else:
+    st.info("Not enough overlapping data points for these two variables.")
 
 st.divider()
 
@@ -77,10 +230,51 @@ st.divider()
 # Composite indices
 # ---------------------------------------------------------------------------
 
-st.header("Composite indices")
-st.markdown(
-    "User-configurable composite measures that combine multiple indicators into a "
-    "single score. Adjust the weights to see how LEHS ranks under different value sets."
-)
+st.header("Composite Indices")
+st.caption("Combine multiple indicators into a single ranked score.")
 
-st.info("Index builder — Phase 4")
+st.subheader("Adjust weights")
+c1, c2, c3, c4, c5 = st.columns(5)
+with c1: w_grad = st.slider("Grad rate", 0.0, 1.0, 0.3, 0.05)
+with c2: w_persist = st.slider("College persist", 0.0, 1.0, 0.2, 0.05)
+with c3: w_mcas = st.slider("MCAS Math", 0.0, 1.0, 0.2, 0.05)
+with c4: w_chronic = st.slider("Low chronic absence", 0.0, 1.0, 0.15, 0.05)
+with c5: w_ap = st.slider("AP enroll", 0.0, 1.0, 0.15, 0.05)
+
+total_weight = w_grad + w_persist + w_mcas + w_chronic + w_ap
+if total_weight > 0:
+    def z(col):
+        if col not in latest.columns:
+            return pd.Series(0.0, index=latest.index)
+        x = latest[col].dropna()
+        if x.std() == 0 or len(x) < 2:
+            return pd.Series(0.0, index=latest.index)
+        return (latest[col] - x.mean()) / x.std()
+
+    latest["SuccessIndex"] = (
+        w_grad * z("GradRate_4yr").fillna(0)
+        + w_persist * z("CollegePersist").fillna(0)
+        + w_mcas * z("MCAS_G10_Math").fillna(0)
+        - w_chronic * z("ChronicAbsence").fillna(0)  # NEGATIVE: low absence = higher score
+        + w_ap * z("AP_Enrolled").fillna(0)
+    ) / total_weight
+
+    ranked = latest[["City", "ORG_NAME", "SuccessIndex"]].dropna().sort_values(
+        "SuccessIndex", ascending=False
+    ).reset_index(drop=True)
+    ranked["Rank"] = ranked.index + 1
+    ranked = ranked[["Rank", "City", "ORG_NAME", "SuccessIndex"]]
+    ranked["SuccessIndex"] = ranked["SuccessIndex"].round(2)
+
+    def highlight_lehs(row):
+        return ["background-color: #FFF4D6" if row["City"] == "Lynn" else "" for _ in row]
+
+    st.dataframe(ranked.style.apply(highlight_lehs, axis=1),
+                 width="stretch", hide_index=True)
+
+    lehs_row = ranked[ranked["City"] == "Lynn"]
+    if not lehs_row.empty:
+        st.success(
+            f"**LEHS ranks #{int(lehs_row.iloc[0]['Rank'])} of {len(ranked)} "
+            f"gateway-city main HS** on this composite index."
+        )

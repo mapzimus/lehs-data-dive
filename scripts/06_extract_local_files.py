@@ -47,41 +47,34 @@ def extract_former_el_mcas() -> None:
         return
 
     print(f"Reading {REPORTING_ELEMENT4.name}...")
-    df = pd.read_excel(REPORTING_ELEMENT4, dtype=str)
+    # File structure: row 0 = report title, row 1 = subtitle, row 2 = blank,
+    # row 3 = actual column headers
+    df = pd.read_excel(REPORTING_ELEMENT4, dtype=str, header=3)
+    # Strip newlines from column names (Excel formatted some as "ELA \nE+M #")
+    df.columns = [str(c).replace("\n", " ").strip() for c in df.columns]
     print(f"  loaded: {len(df):,} rows, {len(df.columns)} columns")
     print(f"  columns: {list(df.columns)}")
 
-    org_code_col = next(
-        (c for c in df.columns if "org" in c.lower() and "code" in c.lower()),
-        None,
-    )
+    org_code_col = "Org Code" if "Org Code" in df.columns else None
     if not org_code_col:
-        # try alternate names
-        for cand in ["District Code", "districtcode", "ORG_CODE"]:
-            if cand in df.columns:
-                org_code_col = cand
-                break
-
-    if not org_code_col:
-        print(f"  warning: could not identify org code column. Saving full file.")
+        print(f"  warning: 'Org Code' column not found. Saving full file.")
         out = LOCAL_DIR / "former_el_mcas_all.csv"
         df.to_csv(out, index=False)
-        print(f"  wrote: {out}")
         return
 
-    # zero-pad codes for matching
+    # zero-pad codes
     df[org_code_col] = df[org_code_col].astype(str).str.zfill(8)
 
-    # filter to Lynn + identify gateway-city rows
-    is_lynn = df[org_code_col] == LYNN_DISTRICT_CODE
-    lynn = df[is_lynn].copy()
+    # full file (useful for gateway-city filtering downstream)
+    out_all = LOCAL_DIR / "former_el_mcas_all.csv"
+    df.to_csv(out_all, index=False)
+    print(f"  wrote full file: {out_all}")
+
+    # Lynn-only subset
+    lynn = df[df[org_code_col] == LYNN_DISTRICT_CODE].copy()
     out_lynn = LOCAL_DIR / "former_el_mcas_lynn.csv"
     lynn.to_csv(out_lynn, index=False)
     print(f"  wrote Lynn-only: {out_lynn} ({len(lynn)} rows)")
-
-    out_all = LOCAL_DIR / "former_el_mcas_all.csv"
-    df.to_csv(out_all, index=False)
-    print(f"  wrote full file (for gateway filtering downstream): {out_all}")
 
 
 # ---------------------------------------------------------------------------

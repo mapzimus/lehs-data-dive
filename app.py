@@ -6,25 +6,44 @@ Run locally: `streamlit run app.py`
 
 import streamlit as st
 
+from utils.branding import AUTHOR_NAME, AUTHOR_SITE, sidebar_attribution
 from utils.constants import LEHS_SCHOOL_CODE
 from utils.data_loader import load_dataset
 
 st.set_page_config(
-    page_title="LEHS Data Center",
+    page_title="LEHS Data Dive",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
+sidebar_attribution()
+
 # ---------------------------------------------------------------------------
 # Header
 # ---------------------------------------------------------------------------
 
-st.title("Lynn English High School")
-st.subheader("Data Information Center")
+col_title, col_author = st.columns([3, 1])
+with col_title:
+    st.title("Lynn English High School")
+    st.subheader("Data Dive")
+with col_author:
+    st.markdown(
+        f"""
+        <div style='text-align:right; margin-top:2rem;'>
+            <span style='color:#0A1F44; font-size:0.95rem;'>Built by</span><br>
+            <strong style='font-size:1.3rem; color:#0A1F44;'>{AUTHOR_NAME}</strong><br>
+            <a href='https://{AUTHOR_SITE}' style='color:#FFB81C;'>{AUTHOR_SITE}</a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 st.markdown(
     "A public, integrated data view of LEHS and its peer high schools across "
-    "Massachusetts — built from every relevant DESE, federal, and Census dataset."
+    "Massachusetts — built from every relevant DESE, federal, and Census dataset. "
+    "**Unlike any DESE tool, this dashboard puts every domain in one place** and "
+    "supports correlation analysis across them."
 )
 
 st.divider()
@@ -34,9 +53,6 @@ st.divider()
 # ---------------------------------------------------------------------------
 
 enrollment = load_dataset("enrollment_demographics")
-grad = load_dataset("graduation_rates")
-mcas = load_dataset("mcas_achievement")
-dart = load_dataset("dart_success_after_hs")
 
 if enrollment.empty:
     st.info(
@@ -96,8 +112,13 @@ st.divider()
 # Footer
 # ---------------------------------------------------------------------------
 
-st.caption(
-    "Built independently. Data sourced from MA DESE, US Census Bureau, US Dept of "
-    "Education, EPA, CDC, and the Massachusetts Department of Higher Education. "
-    "See Methodology for full citations."
+st.markdown(
+    f"""
+    <div style='text-align:center; margin-top:2rem; color:#455A64; font-size:0.9rem;'>
+        Built by <strong>{AUTHOR_NAME}</strong> ·
+        <a href='https://{AUTHOR_SITE}' style='color:#FFB81C;'>{AUTHOR_SITE}</a> ·
+        <a href='https://github.com/mapzimus/lehs-data-dive' style='color:#FFB81C;'>source on GitHub</a>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )

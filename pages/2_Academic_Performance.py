@@ -50,7 +50,7 @@ fig = px.line(
 fig.update_layout(
     **DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="% Meeting + Exceeding",
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 # Headline metrics for most recent year
 latest_year = int(all_students["SY"].max())
@@ -122,7 +122,7 @@ fig.update_layout(
     yaxis_title=f"{SUBJECT_MAP[subject_choice]} — % M+E",
     xaxis_title="School Year",
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -152,7 +152,7 @@ if not latest_sub.empty and "All Students" in latest_sub["STU_GRP"].values:
         title=f"Gap vs. All Students ({all_value:.0%}) — {SUBJECT_MAP[subject_choice]}",
         xaxis_title="Percentage point gap",
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     st.caption(
         "Negative bars indicate subgroups performing below the school-wide average. "
@@ -186,6 +186,6 @@ if not sgp.empty:
     fig.add_hline(y=50, line_dash="dash", line_color="gray",
                    annotation_text="Statewide median (50)", annotation_position="right")
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Average SGP", xaxis_title="School Year")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 else:
     st.info("No SGP data available for LEHS in this dataset.")

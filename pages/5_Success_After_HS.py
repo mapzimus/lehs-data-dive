@@ -1,37 +1,251 @@
 """Section 5 — Success After High School: graduation, college enrollment, persistence."""
 
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 
-from utils.data_loader import load_lehs_master
+from utils.branding import sidebar_attribution
+from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
+from utils.constants import LEHS_SCHOOL_CODE
+from utils.data_loader import get_dart_indicator, load_dataset
 
 st.set_page_config(page_title="Success After HS | LEHS", page_icon="🏆", layout="wide")
+sidebar_attribution()
 
 st.title("Success After High School")
 st.markdown(
-    "4-year and 5-year graduation cohorts, postsecondary enrollment by institution "
-    "type, and college persistence to the second year."
+    "Graduation cohorts, postsecondary enrollment by institution type, and "
+    "college persistence to the second year — drawn from DESE's DART: Success "
+    "After High School data."
 )
 
-df = load_lehs_master()
-
-if df.empty:
-    st.warning("Data pipeline not yet run. See README for setup.")
+dart = load_dataset("dart_success_after_hs")
+grad = load_dataset("graduation_rates")
+if dart.empty or grad.empty:
+    st.warning("Data pipeline not yet run.")
     st.stop()
 
-st.subheader("Graduation rates by student group")
-st.info("Chart placeholder")
+# ---------------------------------------------------------------------------
+# Headline metrics
+# ---------------------------------------------------------------------------
 
-st.subheader("9th to 10th grade promotion rate — the early warning")
-st.info("Chart placeholder")
+st.header("Headline Pipeline Metrics")
 
-st.subheader("Dropout trend")
-st.info("Chart placeholder")
+metrics_to_show = [
+    ("4-year cohort graduation rate", "4-Year Grad Rate", "pct"),
+    ("9th to 10th grade promotion rate (first-time 9th graders only)", "9-10 Promotion", "pct"),
+    ("Annual dropout rate", "Annual Dropout", "pct"),
+    ("Students enrolled in postsecondary education in the immediate fall after high school graduation",
+     "Immediate College Enrollment", "pct"),
+    ("College students persistently enrolled in postsecondary education for the first two years",
+     "College Persistence (yr 2)", "pct"),
+    ("Grade 12 students who completed FAFSA", "FAFSA Completed", "pct"),
+]
 
-st.subheader("Postsecondary enrollment: 2-year vs. 4-year")
-st.info("Chart placeholder")
+cols = st.columns(3)
+for i, (ind, label, fmt) in enumerate(metrics_to_show):
+    sub = get_dart_indicator(LEHS_SCHOOL_CODE, ind)
+    if sub.empty:
+        continue
+    latest = sub.iloc[-1]
+    prior = sub.iloc[-2] if len(sub) > 1 else None
+    val = latest["VALUE"]
+    display = f"{val:.0%}" if fmt == "pct" and val <= 1 else f"{val:.1f}"
+    delta = ""
+    if prior is not None and pd.notna(prior["VALUE"]):
+        diff = val - prior["VALUE"]
+        delta = f"{diff*100:+.1f} pts vs SY {int(prior['SY'])}"
+    with cols[i % 3]:
+        st.metric(label, display, delta)
 
-st.subheader("College persistence to year 2")
-st.info("Chart placeholder")
+st.divider()
 
-st.subheader("Cohort progression waterfall")
-st.info("Chart placeholder — HS → enrolled → persisted → completed")
+# ---------------------------------------------------------------------------
+# Graduation rate trend by student group
+# ---------------------------------------------------------------------------
+
+st.header("4-Year Graduation Rate by Student Group")
+
+g = grad[
+    (grad["ORG_CODE"] == LEHS_SCHOOL_CODE)
+    & (grad["GRAD_RATE_TYPE"] == "4-Year Adjusted Cohort Graduation Rate")
+].copy()
+g["STU_GRP"] = g["STU_GRP"].astype(str).str.replace("\xa0", " ")
+
+priority_groups = [
+    "All Students",
+    "English Learner", "English Learners", "Former English Learners",
+    "Hispanic or Latino", "Black or African American", "Asian", "White",
+    "Low Income", "Students with Disabilities", "High Needs",
+]
+g_focus = g[g["STU_GRP"].isin(priority_groups)].copy()
+
+if not g_focus.empty:
+    color_map_grad = {
+        "All Students":                LEHS_NAVY,
+        "English Learners":            SUBGROUP_PALETTE["English Learner"],
+        "English Learner":             SUBGROUP_PALETTE["English Learner"],
+        "Former English Learners":     SUBGROUP_PALETTE["Former English Learner"],
+        "Hispanic or Latino":          SUBGROUP_PALETTE["Hispanic/Latino"],
+        "Black or African American":   SUBGROUP_PALETTE["African American/Black"],
+        "Asian":                       SUBGROUP_PALETTE["Asian"],
+        "White":                       SUBGROUP_PALETTE["White"],
+        "Low Income":                  SUBGROUP_PALETTE["Low Income"],
+        "Students with Disabilities":  SUBGROUP_PALETTE["Students w/ Disabilities"],
+        "High Needs":                  SUBGROUP_PALETTE["High Needs"],
+    }
+    fig = px.line(
+        g_focus.sort_values("SY"), x="SY", y="GRAD_PCT", color="STU_GRP",
+        markers=True, color_discrete_map=color_map_grad,
+    )
+    fig.update_layout(
+        **DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="4-Year Grad Rate",
+        xaxis_title="Cohort Year",
+    )
+    st.plotly_chart(fig, width="stretch")
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# 4-year vs 5-year graduation comparison
+# ---------------------------------------------------------------------------
+
+st.header("4-Year vs. 5-Year Cohort Graduation")
+st.caption(
+    "The 5-year rate gives students an extra year — for ELL and SPED students "
+    "especially, this often shows meaningful additional graduations."
+)
+
+g_both = grad[
+    (grad["ORG_CODE"] == LEHS_SCHOOL_CODE)
+    & (grad["STU_GRP"] == "All Students")
+    & (grad["GRAD_RATE_TYPE"].isin([
+        "4-Year Adjusted Cohort Graduation Rate",
+        "5-Year Adjusted Cohort Graduation Rate",
+    ]))
+].copy()
+
+if not g_both.empty:
+    fig = px.line(
+        g_both.sort_values("SY"), x="SY", y="GRAD_PCT", color="GRAD_RATE_TYPE",
+        markers=True,
+        color_discrete_map={
+            "4-Year Adjusted Cohort Graduation Rate": LEHS_NAVY,
+            "5-Year Adjusted Cohort Graduation Rate": LEHS_GOLD,
+        },
+    )
+    fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Grad Rate")
+    st.plotly_chart(fig, width="stretch")
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Postsecondary enrollment pathway
+# ---------------------------------------------------------------------------
+
+st.header("Where do LEHS graduates go?")
+
+immediate = get_dart_indicator(LEHS_SCHOOL_CODE, "Students enrolled in postsecondary education in the immediate fall after high school graduation")
+two_year = get_dart_indicator(LEHS_SCHOOL_CODE, "High school graduates enrolled in 2-year postsecondary education")
+four_year = get_dart_indicator(LEHS_SCHOOL_CODE, "High school graduates enrolled in 4-year postsecondary education")
+persist = get_dart_indicator(LEHS_SCHOOL_CODE, "College students persistently enrolled in postsecondary education for the first two years")
+
+pathway = pd.concat([
+    immediate.assign(Indicator="Any college (immediate)"),
+    two_year.assign(Indicator="2-year college"),
+    four_year.assign(Indicator="4-year college"),
+    persist.assign(Indicator="Persisted 2 years"),
+])
+
+if not pathway.empty:
+    fig = px.line(
+        pathway.sort_values("SY"), x="SY", y="VALUE", color="Indicator",
+        markers=True,
+        color_discrete_map={
+            "Any college (immediate)": LEHS_NAVY,
+            "2-year college":          "#1976D2",
+            "4-year college":          "#388E3C",
+            "Persisted 2 years":       LEHS_GOLD,
+        },
+    )
+    fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="% of cohort")
+    st.plotly_chart(fig, width="stretch")
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Plans of HS Graduates
+# ---------------------------------------------------------------------------
+
+st.header("Self-Reported Plans of Graduates")
+st.caption("From end-of-year surveys of departing seniors.")
+
+plans = load_dataset("plans_of_graduates")
+plans_lehs = plans[plans["ORG_CODE"] == LEHS_SCHOOL_CODE].sort_values("SY").copy()
+
+if not plans_lehs.empty:
+    plan_cols = {
+        "COLL_4YRPUB_PCT": "4-yr Public College",
+        "COLL_4YRPRV_PCT": "4-yr Private College",
+        "COLL_2YRPUB_PCT": "2-yr Public College",
+        "COLL_2YRPRV_PCT": "2-yr Private College",
+        "WORK_PCT":        "Work",
+        "MILITARY_PCT":    "Military",
+        "APPREN_PCT":      "Apprenticeship",
+        "OTHER_PLANS_PCT": "Other",
+        "UNKNWN_PLANS_PCT":"Unknown",
+    }
+    plans_long = plans_lehs.melt(
+        id_vars="SY", value_vars=list(plan_cols.keys()),
+        var_name="Plan", value_name="Pct",
+    )
+    plans_long["Plan"] = plans_long["Plan"].map(plan_cols)
+    plans_long = plans_long.dropna(subset=["Pct"])
+
+    fig = px.area(
+        plans_long, x="SY", y="Pct", color="Plan",
+        groupnorm=None,
+    )
+    fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share of seniors")
+    st.plotly_chart(fig, width="stretch")
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Early warning chain
+# ---------------------------------------------------------------------------
+
+st.header("Early Warning Chain")
+st.caption(
+    "These four indicators form a cascade: a student who chronically misses 9th "
+    "grade is unlikely to be promoted, less likely to graduate on time, and far "
+    "less likely to enroll in college. Tracking them together highlights where "
+    "interventions have leverage."
+)
+
+chain_indicators = [
+    ("Chronically absent rate (% of students absent 10% or more each year)", "Chronic Absence"),
+    ("9th to 10th grade promotion rate (first-time 9th graders only)", "9-10 Promotion"),
+    ("4-year cohort graduation rate", "4-yr Graduation"),
+    ("Students enrolled in postsecondary education in the immediate fall after high school graduation",
+     "Immediate College"),
+]
+
+chain_df = pd.concat([
+    get_dart_indicator(LEHS_SCHOOL_CODE, ind).assign(Stage=label)
+    for ind, label in chain_indicators
+])
+
+if not chain_df.empty:
+    fig = px.line(
+        chain_df.sort_values("SY"), x="SY", y="VALUE", color="Stage", markers=True,
+        color_discrete_map={
+            "Chronic Absence":      "#D32F2F",
+            "9-10 Promotion":       "#F57C00",
+            "4-yr Graduation":      LEHS_NAVY,
+            "Immediate College":    "#388E3C",
+        },
+    )
+    fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Rate")
+    st.plotly_chart(fig, width="stretch")
