@@ -257,6 +257,33 @@ body.maps-page {
     margin: 0;
 }
 
+/* Year slider */
+.year-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+}
+.year-slider {
+    flex: 1;
+    accent-color: var(--lehs-navy);
+}
+.year-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--lehs-navy);
+    min-width: 40px;
+    text-align: right;
+}
+.year-note {
+    margin-top: 6px;
+    font-size: 10px;
+    font-style: italic;
+    color: #90A4AE;
+    line-height: 1.4;
+}
+
 /* Metric summary below choropleth section */
 .metric-summary {
     margin-top: 12px;

@@ -839,6 +839,11 @@ function wireUI() {
         applyChoropleth();
         updateLegend();
     });
+    // Year slider — scaffolded; live data wiring requires year-keyed
+    // geojson columns (planned). For now the slider just updates the label.
+    document.getElementById("yearSlider").addEventListener("input", e => {
+        document.getElementById("yearLabel").textContent = e.target.value;
+    });
     document.getElementById("paletteSelect").addEventListener("change", e => {
         state.palette = e.target.value;
         applyChoropleth();
