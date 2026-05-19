@@ -12,3 +12,8 @@ runOnSave = true
 
 [browser]
 gatherUsageStats = false
+
+[client]
+# Hide dev chrome (Deploy/Run/Stop, "Made with Streamlit" footer) for production.
+toolbarMode = "minimal"
+showSidebarNavigation = true

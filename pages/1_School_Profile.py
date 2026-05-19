@@ -8,7 +8,7 @@ import streamlit as st
 from utils.charts import DEFAULT_LAYOUT, LEHS_NAVY, SUBGROUP_PALETTE
 from utils.constants import LEHS_SCHOOL_CODE
 from utils.data_loader import load_dataset
-from utils.interpret import yoy_delta
+from utils.interpret import sy_label, yoy_delta
 
 st.set_page_config(page_title="School Profile | LEHS", page_icon="📊", layout="wide")
 
@@ -35,7 +35,7 @@ prior = lehs.iloc[-2] if len(lehs) > 1 else None
 # Hero metrics
 # ---------------------------------------------------------------------------
 
-st.subheader(f"At a Glance — School Year {int(current['SY'])}")
+st.subheader(f"At a Glance — School Year {sy_label(current['SY'])}")
 
 c1, c2, c3, c4, c5 = st.columns(5)
 with c1:
@@ -211,7 +211,7 @@ st.divider()
 # Grade-level enrollment
 # ---------------------------------------------------------------------------
 
-st.subheader(f"Grade-Level Enrollment ({int(current['SY'])})")
+st.subheader(f"Grade-Level Enrollment ({sy_label(current['SY'])})")
 
 grade_data = pd.DataFrame({
     "Grade": ["9", "10", "11", "12"],

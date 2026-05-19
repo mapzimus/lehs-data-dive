@@ -9,6 +9,15 @@ dump.
 from __future__ import annotations
 
 
+def sy_label(sy: int) -> str:
+    """Convert a single SY integer (e.g. 2026) to academic-year label '2025-26'."""
+    try:
+        sy = int(sy)
+    except (TypeError, ValueError):
+        return ""
+    return f"{sy - 1}-{str(sy)[-2:]}"
+
+
 def yoy_delta(current: float, previous: float, unit: str = "pts") -> str:
     """Year-over-year change phrase: 'up 3.2 pts vs. last year' or similar."""
     if previous is None or current is None:

@@ -127,12 +127,34 @@ NUMERIC_COLS = sorted([c for c in panel.columns if pd.api.types.is_numeric_dtype
 
 st.header("Curated Correlations")
 st.caption(
-    "Cross-domain questions answered with the latest available year for each "
-    "gateway-city HS."
+    "Cross-domain questions across all 26 gateway-city HS. Each scatter uses "
+    "the most recent year for which both metrics are available per school."
 )
 
-# Use most recent year per school
-latest = panel.sort_values("SY").groupby("ORG_CODE").tail(1).copy()
+
+@st.cache_data(show_spinner=False)
+def _latest_per_school(p: pd.DataFrame) -> pd.DataFrame:
+    """For each (school, column), take the most recent year that has a value.
+    Avoids dropping schools where the very latest row happens to be NaN for
+    the indicator of interest."""
+    static_cols = ["ORG_CODE", "ORG_NAME", "DIST_NAME"]
+    metric_cols = [c for c in p.columns if c not in static_cols + ["SY"]]
+    rows = []
+    for org_code, grp in p.groupby("ORG_CODE"):
+        grp = grp.sort_values("SY")
+        row = {"ORG_CODE": org_code}
+        for c in static_cols:
+            if c in grp.columns and not grp[c].dropna().empty:
+                row[c] = grp[c].dropna().iloc[-1]
+        for c in metric_cols:
+            non_null = grp[c].dropna()
+            row[c] = non_null.iloc[-1] if not non_null.empty else None
+        rows.append(row)
+    out = pd.DataFrame(rows)
+    return out
+
+
+latest = _latest_per_school(panel)
 latest["City"] = latest["DIST_NAME"]
 latest["is_lehs"] = latest["ORG_CODE"] == "01630510"
 

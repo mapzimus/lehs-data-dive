@@ -8,6 +8,7 @@ from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_NAVY, SUBGROUP_PALETTE
 from utils.constants import LEHS_SCHOOL_CODE
 from utils.data_loader import get_dart_indicator, load_dataset
+from utils.interpret import sy_label
 
 st.set_page_config(page_title="Discipline & Climate | LEHS", page_icon="⚖️", layout="wide")
 sidebar_attribution()
@@ -36,7 +37,9 @@ if not susp.empty:
     latest = susp.iloc[-1]
     c1, c2 = st.columns([1, 3])
     with c1:
-        st.metric(f"Suspended at least once (SY {int(latest['SY'])})", f"{latest['VALUE']:.1%}")
+        # DART value is in 0-100 percent form, not 0-1 fraction
+        st.metric(f"Suspended at least once (SY {sy_label(latest['SY'])})",
+                  f"{latest['VALUE']:.1f}%")
     fig = px.line(susp, x="SY", y="VALUE", markers=True)
     fig.update_traces(line=dict(color="#D32F2F", width=3))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".1%",
@@ -120,22 +123,18 @@ st.divider()
 # What's missing
 # ---------------------------------------------------------------------------
 
-st.subheader("Coming with future data layers")
+st.subheader("Going deeper — what's possible next")
 st.markdown(
     """
-DESE publishes much richer discipline data in the Profiles statereport bulk
-downloads — and federal **CRDC** (Civil Rights Data Collection) adds even more
-granular cross-tabs:
+The bigger discipline picture lives in two places this dashboard doesn't yet
+pull from. When those layers are added, expect:
 
-- **Suspensions by race × ELL × SPED** — disproportionality analysis
-- **In-school suspensions** (vs. out-of-school)
-- **Expulsions** — counts and rates
-- **Federal CRDC**: school-based arrests, referrals to law enforcement,
-  restraint and seclusion, bullying incidents by basis
-- **VOCAL Survey**: student-reported climate, belonging, safety, engagement
-  (when LEHS participates — not all schools every year)
-
-These layers go in once `scripts/02_download_dese_profiles.py` and
-`scripts/03_download_crdc.py` are filled in.
+- **Suspensions by race × ELL × SPED** — disproportionality analysis (from
+  DESE Profiles statereport).
+- **In-school suspensions** vs. out-of-school, expulsions counts.
+- **Federal CRDC** (Civil Rights Data Collection): school-based arrests,
+  restraint and seclusion, bullying incidents by basis.
+- **VOCAL Survey** student-reported climate, belonging, safety, engagement
+  for years LEHS participates.
 """
 )

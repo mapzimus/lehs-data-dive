@@ -79,11 +79,18 @@ def filter_school_csv(
         df["DIST_CODE"] = df["DIST_CODE"].fillna("").str.zfill(8)
 
     if "ORG_CODE" in df.columns:
+        # Include schools we care about
         mask = df["ORG_CODE"].isin(school_codes)
+        # ALSO include district-level rows (ORG_TYPE='District') for the districts
+        # we care about. DESE uses the district code as ORG_CODE on these rows.
         if district_codes and "DIST_CODE" in df.columns:
-            mask |= df["DIST_CODE"].isin(district_codes) & (
-                df.get("ORG_CODE", "").fillna("") == ""
-            )
+            district_mask = df["DIST_CODE"].isin(district_codes)
+            if "ORG_TYPE" in df.columns:
+                district_mask = district_mask & (df["ORG_TYPE"] == "District")
+            else:
+                # Fall back: row where ORG_CODE == DIST_CODE
+                district_mask = district_mask & (df["ORG_CODE"] == df["DIST_CODE"])
+            mask = mask | district_mask
         filtered = df[mask]
     elif "DIST_CODE" in df.columns:
         filtered = df[df["DIST_CODE"].isin(district_codes or set())]

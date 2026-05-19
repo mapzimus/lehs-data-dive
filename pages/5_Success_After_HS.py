@@ -51,11 +51,17 @@ for i, (ind, label, fmt) in enumerate(metrics_to_show):
     latest = sub.iloc[-1]
     prior = sub.iloc[-2] if len(sub) > 1 else None
     val = latest["VALUE"]
-    display = f"{val:.0%}" if fmt == "pct" and val <= 1 else f"{val:.1f}"
+    # DART percentage indicators are stored as 0-100 (e.g., 81.5 for 81.5%),
+    # not 0-1 fractions
+    if fmt == "pct":
+        display = f"{val:.1f}%"
+    else:
+        display = f"{val:,.0f}"
     delta = ""
     if prior is not None and pd.notna(prior["VALUE"]):
         diff = val - prior["VALUE"]
-        delta = f"{diff*100:+.1f} pts vs SY {int(prior['SY'])}"
+        unit = "pts" if fmt == "pct" else ""
+        delta = f"{diff:+.1f} {unit} vs SY {int(prior['SY'])}"
     with cols[i % 3]:
         st.metric(label, display, delta)
 
@@ -159,6 +165,7 @@ pathway = pd.concat([
 ])
 
 if not pathway.empty:
+    # DART VALUE is 0-100; chart in raw percent and label axis explicitly
     fig = px.line(
         pathway.sort_values("SY"), x="SY", y="VALUE", color="Indicator",
         markers=True,
@@ -169,7 +176,8 @@ if not pathway.empty:
             "Persisted 2 years":       LEHS_GOLD,
         },
     )
-    fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="% of cohort")
+    fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="% of cohort",
+                       yaxis_ticksuffix="%", yaxis_range=[0, 100])
     st.plotly_chart(fig, width="stretch")
 
 st.divider()
@@ -247,5 +255,6 @@ if not chain_df.empty:
             "Immediate College":    "#388E3C",
         },
     )
-    fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Rate")
+    fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Rate (%)",
+                       yaxis_ticksuffix="%", yaxis_range=[0, 100])
     st.plotly_chart(fig, width="stretch")

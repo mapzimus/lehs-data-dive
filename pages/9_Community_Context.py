@@ -87,8 +87,10 @@ Lynn's community context vs. each of the other 25 gateway cities — answers
 """
 )
 
-st.info(
-    "These data sources require API keys (Census, BLS) or web scraping. "
-    "Add as you have time — the dashboard architecture supports them out of "
-    "the box once `data/raw/census/`, `data/raw/crdc/` etc. are populated."
+st.markdown(
+    "**Available now via the Lynn Maps section:**\n"
+    "- The [Lynn Equity Maps](/Maps_Lynn_Equity) page has tract-level Census ACS "
+    "data for median income, foreign-born share, educational attainment, and "
+    "the linguistic landscape — Lynn-area census tracts colored by these "
+    "indicators. That's the community context, rendered geographically."
 )

@@ -9,6 +9,7 @@ from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY
 from utils.constants import LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
 from utils.data_loader import load_dataset
+from utils.interpret import sy_label
 
 st.set_page_config(page_title="Finance | LEHS", page_icon="💰", layout="wide")
 sidebar_attribution()
@@ -47,7 +48,7 @@ if not total_exp.empty:
     c1, c2 = st.columns([1, 3])
     with c1:
         st.metric(
-            f"Per Pupil (SY {int(latest['SY'])})",
+            f"Per Pupil (FY {int(latest['SY'])})",
             f"${latest['IND_VALUE']:,.0f}",
             f"${latest['IND_VALUE']-prior['IND_VALUE']:+,.0f} vs SY {int(prior['SY'])}" if prior is not None else "",
         )
@@ -181,8 +182,9 @@ st.divider()
 
 st.subheader("Cost-per-outcome (derived)")
 st.caption(
-    "These ratios connect spending to outcomes — e.g., $ spent per graduate, "
-    "per college-bound student. Derived from joining the finance data to the "
-    "DART graduation and college-enrollment indicators."
+    "Ratios that connect spending to outcomes — $ spent per graduate, per "
+    "college-bound student. Built from the master panel that joins finance "
+    "to DART graduation and college-enrollment indicators. Available on the "
+    "**Correlation Lab** page where you can explore spending-vs-outcome "
+    "relationships directly."
 )
-st.info("Coming in a follow-up commit — requires joining finance + DART panel.")

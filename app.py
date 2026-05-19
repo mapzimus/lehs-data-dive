@@ -9,6 +9,7 @@ import streamlit as st
 from utils.branding import AUTHOR_NAME, AUTHOR_SITE, sidebar_attribution
 from utils.constants import LEHS_SCHOOL_CODE
 from utils.data_loader import load_dataset
+from utils.interpret import sy_label
 
 st.set_page_config(
     page_title="LEHS Data Dive",
@@ -66,7 +67,7 @@ lehs = enrollment[enrollment["ORG_CODE"] == LEHS_SCHOOL_CODE].sort_values("SY")
 current = lehs.iloc[-1]
 current_sy = int(current["SY"])
 
-st.caption(f"All metrics below are for school year {current_sy} (most recent available).")
+st.caption(f"All metrics below are for school year {sy_label(current_sy)} (most recent available).")
 
 c1, c2, c3, c4 = st.columns(4)
 with c1:
