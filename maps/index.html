@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lynn Data Dive — Maps | Maxwell Howe GIS</title>
-    <meta name="description" content="Interactive maps of Lynn English High School, Lynn census tracts, Massachusetts school districts, and the 26 MA Gateway Cities. MapLibre GL JS + vector tiles.">
+    <title>Lynn Data Dive — Interactive Maps | Maxwell Howe GIS</title>
+    <meta name="description" content="Interactive choropleth maps of Massachusetts education and demographics. Built with MapLibre GL JS, vector tiles, MassGIS, MA DESE, and US Census data.">
     <meta property="og:title" content="Lynn Data Dive — Interactive Maps">
-    <meta property="og:description" content="MapLibre vector-tile maps of Lynn schools, demographics, Massachusetts districts, and Gateway Cities.">
+    <meta property="og:description" content="ArcGIS-style web map: layer panel, palette selector, classification methods, 35+ metrics across MA municipalities, school districts, and Lynn census tracts.">
     <meta property="og:type" content="website">
     <link rel="icon" type="image/svg+xml" href="../../images/favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -36,7 +36,7 @@
 
 <main id="main-content" class="maps-main">
 
-    <!-- LEFT PANEL: layers + variables -->
+    <!-- LEFT PANEL -->
     <aside class="control-panel" id="controlPanel">
         <button class="panel-toggle" id="panelToggle" aria-label="Toggle panel">
             <span></span><span></span><span></span>
@@ -48,69 +48,81 @@
                 <a href="../" class="back-link">← Back to dashboard</a>
             </div>
             <h1 class="panel-title">Interactive Maps</h1>
-            <p class="panel-desc">Toggle layers, click features to inspect, and switch what colors each choropleth.</p>
+            <p class="panel-desc">
+                Color polygons by any of 35+ metrics across MA municipalities,
+                school districts, and Lynn census tracts. Pick a palette,
+                classification method, and visual mode.
+            </p>
         </div>
 
+        <!-- QUICK VIEWS -->
         <div class="panel-section">
             <h2 class="panel-h2">Quick views</h2>
             <div class="view-buttons">
-                <button class="view-btn active" data-view="lynn">Lynn (close-up)</button>
+                <button class="view-btn active" data-view="lynn">Lynn</button>
                 <button class="view-btn" data-view="ma">Massachusetts</button>
                 <button class="view-btn" data-view="north-shore">North Shore</button>
             </div>
         </div>
 
+        <!-- CHOROPLETH -->
+        <div class="panel-section choropleth-section">
+            <h2 class="panel-h2">Choropleth</h2>
+
+            <label class="form-label">Color polygons at</label>
+            <select id="levelSelect" class="select-input">
+                <option value="muni">Municipality (351 MA towns)</option>
+                <option value="district">School District (150 polygons)</option>
+                <option value="tract">Census Tract (Lynn only)</option>
+            </select>
+
+            <label class="form-label" style="margin-top:12px;">Metric</label>
+            <select id="metricSelect" class="select-input"></select>
+
+            <label class="form-label" style="margin-top:12px;">Color palette</label>
+            <select id="paletteSelect" class="select-input"></select>
+
+            <label class="form-label" style="margin-top:12px;">Classification</label>
+            <div class="radio-group">
+                <label><input type="radio" name="classify" value="continuous" checked> Continuous (linear)</label>
+                <label><input type="radio" name="classify" value="quantile"> 5 quantiles</label>
+                <label><input type="radio" name="classify" value="equal"> 5 equal-interval</label>
+            </div>
+
+            <div class="metric-summary" id="metricSummary"></div>
+        </div>
+
+        <!-- REFERENCE LAYERS -->
         <div class="panel-section">
-            <h2 class="panel-h2">Layers</h2>
+            <h2 class="panel-h2">Reference layers</h2>
             <label class="layer-row">
-                <input type="checkbox" id="layer-tracts" checked>
-                <span class="layer-swatch swatch-tracts"></span>
-                <span class="layer-name">Lynn census tracts</span>
+                <input type="checkbox" id="ref-muni-outline" checked>
+                <span class="layer-swatch swatch-muni-outline"></span>
+                <span class="layer-name">MA municipality borders (351)</span>
             </label>
             <label class="layer-row">
-                <input type="checkbox" id="layer-schools" checked>
+                <input type="checkbox" id="ref-district-outline">
+                <span class="layer-swatch swatch-district-outline"></span>
+                <span class="layer-name">MA school district borders</span>
+            </label>
+            <label class="layer-row">
+                <input type="checkbox" id="ref-lynn-schools" checked>
                 <span class="layer-swatch swatch-schools"></span>
-                <span class="layer-name">Lynn schools (22)</span>
+                <span class="layer-name">Lynn schools (35)</span>
             </label>
             <label class="layer-row">
-                <input type="checkbox" id="layer-town" checked>
-                <span class="layer-swatch swatch-town"></span>
-                <span class="layer-name">Lynn + neighbors</span>
+                <input type="checkbox" id="ref-lynn-town" checked>
+                <span class="layer-swatch swatch-lynn"></span>
+                <span class="layer-name">Lynn highlight</span>
             </label>
             <label class="layer-row">
-                <input type="checkbox" id="layer-districts">
-                <span class="layer-swatch swatch-districts"></span>
-                <span class="layer-name">MA school districts</span>
-            </label>
-            <label class="layer-row">
-                <input type="checkbox" id="layer-gateway">
+                <input type="checkbox" id="ref-gateway-highlight" checked>
                 <span class="layer-swatch swatch-gateway"></span>
-                <span class="layer-name">Gateway city HS (26)</span>
+                <span class="layer-name">Highlight 26 Gateway Cities</span>
             </label>
         </div>
 
-        <div class="panel-section" id="tract-variable-section">
-            <h2 class="panel-h2">Tract choropleth — color by</h2>
-            <select id="tract-variable" class="select-input">
-                <option value="non_english_pct">% non-English at home</option>
-                <option value="median_household_income">Median household income</option>
-                <option value="foreign_born_pct">% foreign-born</option>
-                <option value="bachelors_or_higher_pct">% bachelor's or higher</option>
-                <option value="severe_burden_pct">% severely rent-burdened</option>
-            </select>
-        </div>
-
-        <div class="panel-section" id="district-variable-section" style="display:none;">
-            <h2 class="panel-h2">District choropleth — color by</h2>
-            <select id="district-variable" class="select-input">
-                <option value="grad_4yr">4-year graduation rate</option>
-                <option value="per_pupil">Per-pupil spending</option>
-                <option value="EL_PCT">% English Learner</option>
-                <option value="LI_PCT">% Low Income</option>
-                <option value="HN_PCT">% High Needs</option>
-            </select>
-        </div>
-
+        <!-- VISUAL MODE -->
         <div class="panel-section">
             <h2 class="panel-h2">Visual mode</h2>
             <label class="toggle-row">
@@ -118,15 +130,16 @@
                 <span>3D extrusion (height = active metric)</span>
             </label>
             <label class="toggle-row">
-                <input type="checkbox" id="toggle-bivariate">
-                <span>Bivariate (% ELL × % Low Income)</span>
+                <input type="checkbox" id="toggle-labels" checked>
+                <span>School labels (at zoom &gt; 13)</span>
             </label>
             <label class="toggle-row">
-                <input type="checkbox" id="toggle-labels" checked>
-                <span>Show school labels</span>
+                <input type="checkbox" id="toggle-town-labels" checked>
+                <span>Town labels</span>
             </label>
         </div>
 
+        <!-- ATTRIBUTION -->
         <div class="panel-section panel-footer">
             <div class="attribution">
                 <strong>Sources:</strong> MA DESE E2C Hub · US Census ACS 5-year · MassGIS<br>
@@ -136,16 +149,17 @@
         </div>
     </aside>
 
-    <!-- MAP CONTAINER -->
+    <!-- MAP -->
     <div id="map" class="map-container"></div>
 
-    <!-- LEGEND (bottom-right, floating) -->
+    <!-- LEGEND -->
     <div class="legend" id="legend">
         <div class="legend-title" id="legendTitle">Legend</div>
         <div class="legend-stops" id="legendStops"></div>
+        <div class="legend-meta" id="legendMeta"></div>
     </div>
 
-    <!-- LOADING OVERLAY -->
+    <!-- LOADING -->
     <div class="map-loading" id="mapLoading">
         <div class="map-loading-spinner"></div>
         <div>Loading map data…</div>
@@ -155,6 +169,6 @@
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="../../js/main.js"></script>
-<script src="app.js" type="module"></script>
+<script src="app.js"></script>
 </body>
 </html>

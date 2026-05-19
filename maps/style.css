@@ -212,11 +212,89 @@ body.maps-page {
     flex-shrink: 0;
     border: 1px solid rgba(0,0,0,0.1);
 }
-.swatch-tracts    { background: linear-gradient(135deg, #d5e8d4, #2e7d32); }
-.swatch-schools   { background: var(--lehs-gold); border-radius: 50%; }
-.swatch-town      { background: transparent; border: 2px solid var(--lehs-navy); }
-.swatch-districts { background: linear-gradient(135deg, #fff3e0, #e65100); }
-.swatch-gateway   { background: #6a1b9a; border-radius: 50%; }
+.swatch-tracts          { background: linear-gradient(135deg, #d5e8d4, #2e7d32); }
+.swatch-schools         { background: var(--lehs-gold); border-radius: 50%; }
+.swatch-town            { background: transparent; border: 2px solid var(--lehs-navy); }
+.swatch-districts       { background: linear-gradient(135deg, #fff3e0, #e65100); }
+.swatch-gateway         { background: rgba(156, 39, 176, 0.25); border: 2px solid #6a1b9a; }
+.swatch-muni-outline    { background: transparent; border: 1.5px solid #78909c; }
+.swatch-district-outline{ background: transparent; border: 1.5px dashed #1a3a6b; }
+.swatch-lynn            { background: rgba(255, 184, 28, 0.3); border: 2px solid var(--lehs-navy); }
+
+/* Form labels for select inputs */
+.form-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--lehs-navy);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+/* Radio group */
+.radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 4px;
+}
+.radio-group label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--lehs-navy);
+    cursor: pointer;
+    padding: 2px 0;
+}
+.radio-group input[type="radio"] {
+    accent-color: var(--lehs-navy);
+    width: 13px;
+    height: 13px;
+    margin: 0;
+}
+
+/* Metric summary below choropleth section */
+.metric-summary {
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: rgba(10, 31, 68, 0.04);
+    border-radius: 6px;
+    font-size: 11px;
+}
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 0;
+}
+.summary-row strong { color: var(--lehs-navy); }
+.summary-row span:first-child { color: #607D8B; }
+
+/* Classed legend rows */
+.legend-class {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 0;
+    font-size: 11px;
+}
+.legend-class-swatch {
+    width: 22px;
+    height: 14px;
+    border-radius: 2px;
+    border: 1px solid rgba(0,0,0,0.1);
+    flex-shrink: 0;
+}
+.legend-class-range { color: var(--lehs-navy); }
+
+.legend-meta {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--panel-border);
+    font-size: 10px;
+    color: #607D8B;
+}
 
 .layer-name { flex: 1; }
 
