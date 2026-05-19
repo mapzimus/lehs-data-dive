@@ -64,7 +64,7 @@ TARGETS = [
     ("student_progression_hs_to_postsec","Student Progression from High School through Postsecondary Education"),
 ]
 
-USER_AGENT = "lehs-data-center/0.1 (https://github.com/mapzimus/lehs-data-center)"
+USER_AGENT = "lehs-data-dive/0.1 (https://github.com/mapzimus/lehs-data-dive)"
 HEADERS = {"User-Agent": USER_AGENT}
 
 # ---------------------------------------------------------------------------

@@ -63,8 +63,8 @@ st.header("How to reproduce / refresh")
 
 st.code(
     """
-git clone https://github.com/mapzimus/lehs-data-center
-cd lehs-data-center
+git clone https://github.com/mapzimus/lehs-data-dive
+cd lehs-data-dive
 conda create -n lehs python=3.12 -y
 conda activate lehs
 pip install -r requirements.txt

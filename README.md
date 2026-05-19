@@ -65,7 +65,7 @@ streamlit run app.py
 ## Repository structure
 
 ```
-lehs-data-center/
+lehs-data-dive/
 ├── app.py                    # Streamlit landing page
 ├── pages/                    # 12 dashboard pages + methodology
 ├── data/
