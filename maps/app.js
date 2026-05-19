@@ -9,10 +9,12 @@
    ============================================================================ */
 
 // ----------------------------------------------------------------------------
-// Data sources — pulled directly from the lehs-data-dive repo via jsDelivr CDN
-// so the maps update automatically when DESE refresh data flows through.
+// Data sources — same-origin (served from this maps/ folder on GitHub Pages).
+// Sourced from the lehs-data-dive repo; copied here at build time so loads
+// are fast and free of CDN/CORS gotchas. Refresh by re-running the geo
+// build script in that repo and copying the .geojson outputs here.
 // ----------------------------------------------------------------------------
-const DATA_BASE = "https://cdn.jsdelivr.net/gh/mapzimus/lehs-data-dive@main/data/processed";
+const DATA_BASE = "data";
 const SOURCES = {
     tracts:        `${DATA_BASE}/lynn_tracts.geojson`,
     schools:       `${DATA_BASE}/lynn_schools.geojson`,
