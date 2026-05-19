@@ -16,7 +16,8 @@ const SOURCES = {
     tracts:        "data/lynn_tracts.geojson",
     schools:       "data/lynn_schools.geojson",
     town:          "data/lynn_town.geojson",
-    districts:     "data/ma_districts_metrics.geojson",
+    academic:      "data/ma_academic_districts.geojson",   // dissolved town polygons (~250)
+    ccuv:          "data/ma_districts_metrics.geojson",    // charter/voc-tech/collab (150)
     municipalities:"data/ma_municipalities.geojson",
 };
 
@@ -109,7 +110,9 @@ const state = {
     labels: true,
     townLabels: true,
     showMuniOutline: true,
-    showDistrictOutline: false,
+    showAcademicOutline: false,
+    showVoctechOverlay: false,
+    showCharterOverlay: false,
     showLynnSchools: true,
     showLynnTown: true,
     showGatewayHighlight: true,
@@ -219,20 +222,33 @@ map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: "imperial" }),
 
 map.on("load", async () => {
     try {
-        const [tracts, schools, town, districts, munis] = await Promise.all([
+        const [tracts, schools, town, academic, ccuv, munis] = await Promise.all([
             fetch(SOURCES.tracts).then(r => r.json()),
             fetch(SOURCES.schools).then(r => r.json()),
             fetch(SOURCES.town).then(r => r.json()),
-            fetch(SOURCES.districts).then(r => r.json()),
+            fetch(SOURCES.academic).then(r => r.json()),
+            fetch(SOURCES.ccuv).then(r => r.json()),
             fetch(SOURCES.municipalities).then(r => r.json()),
         ]);
-        GEO_DATA = { tract: tracts, district: districts, muni: munis };
+        GEO_DATA = { tract: tracts, district: academic, muni: munis };
+
+        // Sub-collections of CCUV by type, for separate styling
+        const voctech = {
+            type: "FeatureCollection",
+            features: ccuv.features.filter(f => f.properties.TYPE === "Vocational"),
+        };
+        const charter = {
+            type: "FeatureCollection",
+            features: ccuv.features.filter(f => f.properties.TYPE === "Charter"),
+        };
 
         // generateId: true assigns a numeric feature ID so setFeatureState works
         map.addSource("tracts",         { type: "geojson", data: tracts,    generateId: true });
         map.addSource("schools",        { type: "geojson", data: schools,   generateId: true });
         map.addSource("town",           { type: "geojson", data: town,      generateId: true });
-        map.addSource("districts",      { type: "geojson", data: districts, generateId: true });
+        map.addSource("districts",      { type: "geojson", data: academic,  generateId: true });
+        map.addSource("ccuv-voctech",   { type: "geojson", data: voctech,   generateId: true });
+        map.addSource("ccuv-charter",   { type: "geojson", data: charter,   generateId: true });
         map.addSource("municipalities", { type: "geojson", data: munis,     generateId: true });
         map.addSource("lynn-only", {
             type: "geojson",
@@ -278,7 +294,6 @@ function addLayers() {
     });
     map.addLayer({
         id: "district-fill", type: "fill", source: "districts",
-        filter: ["==", ["get", "TYPE"], "Operating District"],
         paint: {
             "fill-color": NO_DATA_COLOR,
             "fill-opacity": [
@@ -314,7 +329,6 @@ function addLayers() {
                 "line-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 1, 0],
             },
         };
-        if (src === "districts") cfg.filter = ["==", ["get", "TYPE"], "Operating District"];
         map.addLayer(cfg);
     });
 
@@ -333,17 +347,55 @@ function addLayers() {
             "line-opacity": 0.75,
         },
     });
-    // District borders (toggleable, slightly thicker / different color)
+    // Academic district borders (dissolved town boundaries — ~250 districts)
     map.addLayer({
-        id: "district-outline", type: "line", source: "districts",
-        filter: ["==", ["get", "TYPE"], "Operating District"],
+        id: "academic-outline", type: "line", source: "districts",
         paint: {
             "line-color": "#1a3a6b",
-            "line-width": 1.3,
-            "line-opacity": 0.65,
-            "line-dasharray": [3, 1.5],
+            "line-width": 1.5,
+            "line-opacity": 0.8,
         },
-        layout: { visibility: state.showDistrictOutline ? "visible" : "none" },
+        layout: { visibility: state.showAcademicOutline ? "visible" : "none" },
+    });
+
+    // Regional vocational/technical district OVERLAY (they cross town lines)
+    map.addLayer({
+        id: "voctech-fill", type: "fill", source: "ccuv-voctech",
+        paint: {
+            "fill-color": "#6a1b9a",
+            "fill-opacity": 0.08,
+        },
+        layout: { visibility: state.showVoctechOverlay ? "visible" : "none" },
+    });
+    map.addLayer({
+        id: "voctech-outline", type: "line", source: "ccuv-voctech",
+        paint: {
+            "line-color": "#6a1b9a",
+            "line-width": 1.8,
+            "line-opacity": 0.85,
+            "line-dasharray": [4, 2],
+        },
+        layout: { visibility: state.showVoctechOverlay ? "visible" : "none" },
+    });
+
+    // Charter district OVERLAY (service areas — also cross town lines)
+    map.addLayer({
+        id: "charter-fill", type: "fill", source: "ccuv-charter",
+        paint: {
+            "fill-color": "#00897B",
+            "fill-opacity": 0.08,
+        },
+        layout: { visibility: state.showCharterOverlay ? "visible" : "none" },
+    });
+    map.addLayer({
+        id: "charter-outline", type: "line", source: "ccuv-charter",
+        paint: {
+            "line-color": "#00695C",
+            "line-width": 1.3,
+            "line-opacity": 0.85,
+            "line-dasharray": [1, 2],
+        },
+        layout: { visibility: state.showCharterOverlay ? "visible" : "none" },
     });
 
     // ── GATEWAY HIGHLIGHT (filled overlay on the 25 non-Lynn gateways) ───────
@@ -546,12 +598,11 @@ function buildPopupHtml(p, kind) {
         `;
     }
     if (kind === "district") {
-        const isLynn = p.ORG8CODE === "01630000";
+        const isLynn = p.DIST_CODE === "01630000" || p.is_lynn === true;
         return `
             ${isLynn ? '<div class="popup-tag">LYNN PUBLIC SCHOOLS</div>' : ""}
-            <div class="popup-title">${p.DIST_NAME || "District"}</div>
-            <div class="popup-row"><span class="label">Org code</span><span class="value">${p.ORG8CODE}</span></div>
-            <div class="popup-row"><span class="label">Type</span><span class="value">${p.TYPE || "—"}</span></div>
+            <div class="popup-title">${p.dist_display || p.DIST_NAME || "Academic District"}</div>
+            <div class="popup-row"><span class="label">District code</span><span class="value">${p.DIST_CODE || "—"}</span></div>
             ${row("Enrollment", p.TOTAL_CNT, "num")}
             ${row("4-yr Graduation", p.grad_4yr, "pct")}
             ${row("Dropout", p.dropout_pct, "pct")}
@@ -636,11 +687,7 @@ function updateLegend() {
     titleEl.textContent = m.label;
 
     const values = getValuesForLevel(level, metric);
-    const totalFeatures = GEO_DATA[level]
-        ? (level === "district"
-            ? GEO_DATA[level].features.filter(f => f.properties.TYPE === "Operating District").length
-            : GEO_DATA[level].features.length)
-        : 0;
+    const totalFeatures = GEO_DATA[level] ? GEO_DATA[level].features.length : 0;
     const nullCount = Math.max(0, totalFeatures - values.length);
 
     if (values.length === 0) {
@@ -795,7 +842,9 @@ function wireUI() {
     // Reference layer toggles
     const ref = {
         "ref-muni-outline":      ["muni-outline"],
-        "ref-district-outline":  ["district-outline"],
+        "ref-academic-outline":  ["academic-outline"],
+        "ref-voctech-overlay":   ["voctech-fill", "voctech-outline"],
+        "ref-charter-overlay":   ["charter-fill", "charter-outline"],
         "ref-lynn-schools":      ["schools-circles", "schools-labels"],
         "ref-lynn-town":         ["lynn-highlight-fill", "lynn-highlight-line"],
         "ref-gateway-highlight": ["gateway-highlight-fill", "gateway-highlight-line"],

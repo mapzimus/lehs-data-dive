@@ -218,7 +218,9 @@ body.maps-page {
 .swatch-districts       { background: linear-gradient(135deg, #fff3e0, #e65100); }
 .swatch-gateway         { background: rgba(156, 39, 176, 0.25); border: 2px solid #6a1b9a; }
 .swatch-muni-outline    { background: transparent; border: 1.5px solid #78909c; }
-.swatch-district-outline{ background: transparent; border: 1.5px dashed #1a3a6b; }
+.swatch-academic-outline{ background: transparent; border: 1.8px solid #1a3a6b; }
+.swatch-voctech-overlay { background: rgba(106, 27, 154, 0.15); border: 1.5px dashed #6a1b9a; }
+.swatch-charter-overlay { background: rgba(0, 137, 123, 0.15); border: 1.3px dotted #00695C; }
 .swatch-lynn            { background: rgba(255, 184, 28, 0.3); border: 2px solid var(--lehs-navy); }
 
 /* Form labels for select inputs */
