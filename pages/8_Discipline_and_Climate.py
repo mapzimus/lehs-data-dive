@@ -15,15 +15,15 @@ sidebar_attribution()
 
 st.title("Discipline, Climate & Safety")
 st.markdown(
-    "Out-of-school suspension rates, chronic absenteeism, and student-reported "
-    "climate. Some of the richest data here (granular discipline by race × "
-    "disability × gender) lives in the federal CRDC and DESE Profiles statereport — "
-    "those layers will be added once those scrapers are built."
+    "Out-of-school suspension rates and chronic absenteeism for LEHS, by "
+    "student group where available. More granular discipline data (race × "
+    "disability × gender) is collected federally by the Civil Rights Data "
+    "Collection and at the state level — see Methodology for sources."
 )
 
 attendance = load_dataset("student_attendance")
 if attendance.empty:
-    st.warning("Data pipeline not yet run.")
+    st.info("Attendance data is temporarily unavailable. Please check back later.")
     st.stop()
 
 # ---------------------------------------------------------------------------

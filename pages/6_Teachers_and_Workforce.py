@@ -194,18 +194,174 @@ if not teachers_all_years.empty:
 
 st.divider()
 
-st.subheader("Data not yet here")
-st.markdown(
-    """
-The following teacher/workforce indicators require DESE Profiles statereport bulk
-downloads (not on E2C Hub) and will be added once `scripts/02_download_dese_profiles.py`
-is filled in:
+# ---------------------------------------------------------------------------
+# Teacher retention — at Lynn district level (staff_retention dataset)
+# ---------------------------------------------------------------------------
 
-- **Teacher retention rate** year-over-year
-- **Years of experience** distribution (0-3, 4-9, 10+)
-- **% In-field** by subject (teaching with subject-specific licensure)
-- **Counselor / Nurse / Psychologist / Social Worker ratios** per 100 students
-- **Class size** by subject (ELA, Math, Science)
-- **Educator pipeline** (Teach Mass): MTEL pass rates for new hires
-"""
+st.header("Teacher Retention Rate")
+st.caption(
+    "Share of teachers in the Lynn district who returned the following year. "
+    "DESE publishes this at district level — school-by-school retention "
+    "is not separately released."
 )
+
+retention = load_dataset("staff_retention")
+if not retention.empty:
+    lynn_ret = retention[
+        (retention["DIST_CODE"] == "01630000")
+        & (retention["STAFF_DESC"].astype(str).str.contains("Teacher", case=False, na=False))
+    ].copy()
+    lynn_ret["RETND_PCT"] = pd.to_numeric(lynn_ret["RETND_PCT"], errors="coerce")
+    lynn_ret = lynn_ret.dropna(subset=["RETND_PCT"]).sort_values("SY")
+
+    if not lynn_ret.empty:
+        latest_ret = lynn_ret.iloc[-1]
+        c1, c2 = st.columns([1, 3])
+        with c1:
+            st.metric(
+                f"Lynn district teacher retention (SY {int(latest_ret['SY'])})",
+                f"{latest_ret['RETND_PCT']:.0%}",
+                f"{int(latest_ret['RETND_CNT'])} of {int(latest_ret['TOT_CNT'])} teachers",
+            )
+        lynn_ret["label"] = lynn_ret["RETND_PCT"].apply(lambda x: f"{x:.0%}")
+        fig = px.line(lynn_ret, x="SY", y="RETND_PCT", markers=True, text="label")
+        fig.update_traces(line=dict(color=LEHS_NAVY, width=3), textposition="top center")
+        fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
+                          yaxis_title="% teachers returning the next year")
+        with c2:
+            st.plotly_chart(fig, width="stretch")
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Experienced + In-field teachers (teacher_data, SUBJECT=All Teachers)
+# ---------------------------------------------------------------------------
+
+st.header("Experienced + In-Field Teachers — Lynn District")
+st.caption(
+    "Two key DESE quality indicators: **% Experienced** (teachers with 3+ years), "
+    "and **% In-Field** (teachers with subject-specific licensure for the subject "
+    "they teach)."
+)
+
+teacher_data = load_dataset("teacher_data")
+if not teacher_data.empty:
+    td_lynn = teacher_data[
+        (teacher_data["DIST_CODE"] == "01630000")
+        & (teacher_data["ORG_TYPE"] == "District")
+        & (teacher_data["SUBJECT"].astype(str).str.lower() == "all teachers")
+    ].copy()
+    for col in ["EXP_TCHR_PCT", "TCHR_INFLD_PCT", "TCHR_LIC_PCT"]:
+        if col in td_lynn.columns:
+            td_lynn[col] = pd.to_numeric(td_lynn[col], errors="coerce")
+    td_lynn = td_lynn.sort_values("SY")
+
+    if not td_lynn.empty:
+        long = td_lynn.melt(
+            id_vars="SY",
+            value_vars=[c for c in ["EXP_TCHR_PCT", "TCHR_INFLD_PCT", "TCHR_LIC_PCT"]
+                        if c in td_lynn.columns],
+            var_name="Indicator", value_name="Pct",
+        )
+        long["Indicator"] = long["Indicator"].map({
+            "EXP_TCHR_PCT":   "% Experienced (3+ yrs)",
+            "TCHR_INFLD_PCT": "% In-field for subject",
+            "TCHR_LIC_PCT":   "% Properly licensed",
+        })
+        long = long.dropna(subset=["Pct"])
+        long["label"] = long["Pct"].apply(lambda x: f"{x:.0%}")
+        fig = px.line(
+            long, x="SY", y="Pct", color="Indicator", markers=True, text="label",
+            color_discrete_map={
+                "% Experienced (3+ yrs)":   LEHS_NAVY,
+                "% In-field for subject":   "#388E3C",
+                "% Properly licensed":      LEHS_GOLD,
+            },
+        )
+        fig.update_traces(textposition="top center")
+        fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share")
+        st.plotly_chart(fig, width="stretch")
+
+        # In-field by SUBJECT (LEHS-level if rows exist)
+        lehs_by_subj = teacher_data[
+            (teacher_data["ORG_CODE"] == LEHS_SCHOOL_CODE)
+            & (teacher_data["SUBJECT"].astype(str).str.lower() != "all teachers")
+        ].copy()
+        lehs_by_subj["TCHR_INFLD_PCT"] = pd.to_numeric(lehs_by_subj["TCHR_INFLD_PCT"], errors="coerce")
+        latest_subj_year = int(lehs_by_subj["SY"].max()) if not lehs_by_subj.empty else None
+        if latest_subj_year:
+            sub = lehs_by_subj[lehs_by_subj["SY"] == latest_subj_year].copy()
+            sub = sub.dropna(subset=["TCHR_INFLD_PCT"]).sort_values("TCHR_INFLD_PCT")
+            if not sub.empty:
+                st.subheader(f"% In-Field by subject at LEHS (SY {int(latest_subj_year)})")
+                sub["label"] = sub["TCHR_INFLD_PCT"].apply(lambda x: f"{x:.0%}")
+                fig = px.bar(
+                    sub, y="SUBJECT", x="TCHR_INFLD_PCT", orientation="h", text="label",
+                    color_discrete_sequence=[LEHS_NAVY],
+                )
+                fig.update_traces(textposition="outside")
+                fig.update_layout(**DEFAULT_LAYOUT, xaxis_tickformat=".0%",
+                                  xaxis_title="% teachers with subject licensure",
+                                  yaxis_title="")
+                st.plotly_chart(fig, width="stretch")
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Class size by subject (class_size dataset)
+# ---------------------------------------------------------------------------
+
+st.header("Average Class Size at LEHS — by Subject")
+
+class_size = load_dataset("class_size")
+if not class_size.empty:
+    cs_lehs = class_size[class_size["ORG_CODE"] == LEHS_SCHOOL_CODE].copy()
+    cs_lehs["AVG_CLSS_CNT"] = pd.to_numeric(cs_lehs["AVG_CLSS_CNT"], errors="coerce")
+    cs_lehs = cs_lehs.dropna(subset=["AVG_CLSS_CNT"])
+    latest_cs_year = int(cs_lehs["SY"].max()) if not cs_lehs.empty else None
+    if latest_cs_year:
+        latest = cs_lehs[cs_lehs["SY"] == latest_cs_year].copy()
+        # The "All" subject is the overall avg — pull it out for a callout
+        overall = latest[latest["SUBJ"].astype(str).str.lower().isin(["all", "all subjects"])]
+        c1, c2 = st.columns([1, 3])
+        with c1:
+            if not overall.empty:
+                st.metric(f"Average class (SY {latest_cs_year})",
+                          f"{overall['AVG_CLSS_CNT'].iloc[0]:.1f} students")
+            st.metric("State average (SY 2025)", "17.2 students")
+        # By subject
+        by_subj = latest[~latest["SUBJ"].astype(str).str.lower().isin(["all", "all subjects"])]
+        by_subj = by_subj.sort_values("AVG_CLSS_CNT")
+        if not by_subj.empty:
+            by_subj["label"] = by_subj["AVG_CLSS_CNT"].apply(lambda x: f"{x:.1f}")
+            fig = px.bar(
+                by_subj, y="SUBJ", x="AVG_CLSS_CNT", orientation="h", text="label",
+                color_discrete_sequence=[LEHS_GOLD],
+            )
+            fig.update_traces(textposition="outside")
+            fig.update_layout(**DEFAULT_LAYOUT, xaxis_title="Avg class size",
+                              yaxis_title="")
+            with c2:
+                st.plotly_chart(fig, width="stretch")
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Still ahead
+# ---------------------------------------------------------------------------
+
+with st.expander("Indicators not yet sourced"):
+    st.markdown(
+        """
+A few teacher-quality indicators live in sources we haven't pulled into
+the dashboard yet:
+
+- **Counselor / nurse / psychologist / social worker ratios** per 100 students —
+  DESE Profiles statereport bulk download
+- **MTEL pass rates** for newly-hired teachers — Teach Mass educator-pipeline
+  Power BI
+- **Years-of-experience distribution** broken into 0–3 / 4–9 / 10+ bands —
+  partially derivable from EXP_TCHR_PCT but a finer distribution requires
+  the Profiles statereport feed
+"""
+    )
