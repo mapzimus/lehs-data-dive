@@ -53,10 +53,7 @@ st.divider()
 
 tracts_path = PROCESSED_DIR / "lynn_tracts.geojson"
 if not tracts_path.exists():
-    st.info(
-        "Lynn tract ACS data not yet built. Run scripts/10_download_census_acs.py "
-        "(needs a free CENSUS_API_KEY) then scripts/11_build_lynn_geo.py."
-    )
+    st.info("Census ACS data is temporarily unavailable. Please check back later.")
     st.stop()
 
 tracts = gpd.read_file(tracts_path)

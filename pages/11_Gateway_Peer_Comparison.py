@@ -33,7 +33,7 @@ st.caption(
 # Load the peer-schools manifest
 peer_file = PROCESSED_DIR / "_peer_schools.json"
 if not peer_file.exists():
-    st.error("Peer schools file missing. Run scripts/07_identify_peer_schools.py.")
+    st.info("Peer comparison data is temporarily unavailable. Please check back later.")
     st.stop()
 peers = json.loads(peer_file.read_text())
 gateway_main = peers["gateway_main_hs"]

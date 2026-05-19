@@ -228,11 +228,7 @@ if fmr_path.exists():
         else:
             st.info("No FormerEL records found in Lynn data.")
 else:
-    st.info(
-        "Former EL data not yet loaded. Run "
-        "`python scripts/06_extract_local_files.py` to extract from "
-        "`reporting-element4.xlsx`."
-    )
+    st.info("Former EL achievement data is temporarily unavailable.")
 
 st.caption(
     "Former EL outcomes generally improve with more years post-exit, as students "

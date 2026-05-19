@@ -24,7 +24,7 @@ st.markdown(
 
 mcas = load_dataset("mcas_achievement")
 if mcas.empty:
-    st.warning("Data pipeline not yet run. See README for setup.")
+    st.info("Data is temporarily unavailable. Please check back later.")
     st.stop()
 
 # Normalize unicode in STU_GRP

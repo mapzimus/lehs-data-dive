@@ -22,7 +22,7 @@ st.markdown(
 
 enrollment = load_dataset("enrollment_demographics")
 if enrollment.empty:
-    st.warning("Data pipeline not yet run. See README for setup.")
+    st.info("Data is temporarily unavailable. Please check back later.")
     st.stop()
 
 lehs = enrollment[enrollment["ORG_CODE"] == LEHS_SCHOOL_CODE].sort_values("SY").copy()
