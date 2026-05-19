@@ -296,6 +296,74 @@ body.maps-page {
     color: #607D8B;
 }
 
+/* "No data" swatch in legend meta */
+.legend-null {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.legend-null-swatch {
+    display: inline-block;
+    width: 18px;
+    height: 12px;
+    background: #f0eee8;
+    border: 1px solid #c0b8aa;
+    border-radius: 2px;
+    flex-shrink: 0;
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 3px,
+        rgba(180, 168, 140, 0.45) 3px,
+        rgba(180, 168, 140, 0.45) 4px
+    );
+}
+.legend-null strong { color: var(--lehs-navy); }
+
+/* Mini histogram in the legend */
+.hist {
+    display: flex;
+    align-items: flex-end;
+    gap: 1px;
+    height: 32px;
+    margin-bottom: 8px;
+    padding: 2px 0;
+    border-bottom: 1px solid var(--panel-border);
+}
+.hist-bar {
+    flex: 1;
+    min-height: 2px;
+    border-radius: 1px 1px 0 0;
+    opacity: 0.95;
+}
+
+/* Hover tooltip floating over the map */
+.map-tooltip {
+    position: absolute;
+    display: none;
+    pointer-events: none;
+    background: var(--lehs-navy);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    font-size: 12px;
+    font-family: 'Inter', sans-serif;
+    line-height: 1.4;
+    z-index: 50;
+    max-width: 280px;
+}
+.tooltip-name {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 2px;
+}
+.tooltip-value {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.85);
+}
+.tooltip-value strong { color: var(--lehs-gold); font-weight: 600; }
+
 .layer-name { flex: 1; }
 
 /* Toggle rows (visual mode) */

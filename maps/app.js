@@ -61,12 +61,20 @@ const METRICS = [
     { id:"mcas_g38_math_me", label:"MCAS Gr3-8 Math % M+E", cat:"Academic", levels:["district","muni"], palette:"Viridis", format:"pct" },
 
     // Outcomes
-    { id:"grad_4yr",            label:"4-yr Graduation Rate",   cat:"Outcomes", levels:["district","muni"], palette:"Viridis", format:"pct" },
-    { id:"grad_5yr",            label:"5-yr Graduation Rate",   cat:"Outcomes", levels:["district","muni"], palette:"Viridis", format:"pct" },
-    { id:"dropout_pct",         label:"Dropout Rate",           cat:"Outcomes", levels:["district","muni"], palette:"Reds",    format:"pct" },
-    { id:"chronic_absent_pct",  label:"Chronic Absenteeism Rate", cat:"Outcomes", levels:["district","muni"], palette:"Reds",    format:"pct" },
-    { id:"masscore_pct",        label:"MassCore Completion",    cat:"Outcomes", levels:["district","muni"], palette:"Greens",  format:"pct" },
-    { id:"ap_pct_3plus",        label:"% AP Tests Scoring 3+",  cat:"Outcomes", levels:["district","muni"], palette:"BuPu",    format:"pct" },
+    { id:"grad_4yr",            label:"4-yr Graduation Rate",        cat:"Outcomes", levels:["district","muni"], palette:"Viridis", format:"pct" },
+    { id:"grad_5yr",            label:"5-yr Graduation Rate",        cat:"Outcomes", levels:["district","muni"], palette:"Viridis", format:"pct" },
+    { id:"dropout_pct",         label:"Dropout Rate",                cat:"Outcomes", levels:["district","muni"], palette:"Reds",    format:"pct" },
+    { id:"chronic_absent_pct",  label:"Chronic Absenteeism Rate",    cat:"Outcomes", levels:["district","muni"], palette:"Reds",    format:"pct" },
+    { id:"attendance_rate",     label:"Attendance Rate",             cat:"Outcomes", levels:["district","muni"], palette:"Greens",  format:"pct" },
+    { id:"masscore_pct",        label:"MassCore Completion",         cat:"Outcomes", levels:["district","muni"], palette:"Greens",  format:"pct" },
+    { id:"ap_pct_3plus",        label:"% AP Tests Scoring 3+",       cat:"Outcomes", levels:["district","muni"], palette:"BuPu",    format:"pct" },
+
+    // Postsecondary plans
+    { id:"pct_any_college",     label:"% Planning Any College",      cat:"Postsecondary", levels:["district","muni"], palette:"Viridis", format:"pct" },
+    { id:"pct_4yr_college",     label:"% Planning 4-yr College",     cat:"Postsecondary", levels:["district","muni"], palette:"Viridis", format:"pct" },
+    { id:"pct_2yr_college",     label:"% Planning 2-yr College",     cat:"Postsecondary", levels:["district","muni"], palette:"BuPu",    format:"pct" },
+    { id:"pct_work_after_hs",   label:"% Planning to Work after HS", cat:"Postsecondary", levels:["district","muni"], palette:"Oranges", format:"pct" },
+    { id:"pct_military",        label:"% Planning Military",         cat:"Postsecondary", levels:["district","muni"], palette:"Greys",   format:"pct" },
 
     // Finance
     { id:"per_pupil",                  label:"Per-Pupil $ (Total)",         cat:"Finance", levels:["district","muni"], palette:"Viridis", format:"usd" },
@@ -158,19 +166,21 @@ function sampleColors(palette, n) {
     return out;
 }
 
+// Explicit "no data" color — distinct from any palette stop, slightly warm
+// off-white. We also style its outline differently (dashed) for clarity.
+const NO_DATA_COLOR = "#f0eee8";
+
 function paintExpression(metricId, paletteName, classify, level) {
     const colors = PALETTES[paletteName].colors;
     const values = getValuesForLevel(level, metricId);
 
-    const fallback = "#e0e0e0";
     const valid = ["case",
         ["==", ["typeof", ["get", metricId]], "number"], true,
         false
     ];
 
     if (classify === "continuous") {
-        // Linear interp across full data range
-        if (values.length < 2) return ["case", valid, colors[colors.length - 1], fallback];
+        if (values.length < 2) return ["case", valid, colors[colors.length - 1], NO_DATA_COLOR];
         const min = Math.min(...values);
         const max = Math.max(...values);
         const stops = sampleColors(colors, 5);
@@ -178,17 +188,16 @@ function paintExpression(metricId, paletteName, classify, level) {
         for (let i = 0; i < stops.length; i++) {
             expr.push(min + (max - min) * i / (stops.length - 1), stops[i]);
         }
-        return ["case", valid, expr, fallback];
+        return ["case", valid, expr, NO_DATA_COLOR];
     }
 
-    // Stepped
     const breaks = classify === "quantile"
         ? quantileBreaks(values, 5)
         : equalIntervalBreaks(values, 5);
     const stops = sampleColors(colors, 5);
     const expr = ["step", ["to-number", ["get", metricId]], stops[0]];
     breaks.forEach((b, i) => { expr.push(b, stops[i + 1]); });
-    return ["case", valid, expr, fallback];
+    return ["case", valid, expr, NO_DATA_COLOR];
 }
 
 // ─── MAP INITIALIZATION ──────────────────────────────────────────────────────
@@ -219,11 +228,12 @@ map.on("load", async () => {
         ]);
         GEO_DATA = { tract: tracts, district: districts, muni: munis };
 
-        map.addSource("tracts", { type: "geojson", data: tracts });
-        map.addSource("schools", { type: "geojson", data: schools });
-        map.addSource("town", { type: "geojson", data: town });
-        map.addSource("districts", { type: "geojson", data: districts });
-        map.addSource("municipalities", { type: "geojson", data: munis });
+        // generateId: true assigns a numeric feature ID so setFeatureState works
+        map.addSource("tracts",         { type: "geojson", data: tracts,    generateId: true });
+        map.addSource("schools",        { type: "geojson", data: schools,   generateId: true });
+        map.addSource("town",           { type: "geojson", data: town,      generateId: true });
+        map.addSource("districts",      { type: "geojson", data: districts, generateId: true });
+        map.addSource("municipalities", { type: "geojson", data: munis,     generateId: true });
         map.addSource("lynn-only", {
             type: "geojson",
             data: {
@@ -253,24 +263,59 @@ map.on("load", async () => {
 
 function addLayers() {
     // ── CHOROPLETH LAYERS (one visible at a time based on state.level) ───────
-    // Municipality choropleth fill
+    // Use feature-state for hover highlights without re-styling
     map.addLayer({
         id: "muni-fill", type: "fill", source: "municipalities",
-        paint: { "fill-color": "#e0e0e0", "fill-opacity": 0.7 },
+        paint: {
+            "fill-color": NO_DATA_COLOR,
+            "fill-opacity": [
+                "case",
+                ["boolean", ["feature-state", "hover"], false], 0.92,
+                0.78
+            ],
+        },
         layout: { visibility: state.level === "muni" ? "visible" : "none" },
     });
-    // District choropleth fill (only Operating Districts)
     map.addLayer({
         id: "district-fill", type: "fill", source: "districts",
         filter: ["==", ["get", "TYPE"], "Operating District"],
-        paint: { "fill-color": "#e0e0e0", "fill-opacity": 0.7 },
+        paint: {
+            "fill-color": NO_DATA_COLOR,
+            "fill-opacity": [
+                "case",
+                ["boolean", ["feature-state", "hover"], false], 0.92,
+                0.78
+            ],
+        },
         layout: { visibility: state.level === "district" ? "visible" : "none" },
     });
-    // Tract choropleth fill (Lynn only)
     map.addLayer({
         id: "tract-fill", type: "fill", source: "tracts",
-        paint: { "fill-color": "#e0e0e0", "fill-opacity": 0.7 },
+        paint: {
+            "fill-color": NO_DATA_COLOR,
+            "fill-opacity": [
+                "case",
+                ["boolean", ["feature-state", "hover"], false], 0.92,
+                0.78
+            ],
+        },
         layout: { visibility: state.level === "tract" ? "visible" : "none" },
+    });
+
+    // Per-source hover-outline layers — each invisible by default, only the
+    // hovered feature gets gold edges. Cheaper than re-adding the layer on
+    // every mousemove.
+    ["municipalities", "districts", "tracts"].forEach(src => {
+        const cfg = {
+            id: `hover-outline-${src}`, type: "line", source: src,
+            paint: {
+                "line-color": "#FFB81C",
+                "line-width": 3.5,
+                "line-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 1, 0],
+            },
+        };
+        if (src === "districts") cfg.filter = ["==", ["get", "TYPE"], "Operating District"];
+        map.addLayer(cfg);
     });
 
     // ── ALWAYS-ON REFERENCE BORDERS ──────────────────────────────────────────
@@ -386,10 +431,59 @@ function addLayers() {
     map.on("click", "district-fill", e => showPopup(e, "district"));
     map.on("click", "tract-fill",    e => showPopup(e, "tract"));
     map.on("click", "schools-circles", e => showPopup(e, "school"));
-    ["muni-fill", "district-fill", "tract-fill", "schools-circles"].forEach(id => {
-        map.on("mouseenter", id, () => map.getCanvas().style.cursor = "pointer");
-        map.on("mouseleave", id, () => map.getCanvas().style.cursor = "");
+
+    // ── HOVER HIGHLIGHT + TOOLTIP ────────────────────────────────────────────
+    const sourceForLevel = { muni: "municipalities", district: "districts", tract: "tracts" };
+    let hoverState = { source: null, id: null };
+
+    function setHover(source, id) {
+        if (hoverState.source && hoverState.id != null) {
+            map.setFeatureState({ source: hoverState.source, id: hoverState.id }, { hover: false });
+        }
+        if (source && id != null) {
+            map.setFeatureState({ source, id }, { hover: true });
+        }
+        hoverState = { source, id };
+    }
+
+    const tooltip = document.getElementById("mapTooltip");
+    function showTooltip(e, feat) {
+        const m = getMetric(state.metric);
+        const v = feat.properties[state.metric];
+        const name = feat.properties.town_display
+            || feat.properties.TOWN
+            || feat.properties.DIST_NAME
+            || feat.properties.NAMELSAD
+            || "Feature";
+        tooltip.innerHTML = `
+            <div class="tooltip-name">${name}</div>
+            <div class="tooltip-value">${m.label}: <strong>${fmt(+v, m.format)}</strong></div>
+        `;
+        tooltip.style.display = "block";
+        tooltip.style.left = (e.point.x + 14) + "px";
+        tooltip.style.top  = (e.point.y + 14) + "px";
+    }
+    function hideTooltip() { tooltip.style.display = "none"; }
+
+    ["muni-fill", "district-fill", "tract-fill"].forEach(layerId => {
+        const lvl = layerId.split("-")[0];
+        const src = sourceForLevel[lvl];
+        map.on("mousemove", layerId, e => {
+            map.getCanvas().style.cursor = "pointer";
+            if (!e.features.length) return;
+            const feat = e.features[0];
+            setHover(src, feat.id);
+            showTooltip(e, feat);
+        });
+        map.on("mouseleave", layerId, () => {
+            map.getCanvas().style.cursor = "";
+            setHover(null, null);
+            hideTooltip();
+        });
     });
+
+    map.on("mouseenter", "schools-circles", () => map.getCanvas().style.cursor = "pointer");
+    map.on("mouseleave", "schools-circles", () => map.getCanvas().style.cursor = "");
 }
 
 // ─── POPUPS ──────────────────────────────────────────────────────────────────
@@ -495,6 +589,43 @@ function refresh3D() {
 }
 
 // ─── LEGEND ──────────────────────────────────────────────────────────────────
+function buildHistogram(values, breaks, palette) {
+    // 24-bin mini histogram, colored according to which class each bin falls in
+    if (values.length < 5) return "";
+    const min = Math.min(...values), max = Math.max(...values);
+    if (max === min) return "";
+    const nBins = 24;
+    const bins = Array(nBins).fill(0);
+    const binWidth = (max - min) / nBins;
+    values.forEach(v => {
+        let idx = Math.floor((v - min) / binWidth);
+        if (idx >= nBins) idx = nBins - 1;
+        if (idx < 0) idx = 0;
+        bins[idx]++;
+    });
+    const peak = Math.max(...bins);
+    const colorForBin = (binVal) => {
+        if (!breaks || breaks.length === 0) {
+            // Continuous — interpolate position into palette
+            const ratio = (binVal - min) / (max - min);
+            const idx = Math.min(palette.length - 1, Math.max(0, Math.floor(ratio * palette.length)));
+            return palette[idx];
+        }
+        for (let i = 0; i < breaks.length; i++) {
+            if (binVal < breaks[i]) return palette[i];
+        }
+        return palette[breaks.length];
+    };
+    let html = '<div class="hist">';
+    bins.forEach((count, i) => {
+        const center = min + (i + 0.5) * binWidth;
+        const h = Math.max(2, Math.round(28 * count / peak));
+        html += `<span class="hist-bar" style="height:${h}px; background:${colorForBin(center)};" title="${count} polygon${count !== 1 ? 's' : ''}"></span>`;
+    });
+    html += '</div>';
+    return html;
+}
+
 function updateLegend() {
     const { level, metric, palette, classify } = state;
     const m = getMetric(metric);
@@ -505,18 +636,28 @@ function updateLegend() {
     titleEl.textContent = m.label;
 
     const values = getValuesForLevel(level, metric);
+    const totalFeatures = GEO_DATA[level]
+        ? (level === "district"
+            ? GEO_DATA[level].features.filter(f => f.properties.TYPE === "Operating District").length
+            : GEO_DATA[level].features.length)
+        : 0;
+    const nullCount = Math.max(0, totalFeatures - values.length);
 
     if (values.length === 0) {
-        stopsEl.innerHTML = '<div class="legend-row" style="color:#90A4AE;">No data available at this level</div>';
-        metaEl.innerHTML = "";
+        stopsEl.innerHTML = '<div class="legend-row" style="color:#90A4AE;">No data at this level for this metric.</div>';
+        metaEl.innerHTML = `<span class="legend-null"><span class="legend-null-swatch"></span>No data — ${nullCount.toLocaleString()} of ${totalFeatures.toLocaleString()}</span>`;
         return;
     }
 
+    let breaks = null;
+    let stops = sampleColors(palObj.colors, 5);
+
     if (classify === "continuous") {
         const min = Math.min(...values), max = Math.max(...values);
-        const colors = sampleColors(palObj.colors, 9);
-        const bar = colors.map(c => `<span class="legend-bar-stop" style="background:${c};"></span>`).join("");
+        const colors9 = sampleColors(palObj.colors, 9);
+        const bar = colors9.map(c => `<span class="legend-bar-stop" style="background:${c};"></span>`).join("");
         stopsEl.innerHTML = `
+            ${buildHistogram(values, null, colors9)}
             <div class="legend-bar">${bar}</div>
             <div class="legend-axis">
                 <span>${fmt(min, m.format)}</span>
@@ -524,24 +665,26 @@ function updateLegend() {
             </div>
         `;
     } else {
-        const breaks = classify === "quantile"
+        breaks = classify === "quantile"
             ? quantileBreaks(values, 5)
             : equalIntervalBreaks(values, 5);
-        const colors = sampleColors(palObj.colors, 5);
-        const min = Math.min(...values), max = Math.max(...values);
-        const ranges = [`< ${fmt(breaks[0], m.format)}`];
+        const ranges = [`&lt; ${fmt(breaks[0], m.format)}`];
         for (let i = 0; i < breaks.length - 1; i++) {
             ranges.push(`${fmt(breaks[i], m.format)} – ${fmt(breaks[i+1], m.format)}`);
         }
         ranges.push(`≥ ${fmt(breaks[breaks.length-1], m.format)}`);
-        let html = "";
+        let html = buildHistogram(values, breaks, stops);
         for (let i = 0; i < 5; i++) {
-            html += `<div class="legend-class"><span class="legend-class-swatch" style="background:${colors[i]};"></span><span class="legend-class-range">${ranges[i]}</span></div>`;
+            html += `<div class="legend-class"><span class="legend-class-swatch" style="background:${stops[i]};"></span><span class="legend-class-range">${ranges[i]}</span></div>`;
         }
         stopsEl.innerHTML = html;
     }
 
-    metaEl.innerHTML = `${values.length.toLocaleString()} of ${GEO_DATA[level].features.length.toLocaleString()} have data`;
+    // Always show a no-data swatch (so users learn what cream means)
+    const dataPct = totalFeatures ? Math.round(100 * values.length / totalFeatures) : 0;
+    metaEl.innerHTML = `
+        <span class="legend-null"><span class="legend-null-swatch"></span>No data — <strong>${nullCount.toLocaleString()}</strong> of ${totalFeatures.toLocaleString()} polygons (${100 - dataPct}%)</span>
+    `;
 }
 
 // ─── UI WIRING ───────────────────────────────────────────────────────────────
