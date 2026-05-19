@@ -470,7 +470,11 @@ def _build_district_metrics_table() -> pd.DataFrame:
 
 
 def load_ma_districts_with_metrics() -> gpd.GeoDataFrame:
-    """MA school district polygons + ALL available DESE per-district metrics."""
+    """MassGIS CCUV districts (Charter / Vocational / Collaborative / Union)
+    only — these are the "special" overlay districts. Regular town/regional
+    academic district polygons come from build_ma_academic_districts() via
+    a town-dissolve method since MassGIS doesn't publish them as a shapefile.
+    """
     dist = gpd.read_file(DISTRICTS_SHP).to_crs(WEB_CRS)
     dist["ORG8CODE"] = dist["ORG8CODE"].astype(str).str.zfill(8)
     dist["TYPE"] = dist["TYPE"].astype(str)
@@ -478,6 +482,68 @@ def load_ma_districts_with_metrics() -> gpd.GeoDataFrame:
     metrics = _build_district_metrics_table()
     metrics = metrics.rename(columns={"DIST_CODE": "ORG8CODE"})
     return dist.merge(metrics, on="ORG8CODE", how="left")
+
+
+def build_ma_academic_districts() -> gpd.GeoDataFrame:
+    """
+    Build polygons for the regular town/regional academic school districts.
+
+    MassGIS publishes 'SCHOOLDISTRICTS_CCUV_POLY' which contains ONLY charters,
+    vocational/technical regional districts, collaboratives, and historic
+    superintendency unions — NOT the regular academic districts. Regular
+    districts in MA are defined as "the union of the towns the district
+    serves," but MassGIS does not publish that union as a polygon file.
+
+    So we build it ourselves:
+      1. From SCHOOLS_PT, filter to regular public schools (drop Private,
+         Charter, Voc/Tech, Special Ed)
+      2. For each town, find the dominant DIST_CODE across its public schools
+      3. Dissolve the town polygons by that DIST_CODE → ~250 academic districts
+      4. Join the full district metrics table (40+ indicators)
+
+    Result: ma_academic_districts.geojson — the polygon file no one else has.
+    """
+    schools = gpd.read_file(SCHOOLS_SHP)
+    towns = gpd.read_file(TOWNS_SHP).to_crs(WEB_CRS)
+
+    # Filter to schools that belong to regular academic districts.
+    # Exclude charters, voc-techs, private, special-ed (those are special districts).
+    keep_types = {"Public Elementary", "Public Middle", "Public Secondary",
+                  "Public Other", "Public Unknown"}
+    public = schools[schools["TYPE_DESC"].isin(keep_types)].copy()
+    public["DIST_CODE"] = public["DIST_CODE"].astype(str).str.zfill(8)
+
+    # Dominant district per town (the one with the most public schools).
+    dom = (public.groupby(["TOWN", "DIST_CODE"]).size()
+                  .reset_index(name="n")
+                  .sort_values(["TOWN", "n"], ascending=[True, False])
+                  .groupby("TOWN").head(1)
+                  .reset_index(drop=True))
+
+    # Join the dominant district code onto the towns shapefile (towns w/o
+    # public schools in this file will get NaN — typically tiny rural towns
+    # that send students to regional districts; they'll be picked up below).
+    towns_with_dist = towns.merge(dom[["TOWN", "DIST_CODE"]], on="TOWN", how="left")
+
+    # Drop towns we couldn't map (no schools of the right type)
+    towns_with_dist = towns_with_dist.dropna(subset=["DIST_CODE"])
+
+    # Dissolve town polygons by DIST_CODE
+    academic = towns_with_dist[["DIST_CODE", "geometry"]].dissolve(by="DIST_CODE").reset_index()
+
+    # Join district metrics
+    metrics = _build_district_metrics_table()
+    metrics["DIST_CODE"] = metrics["DIST_CODE"].astype(str).str.zfill(8)
+    academic = academic.merge(metrics, on="DIST_CODE", how="left")
+
+    # Title-case the district name for display
+    if "DIST_NAME" in academic.columns:
+        academic["dist_display"] = academic["DIST_NAME"]
+
+    # Flag Lynn
+    academic["is_lynn"] = academic["DIST_CODE"] == "01630000"
+
+    return academic
 
 
 
@@ -571,19 +637,45 @@ def main() -> None:
     lynn_tracts.to_file(out, driver="GeoJSON")
     print(f"  [OK] {out.name}: {len(lynn_tracts)} tracts inside Lynn")
 
-    print("\nLoading MA school districts + DESE metrics...")
+    print("\nBuilding ACADEMIC districts (town-dissolve from public schools)...")
+    academic = build_ma_academic_districts()
+    # Keep core metrics (most of the catalog the maps app uses)
+    keep_a = {"DIST_CODE", "DIST_NAME", "dist_display", "is_lynn",
+              "TOTAL_CNT", "EL_PCT", "LI_PCT", "HN_PCT", "HL_PCT", "BAA_PCT",
+              "AS_PCT", "WH_PCT", "SWD_PCT", "FLNE_PCT", "FE_PCT",
+              "mcas_g10_ela_me", "mcas_g10_math_me", "mcas_g10_sci_me",
+              "mcas_g38_ela_me", "mcas_g38_math_me", "mcas_g38_sci_me",
+              "grad_4yr", "grad_5yr", "dropout_pct", "chronic_absent_pct",
+              "attendance_rate", "masscore_pct", "ap_pct_3plus",
+              "pct_any_college", "pct_4yr_college", "pct_2yr_college",
+              "pct_work_after_hs", "pct_military",
+              "per_pupil", "per_pupil_teachers", "per_pupil_admin",
+              "per_pupil_pupil_services",
+              "staff_white_pct", "staff_hispanic_pct", "staff_black_pct",
+              "stu_tchr_ratio", "teacher_experienced_pct",
+              "teacher_infield_pct", "teacher_retention_pct",
+              "geometry"}
+    academic = academic[[c for c in academic.columns if c in keep_a]]
+    academic = simplify_for_web(academic)
+    out = PROCESSED_DIR / "ma_academic_districts.geojson"
+    academic.to_file(out, driver="GeoJSON")
+    print(f"  [OK] {out.name}: {len(academic)} academic districts")
+    print(f"     {academic['grad_4yr'].notna().sum()} have grad rate")
+    print(f"     {academic['per_pupil'].notna().sum()} have per-pupil")
+    print(f"     file size: {out.stat().st_size // 1024:,} KB")
+
+    print("\nLoading CCUV special districts (Charter / Vocational / Collab)...")
     ma_districts = load_ma_districts_with_metrics()
-    # Drop fields we don't surface in popups to slim the file
-    keep_d = {"ORG8CODE", "DIST_NAME", "TYPE", "TOTAL_CNT", "EL_PCT", "LI_PCT",
-              "HN_PCT", "HL_PCT", "grad_4yr", "per_pupil", "geometry"}
+    # Add ORG8CODE alias same as DIST_CODE for downstream popup logic
+    keep_d = {"ORG8CODE", "NAME", "DIST_NAME", "TYPE", "TOTAL_CNT", "EL_PCT", "LI_PCT",
+              "HN_PCT", "HL_PCT", "grad_4yr", "per_pupil", "mcas_g10_ela_me",
+              "mcas_g10_math_me", "geometry"}
     ma_districts = ma_districts[[c for c in ma_districts.columns if c in keep_d]]
     ma_districts = simplify_for_web(ma_districts)
     out = PROCESSED_DIR / "ma_districts_metrics.geojson"
     ma_districts.to_file(out, driver="GeoJSON")
-    print(f"  [OK] {out.name}: {len(ma_districts)} districts")
-    has_grad = ma_districts["grad_4yr"].notna().sum()
-    has_pp = ma_districts["per_pupil"].notna().sum()
-    print(f"     {has_grad} have grad rate, {has_pp} have per-pupil")
+    print(f"  [OK] {out.name}: {len(ma_districts)} CCUV districts")
+    print(f"     by TYPE: {ma_districts['TYPE'].value_counts().to_dict()}")
     print(f"     file size: {out.stat().st_size // 1024:,} KB")
 
     print("\nLoading MA municipalities (all 351 towns)...")
