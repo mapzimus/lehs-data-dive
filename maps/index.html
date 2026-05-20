@@ -103,10 +103,16 @@
                 <label><input type="radio" name="classify" value="continuous"> Continuous (linear)</label>
             </div>
 
+            <label class="form-label" style="margin-top:12px;">Year</label>
+            <div class="year-slider-row">
+                <button class="year-play" id="yearPlay" type="button" title="Play slideshow">▶</button>
+                <input type="range" id="yearSlider" min="2017" max="2026" step="1" value="2026" class="year-slider">
+                <span class="year-label" id="yearLabel">2026</span>
+            </div>
+            <div class="year-note">Click ▶ to animate through years. Year-keyed at district/muni level for: demographics, MCAS, graduation, AP, per-pupil (2017–2026). Tract ACS metrics show 2019–2023 average regardless of slider.</div>
+
             <div class="year-note" style="font-style:normal; margin-top:14px;">
-                ⓘ The Lynn-focused map uses 2019–2023 ACS tract data. For
-                year-by-year animation, district-level metrics, slideshow,
-                and 40+ joined metrics, see the
+                ⓘ For 40+ joined metrics + statewide comparisons see the
                 <a href="../../ma-atlas/" target="_top" style="color:var(--lehs-navy);font-weight:600;">MA Education Atlas →</a>
             </div>
 
