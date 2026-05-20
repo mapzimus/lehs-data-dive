@@ -7,7 +7,7 @@ import streamlit as st
 
 from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
-from utils.constants import LEHS_SCHOOL_CODE
+from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE
 from utils.data_loader import get_dart_indicator, load_dataset
 
 st.set_page_config(page_title="College & Career | LEHS", page_icon="🎓", layout="wide")
@@ -187,6 +187,55 @@ if not sat_math.empty or not sat_read.empty:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Average score")
     st.plotly_chart(fig, width="stretch")
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# LEHS vs LCHS — AP equity (% of juniors/seniors taking AP tests)
+# ---------------------------------------------------------------------------
+
+st.header("AP Participation — LEHS vs. Lynn Classical")
+st.caption(
+    "AP access is a leading indicator of college readiness. Comparing "
+    "Lynn's two comprehensive HS side-by-side isolates school-level "
+    "decisions about course offerings + recruitment from city-level "
+    "demographics."
+)
+
+ap_compare = ap[
+    (ap["ORG_CODE"].isin([LEHS_SCHOOL_CODE, LCHS_SCHOOL_CODE]))
+    & (ap["STU_GRP"] == "All Students")
+    & (ap["SUBJ_CAT"].astype(str).str.lower() == "all subjects")
+].copy()
+ap_compare["School"] = ap_compare["ORG_CODE"].map({
+    LEHS_SCHOOL_CODE: "LEHS",
+    LCHS_SCHOOL_CODE: "LCHS",
+})
+ap_compare["PCT_3_5"] = pd.to_numeric(ap_compare["PCT_3_5"], errors="coerce")
+ap_compare["TESTS_TAKEN"] = pd.to_numeric(ap_compare["TESTS_TAKEN"], errors="coerce")
+
+if not ap_compare.empty:
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("**AP tests taken (volume)**")
+        fig = px.line(
+            ap_compare.sort_values("SY"), x="SY", y="TESTS_TAKEN", color="School",
+            markers=True,
+            color_discrete_map={"LEHS": LEHS_GOLD, "LCHS": "#1A8FE3"},
+        )
+        fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Tests taken")
+        st.plotly_chart(fig, width="stretch")
+    with c2:
+        st.markdown("**% AP tests scoring 3 or higher**")
+        fig = px.line(
+            ap_compare.sort_values("SY"), x="SY", y="PCT_3_5", color="School",
+            markers=True,
+            color_discrete_map={"LEHS": LEHS_GOLD, "LCHS": "#1A8FE3"},
+        )
+        fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="% scoring 3+")
+        st.plotly_chart(fig, width="stretch")
+else:
+    st.info("AP comparison data not available.")
 
 st.divider()
 
