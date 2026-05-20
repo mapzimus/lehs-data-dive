@@ -209,6 +209,49 @@ def load_lynn_tracts(lynn_town: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 # binds a slider to this range. Years outside it fall back to "latest".
 YEAR_KEYED_RANGE = list(range(2017, 2027))  # SY 2017 through SY 2026
 
+# Student-group filter schema. DESE's STU_GRP strings → short codes baked
+# into the column names. The map app uses these codes when looking up
+# `metric__group` properties.
+GROUP_CODE_MAP = {
+    "Hispanic or Latino":          "hl",
+    "Black or African American":   "baa",
+    "Asian":                       "as",
+    "White":                       "wh",
+    "English Learners":            "ell",
+    "English Learner":             "ell",
+    "Former English Learners":     "fmrell",
+    "Low Income":                  "li",
+    "Students with Disabilities":  "swd",
+    "High Needs":                  "hn",
+}
+
+
+def _pivot_group_keyed(df: pd.DataFrame, value_col: str, base_name: str,
+                        sy_col: str = "SY", id_col: str = "DIST_CODE",
+                        grp_col: str = "STU_GRP") -> pd.DataFrame:
+    """Pivot long → wide on STU_GRP. Latest year only.
+
+    Output cols: {base_name}__{group_code} where group_code is one of the
+    short codes in GROUP_CODE_MAP. Skips 'All Students' (already the base
+    column).
+    """
+    if df.empty:
+        return pd.DataFrame()
+    sub = df.copy()
+    # Unicode-normalize STU_GRP labels
+    sub[grp_col] = sub[grp_col].astype(str).str.replace("\xa0", " ", regex=False)
+    sub[sy_col] = pd.to_numeric(sub[sy_col], errors="coerce")
+    sub = sub.dropna(subset=[sy_col])
+    sub = sub[sub[grp_col].isin(GROUP_CODE_MAP)]
+    if sub.empty:
+        return pd.DataFrame()
+    latest = sub.sort_values(sy_col).groupby([id_col, grp_col]).tail(1)
+    pivot = latest.pivot_table(
+        index=id_col, columns=grp_col, values=value_col, aggfunc="first",
+    )
+    pivot.columns = [f"{base_name}__{GROUP_CODE_MAP[c]}" for c in pivot.columns]
+    return pivot.reset_index()
+
 
 def _pivot_year_keyed(df: pd.DataFrame, value_cols: list[str],
                        sy_col: str = "SY", id_col: str = "DIST_CODE") -> pd.DataFrame:
@@ -282,7 +325,7 @@ def _build_district_metrics_table() -> pd.DataFrame:
     g10 = mcas[
         (mcas["TEST_GRADE"] == "10")
         & (mcas["STU_GRP"] == "All Students")
-        & (mcas["ORG_TYPE"] == "District")
+        & (mcas["ORG_TYPE"].isin(["Public School District", "Charter District"]))
     ].sort_values("SY").groupby(["DIST_CODE", "SUBJECT_CODE"]).tail(1)
     g10_pivot = g10.pivot_table(
         index="DIST_CODE", columns="SUBJECT_CODE", values="M_PLUS_E_PCT", aggfunc="first"
@@ -294,7 +337,7 @@ def _build_district_metrics_table() -> pd.DataFrame:
     g38 = mcas[
         (mcas["TEST_GRADE"].isin(["03", "04", "05", "06", "07", "08", "3", "4", "5", "6", "7", "8"]))
         & (mcas["STU_GRP"] == "All Students")
-        & (mcas["ORG_TYPE"] == "District")
+        & (mcas["ORG_TYPE"].isin(["Public School District", "Charter District"]))
     ].copy()
     if not g38.empty:
         latest_g38_sy = g38["SY"].max()
@@ -534,7 +577,7 @@ def _build_district_metrics_table() -> pd.DataFrame:
     g10_yk_source = mcas[
         (mcas["TEST_GRADE"] == "10")
         & (mcas["STU_GRP"] == "All Students")
-        & (mcas["ORG_TYPE"] == "District")
+        & (mcas["ORG_TYPE"].isin(["Public School District", "Charter District"]))
     ].copy()
     g10_yk_source["SY"] = pd.to_numeric(g10_yk_source["SY"], errors="coerce")
     if not g10_yk_source.empty:
@@ -580,9 +623,63 @@ def _build_district_metrics_table() -> pd.DataFrame:
     for frame in yk_frames:
         out = out.merge(frame, on="DIST_CODE", how="left")
 
-    # Coerce year-keyed columns to numeric
-    yk_cols = [c for c in out.columns if "__" in c]
-    for c in yk_cols:
+    # ─── GROUP-KEYED COLUMNS ─────────────────────────────────────────────────
+    # For outcome metrics where the student-group breakdown is analytically
+    # meaningful, emit `metric__hl`, `metric__baa`, `metric__ell`, etc.
+    # (latest year only — combining year × group would balloon column count).
+    gk_frames: list[pd.DataFrame] = []
+
+    # MCAS Grade 10 by group (3 subjects)
+    g10_grp_source = mcas[
+        (mcas["TEST_GRADE"] == "10")
+        & (mcas["ORG_TYPE"].isin(["Public School District", "Charter District"]))
+    ].copy()
+    for subj in ["ELA", "MATH", "SCI"]:
+        s = g10_grp_source[g10_grp_source["SUBJECT_CODE"] == subj][
+            ["DIST_CODE", "SY", "STU_GRP", "M_PLUS_E_PCT"]
+        ]
+        gk = _pivot_group_keyed(s, "M_PLUS_E_PCT", f"mcas_g10_{subj.lower()}_me")
+        if not gk.empty:
+            gk_frames.append(gk)
+
+    # Graduation rate by group (4-yr cohort)
+    grad_grp_source = grad[
+        (grad["GRAD_RATE_TYPE"] == "4-Year Adjusted Cohort Graduation Rate")
+        & (grad["ORG_TYPE"] == "District")
+    ][["DIST_CODE", "SY", "STU_GRP", "GRAD_PCT"]]
+    gk = _pivot_group_keyed(grad_grp_source, "GRAD_PCT", "grad_4yr")
+    if not gk.empty:
+        gk_frames.append(gk)
+
+    # AP scoring 3+ by group
+    if ap_path.exists():
+        ap_grp_source = ap[
+            (ap["ORG_TYPE"] == "District")
+            & (ap["SUBJ_CAT"].astype(str).str.lower() == "all subjects")
+        ][["DIST_CODE", "SY", "STU_GRP", "PCT_3_5"]]
+        gk = _pivot_group_keyed(ap_grp_source, "PCT_3_5", "ap_pct_3plus")
+        if not gk.empty:
+            gk_frames.append(gk)
+
+    # Chronic absenteeism by group
+    if att_path.exists():
+        att_grp_source = pd.read_csv(att_path, low_memory=False)
+        att_grp_source["DIST_CODE"] = att_grp_source["DIST_CODE"].astype(str).str.zfill(8)
+        att_grp_source = att_grp_source[
+            (att_grp_source["ORG_TYPE"] == "District")
+            & (att_grp_source.get("ATTEND_PERIOD", "FY") == "FY")
+        ][["DIST_CODE", "SY", "STU_GRP", "PCT_CHRON_ABS_10"]]
+        gk = _pivot_group_keyed(att_grp_source, "PCT_CHRON_ABS_10", "chronic_absent_pct")
+        if not gk.empty:
+            gk_frames.append(gk)
+
+    # Merge all group-keyed frames into out
+    for frame in gk_frames:
+        out = out.merge(frame, on="DIST_CODE", how="left")
+
+    # Coerce all derived columns to numeric
+    derived_cols = [c for c in out.columns if "__" in c]
+    for c in derived_cols:
         out[c] = pd.to_numeric(out[c], errors="coerce")
 
     return out
