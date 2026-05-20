@@ -969,10 +969,38 @@ function buildPanelHtml(p, kind) {
     return `<div class="feature-panel-section">Click a feature on the map.</div>`;
 }
 
-// Wire close button (added once on load)
+// Wire close button + help modal (added once on load)
 document.addEventListener("DOMContentLoaded", () => {
     const closeBtn = document.getElementById("featurePanelClose");
     if (closeBtn) closeBtn.addEventListener("click", closeFeaturePanel);
+
+    // Help modal — opens via "?" button, auto-shows once on first visit.
+    // Uses a Lynn-specific localStorage key so this map's help-seen state
+    // is independent of the atlas's.
+    const helpBtn   = document.getElementById("helpButton");
+    const helpModal = document.getElementById("helpModal");
+    const helpClose = document.getElementById("helpModalClose");
+    const helpDone  = document.getElementById("helpGotIt");
+    if (!helpModal) return;  // bail if HTML doesn't have the modal
+    const openHelp  = () => { helpModal.classList.add("open"); helpModal.setAttribute("aria-hidden", "false"); };
+    const closeHelp = () => { helpModal.classList.remove("open"); helpModal.setAttribute("aria-hidden", "true"); };
+    if (helpBtn)   helpBtn.addEventListener("click", openHelp);
+    if (helpClose) helpClose.addEventListener("click", closeHelp);
+    if (helpDone)  helpDone.addEventListener("click", () => {
+        try { localStorage.setItem("lynn-maps-help-seen", "1"); } catch (e) {}
+        closeHelp();
+    });
+    helpModal.addEventListener("click", e => {
+        if (e.target === helpModal) closeHelp();   // click backdrop
+    });
+    document.addEventListener("keydown", e => {
+        if (e.key === "Escape") closeHelp();
+    });
+    try {
+        if (!localStorage.getItem("lynn-maps-help-seen")) {
+            setTimeout(openHelp, 800);  // brief delay so the map renders first
+        }
+    } catch (e) {}
 });
 
 // ─── CHOROPLETH APPLY ────────────────────────────────────────────────────────

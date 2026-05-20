@@ -212,10 +212,7 @@ body.maps-page {
     flex-shrink: 0;
     border: 1px solid rgba(0,0,0,0.1);
 }
-.swatch-tracts          { background: linear-gradient(135deg, #d5e8d4, #2e7d32); }
 .swatch-schools         { background: var(--lehs-gold); border-radius: 50%; }
-.swatch-town            { background: transparent; border: 2px solid var(--lehs-navy); }
-.swatch-districts       { background: linear-gradient(135deg, #fff3e0, #e65100); }
 .swatch-gateway         { background: rgba(156, 39, 176, 0.25); border: 2px solid #6a1b9a; }
 .swatch-muni-outline    { background: transparent; border: 1.5px solid #78909c; }
 .swatch-academic-outline{ background: transparent; border: 1.8px solid #1a3a6b; }
@@ -677,18 +674,6 @@ body.maps-page {
 }
 .popup-row .label { color: #607D8B; }
 .popup-row .value { color: var(--lehs-navy); font-weight: 500; }
-.popup-tag {
-    display: inline-block;
-    padding: 2px 8px;
-    background: rgba(255, 184, 28, 0.15);
-    color: var(--lehs-navy);
-    border-radius: 3px;
-    font-size: 10px;
-    font-weight: 600;
-    margin-bottom: 6px;
-    letter-spacing: 0.5px;
-}
-
 /* ============================================================================
    Floating toggle (FAB) — desktop hidden, mobile shows it to re-open the drawer
    ============================================================================ */
