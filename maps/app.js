@@ -147,13 +147,65 @@ function buildYearKeyedIndex() {
     }
 }
 
-// Resolve the active column name for state.metric + state.year.
-// Year-keyed lookup falls back to base column when the metric isn't year-keyed.
+// Group-keyed schema introspection. { level: { baseMetric: Set<group_code> } }
+// group_code is the lowercase suffix in the column name (e.g. "ell", "baa").
+const GROUP_KEYED_INDEX = { muni: {}, district: {}, tract: {} };
+const KNOWN_GROUPS = new Set(["hl","baa","as","wh","ell","fmrell","li","swd","hn"]);
+
+function buildGroupKeyedIndex() {
+    for (const level of ["muni", "district", "tract"]) {
+        const fc = GEO_DATA[level];
+        if (!fc || !fc.features.length) continue;
+        const sample = fc.features[0].properties;
+        const idx = {};
+        for (const key of Object.keys(sample)) {
+            const m = key.match(/^(.+)__([a-z]+)$/);
+            if (!m) continue;
+            const base = m[1], code = m[2];
+            if (!KNOWN_GROUPS.has(code)) continue;  // skip year suffixes (numeric)
+            if (!idx[base]) idx[base] = new Set();
+            idx[base].add(code);
+        }
+        GROUP_KEYED_INDEX[level] = idx;
+    }
+}
+
+// Resolve the active column name for state.metric + state.year + state.studentGroup.
+// Precedence: group-keyed > year-keyed > base column. (Combined year×group isn't
+// stored — too many columns for too little gain.) HTML option values are
+// uppercase abbreviations (ELL, HL); data column suffixes are lowercase (__ell,
+// __hl). Normalize to lowercase before lookup.
 function activeColumn(metricId = state.metric, year = state.year, level = state.level) {
+    const grp = (state.studentGroup || "all").toLowerCase();
+    if (grp !== "all") {
+        const gIdx = GROUP_KEYED_INDEX[level] || {};
+        if (gIdx[metricId] && gIdx[metricId].has(grp)) {
+            return `${metricId}__${grp}`;
+        }
+        // Group requested but no group-keyed data — fall through to year/base
+    }
     const idx = YEAR_KEYED_INDEX[level] || {};
     const years = idx[metricId];
     if (years && years.has(year)) return `${metricId}__${year}`;
     return metricId;
+}
+
+// Updates the helper note under the student-group dropdown.
+function updateGroupNote() {
+    const noteEl = document.getElementById("groupNote");
+    if (!noteEl) return;
+    if (!state.studentGroup || state.studentGroup === "all") {
+        noteEl.textContent = "Select a group to filter outcomes (MCAS, graduation, AP, chronic absent). Works at district/muni level.";
+        return;
+    }
+    const grp = state.studentGroup.toLowerCase();
+    const gIdx = GROUP_KEYED_INDEX[state.level] || {};
+    const supported = gIdx[state.metric] && gIdx[state.metric].has(grp);
+    if (supported) {
+        noteEl.textContent = `✓ Showing ${getMetric(state.metric).label} for the ${state.studentGroup} student group only.`;
+    } else {
+        noteEl.textContent = `⚠ This metric isn't group-sliced. Falling back to All Students. (Group filter works on MCAS, graduation, AP, and chronic absent metrics.)`;
+    }
 }
 
 // Available years for the active metric/level. Returns an array.
@@ -382,6 +434,7 @@ map.on("load", async () => {
         ]);
         GEO_DATA = { tract: tracts, district: academic, muni: munis };
         buildYearKeyedIndex();
+        buildGroupKeyedIndex();
 
         // Sub-collections of CCUV by type, for separate styling
         const voctech = {
@@ -1239,11 +1292,18 @@ function wireUI() {
             else startYearAnimation();
         });
     }
-    // Student-group filter — scaffolded; activates when group-sliced columns
-    // are baked into the geojson properties.
-    document.getElementById("groupSelect").addEventListener("change", e => {
-        state.studentGroup = e.target.value;
-    });
+    // Student-group filter — repaints choropleth using metric__group column
+    // when available, otherwise falls back to All Students (note shows why).
+    const groupSelectEl = document.getElementById("groupSelect");
+    if (groupSelectEl) {
+        groupSelectEl.addEventListener("change", e => {
+            state.studentGroup = e.target.value;
+            applyChoropleth();
+            updateLegend();
+            updateMetricSummary();
+            updateGroupNote();
+        });
+    }
     document.getElementById("paletteSelect").addEventListener("change", e => {
         state.palette = e.target.value;
         applyChoropleth();

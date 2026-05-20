@@ -111,6 +111,20 @@
             </div>
             <div class="year-note">Click ▶ to animate through years. Year-keyed at district/muni level for: demographics, MCAS, graduation, AP, per-pupil (2017–2026). Tract ACS metrics show 2019–2023 average regardless of slider.</div>
 
+            <label class="form-label" style="margin-top:12px;">Student group filter</label>
+            <select id="groupSelect" class="select-input">
+                <option value="all">All Students</option>
+                <option value="HL">Hispanic / Latino</option>
+                <option value="BAA">Black / African American</option>
+                <option value="AS">Asian</option>
+                <option value="WH">White</option>
+                <option value="ELL">English Learner</option>
+                <option value="LI">Low Income</option>
+                <option value="SWD">Students w/ Disabilities</option>
+                <option value="HN">High Needs</option>
+            </select>
+            <div class="year-note" id="groupNote">Select a group to filter outcomes (MCAS, graduation, AP, chronic absent). Works at district/muni level.</div>
+
             <div class="year-note" style="font-style:normal; margin-top:14px;">
                 ⓘ For 40+ joined metrics + statewide comparisons see the
                 <a href="../../ma-atlas/" target="_top" style="color:var(--lehs-navy);font-weight:600;">MA Education Atlas →</a>
