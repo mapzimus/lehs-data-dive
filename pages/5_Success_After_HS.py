@@ -7,7 +7,7 @@ import streamlit as st
 
 from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
-from utils.constants import LEHS_SCHOOL_CODE
+from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE
 from utils.data_loader import get_dart_indicator, load_dataset
 
 st.set_page_config(page_title="Success After HS | LEHS", page_icon="🏆", layout="wide")
@@ -143,6 +143,43 @@ if not g_both.empty:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Grad Rate")
     st.plotly_chart(fig, width="stretch")
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# LEHS vs LCHS — 4-year graduation rate (Lynn's two main HS side-by-side)
+# ---------------------------------------------------------------------------
+
+st.header("LEHS vs. Lynn Classical — 4-Year Graduation Rate")
+st.caption(
+    "Lynn's two comprehensive high schools side-by-side. Same district, "
+    "same policies, overlapping catchments — meaningful differences in "
+    "graduation rate isolate school-level effects rather than city-level "
+    "demographics."
+)
+
+g_both_schools = grad[
+    (grad["ORG_CODE"].isin([LEHS_SCHOOL_CODE, LCHS_SCHOOL_CODE]))
+    & (grad["STU_GRP"] == "All Students")
+    & (grad["GRAD_RATE_TYPE"] == "4-Year Adjusted Cohort Graduation Rate")
+].copy()
+g_both_schools["School"] = g_both_schools["ORG_CODE"].map({
+    LEHS_SCHOOL_CODE: "LEHS",
+    LCHS_SCHOOL_CODE: "LCHS",
+})
+
+if not g_both_schools.empty:
+    fig = px.line(
+        g_both_schools.sort_values("SY"), x="SY", y="GRAD_PCT", color="School",
+        markers=True,
+        color_discrete_map={"LEHS": LEHS_GOLD, "LCHS": "#1A8FE3"},
+    )
+    fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
+                       yaxis_title="4-Year Graduation Rate",
+                       xaxis_title="Cohort Year")
+    st.plotly_chart(fig, width="stretch")
+else:
+    st.info("Both-school graduation rate data not available.")
 
 st.divider()
 
