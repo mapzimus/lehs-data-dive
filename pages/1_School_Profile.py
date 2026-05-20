@@ -7,7 +7,7 @@ import streamlit as st
 
 from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
-from utils.constants import LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
+from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
 from utils.data_loader import load_dataset
 from utils.interpret import sy_label, yoy_delta
 
@@ -159,37 +159,61 @@ st.caption(
 st.divider()
 
 # ---------------------------------------------------------------------------
-# LEHS vs Lynn district — same-year comparison
+# LEHS vs LCHS vs Lynn District — same-year comparison
 # ---------------------------------------------------------------------------
 
-st.subheader(f"LEHS vs. Lynn Public Schools district ({sy_label(current['SY'])})")
+st.subheader(f"LEHS vs. Lynn Classical vs. Lynn district ({sy_label(current['SY'])})")
+st.caption(
+    "LEHS and Lynn Classical (LCHS) are Lynn Public Schools' two main "
+    "comprehensive high schools, drawing from overlapping catchment areas. "
+    "The whole-district bar averages across all 22 Lynn schools (PK-12)."
+)
+
+# Pull LCHS row for the same year
+lchs_all = enrollment[enrollment["ORG_CODE"] == LCHS_SCHOOL_CODE].sort_values("SY")
+lchs_current = lchs_all.iloc[-1] if not lchs_all.empty else None
 
 if not district.empty:
     d_current = district.iloc[-1]
-    compare = pd.DataFrame({
-        "Indicator": ["% Hispanic/Latino", "% English Learners", "% Low Income",
-                       "% High Needs", "% First Lang Not English", "% Students w/ Disabilities"],
-        "LEHS":     [current["HL_PCT"], current["EL_PCT"], current["LI_PCT"],
-                     current["HN_PCT"], current["FLNE_PCT"], current["SWD_PCT"]],
-        "Lynn District (all schools)": [d_current["HL_PCT"], d_current["EL_PCT"], d_current["LI_PCT"],
-                                          d_current["HN_PCT"], d_current["FLNE_PCT"], d_current["SWD_PCT"]],
-    })
+    rows = [
+        ("% Hispanic/Latino",          "HL_PCT"),
+        ("% English Learners",         "EL_PCT"),
+        ("% Low Income",               "LI_PCT"),
+        ("% High Needs",               "HN_PCT"),
+        ("% First Lang Not English",   "FLNE_PCT"),
+        ("% Students w/ Disabilities", "SWD_PCT"),
+    ]
+    data = {"Indicator": [r[0] for r in rows],
+            "LEHS":            [current[r[1]] for r in rows],
+            "Lynn District":   [d_current[r[1]] for r in rows]}
+    if lchs_current is not None:
+        data["LCHS"] = [lchs_current[r[1]] for r in rows]
+    compare = pd.DataFrame(data)
     long = compare.melt(id_vars="Indicator", var_name="Scope", value_name="Pct").dropna()
     fig = px.bar(
         long, x="Indicator", y="Pct", color="Scope", barmode="group",
         text=long["Pct"].apply(lambda x: f"{x:.0%}"),
-        color_discrete_map={"LEHS": LEHS_GOLD, "Lynn District (all schools)": LEHS_NAVY},
+        color_discrete_map={
+            "LEHS":          LEHS_GOLD,
+            "LCHS":          "#1A8FE3",
+            "Lynn District": LEHS_NAVY,
+        },
     )
     fig.update_traces(textposition="outside")
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share",
                        xaxis_title="")
     st.plotly_chart(fig, width="stretch")
-    st.caption(
-        "LEHS specifically tends to have **higher ELL, FLNE, and Hispanic/Latino "
-        "share** than the district as a whole — because the district also includes "
-        "Lynn Classical, Lynn Tech, and 19+ elementary/middle schools with different "
-        "demographic mixes."
-    )
+    if lchs_current is not None:
+        st.caption(
+            "LEHS and LCHS serve broadly similar Lynn populations but "
+            "differ at the margins — useful for isolating school-level "
+            "effects, since both pull from the same city and district policies."
+        )
+    else:
+        st.caption(
+            "LCHS data unavailable for this year; comparison shows LEHS vs "
+            "the whole Lynn district."
+        )
 
 st.divider()
 

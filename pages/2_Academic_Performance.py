@@ -7,7 +7,7 @@ import streamlit as st
 
 from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
-from utils.constants import LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
+from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
 from utils.data_loader import load_dataset
 from utils.interpret import sy_label
 
@@ -32,6 +32,7 @@ mcas["STU_GRP"] = mcas["STU_GRP"].astype(str).str.replace("\xa0", " ", regex=Fal
 
 # Filter sets we'll reuse
 lehs = mcas[(mcas["ORG_CODE"] == LEHS_SCHOOL_CODE) & (mcas["TEST_GRADE"] == "10")].copy()
+lchs = mcas[(mcas["ORG_CODE"] == LCHS_SCHOOL_CODE) & (mcas["TEST_GRADE"] == "10")].copy()
 district = mcas[
     (mcas["DIST_CODE"] == LYNN_DISTRICT_CODE)
     & (mcas["ORG_TYPE"] == "District")
@@ -169,16 +170,22 @@ st.divider()
 # LEHS vs Lynn district vs MA state — by subject, latest year
 # ---------------------------------------------------------------------------
 
-st.subheader(f"LEHS vs. Lynn District vs. Massachusetts — SY {sy_label(latest_year)}")
+st.subheader(f"LEHS vs. LCHS vs. Lynn District vs. Massachusetts — SY {sy_label(latest_year)}")
 
 bench_rows = []
 for code in ["ELA", "MATH", "SCI"]:
     lehs_row = latest[latest["SUBJECT_CODE"] == code]
+    lchs_row = lchs[(lchs["STU_GRP"] == "All Students")
+                     & (lchs["SUBJECT_CODE"] == code)
+                     & (lchs["SY"] == latest_year)]
     dist_row = district[(district["SUBJECT_CODE"] == code) & (district["SY"] == latest_year)]
     state_row = state[(state["SUBJECT_CODE"] == code) & (state["SY"] == latest_year)]
     if not lehs_row.empty:
         bench_rows.append({"Subject": SUBJECT_MAP[code], "Scope": "LEHS",
                            "Pct": lehs_row.iloc[0]["M_PLUS_E_PCT"]})
+    if not lchs_row.empty:
+        bench_rows.append({"Subject": SUBJECT_MAP[code], "Scope": "LCHS",
+                           "Pct": lchs_row.iloc[0]["M_PLUS_E_PCT"]})
     if not dist_row.empty:
         bench_rows.append({"Subject": SUBJECT_MAP[code], "Scope": "Lynn District",
                            "Pct": dist_row.iloc[0]["M_PLUS_E_PCT"]})
@@ -192,17 +199,22 @@ if bench_rows:
     fig = px.bar(
         bench_df, x="Subject", y="Pct", color="Scope", barmode="group",
         text="label",
-        color_discrete_map={"LEHS": LEHS_GOLD, "Lynn District": LEHS_NAVY,
-                            "Massachusetts": "#455A64"},
+        category_orders={"Scope": ["LEHS", "LCHS", "Lynn District", "Massachusetts"]},
+        color_discrete_map={
+            "LEHS":          LEHS_GOLD,
+            "LCHS":          "#1A8FE3",
+            "Lynn District": LEHS_NAVY,
+            "Massachusetts": "#455A64",
+        },
     )
     fig.update_traces(textposition="outside")
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="% Meeting + Exceeding",
                        xaxis_title="")
     st.plotly_chart(fig, width="stretch")
     st.caption(
-        "LEHS is benchmarked against two natural reference points: the Lynn "
-        "district aggregate (which includes Classical, Tech, and other Lynn "
-        "schools) and the Massachusetts statewide average."
+        "Four natural benchmarks: LEHS, LCHS (Lynn Classical — Lynn's "
+        "other comprehensive HS), the Lynn district aggregate (averaged "
+        "across all 22 schools), and the Massachusetts statewide average."
     )
 
 st.divider()
