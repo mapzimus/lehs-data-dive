@@ -21,6 +21,40 @@ st.set_page_config(
 sidebar_attribution()
 
 # ---------------------------------------------------------------------------
+# Mobile-only hint — Streamlit auto-collapses the sidebar on narrow
+# screens, so first-time mobile visitors don't realize where the
+# sections are. CSS media query hides this on desktop.
+# ---------------------------------------------------------------------------
+
+st.markdown(
+    """
+    <style>
+      .mobile-section-hint { display: none; }
+      @media (max-width: 768px) {
+        .mobile-section-hint {
+          display: block;
+          background: linear-gradient(90deg, #FFF4D6 0%, #FFE9A6 100%);
+          border-left: 4px solid #FFB81C;
+          padding: 10px 14px;
+          margin: 0 0 14px 0;
+          border-radius: 6px;
+          font-size: 13px;
+          color: #0A1F44;
+          line-height: 1.5;
+        }
+      }
+    </style>
+    <div class="mobile-section-hint">
+      📱 <strong>On mobile?</strong> Tap the
+      <span style="background:#0A1F44;color:white;padding:1px 8px;border-radius:3px;font-family:monospace;">≡</span>
+      icon in the top-left to open the sections menu (School Profile,
+      ELL Pipeline, Maps, etc.).
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+# ---------------------------------------------------------------------------
 # Header
 # ---------------------------------------------------------------------------
 

@@ -205,13 +205,45 @@ def load_lynn_tracts(lynn_town: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     return essex_in_lynn
 
 
+# Year range we expose per metric in the year-keyed schema. The map app
+# binds a slider to this range. Years outside it fall back to "latest".
+YEAR_KEYED_RANGE = list(range(2017, 2027))  # SY 2017 through SY 2026
+
+
+def _pivot_year_keyed(df: pd.DataFrame, value_cols: list[str],
+                       sy_col: str = "SY", id_col: str = "DIST_CODE") -> pd.DataFrame:
+    """Pivot long → wide with columns named `{value_col}__{year}`."""
+    if df.empty:
+        return pd.DataFrame()
+    sub = df[df[sy_col].astype(int).isin(YEAR_KEYED_RANGE)].copy()
+    if sub.empty:
+        return pd.DataFrame()
+    sub[sy_col] = sub[sy_col].astype(int)
+    pivot = sub.pivot_table(
+        index=id_col, columns=sy_col, values=value_cols, aggfunc="first",
+    )
+    pivot.columns = [
+        f"{(c[0] if isinstance(c, tuple) else c)}__{int(c[1] if isinstance(c, tuple) else c)}"
+        for c in pivot.columns
+    ]
+    return pivot.reset_index()
+
+
 def _build_district_metrics_table() -> pd.DataFrame:
     """
     Join every available district-level metric from the raw E2C CSVs into a
-    single wide DataFrame keyed by DIST_CODE. Latest year per dataset.
+    single wide DataFrame keyed by DIST_CODE.
 
-    Returns a DataFrame with columns:
-      DIST_CODE, DIST_NAME, plus ~25 numeric metric columns.
+    The schema includes BOTH:
+      - Latest-year columns (e.g. EL_PCT, grad_4yr) — used by side panel,
+        popups, and the choropleth when no year is selected
+      - Year-keyed columns (e.g. EL_PCT__2017, EL_PCT__2018, …, EL_PCT__2026)
+        — used by the year slider + animation to show how values change
+
+    Year-keyed coverage spans 2017-2026 for the metrics where year-keying
+    is analytically valuable (demographics, MCAS, graduation, per-pupil,
+    AP). Stable-over-time metrics (class size, teacher in-field) stay
+    latest-year only to keep file size manageable.
     """
     e2c_raw = RAW_DIR / "e2c_hub"
 
@@ -466,6 +498,93 @@ def _build_district_metrics_table() -> pd.DataFrame:
     for c in metric_cols:
         out[c] = pd.to_numeric(out[c], errors="coerce")
 
+    # ─── YEAR-KEYED COLUMNS ───────────────────────────────────────────────────
+    # For the metrics that change meaningfully over time (demographics, MCAS,
+    # graduation, AP, per-pupil), emit additional columns named like
+    # EL_PCT__2017, EL_PCT__2018, ..., EL_PCT__2026. These power the map's
+    # year slider + slideshow. Latest-year columns above remain so popups
+    # and the side panel keep working without year-awareness.
+    yk_frames: list[pd.DataFrame] = []
+
+    # Enrollment demographics — year-keyed
+    enr_yk_cols = ["TOTAL_CNT", "EL_PCT", "LI_PCT", "HN_PCT", "HL_PCT",
+                    "BAA_PCT", "AS_PCT", "WH_PCT", "SWD_PCT", "FLNE_PCT"]
+    enr_all = enr[(enr["ORG_TYPE"] == "District")].copy()
+    enr_all["SY"] = pd.to_numeric(enr_all["SY"], errors="coerce")
+    enr_all = enr_all.dropna(subset=["SY"])
+    enr_yk = _pivot_year_keyed(enr_all, enr_yk_cols)
+    if not enr_yk.empty:
+        yk_frames.append(enr_yk)
+
+    # Graduation — 4-yr only by year (5-yr lags by a year)
+    grad_yk_source = grad[
+        (grad["STU_GRP"] == "All Students")
+        & (grad["GRAD_RATE_TYPE"] == "4-Year Adjusted Cohort Graduation Rate")
+        & (grad["ORG_TYPE"] == "District")
+    ].copy()
+    grad_yk_source["SY"] = pd.to_numeric(grad_yk_source["SY"], errors="coerce")
+    grad_yk_source = grad_yk_source.dropna(subset=["SY"]).rename(
+        columns={"GRAD_PCT": "grad_4yr", "DRPOUT_PCT": "dropout_pct"}
+    )
+    grad_yk = _pivot_year_keyed(grad_yk_source, ["grad_4yr", "dropout_pct"])
+    if not grad_yk.empty:
+        yk_frames.append(grad_yk)
+
+    # MCAS Grade 10 — by year, by subject
+    g10_yk_source = mcas[
+        (mcas["TEST_GRADE"] == "10")
+        & (mcas["STU_GRP"] == "All Students")
+        & (mcas["ORG_TYPE"] == "District")
+    ].copy()
+    g10_yk_source["SY"] = pd.to_numeric(g10_yk_source["SY"], errors="coerce")
+    if not g10_yk_source.empty:
+        for subj in ["ELA", "MATH", "SCI"]:
+            sub = g10_yk_source[g10_yk_source["SUBJECT_CODE"] == subj][
+                ["DIST_CODE", "SY", "M_PLUS_E_PCT"]
+            ].copy()
+            sub = sub.rename(columns={"M_PLUS_E_PCT": f"mcas_g10_{subj.lower()}_me"})
+            sub_yk = _pivot_year_keyed(sub, [f"mcas_g10_{subj.lower()}_me"])
+            if not sub_yk.empty:
+                yk_frames.append(sub_yk)
+
+    # AP % scoring 3+ by year
+    if ap_path.exists():
+        ap_yk_source = ap[
+            (ap["ORG_TYPE"] == "District")
+            & (ap["STU_GRP"] == "All Students")
+            & (ap["SUBJ_CAT"].astype(str).str.lower() == "all subjects")
+        ][["DIST_CODE", "SY", "PCT_3_5"]].copy()
+        ap_yk_source["SY"] = pd.to_numeric(ap_yk_source["SY"], errors="coerce")
+        ap_yk_source = ap_yk_source.rename(columns={"PCT_3_5": "ap_pct_3plus"})
+        ap_yk = _pivot_year_keyed(ap_yk_source, ["ap_pct_3plus"])
+        if not ap_yk.empty:
+            yk_frames.append(ap_yk)
+
+    # Per-pupil total + teachers — by year
+    pp_yk_source = dexp[
+        (dexp["IND_CAT"] == "Expenditures Per Pupil")
+        & (dexp["IND_SUBCAT"].isin(["Total Expenditures", "Teachers"]))
+    ].copy()
+    pp_yk_source["SY"] = pd.to_numeric(pp_yk_source["SY"], errors="coerce")
+    if not pp_yk_source.empty:
+        for subcat, alias in [("Total Expenditures", "per_pupil"),
+                               ("Teachers", "per_pupil_teachers")]:
+            sub = pp_yk_source[pp_yk_source["IND_SUBCAT"] == subcat][
+                ["DIST_CODE", "SY", "IND_VALUE"]
+            ].copy().rename(columns={"IND_VALUE": alias})
+            sub_yk = _pivot_year_keyed(sub, [alias])
+            if not sub_yk.empty:
+                yk_frames.append(sub_yk)
+
+    # Merge all year-keyed frames into out
+    for frame in yk_frames:
+        out = out.merge(frame, on="DIST_CODE", how="left")
+
+    # Coerce year-keyed columns to numeric
+    yk_cols = [c for c in out.columns if "__" in c]
+    for c in yk_cols:
+        out[c] = pd.to_numeric(out[c], errors="coerce")
+
     return out
 
 
@@ -673,7 +792,10 @@ def main() -> None:
               "stu_tchr_ratio", "teacher_experienced_pct",
               "teacher_infield_pct", "teacher_retention_pct",
               "geometry"}
-    academic = academic[[c for c in academic.columns if c in keep_a]]
+    # Year-keyed columns (e.g. EL_PCT__2017, grad_4yr__2024, etc.) are also kept
+    # — they power the map's year slider + slideshow.
+    academic_yk_cols = {c for c in academic.columns if "__" in c}
+    academic = academic[[c for c in academic.columns if c in keep_a or c in academic_yk_cols]]
     academic = simplify_for_web(academic)
     out = PROCESSED_DIR / "ma_academic_districts.geojson"
     academic.to_file(out, driver="GeoJSON")
@@ -703,7 +825,8 @@ def main() -> None:
               "pop_2020", "is_gateway", "is_lynn", "DIST_NAME", "DIST_CODE",
               "TOTAL_CNT", "EL_PCT", "LI_PCT", "HN_PCT", "grad_4yr", "per_pupil",
               "geometry"}
-    ma_munis = ma_munis[[c for c in ma_munis.columns if c in keep_m]]
+    muni_yk_cols = {c for c in ma_munis.columns if "__" in c}
+    ma_munis = ma_munis[[c for c in ma_munis.columns if c in keep_m or c in muni_yk_cols]]
     ma_munis = simplify_for_web(ma_munis)
     out = PROCESSED_DIR / "ma_municipalities.geojson"
     ma_munis.to_file(out, driver="GeoJSON")
