@@ -731,7 +731,7 @@ function addLayers() {
     const tooltip = document.getElementById("mapTooltip");
     function showTooltip(e, feat) {
         const m = getMetric(state.metric);
-        const v = feat.properties[state.metric];
+        const v = feat.properties[activeColumn()];
         const name = feat.properties.town_display
             || feat.properties.TOWN
             || feat.properties.DIST_NAME
@@ -874,7 +874,7 @@ function buildPanelHtml(p, kind) {
                 fpRow("% Bachelor's or higher", p.bachelors_or_higher_pct, "pct"),
             ].join(""))}
             ${state.metric ? fpSection("Active metric", [
-                fpRow(getMetric(state.metric).label, p[state.metric], getMetric(state.metric).format, true)
+                fpRow(getMetric(state.metric).label, p[activeColumn()], getMetric(state.metric).format, true)
             ].join("")) : ""}
         `;
     }
@@ -906,7 +906,7 @@ function buildPanelHtml(p, kind) {
                 fpRow("Per-pupil $", p.per_pupil, "usd"),
             ].join(""))}
             ${fpSection("Active metric", [
-                fpRow(getMetric(state.metric).label, p[state.metric], getMetric(state.metric).format, true)
+                fpRow(getMetric(state.metric).label, p[activeColumn()], getMetric(state.metric).format, true)
             ].join(""))}
         `;
     }
@@ -962,7 +962,7 @@ function buildPanelHtml(p, kind) {
                 fpRow("% Staff: Black", p.staff_black_pct, "pct"),
             ].join(""))}
             ${fpSection("Active metric", [
-                fpRow(getMetric(state.metric).label, p[state.metric], getMetric(state.metric).format, true)
+                fpRow(getMetric(state.metric).label, p[activeColumn()], getMetric(state.metric).format, true)
             ].join(""))}
         `;
     }
@@ -1434,15 +1434,16 @@ function toggle3D() {
 
     // Build height expression — values × scalar; for $ scale by 0.05 (so $30k = 1500m)
     const heightScalar = m.format === "usd" ? 0.05 : 8000;
-    const paint = paintExpression(metric, state.palette, state.classify, level);
+    const col = activeColumn(metric, state.year, level);
+    const paint = paintExpression(col, state.palette, state.classify, level);
     const layerCfg = {
         id: extrudeLayerId, type: "fill-extrusion", source: sourceId,
         paint: {
             "fill-extrusion-color": paint,
             "fill-extrusion-height": [
                 "case",
-                ["==", ["typeof", ["get", metric]], "number"],
-                ["*", ["to-number", ["get", metric]], heightScalar],
+                ["==", ["typeof", ["get", col]], "number"],
+                ["*", ["to-number", ["get", col]], heightScalar],
                 0,
             ],
             "fill-extrusion-opacity": 0.85,
