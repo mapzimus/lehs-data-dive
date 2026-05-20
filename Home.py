@@ -29,6 +29,7 @@ sidebar_attribution()
 st.markdown(
     """
     <style>
+      /* Mobile hint banner — only visible on narrow screens */
       .mobile-section-hint { display: none; }
       @media (max-width: 768px) {
         .mobile-section-hint {
@@ -42,13 +43,31 @@ st.markdown(
           color: #0A1F44;
           line-height: 1.5;
         }
+        /* Make Streamlit's sidebar-collapse arrow MUCH more visible on mobile.
+           This is the small ">" chevron in the top-left that opens the sidebar. */
+        button[data-testid="collapsedControl"],
+        button[kind="header"] {
+          background: #0A1F44 !important;
+          color: #FFB81C !important;
+          border: 2px solid #FFB81C !important;
+          border-radius: 8px !important;
+          padding: 6px 10px !important;
+          box-shadow: 0 2px 8px rgba(10, 31, 68, 0.25) !important;
+          margin: 8px !important;
+        }
+        button[data-testid="collapsedControl"] svg,
+        button[kind="header"] svg {
+          color: #FFB81C !important;
+          fill: #FFB81C !important;
+          width: 24px !important;
+          height: 24px !important;
+        }
       }
     </style>
     <div class="mobile-section-hint">
-      📱 <strong>On mobile?</strong> Tap the
-      <span style="background:#0A1F44;color:white;padding:1px 8px;border-radius:3px;font-family:monospace;">≡</span>
-      icon in the top-left to open the sections menu (School Profile,
-      ELL Pipeline, Maps, etc.).
+      📱 <strong>On mobile?</strong> Tap the gold-outlined arrow button
+      in the <strong>top-left corner</strong> to open the sections menu
+      (School Profile, ELL Pipeline, Maps, etc.).
     </div>
     """,
     unsafe_allow_html=True,
