@@ -63,13 +63,32 @@ st.header("How to reproduce / refresh")
 
 st.code(
     """
+# Clone + set up Python env
 git clone https://github.com/mapzimus/lehs-data-dive
 cd lehs-data-dive
-conda create -n lehs python=3.12 -y
+conda env create -f dev/environment.yml
 conda activate lehs
-pip install -r requirements.txt
-python scripts/refresh_all.py
-streamlit run app.py
+
+# Pull every source dataset
+python scripts/01_download_e2c.py        # MA DESE E2C Hub (~1.7 GB raw CSVs)
+python scripts/09_download_massgis.py    # MassGIS shapefiles
+CENSUS_API_KEY=your-key python scripts/10_download_census_acs.py
+
+# Filter + process
+python scripts/08_build_master_panel.py  # → data/processed/*.parquet
+python scripts/11_build_lynn_geo.py      # → data/processed/*.geojson
+
+# Run the dashboard locally
+streamlit run Home.py
 """,
     language="bash",
+)
+
+st.markdown(
+    """
+**Live versions:**
+- **Dashboard** — https://maxwellhowegis.com/Lynn-data-dive/
+- **MA Education Atlas** (standalone statewide map) — https://maxwellhowegis.com/ma-atlas/
+- **Source code** — https://github.com/mapzimus/lehs-data-dive
+"""
 )
