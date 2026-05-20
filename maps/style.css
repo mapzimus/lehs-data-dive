@@ -671,17 +671,107 @@ body.maps-page {
 }
 
 /* ============================================================================
-   Mobile responsiveness
+   Floating toggle (FAB) — desktop hidden, mobile shows it to re-open the drawer
+   ============================================================================ */
+.panel-fab {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--lehs-navy);
+    color: var(--lehs-gold);
+    border: none;
+    box-shadow: 0 3px 12px rgba(10, 31, 68, 0.35);
+    cursor: pointer;
+    z-index: 20;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+.panel-fab:hover { background: #1a3a6b; }
+.panel-fab svg {
+    width: 22px; height: 22px;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    fill: none;
+}
+
+/* ============================================================================
+   Mobile responsiveness — < 768px
    ============================================================================ */
 @media (max-width: 768px) {
-    :root {
-        --panel-width: 280px;
-    }
+    .panel-fab { display: inline-flex; }
+    .control-panel .panel-toggle { display: none; }
+
     .control-panel {
-        max-height: 50vh;
+        top: 0;
+        left: 0;
+        width: 88vw;
+        max-width: 360px;
+        height: calc(100vh - var(--nav-height));
+        max-height: calc(100vh - var(--nav-height));
+        border-radius: 0 12px 12px 0;
+        z-index: 30;
+        transform: translateX(-100%);
+        transition: transform 0.28s ease;
     }
+    .control-panel.open { transform: translateX(0); }
+    .control-panel.collapsed { transform: translateX(-100%); }
+
+    .panel-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(10, 31, 68, 0.35);
+        z-index: 25;
+        display: none;
+    }
+    .panel-backdrop.open { display: block; }
+
+    .view-btn { min-width: 0; flex: 1 1 calc(50% - 6px); }
+
+    .radio-group label, .layer-row, .toggle-row { padding: 8px 0; font-size: 13px; }
+    .radio-group input[type="radio"],
+    .layer-row input[type="checkbox"],
+    .toggle-row input[type="checkbox"] { width: 18px; height: 18px; }
+    .select-input { padding: 10px 12px; font-size: 14px; min-height: 44px; }
+
+    .year-play { width: 38px; height: 38px; font-size: 14px; }
+    .year-slider { height: 28px; }
+    .year-slider::-webkit-slider-thumb { width: 22px; height: 22px; }
+
+    .feature-panel {
+        top: auto; right: 0; left: 0; bottom: 0;
+        width: 100%;
+        max-width: none;
+        max-height: 60vh;
+        border-radius: 14px 14px 0 0;
+        transform: translateY(110%);
+        transition: transform 0.28s ease;
+        display: flex;
+    }
+    .feature-panel.open { transform: translateY(0); }
+
+    .help-button { bottom: 16px; right: 16px; width: 44px; height: 44px; font-size: 22px; }
+    .help-modal-inner { padding: 22px 18px 18px; font-size: 14px; }
+    .help-key { min-width: 110px; font-size: 11px; }
+
     .legend {
-        max-width: 180px;
-        font-size: 11px;
+        bottom: 12px; left: 12px; right: 12px;
+        max-width: none; font-size: 11px; padding: 10px 12px;
     }
+    .hist { height: 26px; }
+
+    .maplibregl-ctrl-group button { width: 38px !important; height: 38px !important; }
+    .maplibregl-ctrl-bottom-left  { left: 12px !important;  bottom: 78px !important; }
+    .maplibregl-ctrl-bottom-right { right: 12px !important; bottom: 78px !important; }
+}
+
+@media (max-width: 480px) {
+    .panel-title { font-size: 18px; }
+    .help-modal-inner h2 { font-size: 17px; }
+    .legend { font-size: 10px; }
+    .view-btn { font-size: 10px; padding: 9px 8px; }
 }

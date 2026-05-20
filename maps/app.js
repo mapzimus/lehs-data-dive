@@ -667,6 +667,14 @@ function openFeaturePanel(p, kind) {
     body.innerHTML = buildPanelHtml(p, kind);
     panel.classList.add("open");
     panel.setAttribute("aria-hidden", "false");
+
+    // Mobile: auto-close the control drawer so the bottom-sheet has room
+    if (window.matchMedia("(max-width: 768px)").matches) {
+        const ctrl = document.getElementById("controlPanel");
+        const bd   = document.getElementById("panelBackdrop");
+        if (ctrl) ctrl.classList.remove("open");
+        if (bd)   bd.classList.remove("open");
+    }
 }
 
 function closeFeaturePanel() {
@@ -1199,8 +1207,38 @@ function wireUI() {
         });
     });
 
-    document.getElementById("panelToggle").addEventListener("click", () => {
-        document.getElementById("controlPanel").classList.toggle("collapsed");
+    // Panel open/close — desktop uses .collapsed slide-out, mobile uses
+    // .open slide-in drawer with backdrop
+    const panel    = document.getElementById("controlPanel");
+    const fab      = document.getElementById("panelFab");
+    const toggle   = document.getElementById("panelToggle");
+    const backdrop = document.getElementById("panelBackdrop");
+    const isMobile = () => window.matchMedia("(max-width: 768px)").matches;
+
+    function openPanel() {
+        panel.classList.add("open");
+        panel.classList.remove("collapsed");
+        if (backdrop) backdrop.classList.add("open");
+    }
+    function closePanel() {
+        panel.classList.remove("open");
+        if (isMobile()) panel.classList.add("collapsed");
+        if (backdrop) backdrop.classList.remove("open");
+    }
+    function togglePanel() {
+        if (isMobile()) {
+            (panel.classList.contains("open") ? closePanel : openPanel)();
+        } else {
+            panel.classList.toggle("collapsed");
+        }
+    }
+
+    if (toggle)   toggle.addEventListener("click", togglePanel);
+    if (fab)      fab.addEventListener("click", togglePanel);
+    if (backdrop) backdrop.addEventListener("click", closePanel);
+
+    document.querySelectorAll(".view-btn").forEach(b => {
+        b.addEventListener("click", () => { if (isMobile()) closePanel(); });
     });
 }
 
