@@ -36,6 +36,18 @@
 
 <main id="main-content" class="maps-main">
 
+    <!-- Mobile FAB to open the panel — hidden on desktop via CSS -->
+    <button class="panel-fab" id="panelFab" type="button" aria-label="Open controls panel">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <line x1="3"  y1="6"  x2="21" y2="6"></line>
+            <line x1="3"  y1="12" x2="21" y2="12"></line>
+            <line x1="3"  y1="18" x2="21" y2="18"></line>
+        </svg>
+    </button>
+
+    <!-- Mobile backdrop — tap to close the drawer -->
+    <div class="panel-backdrop" id="panelBackdrop" aria-hidden="true"></div>
+
     <!-- LEFT PANEL -->
     <aside class="control-panel" id="controlPanel">
         <button class="panel-toggle" id="panelToggle" aria-label="Toggle panel">
@@ -208,14 +220,25 @@
             <button class="help-modal-close" id="helpModalClose"
                     aria-label="Close help">&times;</button>
             <h2>Map controls</h2>
-            <div class="help-grid">
+
+            <div class="help-section" style="border-top:none; padding-top:0; margin-top:0;">
+                <strong>Mouse / trackpad</strong>
                 <div class="help-row"><span class="help-key">Drag</span><span>Pan the map</span></div>
                 <div class="help-row"><span class="help-key">Scroll</span><span>Zoom in / out</span></div>
+                <div class="help-row"><span class="help-key">Right-click + Drag</span><span>Rotate &amp; tilt</span></div>
                 <div class="help-row"><span class="help-key">Ctrl + Drag</span><span>Rotate the map</span></div>
-                <div class="help-row"><span class="help-key">Right-click + Drag</span><span>Rotate &amp; tilt (alternate)</span></div>
                 <div class="help-row"><span class="help-key">Shift + Drag</span><span>Box zoom</span></div>
-                <div class="help-row"><span class="help-key">Click feature</span><span>Open detail panel (right)</span></div>
-                <div class="help-row"><span class="help-key">Hover</span><span>Quick metric value tooltip</span></div>
+                <div class="help-row"><span class="help-key">Click feature</span><span>Open detail panel</span></div>
+                <div class="help-row"><span class="help-key">Hover</span><span>Quick metric tooltip</span></div>
+            </div>
+
+            <div class="help-section">
+                <strong>Touch (phone / tablet)</strong>
+                <div class="help-row"><span class="help-key">One-finger drag</span><span>Pan the map</span></div>
+                <div class="help-row"><span class="help-key">Pinch</span><span>Zoom in / out</span></div>
+                <div class="help-row"><span class="help-key">Two-finger twist</span><span>Rotate the map</span></div>
+                <div class="help-row"><span class="help-key">Two-finger drag up/down</span><span>Tilt (3D pitch)</span></div>
+                <div class="help-row"><span class="help-key">Tap feature</span><span>Open detail panel (bottom)</span></div>
             </div>
             <div class="help-section">
                 <strong>Buttons (top-right):</strong>
