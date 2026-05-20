@@ -1,4 +1,4 @@
-"""Section 2 — Academic Performance: MCAS trends, growth, subgroup gaps."""
+﻿"""Section 2 — Academic Performance: MCAS trends, growth, subgroup gaps."""
 
 import pandas as pd
 import plotly.express as px
@@ -114,7 +114,7 @@ fig = px.line(
 fig.update_traces(textposition="top center", textfont=dict(size=10))
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                    yaxis_title="% Meeting or Exceeding")
-st.plotly_chart(fig, width="stretch")
+st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -162,7 +162,7 @@ fig = px.bar(
 fig.update_traces(textposition="inside", textfont=dict(color="white", size=11))
 fig.update_layout(**DEFAULT_LAYOUT, xaxis_tickformat=".0%", xaxis_title="Share of test-takers",
                    yaxis_title="", barmode="stack")
-st.plotly_chart(fig, width="stretch")
+st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -210,7 +210,7 @@ if bench_rows:
     fig.update_traces(textposition="outside")
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="% Meeting + Exceeding",
                        xaxis_title="")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
     st.caption(
         "Four natural benchmarks: LEHS, LCHS (Lynn Classical — Lynn's "
         "other comprehensive HS), the Lynn district aggregate (averaged "
@@ -242,7 +242,7 @@ fig.add_hline(y=500, line_dash="dash", line_color="gray",
               annotation_text="Meets Expectations (500)", annotation_position="right")
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Average scaled score",
                    xaxis_title="School Year")
-st.plotly_chart(fig, width="stretch")
+st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -307,7 +307,7 @@ fig.update_layout(
     yaxis_title=f"{SUBJECT_MAP[subject_choice]} — % M+E",
     xaxis_title="School Year",
 )
-st.plotly_chart(fig, width="stretch")
+st.plotly_chart(fig, use_container_width=True)
 
 # Student-group count table
 latest_year_sub = sub[sub["SY"] == sub["SY"].max()].copy()
@@ -326,7 +326,7 @@ if not latest_year_sub.empty:
         table[c] = table[c].apply(lambda x: f"{x:.0%}" if pd.notna(x) else "—")
     table["Avg score"] = table["Avg score"].apply(lambda x: f"{x:.0f}" if pd.notna(x) else "—")
     st.markdown(f"**SY {sy_label(latest_year_sub['SY'].max())} — by student group**")
-    st.dataframe(table.sort_values("Student group"), width="stretch", hide_index=True)
+    st.dataframe(table.sort_values("Student group"), use_container_width=True, hide_index=True)
 
 st.divider()
 
@@ -362,7 +362,7 @@ if not latest_sub.empty and "All Students" in latest_sub["STU_GRP"].values:
         title=f"Gap vs. All Students ({all_value:.0%}) — {SUBJECT_MAP[subject_choice]}",
         xaxis_title="Percentage point gap",
     )
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -392,7 +392,7 @@ if not sgp.empty:
                    annotation_text="Statewide median (50)", annotation_position="right")
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Average SGP",
                        xaxis_title="School Year", yaxis_range=[0, 100])
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 else:
     st.info("No SGP data available for LEHS in this dataset.")
 
@@ -420,7 +420,7 @@ fig.add_hline(y=0.95, line_dash="dash", line_color="#D32F2F",
               annotation_text="DESE threshold (95%)", annotation_position="right")
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Participation rate",
                    xaxis_title="School Year", yaxis_range=[0.5, 1.05])
-st.plotly_chart(fig, width="stretch")
+st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -440,10 +440,11 @@ fig = px.line(
 fig.update_traces(textposition="top center", textfont=dict(size=9))
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Students tested",
                    xaxis_title="School Year")
-st.plotly_chart(fig, width="stretch")
+st.plotly_chart(fig, use_container_width=True)
 
 st.caption(
     "**Why this matters:** small subgroup counts trigger DESE suppression "
     "rules (cells with < 10 students are blanked). The Grade-10 cohort size "
     "drives how much subgroup detail you can actually see."
 )
+

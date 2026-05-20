@@ -1,4 +1,4 @@
-"""Section 1 — School Profile: demographics, enrollment trends, headline metrics."""
+﻿"""Section 1 — School Profile: demographics, enrollment trends, headline metrics."""
 
 import pandas as pd
 import plotly.express as px
@@ -146,7 +146,7 @@ fig.update_traces(
 )
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Students", xaxis_title="School Year",
                    title="Lynn English High School — total enrollment by school year")
-st.plotly_chart(fig, width="stretch")
+st.plotly_chart(fig, use_container_width=True)
 
 peak_year = lehs.loc[lehs["TOTAL_CNT"].idxmax()]
 trough_year = lehs.loc[lehs["TOTAL_CNT"].idxmin()]
@@ -202,7 +202,7 @@ if not district.empty:
     fig.update_traces(textposition="outside")
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share",
                        xaxis_title="")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
     if lchs_current is not None:
         st.caption(
             "LEHS and LCHS serve broadly similar Lynn populations but "
@@ -250,7 +250,7 @@ with col_a:
     )
     fig.update_traces(textposition="inside", textinfo="percent+label", textfont_size=11)
     fig.update_layout(**DEFAULT_LAYOUT, showlegend=False)
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 with col_b:
     st.markdown("**Composition over time**")
@@ -281,7 +281,7 @@ with col_b:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share",
                        xaxis_title="School Year")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 # Detailed race table
 st.markdown("**Detailed race/ethnicity counts and shares (latest year)**")
@@ -298,7 +298,7 @@ race_table["%"] = race_table["%"].apply(lambda x: f"{x:.1%}")
 race_table["Approx. students"] = race_table["Approx. students"].apply(
     lambda x: f"{int(x):,}" if pd.notna(x) else "—"
 )
-st.dataframe(race_table, width="stretch", hide_index=True)
+st.dataframe(race_table, use_container_width=True, hide_index=True)
 
 st.divider()
 
@@ -322,7 +322,7 @@ fig = px.area(
 )
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share",
                    xaxis_title="School Year")
-st.plotly_chart(fig, width="stretch")
+st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -364,7 +364,7 @@ fig = px.line(
 )
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share of Students",
                    xaxis_title="School Year")
-st.plotly_chart(fig, width="stretch")
+st.plotly_chart(fig, use_container_width=True)
 
 # Special pull-out: ELL trajectory
 ell_with_data = lehs.dropna(subset=["EL_PCT"])
@@ -399,7 +399,7 @@ fig = go.Figure(go.Bar(
     marker_color=LEHS_NAVY,
 ))
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Students", xaxis_title="Grade")
-st.plotly_chart(fig, width="stretch")
+st.plotly_chart(fig, use_container_width=True)
 
 # Pull-out: 9-12 attrition narrative
 total_hs = sum(current[c] for c in ["G9_CNT", "G10_CNT", "G11_CNT", "G12_CNT"]
@@ -453,4 +453,5 @@ fig = go.Figure(go.Bar(
 ))
 fig.update_layout(**DEFAULT_LAYOUT, xaxis_title="Students", yaxis_title="",
                    xaxis_range=[0, pop_counts["Count"].max() * 1.25])
-st.plotly_chart(fig, width="stretch")
+st.plotly_chart(fig, use_container_width=True)
+

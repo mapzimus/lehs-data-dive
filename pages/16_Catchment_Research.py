@@ -1,4 +1,4 @@
-"""
+﻿"""
 Section 20 — Catchment & Absenteeism Research.
 
 Original geospatial work by Maxwell Howe combining student address data
@@ -53,7 +53,7 @@ def show(slug: str, caption: str = "") -> None:
     if not path.exists():
         st.info(f"Image not yet generated: {slug}.png")
         return
-    st.image(str(path), caption=caption, width="stretch")
+    st.image(str(path), caption=caption, use_container_width=True)
 
 
 # ===========================================================================
@@ -201,3 +201,4 @@ with st.expander("Methodology & data sources"):
   immigration status.
 """
     )
+

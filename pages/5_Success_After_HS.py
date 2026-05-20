@@ -1,4 +1,4 @@
-"""Section 5 — Success After High School: graduation, college enrollment, persistence."""
+﻿"""Section 5 — Success After High School: graduation, college enrollment, persistence."""
 
 import pandas as pd
 import plotly.express as px
@@ -109,7 +109,7 @@ if not g_focus.empty:
         **DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="4-Year Grad Rate",
         xaxis_title="Cohort Year",
     )
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -142,7 +142,7 @@ if not g_both.empty:
         },
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Grad Rate")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -177,7 +177,7 @@ if not g_both_schools.empty:
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                        yaxis_title="4-Year Graduation Rate",
                        xaxis_title="Cohort Year")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 else:
     st.info("Both-school graduation rate data not available.")
 
@@ -215,7 +215,7 @@ if not pathway.empty:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="% of cohort",
                        yaxis_ticksuffix="%", yaxis_range=[0, 100])
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
     st.caption(
         "**Indicator definitions** — "
         "**Any college (immediate)**: % of HS graduates who enrolled in any "
@@ -263,7 +263,7 @@ if not plans_lehs.empty:
         groupnorm=None,
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share of seniors")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -304,4 +304,5 @@ if not chain_df.empty:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Rate (%)",
                        yaxis_ticksuffix="%", yaxis_range=[0, 100])
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
+

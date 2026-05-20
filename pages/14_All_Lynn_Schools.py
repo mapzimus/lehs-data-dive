@@ -1,4 +1,4 @@
-"""Section 18 — All Lynn Schools Explorer: filter/sort the full Lynn district."""
+﻿"""Section 18 — All Lynn Schools Explorer: filter/sort the full Lynn district."""
 
 import pandas as pd
 import plotly.express as px
@@ -123,7 +123,7 @@ for c in display.columns:
         display[c] = display[c].apply(lambda x: f"{x:.0%}" if pd.notna(x) else "—")
 
 st.dataframe(display.sort_values("School").style.apply(highlight_lehs, axis=1),
-             width="stretch", hide_index=True, height=500)
+             use_container_width=True, hide_index=True, height=500)
 
 st.divider()
 
@@ -149,7 +149,7 @@ fig.update_layout(
     **DEFAULT_LAYOUT, yaxis_tickformat=".0%",
     xaxis_title="Enrollment", yaxis_title="% ELL",
 )
-st.plotly_chart(fig, width="stretch")
+st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -173,3 +173,4 @@ with c3:
         st.metric("Weighted % Low Income", f"{wtd_li:.0%}")
 with c4:
     st.metric("Schools shown", f"{len(filtered)}")
+

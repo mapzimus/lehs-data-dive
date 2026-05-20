@@ -1,4 +1,4 @@
-"""Section 4 — College & Career Readiness."""
+﻿"""Section 4 — College & Career Readiness."""
 
 import pandas as pd
 import plotly.express as px
@@ -75,7 +75,7 @@ if not ap_lehs.empty:
         fig = px.bar(cat, x="SUBJ_CAT", y="TESTS_TAKEN",
                      color_discrete_sequence=[LEHS_NAVY])
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Tests taken", xaxis_title="")
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
 
     # Score distribution for All Subjects
     st.subheader("AP score distribution — All Subjects")
@@ -96,7 +96,7 @@ if not ap_lehs.empty:
             },
         )
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Tests")
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
         st.caption("Scores 3, 4, 5 are typically considered 'passing' / college-credit-eligible.")
 
 # AP equity: who's in AP?
@@ -126,7 +126,7 @@ if not ap_groups.empty:
     ))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Tests taken (latest year)",
                       title="AP tests taken by student group at LEHS")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -164,7 +164,7 @@ if not mc_groups.empty:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                        yaxis_title="MassCore Completion Rate")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -186,7 +186,7 @@ if not sat_math.empty or not sat_read.empty:
         color_discrete_map={"Math": "#D32F2F", "Reading": "#1976D2"},
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Average score")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -224,7 +224,7 @@ if not ap_compare.empty:
             color_discrete_map={"LEHS": LEHS_GOLD, "LCHS": "#1A8FE3"},
         )
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Tests taken")
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
     with c2:
         st.markdown("**% AP tests scoring 3 or higher**")
         fig = px.line(
@@ -233,7 +233,7 @@ if not ap_compare.empty:
             color_discrete_map={"LEHS": LEHS_GOLD, "LCHS": "#1A8FE3"},
         )
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="% scoring 3+")
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
 else:
     st.info("AP comparison data not available.")
 
@@ -258,7 +258,7 @@ if not pathways.empty:
             display_p = p[["SY"] + pathway_cols[:8]].sort_values("SY")
             # Drop columns that are entirely null for LEHS
             display_p = display_p.dropna(axis=1, how="all")
-            st.dataframe(display_p, width="stretch", hide_index=True)
+            st.dataframe(display_p, use_container_width=True, hide_index=True)
     else:
         st.info("No LEHS pathways enrollment data (program may not be designated here).")
 
@@ -273,4 +273,5 @@ if not ec_part.empty:
         ec_display = ec_lehs.drop(columns=[c for c in drop_cols if c in ec_lehs.columns])
         ec_display = ec_display.dropna(axis=1, how="all")
         ec_display = ec_display.sort_values("SY", ascending=False) if "SY" in ec_display else ec_display
-        st.dataframe(ec_display, width="stretch", hide_index=True)
+        st.dataframe(ec_display, use_container_width=True, hide_index=True)
+

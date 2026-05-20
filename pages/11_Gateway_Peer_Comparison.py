@@ -1,4 +1,4 @@
-"""Section 11 — Gateway Peer Comparison: LEHS vs. 25 gateway-city main HS."""
+﻿"""Section 11 — Gateway Peer Comparison: LEHS vs. 25 gateway-city main HS."""
 
 import json
 from pathlib import Path
@@ -152,7 +152,7 @@ def highlight_lynn_schools(row):
     return [""] * len(row)
 
 st.dataframe(display.style.apply(highlight_lynn_schools, axis=1),
-             width="stretch", hide_index=True)
+             use_container_width=True, hide_index=True)
 st.caption(f"School year {latest_enr_year}. Lynn schools (LEHS + LCHS) highlighted in gold.")
 
 st.divider()
@@ -184,7 +184,7 @@ if not scatter_df.empty:
         xaxis_title="$ per pupil",
         yaxis_title="4-year graduation rate",
     )
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 st.subheader("ELL share vs. 4-year graduation rate")
 scatter_df2 = scorecard.dropna(subset=["% ELL", "4yr Grad Rate"]).copy()
@@ -203,7 +203,7 @@ if not scatter_df2.empty:
         **DEFAULT_LAYOUT, xaxis_tickformat=".0%", yaxis_tickformat=".0%",
         xaxis_title="% English Learners", yaxis_title="4-year graduation rate",
     )
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -232,4 +232,5 @@ if not similar_peers.empty:
         elif col == "$ Per Pupil":
             show[col] = show[col].apply(lambda x: f"${x:,.0f}" if pd.notna(x) else "—")
     st.dataframe(show.style.apply(highlight_lynn_schools, axis=1),
-                 width="stretch", hide_index=True)
+                 use_container_width=True, hide_index=True)
+

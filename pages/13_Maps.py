@@ -1,4 +1,4 @@
-"""
+﻿"""
 Section 13 — Maps.
 
 The interactive maps live as standalone MapLibre GL JS apps:
@@ -101,3 +101,4 @@ with c2:
 - PNG export · shareable URL state
 """
     )
+

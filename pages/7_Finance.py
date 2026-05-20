@@ -1,4 +1,4 @@
-"""Section 7 — Finance & Resource Allocation."""
+﻿"""Section 7 — Finance & Resource Allocation."""
 
 import pandas as pd
 import plotly.express as px
@@ -58,7 +58,7 @@ if not total_exp.empty:
     fig.update_traces(line=dict(color=LEHS_NAVY, width=3))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="$,.0f", yaxis_title="$ per pupil")
     with c2:
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -88,7 +88,7 @@ if not breakdown.empty:
     fig.update_traces(textposition="outside")
     fig.update_layout(**DEFAULT_LAYOUT, xaxis_tickformat="$,.0f",
                        xaxis_title="$ per pupil", yaxis_title="")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -115,7 +115,7 @@ if not fund_summary.empty:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="$,.0f",
                        yaxis_title="$ per pupil", xaxis_title="Fiscal Year")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -143,7 +143,7 @@ if not salary.empty:
         fig.update_traces(line=dict(color=LEHS_NAVY, width=3))
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="$,.0f",
                            yaxis_title="Average salary", title="Average teacher salary trend")
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
 if not teach_per_100.empty:
     latest_r = teach_per_100.iloc[-1]
     with c2:
@@ -152,7 +152,7 @@ if not teach_per_100.empty:
         fig.update_traces(line=dict(color=LEHS_GOLD, width=3))
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Teachers per 100 students",
                            title="Staffing intensity trend")
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -175,7 +175,7 @@ if not dist_exp.empty:
             )[["IND_CAT", "IND_SUBCAT", "$"]].rename(columns={
                 "IND_CAT": "Category", "IND_SUBCAT": "Indicator",
             }),
-            width="stretch", hide_index=True,
+            use_container_width=True, hide_index=True,
         )
 
 st.divider()
@@ -188,3 +188,4 @@ st.caption(
     "**Correlation Lab** page where you can explore spending-vs-outcome "
     "relationships directly."
 )
+

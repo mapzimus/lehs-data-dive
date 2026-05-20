@@ -1,4 +1,4 @@
-"""
+﻿"""
 Section 12 — Cross-Reference Lab: correlation discovery across domains.
 
 The novel analytical layer no DESE tool provides.
@@ -40,11 +40,19 @@ st.caption(
 @st.cache_data(show_spinner=False)
 def build_master_panel() -> pd.DataFrame:
     """Wide panel: rows = (school_code, year), cols = key metrics from all sources."""
+    from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE
     peers = json.loads((PROCESSED_DIR / "_peer_schools.json").read_text())
     gateway_codes = [
         info["school_code"] for info in peers["gateway_main_hs"].values()
         if info.get("school_code")
     ]
+    # Include BOTH Lynn comprehensive high schools so the gateway scatter
+    # shows them as distinct points (LEHS + LCHS). Lynn (district) is the
+    # whole 22-school district — comparing it against single-school
+    # gateway-city HS would be apples-to-oranges.
+    for code in (LEHS_SCHOOL_CODE, LCHS_SCHOOL_CODE):
+        if code not in gateway_codes:
+            gateway_codes.append(code)
 
     # 1) Enrollment + demographics
     enr = load_dataset("enrollment_demographics")
@@ -186,7 +194,7 @@ for x, y, label in curated_pairs:
         )
         fig.update_traces(textposition="top center", textfont_size=10)
         fig.update_layout(**DEFAULT_LAYOUT, xaxis_title=x, yaxis_title=y)
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
         st.caption(
             f"Pearson r = {stats['r']:+.3f} (p = {stats['p']:.3f}, n = {stats['n']}). "
             f"**Caveat:** correlation across 26 districts doesn't establish cause."
@@ -232,7 +240,7 @@ if len(data) >= 3:
         hover_data=["City"],
     )
     fig.update_layout(**DEFAULT_LAYOUT, xaxis_title=x_var, yaxis_title=y_var)
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
     stats = pearson(data, x_var, y_var)
     reg = regression_line(data, x_var, y_var)
@@ -292,7 +300,7 @@ if total_weight > 0:
         return ["background-color: #FFF4D6" if row["City"] == "Lynn" else "" for _ in row]
 
     st.dataframe(ranked.style.apply(highlight_lehs, axis=1),
-                 width="stretch", hide_index=True)
+                 use_container_width=True, hide_index=True)
 
     lehs_row = ranked[ranked["City"] == "Lynn"]
     if not lehs_row.empty:
@@ -300,3 +308,4 @@ if total_weight > 0:
             f"**LEHS ranks #{int(lehs_row.iloc[0]['Rank'])} of {len(ranked)} "
             f"gateway-city main HS** on this composite index."
         )
+

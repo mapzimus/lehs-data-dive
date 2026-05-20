@@ -1,4 +1,4 @@
-"""
+﻿"""
 Section 3 — ELL Pipeline.
 
 The central narrative thread: tracking English Learner outcomes from initial
@@ -63,7 +63,7 @@ fig.update_layout(
     yaxis_title="% English Learner",
     xaxis_title="School Year",
 )
-st.plotly_chart(fig, width="stretch")
+st.plotly_chart(fig, use_container_width=True)
 
 st.caption(
     "The EL share at LEHS has more than doubled since the early 2000s — a "
@@ -124,7 +124,7 @@ if wida_path.exists():
         annotation_position="bottom right",
         annotation_font=dict(size=11, color="gray"),
     )
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -163,7 +163,7 @@ for subject_code, subject_label in [("ELA", "English Language Arts"), ("MATH", "
         yaxis_title="% Meeting + Exceeding",
         xaxis_title="School Year",
     )
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -224,7 +224,7 @@ if fmr_path.exists():
                     yaxis_title="% Meeting + Exceeding",
                     xaxis_title="Years since exiting EL status (All = combined)",
                 )
-                st.plotly_chart(fig, width="stretch")
+                st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("No FormerEL records found in Lynn data.")
 else:
@@ -256,3 +256,4 @@ tracks whether staff capacity for ELL instruction has kept pace with the
 population growth shown above.
 """
 )
+

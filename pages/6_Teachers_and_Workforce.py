@@ -1,4 +1,4 @@
-"""Section 6 — Teachers & Workforce."""
+﻿"""Section 6 — Teachers & Workforce."""
 
 import pandas as pd
 import plotly.express as px
@@ -112,7 +112,7 @@ if not teachers.empty and not enr.empty:
                          marker_color=LEHS_GOLD))
     fig.update_layout(**DEFAULT_LAYOUT, barmode="group", yaxis_tickformat=".0%",
                        yaxis_title="Share")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
     # Gap callout
     hl_gap = diversity_df.loc[diversity_df["Group"] == "Hispanic/Latino", "Students"].iloc[0] - \
@@ -152,7 +152,7 @@ if not key_roles.empty:
     fig = px.bar(role_summary, x="FTE_TOTAL", y="JOBCLASS_CAT", orientation="h",
                  color_discrete_sequence=[LEHS_NAVY])
     fig.update_layout(**DEFAULT_LAYOUT, xaxis_title="FTE", yaxis_title="")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -190,7 +190,7 @@ if not teachers_all_years.empty:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                        yaxis_title="Share of teachers")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -229,7 +229,7 @@ if not retention.empty:
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                           yaxis_title="% teachers returning the next year")
         with c2:
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -280,7 +280,7 @@ if not teacher_data.empty:
         )
         fig.update_traces(textposition="top center")
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share")
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
 
         # In-field by SUBJECT (LEHS-level if rows exist)
         lehs_by_subj = teacher_data[
@@ -303,7 +303,7 @@ if not teacher_data.empty:
                 fig.update_layout(**DEFAULT_LAYOUT, xaxis_tickformat=".0%",
                                   xaxis_title="% teachers with subject licensure",
                                   yaxis_title="")
-                st.plotly_chart(fig, width="stretch")
+                st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -342,7 +342,7 @@ if not class_size.empty:
             fig.update_layout(**DEFAULT_LAYOUT, xaxis_title="Avg class size",
                               yaxis_title="")
             with c2:
-                st.plotly_chart(fig, width="stretch")
+                st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -365,3 +365,4 @@ the dashboard yet:
   the Profiles statereport feed
 """
     )
+

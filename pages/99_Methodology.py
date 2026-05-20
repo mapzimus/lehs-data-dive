@@ -1,4 +1,4 @@
-"""Section 99 — Methodology, sources, and caveats."""
+﻿"""Section 99 — Methodology, sources, and caveats."""
 
 import streamlit as st
 
@@ -92,3 +92,4 @@ st.markdown(
 - **Source code** — https://github.com/mapzimus/lehs-data-dive
 """
 )
+

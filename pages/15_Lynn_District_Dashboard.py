@@ -1,4 +1,4 @@
-"""Section 19 — Lynn District Dashboard: LPS as a whole, not just LEHS."""
+﻿"""Section 19 — Lynn District Dashboard: LPS as a whole, not just LEHS."""
 
 import pandas as pd
 import plotly.express as px
@@ -72,7 +72,7 @@ st.header("District Enrollment Over Time")
 fig = px.line(district, x="SY", y="TOTAL_CNT", markers=True)
 fig.update_traces(line=dict(color=LEHS_NAVY, width=3))
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Students", xaxis_title="School Year")
-st.plotly_chart(fig, width="stretch")
+st.plotly_chart(fig, use_container_width=True)
 
 st.header("Selected Populations Trend (District-wide)")
 long = district.melt(
@@ -99,7 +99,7 @@ fig = px.line(
     },
 )
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share")
-st.plotly_chart(fig, width="stretch")
+st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -127,7 +127,7 @@ if not district_mcas.empty:
         )
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                            yaxis_title="% Meeting + Exceeding")
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
 
     # Show grades 3-8 trends
     elem_mcas = district_mcas[district_mcas["TEST_GRADE"].astype(str).isin(["03", "04", "05", "06", "07", "08"])].copy()
@@ -141,7 +141,7 @@ if not district_mcas.empty:
         )
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                            yaxis_title="Avg % M+E across grades")
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -164,7 +164,7 @@ if not district_grad.empty:
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                        yaxis_title="4-yr Graduation Rate",
                        xaxis_title="Cohort Year")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 # ---------------------------------------------------------------------------
 # District attendance / chronic absence
@@ -185,7 +185,7 @@ if not district_att.empty:
     fig.update_traces(line=dict(color="#F57C00", width=3))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                        yaxis_title="% Chronically Absent (10%+ missed)")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -216,4 +216,5 @@ if not dist_exp.empty:
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="$,.0f",
                            yaxis_title="$ per pupil", xaxis_title="Fiscal Year")
         with c2:
-            st.plotly_chart(fig, width="stretch")
+            st.plotly_chart(fig, use_container_width=True)
+

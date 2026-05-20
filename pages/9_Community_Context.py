@@ -1,4 +1,4 @@
-"""Section 9 — Community Context (Census ACS for Lynn's 22 census tracts)."""
+﻿"""Section 9 — Community Context (Census ACS for Lynn's 22 census tracts)."""
 
 from pathlib import Path
 
@@ -134,7 +134,7 @@ for col, label, fmt, palette in metrics:
         fig.update_layout(xaxis_tickformat=".0%")
     elif col == "median_household_income":
         fig.update_layout(xaxis_tickformat="$,.0f")
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -169,7 +169,7 @@ if "non_english_pct" in tracts.columns:
     )
     fig.update_traces(textinfo="percent+label", textfont_size=12)
     fig.update_layout(**DEFAULT_LAYOUT, height=380)
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -206,3 +206,4 @@ with st.expander("What's still missing — and how to add it"):
 These would each take one focused script-writing session.
 """
     )
+
