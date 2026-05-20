@@ -46,6 +46,34 @@ for name, url, desc in sources:
 
 st.divider()
 
+st.header("Peer cohort framework")
+
+st.markdown(
+    """
+The dashboard compares LEHS against three nested peer cohorts to isolate
+different kinds of effects:
+
+1. **Lynn Classical High School (LCHS)** — Lynn's *other* comprehensive
+   high school. Same district, same city, same school board. Differences
+   between LEHS and LCHS isolate **school-level practices** (curriculum,
+   discipline policy, ELL programming, scheduling) from city-wide
+   demographic effects. You'll see LCHS as a dashed-line overlay on
+   *School Profile*, *Academic Performance*, *ELL Pipeline*, *College &
+   Career*, *Success After HS*, *Teachers & Workforce*, *Finance*, and
+   *Discipline & Climate*.
+2. **All Lynn high schools** (Lynn Tech, Fredrick Douglass, Harold Durgin
+   alongside LEHS and LCHS) — visible on the *Lynn District & Siblings*
+   page and *All Lynn Schools* page. Shows where LEHS sits inside the
+   Lynn Public Schools high-school portfolio.
+3. **26 Massachusetts Gateway Cities** — main comprehensive HS of each
+   peer city. Shown on *Gateway Peer Comparison* and as a scatter cloud
+   on *Correlation Lab*. This is the *across-cities* benchmark; the
+   LEHS-vs-LCHS pairing is the *within-city* benchmark.
+"""
+)
+
+st.divider()
+
 st.header("Important caveats")
 
 st.markdown(
