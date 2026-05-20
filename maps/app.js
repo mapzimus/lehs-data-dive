@@ -969,80 +969,11 @@ function buildPanelHtml(p, kind) {
     return `<div class="feature-panel-section">Click a feature on the map.</div>`;
 }
 
-function row(label, value, kind = "num") {
-    return `<div class="popup-row"><span class="label">${label}</span><span class="value">${fmt(+value, kind)}</span></div>`;
-}
-
 // Wire close button (added once on load)
 document.addEventListener("DOMContentLoaded", () => {
     const closeBtn = document.getElementById("featurePanelClose");
     if (closeBtn) closeBtn.addEventListener("click", closeFeaturePanel);
 });
-
-function buildPopupHtml(p, kind) {
-    if (kind === "school") {
-        const isLehs = p.ORG_CODE === "01630510";
-        return `
-            ${isLehs ? '<div class="popup-tag">FOCUS SCHOOL</div>' : ""}
-            <div class="popup-title">${p.NAME}</div>
-            <div class="popup-row"><span class="label">Type</span><span class="value">${p.TYPE_DESC || "—"}</span></div>
-            <div class="popup-row"><span class="label">Grades</span><span class="value">${p.GRADES || "—"}</span></div>
-            ${row("Enrollment", p.TOTAL_CNT, "num")}
-            ${row("% English Learner", p.EL_PCT, "pct")}
-            ${row("% Low Income", p.LI_PCT, "pct")}
-            ${row("% High Needs", p.HN_PCT, "pct")}
-        `;
-    }
-    if (kind === "tract") {
-        return `
-            <div class="popup-title">${p.NAMELSAD || "Census Tract"}</div>
-            <div class="popup-row"><span class="label">GEOID</span><span class="value">${p.GEOID}</span></div>
-            ${row("Population 5+", p.lang_total, "num")}
-            ${row("Median Household Income", p.median_household_income, "usd")}
-            ${row("% non-English at home", p.non_english_pct, "pct")}
-            ${row("% Foreign-born", p.foreign_born_pct, "pct")}
-            ${row("% Bachelor's or higher", p.bachelors_or_higher_pct, "pct")}
-            ${row("% Severely Rent-Burdened", p.severe_burden_pct, "pct")}
-        `;
-    }
-    if (kind === "muni") {
-        const tags = [];
-        if (p.is_lynn) tags.push('<div class="popup-tag" style="background:#FFE082;">LYNN — DASHBOARD FOCUS</div>');
-        else if (p.is_gateway) tags.push('<div class="popup-tag" style="background:#E1BEE7;">GATEWAY CITY</div>');
-        return `
-            ${tags.join("")}
-            <div class="popup-title">${p.town_display || p.TOWN}</div>
-            <div class="popup-row"><span class="label">County</span><span class="value">${p.COUNTY || "—"}</span></div>
-            ${row("Population (2020)", p.pop_2020 || p.POP2020, "num")}
-            ${p.DIST_NAME ? `<div class="popup-row"><span class="label">Matched district</span><span class="value">${p.DIST_NAME}</span></div>` : ""}
-            ${row("Enrollment", p.TOTAL_CNT, "num")}
-            ${row("4-yr grad rate", p.grad_4yr, "pct")}
-            ${row("Per-pupil $", p.per_pupil, "usd")}
-            ${row("% ELL", p.EL_PCT, "pct")}
-            ${row("% Low Income", p.LI_PCT, "pct")}
-            ${row("MCAS Gr10 ELA %M+E", p.mcas_g10_ela_me, "pct")}
-            ${row("MCAS Gr10 Math %M+E", p.mcas_g10_math_me, "pct")}
-        `;
-    }
-    if (kind === "district") {
-        const isLynn = p.DIST_CODE === "01630000" || p.is_lynn === true;
-        return `
-            ${isLynn ? '<div class="popup-tag">LYNN PUBLIC SCHOOLS</div>' : ""}
-            <div class="popup-title">${p.dist_display || p.DIST_NAME || "Academic District"}</div>
-            <div class="popup-row"><span class="label">District code</span><span class="value">${p.DIST_CODE || "—"}</span></div>
-            ${row("Enrollment", p.TOTAL_CNT, "num")}
-            ${row("4-yr Graduation", p.grad_4yr, "pct")}
-            ${row("Dropout", p.dropout_pct, "pct")}
-            ${row("Per-pupil $", p.per_pupil, "usd")}
-            ${row("% ELL", p.EL_PCT, "pct")}
-            ${row("% Low Income", p.LI_PCT, "pct")}
-            ${row("MCAS Gr10 ELA %M+E", p.mcas_g10_ela_me, "pct")}
-            ${row("MCAS Gr10 Math %M+E", p.mcas_g10_math_me, "pct")}
-            ${row("Chronic absent", p.chronic_absent_pct, "pct")}
-        `;
-    }
-    return `<div class="popup-title">Feature</div>`;
-}
 
 // ─── CHOROPLETH APPLY ────────────────────────────────────────────────────────
 function applyChoropleth() {
@@ -1059,13 +990,7 @@ function applyChoropleth() {
             map.setPaintProperty(layerId, "fill-color", paint);
         }
     });
-    if (state.extrude3d) refresh3D();
-}
-
-function refresh3D() {
-    const { level, metric } = state;
-    const layerId = { muni: "muni-3d", district: "district-3d", tract: "tract-3d" }[level];
-    // 3D layer is added lazily — handled in toggle handler
+    if (state.extrude3d) toggle3D();
 }
 
 // ─── LEGEND ──────────────────────────────────────────────────────────────────
