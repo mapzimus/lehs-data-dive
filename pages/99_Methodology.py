@@ -2,7 +2,10 @@
 
 import streamlit as st
 
+from utils.branding import sidebar_attribution
+
 st.set_page_config(page_title="Methodology | LEHS", page_icon="📚", layout="wide")
+sidebar_attribution()
 
 st.title("Methodology & Data Sources")
 st.markdown(

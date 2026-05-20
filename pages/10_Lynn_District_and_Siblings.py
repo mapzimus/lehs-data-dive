@@ -12,6 +12,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
+from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
 from utils.constants import (
     LEHS_SCHOOL_CODE,
@@ -23,6 +24,7 @@ from utils.data_loader import load_dataset
 st.set_page_config(
     page_title="Lynn District & Siblings | LEHS", page_icon="🏛️", layout="wide"
 )
+sidebar_attribution()
 
 st.title("Lynn District & Sibling Schools")
 st.markdown(
