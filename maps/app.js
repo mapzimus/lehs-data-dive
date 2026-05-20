@@ -116,9 +116,86 @@ const state = {
     showLynnTown: true,
     showGatewayHighlight: true,
     studentGroup: "all",
+    year: 2026,
+    playing: false,
 };
 
 let GEO_DATA = null;  // populated after load
+
+// Year-keyed schema introspection. After load, for each (level, baseMetric)
+// pair we record which years actually have data — drives the slider availability
+// and lets us fall back to latest when a metric isn't year-keyed.
+const YEAR_KEYED_INDEX = {
+    /* level: { baseMetric: Set<int years> } */
+    muni: {}, district: {}, tract: {},
+};
+
+function buildYearKeyedIndex() {
+    for (const level of ["muni", "district", "tract"]) {
+        const fc = GEO_DATA[level];
+        if (!fc || !fc.features.length) continue;
+        const sample = fc.features[0].properties;
+        const idx = {};
+        for (const key of Object.keys(sample)) {
+            const m = key.match(/^(.+)__(\d{4})$/);
+            if (!m) continue;
+            const base = m[1], year = parseInt(m[2], 10);
+            if (!idx[base]) idx[base] = new Set();
+            idx[base].add(year);
+        }
+        YEAR_KEYED_INDEX[level] = idx;
+    }
+}
+
+// Resolve the active column name for state.metric + state.year.
+// Year-keyed lookup falls back to base column when the metric isn't year-keyed.
+function activeColumn(metricId = state.metric, year = state.year, level = state.level) {
+    const idx = YEAR_KEYED_INDEX[level] || {};
+    const years = idx[metricId];
+    if (years && years.has(year)) return `${metricId}__${year}`;
+    return metricId;
+}
+
+// Available years for the active metric/level. Returns an array.
+function availableYears(metricId = state.metric, level = state.level) {
+    const idx = YEAR_KEYED_INDEX[level] || {};
+    const set = idx[metricId];
+    return set ? [...set].sort((a, b) => a - b) : [];
+}
+
+// ─── YEAR ANIMATION (slideshow) ──────────────────────────────────────────────
+let _yearAnimTimer = null;
+const YEAR_ANIM_INTERVAL_MS = 900;
+
+function startYearAnimation() {
+    if (state.playing) return;
+    const years = availableYears();
+    if (years.length < 2) return;
+    state.playing = true;
+    const btn = document.getElementById("yearPlay");
+    if (btn) { btn.textContent = "⏸"; btn.classList.add("playing"); btn.title = "Pause slideshow"; }
+    _yearAnimTimer = setInterval(() => {
+        const yrs = availableYears();
+        if (yrs.length < 2) { stopYearAnimation(); return; }
+        const idx = yrs.indexOf(state.year);
+        const nextIdx = (idx + 1) % yrs.length;
+        state.year = yrs[nextIdx];
+        const slider = document.getElementById("yearSlider");
+        if (slider) slider.value = state.year;
+        const label = document.getElementById("yearLabel");
+        if (label) label.textContent = state.year;
+        applyChoropleth();
+        updateLegend();
+        updateMetricSummary();
+    }, YEAR_ANIM_INTERVAL_MS);
+}
+
+function stopYearAnimation() {
+    state.playing = false;
+    if (_yearAnimTimer) { clearInterval(_yearAnimTimer); _yearAnimTimer = null; }
+    const btn = document.getElementById("yearPlay");
+    if (btn) { btn.textContent = "▶"; btn.classList.remove("playing"); btn.title = "Play slideshow"; }
+}
 
 // ─── FORMATTERS ──────────────────────────────────────────────────────────────
 function fmt(value, kind) {
@@ -135,7 +212,9 @@ function getValuesForLevel(level, metricId) {
     if (!GEO_DATA) return [];
     const fc = GEO_DATA[level];
     if (!fc || !fc.features) return [];
-    return fc.features.map(f => f.properties[metricId])
+    // Year-aware: read year-keyed column when available, else fall back to base.
+    const col = activeColumn(metricId, state.year, level);
+    return fc.features.map(f => f.properties[col])
                         .filter(v => v != null && isFinite(+v))
                         .map(v => +v);
 }
@@ -302,6 +381,7 @@ map.on("load", async () => {
             fetch(SOURCES.maSchools).then(r => r.json()).catch(() => ({ type: "FeatureCollection", features: [] })),
         ]);
         GEO_DATA = { tract: tracts, district: academic, muni: munis };
+        buildYearKeyedIndex();
 
         // Sub-collections of CCUV by type, for separate styling
         const voctech = {
@@ -915,7 +995,9 @@ function buildPopupHtml(p, kind) {
 function applyChoropleth() {
     const { level, metric, palette, classify } = state;
     const m = getMetric(metric);
-    const paint = paintExpression(metric, palette, classify, level);
+    // Year-aware: paint uses year-keyed column when available, falls back to base
+    const col = activeColumn(metric, state.year, level);
+    const paint = paintExpression(col, palette, classify, level);
     const layerMap = { muni: "muni-fill", district: "district-fill", tract: "tract-fill" };
     Object.entries(layerMap).forEach(([lvl, layerId]) => {
         if (!map.getLayer(layerId)) return;
@@ -1135,11 +1217,28 @@ function wireUI() {
         applyChoropleth();
         updateLegend();
     });
-    // Year slider — scaffolded; live data wiring requires year-keyed
-    // geojson columns (planned). For now the slider just updates the label.
-    document.getElementById("yearSlider").addEventListener("input", e => {
-        document.getElementById("yearLabel").textContent = e.target.value;
-    });
+    // Year slider — live wired to year-keyed geojson columns.
+    const yearSlider = document.getElementById("yearSlider");
+    const yearLabel  = document.getElementById("yearLabel");
+    if (yearSlider && yearLabel) {
+        yearSlider.addEventListener("input", e => {
+            state.year = parseInt(e.target.value, 10);
+            yearLabel.textContent = e.target.value;
+            // Stop animation if user manually drags
+            if (state.playing) stopYearAnimation();
+            applyChoropleth();
+            updateLegend();
+            updateMetricSummary();
+        });
+    }
+    // Year animation (play / pause)
+    const playBtn = document.getElementById("yearPlay");
+    if (playBtn) {
+        playBtn.addEventListener("click", () => {
+            if (state.playing) stopYearAnimation();
+            else startYearAnimation();
+        });
+    }
     // Student-group filter — scaffolded; activates when group-sliced columns
     // are baked into the geojson properties.
     document.getElementById("groupSelect").addEventListener("change", e => {

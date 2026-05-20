@@ -265,6 +265,25 @@ body.maps-page {
     gap: 10px;
     margin-top: 4px;
 }
+.year-play {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--lehs-navy);
+    color: var(--lehs-gold);
+    border: none;
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.year-play:hover  { background: #1a3a6b; transform: scale(1.05); }
+.year-play.playing{ background: var(--lehs-gold); color: var(--lehs-navy); }
 .year-slider {
     flex: 1;
     accent-color: var(--lehs-navy);
