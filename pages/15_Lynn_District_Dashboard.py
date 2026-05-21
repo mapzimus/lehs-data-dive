@@ -306,7 +306,7 @@ if not mcas.empty:
     m_g10 = mcas[(mcas["TEST_GRADE"].astype(str) == "10")
                  & (mcas["SUBJECT_CODE"] == "ELA")
                  & (mcas["STU_GRP"] == "All Students")
-                 & (mcas["ORG_TYPE"].isin(["Public School District", "Charter District"]))
+                 & (mcas["ORG_TYPE"] == "District")
                  ][["SY", "DIST_CODE", "M_PLUS_E_PCT"]]
     m_g10["M_PLUS_E_PCT"] = pd.to_numeric(m_g10["M_PLUS_E_PCT"], errors="coerce")
     if m_g10["M_PLUS_E_PCT"].max() and m_g10["M_PLUS_E_PCT"].max() > 1.5:
@@ -321,7 +321,7 @@ if not mcas.empty:
     m_g10m = mcas[(mcas["TEST_GRADE"].astype(str) == "10")
                   & (mcas["SUBJECT_CODE"] == "MATH")
                   & (mcas["STU_GRP"] == "All Students")
-                  & (mcas["ORG_TYPE"].isin(["Public School District", "Charter District"]))
+                  & (mcas["ORG_TYPE"] == "District")
                   ][["SY", "DIST_CODE", "M_PLUS_E_PCT"]]
     m_g10m["M_PLUS_E_PCT"] = pd.to_numeric(m_g10m["M_PLUS_E_PCT"], errors="coerce")
     if m_g10m["M_PLUS_E_PCT"].max() and m_g10m["M_PLUS_E_PCT"].max() > 1.5:
