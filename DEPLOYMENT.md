@@ -12,7 +12,7 @@ GitHub Pages (maxwellhowegis.com)
             iframe embed of
             ↓
 Streamlit Community Cloud
-    └── lehs-data-dive.streamlit.app  ← actual dashboard, served from your GitHub repo
+    └── lynn-data-dive.streamlit.app  ← actual dashboard, served from your GitHub repo
             ↓
             sourced from
             ↓
@@ -39,7 +39,7 @@ No additional download step is required at app start.
 5. Click **"Deploy!"**.
 
 First deploy takes ~5–10 minutes (installs all dependencies from `requirements.txt`).
-When it finishes, you'll have a public URL like `https://lehs-data-dive.streamlit.app`.
+When it finishes, you'll have a public URL like `https://lynn-data-dive.streamlit.app`.
 
 **If deployment fails** because of `geopandas` install errors, add a file at the
 repo root called `packages.txt` with one line:
@@ -65,7 +65,7 @@ This step lives in **your maxwellhowegis.com repository**, not the `lehs-data-di
 5. **Edit one line** in `index.html`: change
 
    ```html
-   const STREAMLIT_URL = "https://lehs-data-dive.streamlit.app";
+   const STREAMLIT_URL = "https://lynn-data-dive.streamlit.app";
    ```
 
    …to your actual Streamlit Cloud URL from Step 1.
