@@ -52,43 +52,37 @@ const METRICS = [
     { id:"SWD_PCT",    label:"% Students w/ Disabilities",  cat:"Demographics", levels:["district","muni"], palette:"Purples", format:"pct" },
     { id:"FLNE_PCT",   label:"% First Lang Not English",    cat:"Demographics", levels:["district","muni"], palette:"Greens",  format:"pct" },
 
-    // Academic
+    // Academic — mcas_g38_* live only on district features (no muni-level join)
     { id:"mcas_g10_ela_me",  label:"MCAS Gr10 ELA % M+E",   cat:"Academic", levels:["district","muni"], palette:"Viridis", format:"pct" },
     { id:"mcas_g10_math_me", label:"MCAS Gr10 Math % M+E",  cat:"Academic", levels:["district","muni"], palette:"Viridis", format:"pct" },
     { id:"mcas_g10_sci_me",  label:"MCAS Gr10 STE % M+E",   cat:"Academic", levels:["district","muni"], palette:"Viridis", format:"pct" },
-    { id:"mcas_g38_ela_me",  label:"MCAS Gr3-8 ELA % M+E",  cat:"Academic", levels:["district","muni"], palette:"Viridis", format:"pct" },
-    { id:"mcas_g38_math_me", label:"MCAS Gr3-8 Math % M+E", cat:"Academic", levels:["district","muni"], palette:"Viridis", format:"pct" },
+    { id:"mcas_g38_ela_me",  label:"MCAS Gr3-8 ELA % M+E",  cat:"Academic", levels:["district"],        palette:"Viridis", format:"pct" },
+    { id:"mcas_g38_math_me", label:"MCAS Gr3-8 Math % M+E", cat:"Academic", levels:["district"],        palette:"Viridis", format:"pct" },
 
-    // Outcomes
+    // Outcomes — chronic_absent_pct / attendance_rate / ap_pct_3plus removed
+    // (no data anywhere in source). grad_5yr / masscore_pct district-only.
     { id:"grad_4yr",            label:"4-yr Graduation Rate",        cat:"Outcomes", levels:["district","muni"], palette:"Viridis", format:"pct" },
-    { id:"grad_5yr",            label:"5-yr Graduation Rate",        cat:"Outcomes", levels:["district","muni"], palette:"Viridis", format:"pct" },
+    { id:"grad_5yr",            label:"5-yr Graduation Rate",        cat:"Outcomes", levels:["district"],        palette:"Viridis", format:"pct" },
     { id:"dropout_pct",         label:"Dropout Rate",                cat:"Outcomes", levels:["district","muni"], palette:"Reds",    format:"pct" },
-    { id:"chronic_absent_pct",  label:"Chronic Absenteeism Rate",    cat:"Outcomes", levels:["district","muni"], palette:"Reds",    format:"pct" },
-    { id:"attendance_rate",     label:"Attendance Rate",             cat:"Outcomes", levels:["district","muni"], palette:"Greens",  format:"pct" },
-    { id:"masscore_pct",        label:"MassCore Completion",         cat:"Outcomes", levels:["district","muni"], palette:"Greens",  format:"pct" },
-    { id:"ap_pct_3plus",        label:"% AP Tests Scoring 3+",       cat:"Outcomes", levels:["district","muni"], palette:"BuPu",    format:"pct" },
+    { id:"masscore_pct",        label:"MassCore Completion",         cat:"Outcomes", levels:["district"],        palette:"Greens",  format:"pct" },
 
-    // Postsecondary plans
-    { id:"pct_any_college",     label:"% Planning Any College",      cat:"Postsecondary", levels:["district","muni"], palette:"Viridis", format:"pct" },
-    { id:"pct_4yr_college",     label:"% Planning 4-yr College",     cat:"Postsecondary", levels:["district","muni"], palette:"Viridis", format:"pct" },
-    { id:"pct_2yr_college",     label:"% Planning 2-yr College",     cat:"Postsecondary", levels:["district","muni"], palette:"BuPu",    format:"pct" },
-    { id:"pct_work_after_hs",   label:"% Planning to Work after HS", cat:"Postsecondary", levels:["district","muni"], palette:"Oranges", format:"pct" },
-    { id:"pct_military",        label:"% Planning Military",         cat:"Postsecondary", levels:["district","muni"], palette:"Greys",   format:"pct" },
+    // Postsecondary plans — joined only onto district features
+    { id:"pct_any_college",     label:"% Planning Any College",      cat:"Postsecondary", levels:["district"], palette:"Viridis", format:"pct" },
+    { id:"pct_4yr_college",     label:"% Planning 4-yr College",     cat:"Postsecondary", levels:["district"], palette:"Viridis", format:"pct" },
+    { id:"pct_2yr_college",     label:"% Planning 2-yr College",     cat:"Postsecondary", levels:["district"], palette:"BuPu",    format:"pct" },
+    { id:"pct_work_after_hs",   label:"% Planning to Work after HS", cat:"Postsecondary", levels:["district"], palette:"Oranges", format:"pct" },
+    { id:"pct_military",        label:"% Planning Military",         cat:"Postsecondary", levels:["district"], palette:"Greys",   format:"pct" },
 
-    // Finance
+    // Finance — totals at both levels; breakdowns are district-only
     { id:"per_pupil",                  label:"Per-Pupil $ (Total)",         cat:"Finance", levels:["district","muni"], palette:"Viridis", format:"usd" },
     { id:"per_pupil_teachers",         label:"Per-Pupil $ — Teachers",      cat:"Finance", levels:["district","muni"], palette:"Viridis", format:"usd" },
-    { id:"per_pupil_admin",            label:"Per-Pupil $ — Administration",cat:"Finance", levels:["district","muni"], palette:"Viridis", format:"usd" },
-    { id:"per_pupil_pupil_services",   label:"Per-Pupil $ — Pupil Services",cat:"Finance", levels:["district","muni"], palette:"Viridis", format:"usd" },
+    { id:"per_pupil_admin",            label:"Per-Pupil $ — Administration",cat:"Finance", levels:["district"],        palette:"Viridis", format:"usd" },
+    { id:"per_pupil_pupil_services",   label:"Per-Pupil $ — Pupil Services",cat:"Finance", levels:["district"],        palette:"Viridis", format:"usd" },
 
-    // Workforce
-    { id:"staff_white_pct",        label:"% Staff: White",            cat:"Workforce", levels:["district","muni"], palette:"Greys",   format:"pct" },
-    { id:"staff_hispanic_pct",     label:"% Staff: Hispanic",         cat:"Workforce", levels:["district","muni"], palette:"Oranges", format:"pct" },
-    { id:"staff_black_pct",        label:"% Staff: Black",            cat:"Workforce", levels:["district","muni"], palette:"Purples", format:"pct" },
-    { id:"stu_tchr_ratio",         label:"Student : Teacher Ratio",   cat:"Workforce", levels:["district","muni"], palette:"Reds",    format:"num" },
-    { id:"teacher_experienced_pct",label:"% Experienced Teachers",    cat:"Workforce", levels:["district","muni"], palette:"Greens",  format:"pct" },
-    { id:"teacher_infield_pct",    label:"% Teachers In-Field",       cat:"Workforce", levels:["district","muni"], palette:"Greens",  format:"pct" },
-    { id:"teacher_retention_pct",  label:"Teacher Retention Rate",    cat:"Workforce", levels:["district","muni"], palette:"Greens",  format:"pct" },
+    // Workforce — staff_*_pct and teacher_experienced/infield_pct removed
+    // (no data anywhere in source).
+    { id:"stu_tchr_ratio",         label:"Student : Teacher Ratio",   cat:"Workforce", levels:["district"], palette:"Reds",    format:"num" },
+    { id:"teacher_retention_pct",  label:"Teacher Retention Rate",    cat:"Workforce", levels:["district"], palette:"Greens",  format:"pct" },
 
     // Tract — ACS (Lynn only)
     { id:"non_english_pct",          label:"% non-English at home",      cat:"Tract — Census ACS", levels:["tract"], palette:"Greens",  format:"pct" },
@@ -258,6 +252,28 @@ function fmt(value, kind) {
 }
 
 function getMetric(id) { return METRICS.find(m => m.id === id) || METRICS[0]; }
+
+// Convert numeric-looking string property values to real numbers in place,
+// for every feature in a GeoJSON FeatureCollection. Necessary because some
+// of the upstream pipeline's pct columns are written as strings, which the
+// MapLibre paint expression's typeof-number validity check treats as invalid.
+// Only touches values that round-trip cleanly through Number(); leaves
+// identifier-looking strings (GEOIDs, names, codes) alone.
+function coerceNumericStringProps(fc) {
+    if (!fc || !fc.features) return;
+    const NUM_RE = /^-?\d+(\.\d+)?$/;  // plain integers/decimals only, no scientific/hex
+    for (const f of fc.features) {
+        const p = f.properties;
+        if (!p) continue;
+        for (const k in p) {
+            const v = p[k];
+            if (typeof v !== "string") continue;
+            if (!NUM_RE.test(v)) continue;
+            const n = Number(v);
+            if (Number.isFinite(n)) p[k] = n;
+        }
+    }
+}
 
 // ─── CLASSIFICATION & PAINT BUILDERS ─────────────────────────────────────────
 function getValuesForLevel(level, metricId) {
@@ -432,6 +448,15 @@ map.on("load", async () => {
             fetch(SOURCES.municipalities).then(r => r.json()),
             fetch(SOURCES.maSchools).then(r => r.json()).catch(() => ({ type: "FeatureCollection", features: [] })),
         ]);
+
+        // Some tract columns are written as strings (e.g. "0.32") in the
+        // upstream pipeline. MapLibre's paint expressions use
+        //   ["==", ["typeof", ["get", metricId]], "number"]
+        // for validity, so string values render as "no data" cream. Coerce
+        // any numeric-looking string property to a real number once at load
+        // time — covers tracts today and future schema drift on any source.
+        [tracts, academic, munis].forEach(coerceNumericStringProps);
+
         GEO_DATA = { tract: tracts, district: academic, muni: munis };
         buildYearKeyedIndex();
         buildGroupKeyedIndex();
