@@ -24,6 +24,9 @@ ENV/
 *.swp
 *.swo
 
+# Claude Code / Cursor / local agent state
+.claude/
+
 # OS
 .DS_Store
 Thumbs.db
