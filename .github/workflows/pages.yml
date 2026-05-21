@@ -2,7 +2,7 @@ name: Deploy Lynn Maps to GitHub Pages
 
 # Deploys the maps/ subdirectory only — the rest of this repo is the
 # Streamlit data pipeline and dashboard, served separately at
-# lehs-data-dive.streamlit.app.
+# lynn-data-dive.streamlit.app.
 
 on:
   push:
