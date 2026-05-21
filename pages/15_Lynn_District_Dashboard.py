@@ -221,6 +221,74 @@ if not dist_exp.empty:
 st.divider()
 
 # ---------------------------------------------------------------------------
+# Lynn middle schools (LEHS feeders)
+# ---------------------------------------------------------------------------
+
+st.header("Lynn Middle Schools — Profile of LEHS's Feeders")
+st.caption(
+    "The three Lynn middle schools that feed every Lynn comprehensive high "
+    "school (LEHS, LCHS, Tech). Each row is the latest publicly-published "
+    "DESE snapshot — enrollment, key demographic shares, and Grade 8 MCAS "
+    "% Meeting+Exceeding. (Per-student outcome tracking from each feeder "
+    "to LEHS specifically would require Lynn-SIS data and isn't part of "
+    "the public dashboard.)"
+)
+
+MIDDLE_SCHOOL_CODES = [
+    "01630405",  # Breed Middle School
+    "01630420",  # Pickering Middle
+    "01630305",  # Thurgood Marshall Mid
+]
+
+ms_enroll = enrollment[enrollment["ORG_CODE"].isin(MIDDLE_SCHOOL_CODES)].copy()
+if not ms_enroll.empty:
+    ms_latest_year = int(ms_enroll["SY"].max())
+    ms_snap = ms_enroll[ms_enroll["SY"] == ms_latest_year].copy()
+    ms_snap["TOTAL_CNT"] = pd.to_numeric(ms_snap["TOTAL_CNT"], errors="coerce")
+
+    # Pull G8 MCAS M+E for each, latest year
+    ms_mcas = mcas[
+        (mcas["ORG_CODE"].isin(MIDDLE_SCHOOL_CODES))
+        & (mcas["TEST_GRADE"].astype(str) == "08")
+        & (mcas["STU_GRP"] == "All Students")
+        & (mcas["SUBJECT_CODE"].isin(["ELA", "MATH"]))
+    ].copy()
+    ms_mcas["M_PLUS_E_PCT"] = pd.to_numeric(ms_mcas["M_PLUS_E_PCT"], errors="coerce")
+    ms_mcas_latest = ms_mcas.sort_values("SY").groupby(["ORG_CODE", "SUBJECT_CODE"]).tail(1)
+    ms_mcas_wide = ms_mcas_latest.pivot_table(
+        index="ORG_CODE", columns="SUBJECT_CODE", values="M_PLUS_E_PCT",
+    ).reset_index().rename(columns={"ELA": "G8_ELA_ME", "MATH": "G8_MATH_ME"})
+
+    ms_table = ms_snap[[
+        "ORG_CODE", "ORG_NAME", "TOTAL_CNT", "EL_PCT", "LI_PCT", "HN_PCT", "HL_PCT",
+    ]].merge(ms_mcas_wide, on="ORG_CODE", how="left")
+    ms_table = ms_table.rename(columns={
+        "ORG_NAME":  "School",
+        "TOTAL_CNT": "Enrollment",
+        "EL_PCT":    "% ELL",
+        "LI_PCT":    "% Low Income",
+        "HN_PCT":    "% High Needs",
+        "HL_PCT":    "% Hispanic/Latino",
+        "G8_ELA_ME": "G8 ELA % M+E",
+        "G8_MATH_ME":"G8 Math % M+E",
+    })
+    ms_table = ms_table.drop(columns=["ORG_CODE"])
+
+    for col in ["% ELL", "% Low Income", "% High Needs", "% Hispanic/Latino",
+                 "G8 ELA % M+E", "G8 Math % M+E"]:
+        if col in ms_table.columns:
+            ms_table[col] = ms_table[col].apply(
+                lambda x: f"{x:.0%}" if pd.notna(x) else "—"
+            )
+    ms_table["Enrollment"] = ms_table["Enrollment"].apply(
+        lambda x: f"{int(x):,}" if pd.notna(x) else "—"
+    )
+    st.dataframe(ms_table, use_container_width=True, hide_index=True)
+    st.caption(f"School year {ms_latest_year}. Sources: enrollment_demographics + mcas_achievement parquets.")
+
+st.divider()
+
+# ---------------------------------------------------------------------------
 # Special-education program (district-level)
 # ---------------------------------------------------------------------------
 
