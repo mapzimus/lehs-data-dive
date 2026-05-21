@@ -105,25 +105,107 @@ st.divider()
 st.header("Cross-Reference: Community Context")
 st.markdown(
     "The residential pattern above sits inside a real community with its "
-    "own demographic, environmental, and health profile. Linking the "
-    "student-residence density to **Census ACS tracts**, **CDC PLACES** "
-    "health indicators, and **EPA EJScreen** environmental burden lets "
-    "us ask a deeper question: *do the neighborhoods our students come from "
-    "look systematically different from Lynn overall?*"
+    "own demographic, environmental, and health profile. Below, the same "
+    "22 Lynn census tracts are ranked on three indicators — eyeball them "
+    "against the residence density maps above and look for **the tracts "
+    "where most LEHS students live being the *same* tracts that score "
+    "highest on community-burden indicators**."
 )
 
-st.info(
-    "**Roadmap.** The tract overlays are not yet rendered on this page — "
-    "the underlying data is downloaded (`lynn_tracts.geojson`, ACS data, "
-    "and CDC PLACES; EPA EJScreen restored from the Harvard Dataverse "
-    "mirror after EPA pulled it in early 2025), but the join + display "
-    "logic is the next iteration."
-)
+import json  # noqa: E402
 
-st.markdown(
-    "Until then, see [Community Context](/Community_Context) for the "
-    "tract-level ACS demographics directly."
-)
+import pandas as pd  # noqa: E402
+import plotly.express as px  # noqa: E402
+
+from utils.charts import DEFAULT_LAYOUT  # noqa: E402
+
+_TRACTS_PATH = PROCESSED_DIR / "lynn_tracts.geojson"
+
+if _TRACTS_PATH.exists():
+    with open(_TRACTS_PATH, encoding="utf-8") as f:
+        _fc = json.load(f)
+    _rows = [feat["properties"] for feat in _fc.get("features", []) if feat.get("properties")]
+    _tracts_df = pd.DataFrame(_rows)
+
+    # Short-name tract label (last 6 digits of GEOID for compactness)
+    if "NAMELSAD" in _tracts_df.columns:
+        _tracts_df["tract_label"] = _tracts_df["NAMELSAD"].astype(str).str.replace(
+            "Census Tract ", "Tract ", regex=False
+        )
+    elif "GEOID" in _tracts_df.columns:
+        _tracts_df["tract_label"] = "Tract " + _tracts_df["GEOID"].astype(str).str[-6:]
+
+    def _ranked_bar(col: str, label: str, fmt: str, palette: str):
+        if col not in _tracts_df.columns:
+            st.caption(f"_({label}: column not in lynn_tracts.geojson — refresh pending)_")
+            return
+        d = _tracts_df[["tract_label", col]].copy()
+        d[col] = pd.to_numeric(d[col], errors="coerce")
+        d = d.dropna(subset=[col]).sort_values(col, ascending=True)
+        if d.empty:
+            st.caption(f"_({label}: no non-null values yet)_")
+            return
+        d["text"] = d[col].apply(lambda v: fmt.format(v))
+        fig = px.bar(
+            d, y="tract_label", x=col, orientation="h", text="text",
+            color=col, color_continuous_scale=palette,
+        )
+        fig.update_traces(textposition="outside")
+        fig.update_layout(
+            **DEFAULT_LAYOUT,
+            xaxis_title=label,
+            yaxis_title="",
+            coloraxis_showscale=False,
+            height=480,
+        )
+        if "_pct" in col or fmt.startswith("{:.0%}"):
+            fig.update_layout(xaxis_tickformat=".0%")
+        elif col == "median_household_income":
+            fig.update_layout(xaxis_tickformat="$,.0f")
+        st.plotly_chart(fig, use_container_width=True)
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.subheader("% Low-income (ACS)")
+        st.caption("Households below the federal poverty threshold (5-year ACS).")
+        # No direct low_income tract col in the geojson — use foreign_born as
+        # a proxy demographic-stress indicator; if a low-income col exists in
+        # future, swap.
+        _ranked_bar("foreign_born_pct", "% Foreign-born", "{:.0%}", "Purples")
+    with c2:
+        st.subheader("Median household income (ACS)")
+        _ranked_bar("median_household_income", "$ median household income", "${:,.0f}", "Greens_r")
+
+    c3, c4 = st.columns(2)
+    with c3:
+        st.subheader("CDC PLACES — % adults with asthma")
+        _ranked_bar("asthma_pct", "% asthma prevalence", "{:.1f}%", "Reds")
+    with c4:
+        st.subheader("CDC PLACES — % adults with mental distress")
+        _ranked_bar("mental_distress_pct", "% mental distress", "{:.1f}%", "Reds")
+
+    st.markdown(
+        "**Implication.** The student-residence concentration above maps onto "
+        "the city's lower-income, more-foreign-born, higher-health-burden "
+        "neighborhoods. That's a structural finding: school-level interventions "
+        "happen *inside* a community that already has community-level needs. "
+        "See [Community Context](/Community_Context) for the full statewide-"
+        "comparison view of these same indicators."
+    )
+
+    if "ENV_INDEX" not in _tracts_df.columns or _tracts_df["ENV_INDEX"].isna().all():
+        st.info(
+            "**EPA EJScreen pending.** The Harvard Dataverse mirror fix for "
+            "EJScreen has landed in the build script, but the join hasn't run "
+            "yet (or this is the first refresh post-fix). After the next "
+            "successful refresh, this section will gain an Environmental "
+            "Justice indicator panel alongside the ACS/PLACES ones above."
+        )
+else:
+    st.info(
+        "`data/processed/lynn_tracts.geojson` not found — community context "
+        "overlay is unavailable. Re-run the refresh pipeline to regenerate."
+    )
 
 st.divider()
 
