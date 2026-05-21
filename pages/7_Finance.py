@@ -238,14 +238,133 @@ if not dist_exp.empty:
 
 st.divider()
 
-st.subheader("Cost-per-outcome (derived)")
-st.caption(
-    "Ratios that connect spending to outcomes — $ spent per graduate, per "
-    "college-bound student. Built from the master panel that joins finance "
-    "to DART graduation and college-enrollment indicators. Available on the "
-    "**Correlation Lab** page where you can explore spending-vs-outcome "
-    "relationships directly."
+st.header("Spending vs. Outcomes — Gateway-City Districts")
+st.markdown(
+    "**Does more money buy better outcomes?** The two charts below pair each "
+    "MA Gateway-City district's per-pupil spending with its 4-year graduation "
+    "rate (top) and its non-grad / dropout share (bottom). Lynn is highlighted; "
+    "the dashed line is an OLS fit across all 26 districts."
 )
+
+import json  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+from utils.constants import PROCESSED_DIR  # noqa: E402
+
+_peer_path: Path = PROCESSED_DIR / "_peer_schools.json"
+gateway_codes: dict[str, str] = {}
+if _peer_path.exists():
+    _peers = json.loads(_peer_path.read_text())
+    gateway_codes = {
+        city: info["district_code"]
+        for city, info in (_peers.get("gateway_main_hs") or {}).items()
+        if info.get("district_code")
+    }
+
+if not gateway_codes:
+    st.info(
+        "Gateway-city district codes not available yet — run "
+        "`python scripts/07_identify_peer_schools.py` first."
+    )
+else:
+    # Pull per-pupil "Total Expenditures" for each gateway district, latest SY
+    pp = dist_exp[
+        (dist_exp["IND_CAT"] == "Expenditures Per Pupil")
+        & (dist_exp["IND_SUBCAT"] == "Total Expenditures")
+        & (dist_exp["DIST_CODE"].isin(gateway_codes.values()))
+    ].copy()
+    pp["IND_VALUE"] = pd.to_numeric(pp["IND_VALUE"], errors="coerce")
+    pp = pp.sort_values("SY").groupby("DIST_CODE").tail(1)[
+        ["DIST_CODE", "DIST_NAME", "SY", "IND_VALUE"]
+    ].rename(columns={"IND_VALUE": "per_pupil", "SY": "fin_year"})
+
+    # Graduation rate — district aggregate, all students, latest year, 4-yr adjusted
+    grad = load_dataset("graduation_rates")
+    if not grad.empty:
+        grad_d = grad[
+            (grad["ORG_TYPE"] == "District")
+            & (grad["STU_GRP"] == "All Students")
+            & (grad["GRAD_RATE_TYPE"] == "4-Year Adjusted Cohort Graduation Rate")
+            & (grad["DIST_CODE"].isin(gateway_codes.values()))
+        ].copy()
+        grad_d["GRAD_PCT"] = pd.to_numeric(grad_d["GRAD_PCT"], errors="coerce")
+        grad_d["DRPOUT_PCT"] = pd.to_numeric(grad_d.get("DRPOUT_PCT"), errors="coerce")
+        grad_d = grad_d.sort_values("SY").groupby("DIST_CODE").tail(1)[
+            ["DIST_CODE", "SY", "GRAD_PCT", "DRPOUT_PCT"]
+        ].rename(columns={"SY": "grad_year"})
+
+        joined = pp.merge(grad_d, on="DIST_CODE", how="inner")
+        if not joined.empty:
+            joined["is_lynn"] = joined["DIST_CODE"] == LYNN_DISTRICT_CODE
+            joined["hover_label"] = (
+                joined["DIST_NAME"]
+                + " (FY " + joined["fin_year"].astype(int).astype(str)
+                + " / SY " + joined["grad_year"].astype(int).astype(str) + ")"
+            )
+
+            def _scatter(y_col: str, y_label: str, ascending_is_good: bool):
+                fig = px.scatter(
+                    joined,
+                    x="per_pupil",
+                    y=y_col,
+                    text="DIST_NAME",
+                    trendline="ols",
+                    custom_data=["hover_label", "is_lynn"],
+                )
+                # Color gateway dots gray, Lynn navy/gold
+                colors = [
+                    LEHS_GOLD if il else "#B0BEC5" for il in joined["is_lynn"]
+                ]
+                sizes = [16 if il else 10 for il in joined["is_lynn"]]
+                fig.update_traces(
+                    selector=dict(mode="markers+text"),
+                    marker=dict(color=colors, size=sizes, line=dict(color=LEHS_NAVY, width=1)),
+                    textposition="top center",
+                    textfont=dict(size=10),
+                    hovertemplate=(
+                        "<b>%{customdata[0]}</b><br>"
+                        f"Per pupil: $%{{x:,.0f}}<br>{y_label}: %{{y:.0%}}<extra></extra>"
+                    ),
+                )
+                fig.update_layout(
+                    **DEFAULT_LAYOUT,
+                    xaxis_tickformat="$,.0f",
+                    yaxis_tickformat=".0%",
+                    xaxis_title="Per-pupil total expenditure ($)",
+                    yaxis_title=y_label,
+                    title=f"{y_label} vs. per-pupil spending — MA Gateway Cities",
+                    showlegend=False,
+                )
+                return fig
+
+            st.plotly_chart(
+                _scatter("GRAD_PCT", "4-Year Adjusted Graduation Rate", True),
+                use_container_width=True,
+            )
+            if joined["DRPOUT_PCT"].notna().any():
+                st.plotly_chart(
+                    _scatter("DRPOUT_PCT", "Dropout Rate", False),
+                    use_container_width=True,
+                )
+
+            # Quick numeric: spread of per-pupil and outcome ranks for Lynn
+            lynn_row = joined[joined["is_lynn"]]
+            if not lynn_row.empty:
+                lynn_pp = lynn_row.iloc[0]["per_pupil"]
+                lynn_grad = lynn_row.iloc[0]["GRAD_PCT"]
+                pp_rank = int((joined["per_pupil"] > lynn_pp).sum()) + 1
+                grad_rank = int((joined["GRAD_PCT"] > lynn_grad).sum()) + 1
+                n = len(joined)
+                st.markdown(
+                    f"**Lynn's standing among gateway districts:** spends "
+                    f"${lynn_pp:,.0f}/pupil (ranks **{pp_rank} of {n}** by spending) "
+                    f"and graduates **{lynn_grad:.0%}** in 4 years "
+                    f"(ranks **{grad_rank} of {n}** by graduation). If the dot "
+                    f"sits *above* the trendline, Lynn is getting more graduation "
+                    f"per dollar than peers at similar spending; *below* means less."
+                )
+        else:
+            st.info("No districts had both per-pupil and graduation data for the same year window.")
 
 # >>> auto: csv downloads <<<
 try:
