@@ -238,10 +238,12 @@ with c2:
 **Maps (13)**
 - **Maps** — Four tabs: Lynn Schools / Lynn Demographics / Massachusetts / Gateway Cities
 
-**Companion + research (14–16, 99)**
+**Companion + research (14–18, 99)**
 - **All Lynn Schools** — filter/sort all 22 LPS schools
 - **Lynn District Dashboard** — LPS as a whole
 - **Catchment Research** — original geospatial analysis
+- **Federal CRDC** — civil-rights data: discipline, offerings, staffing
+- **Cohort Tracking** — 9th grade → graduation → college persistence
 - **Methodology** — sources and caveats
 """
     )
