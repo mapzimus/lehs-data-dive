@@ -268,6 +268,102 @@ if not plans_lehs.empty:
 st.divider()
 
 # ---------------------------------------------------------------------------
+# Earnings of HS graduates by industry (district-level)
+# ---------------------------------------------------------------------------
+
+st.header("Earnings of Lynn HS Graduates — Industry View")
+st.caption(
+    "DESE's *Average Earnings of HS Graduates by Industry* dataset follows "
+    "every Lynn-district HS graduate's W-2 earnings by NAICS industry. "
+    "Reported at the district level, so this includes graduates of LEHS, "
+    "LCHS, Lynn Tech, and the alternative HS combined."
+)
+
+earnings = load_dataset("earnings_by_industry")
+if not earnings.empty:
+    e_lynn = earnings[earnings["DIST_CODE"] == "01630000"].copy()
+    e_lynn["AVG_EARNINGS"] = pd.to_numeric(e_lynn["AVG_EARNINGS"], errors="coerce")
+    e_lynn["EMP_CNT"] = pd.to_numeric(e_lynn["EMP_CNT"], errors="coerce")
+    e_lynn["GRAD_CNT"] = pd.to_numeric(e_lynn["GRAD_CNT"], errors="coerce")
+
+    # "All Students" row is total-across-industries; pull it out for headline
+    headline = e_lynn[
+        (e_lynn["NAICS_DESC"] == "All Students")
+        & (e_lynn["HS_GRAD_YEAR"] == e_lynn["EARNINGS_YEAR"])
+    ].dropna(subset=["AVG_EARNINGS"]).sort_values("HS_GRAD_YEAR")
+
+    if not headline.empty:
+        latest = headline.iloc[-1]
+        prior = headline.iloc[-2] if len(headline) > 1 else None
+        c1, c2 = st.columns([1, 3])
+        with c1:
+            st.metric(
+                f"Avg earnings in year of HS graduation "
+                f"({int(latest['HS_GRAD_YEAR'])} cohort)",
+                f"${latest['AVG_EARNINGS']:,.0f}",
+                (f"${latest['AVG_EARNINGS']-prior['AVG_EARNINGS']:+,.0f} "
+                 f"vs {int(prior['HS_GRAD_YEAR'])}") if prior is not None else "",
+                delta_color="off",
+            )
+            st.caption(
+                f"Earned by **{int(latest['EMP_CNT']):,}** of "
+                f"{int(latest['GRAD_CNT']):,} graduates with reported wages."
+            )
+        with c2:
+            fig = px.line(
+                headline, x="HS_GRAD_YEAR", y="AVG_EARNINGS", markers=True,
+            )
+            fig.update_traces(line=dict(color=LEHS_NAVY, width=3))
+            fig.update_layout(
+                **DEFAULT_LAYOUT,
+                yaxis_tickformat="$,.0f",
+                yaxis_title="Average wages in grad year",
+                xaxis_title="High-school graduation cohort",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+    # Industry breakdown — latest cohort
+    if not e_lynn.empty:
+        latest_year = e_lynn["HS_GRAD_YEAR"].max()
+        industries = e_lynn[
+            (e_lynn["HS_GRAD_YEAR"] == latest_year)
+            & (e_lynn["EARNINGS_YEAR"] == latest_year)
+            & (e_lynn["NAICS_DESC"] != "All Students")
+            & (e_lynn["EMP_CNT"].notna())
+        ].sort_values("EMP_CNT", ascending=True)
+        if not industries.empty:
+            st.subheader(
+                f"Where the cohort works — {int(latest_year)} graduates "
+                f"with reported wages in their grad year"
+            )
+            st.caption(
+                "Industries with too few graduates (<6) are suppressed by "
+                "DESE. The chart below shows only those above that threshold."
+            )
+            industries["earnings_label"] = industries["AVG_EARNINGS"].apply(
+                lambda x: f"${x:,.0f}" if pd.notna(x) else "—"
+            )
+            fig = px.bar(
+                industries, y="NAICS_DESC", x="EMP_CNT", orientation="h",
+                color="AVG_EARNINGS", color_continuous_scale="Greens",
+                text=industries["EMP_CNT"].astype(int).astype(str) + " grads",
+                hover_data={"AVG_EARNINGS": ":$,.0f", "GRAD_CNT": True},
+            )
+            fig.update_traces(textposition="outside")
+            fig.update_layout(
+                **DEFAULT_LAYOUT,
+                xaxis_title="Number of graduates employed",
+                yaxis_title="",
+                coloraxis_colorbar=dict(title="Avg $/yr"),
+                height=400,
+            )
+            st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("Earnings data not yet loaded.")
+
+st.divider()
+
+# ---------------------------------------------------------------------------
 # Early warning chain
 # ---------------------------------------------------------------------------
 
