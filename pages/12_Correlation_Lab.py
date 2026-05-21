@@ -257,6 +257,99 @@ else:
 st.divider()
 
 # ---------------------------------------------------------------------------
+# Time-lagged within-school correlation
+# ---------------------------------------------------------------------------
+
+st.header("Time-Lagged Correlations — Does X today predict Y N years later?")
+st.markdown(
+    "Pairs the same school's value of metric X in year *Y* with its value of "
+    "metric Y in year *Y+lag*. Useful for asking *predictive* questions across "
+    "the school cohort lifecycle (e.g., does 9th-grade chronic absenteeism "
+    "predict 12th-grade graduation 3 years later?). Each dot is one "
+    "(school, base-year) pair across all 26 gateway HS x all years."
+)
+
+c1, c2, c3 = st.columns([3, 3, 2])
+with c1:
+    x_var_lag = st.selectbox(
+        "Predictor (X) — measured in base year",
+        options=NUMERIC_COLS,
+        index=NUMERIC_COLS.index("ChronicAbsence") if "ChronicAbsence" in NUMERIC_COLS else 0,
+        key="lag_x",
+    )
+with c2:
+    y_var_lag = st.selectbox(
+        "Outcome (Y) — measured in base year + lag",
+        options=NUMERIC_COLS,
+        index=NUMERIC_COLS.index("GradRate_4yr") if "GradRate_4yr" in NUMERIC_COLS else 1,
+        key="lag_y",
+    )
+with c3:
+    lag_years = st.slider("Lag (years)", 0, 6, 3, key="lag_n")
+
+# Build the lagged join: take the panel, shift Y by -lag (so Y becomes value
+# at SY+lag for the same school) and merge against X at SY.
+panel_for_lag = panel.dropna(subset=["SY", "ORG_CODE"]).copy()
+panel_for_lag["SY"] = pd.to_numeric(panel_for_lag["SY"], errors="coerce").astype("Int64")
+
+x_side = panel_for_lag[["SY", "ORG_CODE", "ORG_NAME", "DIST_NAME", x_var_lag]].rename(
+    columns={x_var_lag: "x_val"}
+).dropna(subset=["x_val", "SY"])
+y_side = panel_for_lag[["SY", "ORG_CODE", y_var_lag]].rename(
+    columns={y_var_lag: "y_val", "SY": "SY_target"}
+).dropna(subset=["y_val", "SY_target"])
+
+# join condition: y_side.SY_target == x_side.SY + lag
+x_side["SY_target"] = x_side["SY"] + lag_years
+lagged = x_side.merge(y_side, on=["SY_target", "ORG_CODE"], how="inner")
+lagged["is_lehs"] = lagged["ORG_CODE"] == "01630510"
+lagged["highlight"] = lagged["is_lehs"].map({True: "LEHS", False: "Other"})
+lagged["pair_label"] = (
+    lagged["DIST_NAME"].fillna("") + " "
+    + lagged["SY"].astype(str) + " -> " + lagged["SY_target"].astype(str)
+)
+
+if len(lagged) >= 5:
+    fig = px.scatter(
+        lagged, x="x_val", y="y_val", color="highlight",
+        color_discrete_map={"LEHS": LEHS_GOLD, "Other": GATEWAY_PEER_COLOR},
+        trendline="ols",
+        hover_data=["pair_label"],
+        labels={
+            "x_val": f"{x_var_lag} (year Y)",
+            "y_val": f"{y_var_lag} (year Y + {lag_years})",
+        },
+    )
+    fig.update_layout(
+        **DEFAULT_LAYOUT,
+        xaxis_title=f"{x_var_lag} (year Y)",
+        yaxis_title=f"{y_var_lag} (year Y + {lag_years})",
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    stats_lag = pearson(lagged, "x_val", "y_val")
+    reg_lag = regression_line(lagged, "x_val", "y_val")
+    m1, m2, m3, m4 = st.columns(4)
+    with m1: st.metric("Pearson r", f"{stats_lag['r']:+.3f}")
+    with m2: st.metric("p-value", f"{stats_lag['p']:.4f}")
+    with m3: st.metric("R²", f"{reg_lag['r_squared']:.3f}")
+    with m4: st.metric("n pairs", f"{stats_lag['n']:,}")
+    st.caption(f"**Interpretation:** {interpret_r(stats_lag['r'])}")
+    st.caption(
+        f"Each pair = one (school, base-year) observation where both metrics "
+        f"exist at year Y and Y + {lag_years}. Lag = 0 collapses to a within-"
+        f"year correlation across schools."
+    )
+else:
+    st.info(
+        f"Not enough (school, year) pairs where both {x_var_lag} (year Y) and "
+        f"{y_var_lag} (year Y + {lag_years}) are populated. Try a smaller lag "
+        f"or different metrics."
+    )
+
+st.divider()
+
+# ---------------------------------------------------------------------------
 # Composite indices
 # ---------------------------------------------------------------------------
 
