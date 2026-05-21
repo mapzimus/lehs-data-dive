@@ -78,25 +78,40 @@ def filter_school_csv(
     if "DIST_CODE" in df.columns:
         df["DIST_CODE"] = df["DIST_CODE"].fillna("").str.zfill(8)
 
+    # DESE/E2C use either "District" or "Public School District" on district
+    # aggregate rows depending on the dataset. Treat both as "District".
+    DISTRICT_ORG_TYPES = {"District", "Public School District"}
+
     if "ORG_CODE" in df.columns:
         # Include schools we care about
         mask = df["ORG_CODE"].isin(school_codes)
-        # ALSO include district-level rows (ORG_TYPE='District') for the districts
-        # we care about. DESE uses the district code as ORG_CODE on these rows.
+        # ALSO include district-level rows for the districts we care about.
+        # DESE uses the district code as ORG_CODE on these rows.
         if district_codes and "DIST_CODE" in df.columns:
             district_mask = df["DIST_CODE"].isin(district_codes)
             if "ORG_TYPE" in df.columns:
-                district_mask = district_mask & (df["ORG_TYPE"] == "District")
+                district_mask = district_mask & df["ORG_TYPE"].isin(DISTRICT_ORG_TYPES)
             else:
                 # Fall back: row where ORG_CODE == DIST_CODE
                 district_mask = district_mask & (df["ORG_CODE"] == df["DIST_CODE"])
             mask = mask | district_mask
+        # ALSO include state-level aggregate rows so charts can benchmark
+        # against the Massachusetts statewide average.
+        if "ORG_TYPE" in df.columns:
+            mask = mask | (df["ORG_TYPE"] == "State")
         filtered = df[mask]
     elif "DIST_CODE" in df.columns:
         filtered = df[df["DIST_CODE"].isin(district_codes or set())]
     else:
         print(f"  WARN: no DIST_CODE or ORG_CODE column — skipping {csv_path.name}")
         return 0
+
+    # Normalize ORG_TYPE so downstream pages can match on the simple
+    # "District" / "State" labels regardless of upstream variation.
+    if "ORG_TYPE" in filtered.columns:
+        filtered = filtered.assign(
+            ORG_TYPE=filtered["ORG_TYPE"].replace({"Public School District": "District"})
+        )
 
     filtered.to_parquet(out_path, index=False)
     return len(filtered)
