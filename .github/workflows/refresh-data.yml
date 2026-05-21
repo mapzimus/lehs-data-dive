@@ -50,6 +50,26 @@ jobs:
           COLLEGE_SCORECARD_KEY: ${{ secrets.COLLEGE_SCORECARD_KEY }}
         run: python scripts/refresh_all.py
 
+      - name: Sync refreshed GeoJSONs into maps/data/
+        # The Lynn map (deployed via .github/workflows/pages.yml from maps/)
+        # serves its own copy of the lynn_*/ma_* GeoJSONs. Without this sync,
+        # every refresh would require a manual `cp` + commit before the live
+        # map picks up new numbers.
+        run: |
+          mkdir -p maps/data
+          for f in data/processed/lynn_schools.geojson \
+                   data/processed/lynn_town.geojson \
+                   data/processed/lynn_tracts.geojson \
+                   data/processed/ma_academic_districts.geojson \
+                   data/processed/ma_districts_metrics.geojson \
+                   data/processed/ma_municipalities.geojson \
+                   data/processed/ma_public_schools.geojson; do
+            if [ -f "$f" ]; then
+              cp "$f" "maps/data/$(basename "$f")"
+              echo "synced $f -> maps/data/"
+            fi
+          done
+
       - name: Open PR if data changed
         uses: peter-evans/create-pull-request@v6
         with:
@@ -57,13 +77,18 @@ jobs:
           branch: data-refresh/${{ github.run_id }}
           title: "Semi-annual data refresh"
           body: |
-            Automated refresh of every parquet + geojson under `data/processed/`.
+            Automated refresh of every parquet + geojson under `data/processed/`,
+            with the map-facing GeoJSONs synced into `maps/data/` so the Lynn map
+            (https://mapzimus.github.io/lehs-data-dive/) picks up new numbers
+            without a manual copy step.
 
             Triggered by `.github/workflows/refresh-data.yml` (cron: every 6 months,
             or manual). Review the file changes — if numbers shifted in a way that
             looks wrong, close this PR and investigate the underlying script.
 
-            After merge, Streamlit Cloud will redeploy automatically.
+            After merge, Streamlit Cloud redeploys the dashboard and the Pages
+            workflow redeploys the map.
           add-paths: |
             data/processed/**
+            maps/data/**
             reports/**
