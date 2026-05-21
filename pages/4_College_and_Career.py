@@ -276,6 +276,146 @@ if not ec_part.empty:
 st.divider()
 
 # ---------------------------------------------------------------------------
+# Early college credits earned — by partner CEEB
+# ---------------------------------------------------------------------------
+
+st.header("Early College Credits — Lynn District")
+st.caption(
+    "Above is *participation* (any rows = participating). This section is the "
+    "*credit volume*: how many college credits Lynn HS students actually "
+    "earn each year, broken out by partner CEEB college. Source: "
+    "*Early College Credits* dataset."
+)
+
+early_credits = load_dataset("early_college_credits")
+if not early_credits.empty:
+    ec_lynn = early_credits[early_credits["DIST_CODE"] == "01630000"].copy()
+    ec_lynn["EARNED_CREDIT_CNT"] = pd.to_numeric(ec_lynn["EARNED_CREDIT_CNT"], errors="coerce")
+    ec_lynn["REG_CREDITS_CNT"] = pd.to_numeric(ec_lynn["REG_CREDITS_CNT"], errors="coerce")
+    ec_lynn["STU_CNT"] = pd.to_numeric(ec_lynn["STU_CNT"], errors="coerce")
+
+    # Filter to All Students rows, latest year
+    ec_all = ec_lynn[ec_lynn["STU_GRP"] == "All Students"].copy()
+    if not ec_all.empty:
+        latest_ec = int(ec_all["SY"].max())
+        ec_latest = ec_all[ec_all["SY"] == latest_ec].copy()
+        # Sum across periods if both Fall and Spring present
+        ec_agg = (
+            ec_latest.groupby("CEEB_NAME", as_index=False)
+                     .agg(STU_CNT=("STU_CNT", "sum"),
+                          REG_CREDITS_CNT=("REG_CREDITS_CNT", "sum"),
+                          EARNED_CREDIT_CNT=("EARNED_CREDIT_CNT", "sum"))
+                     .dropna(subset=["EARNED_CREDIT_CNT"])
+                     .sort_values("EARNED_CREDIT_CNT")
+        )
+        if not ec_agg.empty:
+            st.subheader(f"Credits earned by partner college (SY {latest_ec - 1}-{str(latest_ec)[-2:]})")
+            ec_agg["pass_rate"] = ec_agg["EARNED_CREDIT_CNT"] / ec_agg["REG_CREDITS_CNT"]
+            fig = px.bar(
+                ec_agg, y="CEEB_NAME", x="EARNED_CREDIT_CNT", orientation="h",
+                color="pass_rate", color_continuous_scale="Greens",
+                hover_data={"STU_CNT": True, "REG_CREDITS_CNT": True, "pass_rate": ":.0%"},
+                text=ec_agg["EARNED_CREDIT_CNT"].astype(int).astype(str),
+            )
+            fig.update_traces(textposition="outside")
+            fig.update_layout(
+                **DEFAULT_LAYOUT,
+                height=max(280, 36 * len(ec_agg)),
+                xaxis_title="Credits earned",
+                yaxis_title="",
+                coloraxis_colorbar=dict(title="Pass rate"),
+            )
+            st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("Early-college credit data not available yet.")
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# College + career outcomes — what happens to Lynn graduates?
+# ---------------------------------------------------------------------------
+
+st.header("What happens to Lynn graduates? — Outcome breakdown")
+st.caption(
+    "DESE's *College and Career Outcomes* dataset tracks each Lynn-district "
+    "HS cohort one year out: where they enrolled (in-state public/private "
+    "2-yr/4-yr, out-of-state), whether they were employed, or whether their "
+    "outcome is missing/unknown."
+)
+
+cco = load_dataset("college_career_outcomes")
+if not cco.empty:
+    cco_lynn = cco[cco["DIST_CODE"] == "01630000"].copy()
+    cco_lynn["OUTCOME_CNT"] = pd.to_numeric(cco_lynn["OUTCOME_CNT"], errors="coerce")
+    cco_lynn["GRAD_CNT"] = pd.to_numeric(cco_lynn["GRAD_CNT"], errors="coerce")
+
+    if not cco_lynn.empty:
+        latest_cco_year = int(cco_lynn["HS_GRAD_YEAR"].max())
+        # Pick the row where OUTCOME_YEAR matches HS_GRAD_YEAR (one year out view)
+        snap = cco_lynn[
+            (cco_lynn["HS_GRAD_YEAR"] == latest_cco_year)
+            & (cco_lynn["OUTCOME_YEAR"] == latest_cco_year)
+        ].copy()
+
+        if not snap.empty:
+            # Drop the Total Postsecondary aggregate (it's the sum of the
+            # itemized in-state public/private + out-of-state rows) so the
+            # bar chart isn't doubled.
+            itemized = snap[~snap["OUTCOME_TYPE"].isin(["Total Postsecondary Enrollment"])].copy()
+            itemized = itemized.sort_values("OUTCOME_CNT", ascending=True)
+            grad_total = int(snap["GRAD_CNT"].iloc[0])
+            itemized["pct_of_cohort"] = itemized["OUTCOME_CNT"] / grad_total
+            itemized["label"] = itemized.apply(
+                lambda r: (
+                    f"{int(r['OUTCOME_CNT']):,} "
+                    f"({r['pct_of_cohort']:.0%})"
+                ), axis=1,
+            )
+
+            st.subheader(
+                f"{latest_cco_year} Lynn district cohort — {grad_total:,} grads"
+            )
+            color_map_outcome = {
+                "Total Missing":          "#90A4AE",
+                "In-State Public 4-Year": "#1976D2",
+                "In-State Public 2-Year": "#42A5F5",
+                "In-State Private":       LEHS_NAVY,
+                "Out-of-State":           "#7B1FA2",
+                "Total Employed":         "#388E3C",
+            }
+            fig = px.bar(
+                itemized, y="OUTCOME_TYPE", x="OUTCOME_CNT", orientation="h",
+                color="OUTCOME_TYPE", color_discrete_map=color_map_outcome,
+                text="label",
+            )
+            fig.update_traces(textposition="outside")
+            fig.update_layout(
+                **DEFAULT_LAYOUT,
+                xaxis_title="Graduates",
+                yaxis_title="",
+                showlegend=False,
+                height=380,
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+            missing_pct = float(
+                itemized.loc[itemized["OUTCOME_TYPE"] == "Total Missing", "pct_of_cohort"].iloc[0]
+            ) if (itemized["OUTCOME_TYPE"] == "Total Missing").any() else None
+            if missing_pct is not None and missing_pct > 0.25:
+                st.warning(
+                    f"**Note:** {missing_pct:.0%} of the cohort has no "
+                    f"reportable outcome (not enrolled in any tracked "
+                    f"institution, no W-2 earnings, or simply unmatched). "
+                    f"That suppression bites hardest at the bottom of the "
+                    f"pipeline — students with missing outcomes are "
+                    f"disproportionately likely to be disconnected."
+                )
+else:
+    st.info("College/career outcomes data not available yet.")
+
+st.divider()
+
+# ---------------------------------------------------------------------------
 # Where Lynn grads land (IPEDS / College Scorecard)
 # ---------------------------------------------------------------------------
 
