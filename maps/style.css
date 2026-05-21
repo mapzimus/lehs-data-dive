@@ -696,6 +696,21 @@ body.maps-page {
     padding: 0;
 }
 .panel-fab:hover { background: #1a3a6b; }
+
+.export-csv-btn {
+    width: 100%;
+    padding: 9px 12px;
+    background: var(--lehs-navy);
+    color: var(--lehs-gold);
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.export-csv-btn:hover { background: #1a3a6b; }
+.export-csv-btn:active { transform: translateY(1px); }
 .panel-fab svg {
     width: 22px; height: 22px;
     stroke: currentColor;
@@ -771,6 +786,24 @@ body.maps-page {
     .maplibregl-ctrl-group button { width: 38px !important; height: 38px !important; }
     .maplibregl-ctrl-bottom-left  { left: 12px !important;  bottom: 78px !important; }
     .maplibregl-ctrl-bottom-right { right: 12px !important; bottom: 78px !important; }
+
+    .export-csv-btn { font-size: 14px; padding: 10px; }
+
+    /* Bigger, more discoverable FAB on mobile + soft pulse on first paint. */
+    .panel-fab {
+        width: 52px;
+        height: 52px;
+        box-shadow: 0 6px 18px rgba(10, 31, 68, 0.45);
+        animation: fab-pulse-lynn 1.6s ease-out 0.4s 2;
+    }
+    @keyframes fab-pulse-lynn {
+        0%   { box-shadow: 0 6px 18px rgba(10, 31, 68, 0.45),
+                            0 0 0 0 rgba(255, 184, 28, 0.55); }
+        70%  { box-shadow: 0 6px 18px rgba(10, 31, 68, 0.45),
+                            0 0 0 14px rgba(255, 184, 28, 0); }
+        100% { box-shadow: 0 6px 18px rgba(10, 31, 68, 0.45),
+                            0 0 0 0 rgba(255, 184, 28, 0); }
+    }
 }
 
 @media (max-width: 480px) {

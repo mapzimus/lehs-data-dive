@@ -1408,3 +1408,63 @@ function toggle3D() {
     map.setLayoutProperty(flatLayer, "visibility", "none");
     map.easeTo({ pitch: 55, bearing: -20, duration: 900 });
 }
+
+// ─── CSV EXPORT ──────────────────────────────────────────────────────────────
+function _csvEscape(v) {
+    if (v === null || v === undefined) return "";
+    const s = String(v);
+    if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+}
+
+function featuresToCsv(features, primaryMetric) {
+    if (!features || !features.length) return "";
+    const idCols = ["DIST_CODE", "DIST_NAME", "dist_display",
+                     "ORG8CODE", "ORG_NAME", "TOWN", "town_display",
+                     "GEOID", "NAMELSAD", "TYPE", "NAME"];
+    const seen = new Set();
+    const cols = [];
+    idCols.forEach(c => {
+        if (features[0].properties && c in features[0].properties && !seen.has(c)) {
+            cols.push(c); seen.add(c);
+        }
+    });
+    if (primaryMetric && !seen.has(primaryMetric)) {
+        cols.push(primaryMetric); seen.add(primaryMetric);
+    }
+    const otherKeys = new Set();
+    features.forEach(f => {
+        if (!f.properties) return;
+        Object.keys(f.properties).forEach(k => { if (!seen.has(k)) otherKeys.add(k); });
+    });
+    [...otherKeys].sort().forEach(k => { cols.push(k); seen.add(k); });
+    const lines = [cols.join(",")];
+    features.forEach(f => {
+        const p = f.properties || {};
+        lines.push(cols.map(c => _csvEscape(p[c])).join(","));
+    });
+    return lines.join("\n");
+}
+
+function downloadCurrentLayerCsv() {
+    if (typeof GEO_DATA !== "object" || !GEO_DATA) return;
+    const lvl = state.level;
+    const fc = GEO_DATA[lvl];
+    if (!fc || !fc.features || !fc.features.length) return;
+    const metricCol = (typeof activeColumn === "function")
+        ? activeColumn(state.metric, state.year, lvl)
+        : state.metric;
+    const csv = featuresToCsv(fc.features, metricCol);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `lynn-map_${lvl}_${state.metric}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    const btn = document.getElementById("exportCsvBtn");
+    if (btn) btn.addEventListener("click", downloadCurrentLayerCsv);
+});
