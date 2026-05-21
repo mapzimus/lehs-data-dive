@@ -25,8 +25,11 @@ STEPS = [
     ("08_build_master_panel.py",           "Join everything --> master Parquet"),
     ("09_download_massgis.py",             "Download MassGIS shapefiles"),
     ("10_download_census_acs.py",          "Download Census ACS tract data"),
-    ("11_build_lynn_geo.py",               "Build processed GeoJSON layers"),
+    # 12 (community health) must run BEFORE 11 (build geo), because 11 joins
+    # EJScreen + CDC PLACES onto lynn_tracts.geojson. With the old order, each
+    # refresh's community-health updates lagged by one cycle.
     ("12_download_community_health.py",    "Download EJScreen + CDC PLACES"),
+    ("11_build_lynn_geo.py",               "Build processed GeoJSON layers"),
     ("13_build_annual_report.py",          "Build the State of LEHS PDF report"),
 ]
 
