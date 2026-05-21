@@ -163,6 +163,8 @@ color_map = {
     "Ever English Learners":    "#FFB300",
 }
 
+from utils.stats import subgroup_summary_md  # noqa: E402
+
 for subject_code, subject_label in [("ELA", "English Language Arts"), ("MATH", "Mathematics")]:
     st.subheader(f"Grade 10 {subject_label} — % Meeting or Exceeding")
     d = sub[sub["SUBJECT_CODE"] == subject_code].sort_values("SY")
@@ -180,6 +182,24 @@ for subject_code, subject_label in [("ELA", "English Language Arts"), ("MATH", "
         xaxis_title="School Year",
     )
     st.plotly_chart(fig, use_container_width=True)
+
+    # Statistical summary for the latest year — gives the line chart context
+    # that DESE's bare percentages don't: how wide is the uncertainty around
+    # each subgroup, and is the EL-vs-All gap a real effect?
+    latest = d[d["SY"] == d["SY"].max()].copy()
+    if not latest.empty:
+        summary = subgroup_summary_md(
+            latest,
+            group_col="STU_GRP",
+            pct_col="M_PLUS_E_PCT",
+            n_col="STU_CNT",
+            reference_group="All Students",
+            group_order=ell_groups,
+            title=f"SY {int(d['SY'].max()) - 1}-{str(int(d['SY'].max()))[-2:]} snapshot — "
+                  f"point estimates with 95% Wilson CIs",
+        )
+        if summary:
+            st.markdown(summary)
 
 st.divider()
 

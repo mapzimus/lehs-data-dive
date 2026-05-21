@@ -183,6 +183,77 @@ def add_wilson_ci_columns(
     return out
 
 
+def subgroup_summary_md(
+    df: pd.DataFrame,
+    group_col: str,
+    pct_col: str,
+    n_col: str,
+    reference_group: str = "All Students",
+    *,
+    group_order: list[str] | None = None,
+    title: str = "Latest year — point estimates with 95% Wilson CIs",
+    show_gap_test: bool = True,
+    pct_format: str = ".0%",
+) -> str:
+    """Build a markdown summary block for a small set of subgroups.
+
+    For each row in `df`: shows percentage, 95% Wilson CI, and n. If
+    `show_gap_test`, also runs a two-proportion z-test for each non-
+    reference group against `reference_group` and reports the gap, effect
+    size, and significance.
+
+    Returns markdown ready to drop into `st.markdown(...)`. NaN rows
+    are skipped cleanly.
+    """
+    if df.empty:
+        return ""
+    work = df.copy()
+    if group_order is not None:
+        order_map = {g: i for i, g in enumerate(group_order)}
+        work = work.assign(_ord=work[group_col].map(order_map).fillna(99)) \
+                   .sort_values("_ord")
+
+    ref_row = work[work[group_col] == reference_group]
+    if not ref_row.empty:
+        ref_pct = float(ref_row.iloc[0][pct_col])
+        ref_n = float(ref_row.iloc[0][n_col])
+        ref_k = int(round(ref_pct * ref_n)) if not math.isnan(ref_pct) and not math.isnan(ref_n) else None
+    else:
+        ref_pct = ref_n = ref_k = None
+
+    lines = [f"**{title}**", ""]
+    for _, row in work.iterrows():
+        g = row[group_col]
+        pct = row[pct_col]
+        n = row[n_col]
+        if pd.isna(pct) or pd.isna(n) or float(n) <= 0:
+            continue
+        lo, hi = wilson_ci_from_pct(float(pct), float(n))
+        pct_s = f"{pct:{pct_format}}"
+        lo_s = f"{lo:{pct_format}}" if not math.isnan(lo) else "—"
+        hi_s = f"{hi:{pct_format}}" if not math.isnan(hi) else "—"
+        line = f"- **{g}**: {pct_s} (95% CI {lo_s}–{hi_s}, n = {int(n):,})"
+        if (
+            show_gap_test
+            and g != reference_group
+            and ref_k is not None
+            and ref_n is not None
+        ):
+            k = int(round(float(pct) * float(n)))
+            test = compare_proportions(int(k), int(n), int(ref_k), int(ref_n))
+            if test.stars:
+                # compare_proportions returns delta = p_ref - p_group, so a
+                # positive delta means group is BELOW reference.
+                gap_pts = test.delta * 100
+                direction = "above" if gap_pts < 0 else "below"
+                line += (
+                    f" — {abs(gap_pts):.0f} pp {direction} *{reference_group}* "
+                    f"({test.magnitude} effect, {test.stars})"
+                )
+        lines.append(line)
+    return "\n".join(lines)
+
+
 def margin_phrase(test: GapTest, group_low: str, group_high: str,
                    unit_label: str = "pts") -> str:
     """Short plain-language summary of a GapTest, suitable for a chart caption.
