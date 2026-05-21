@@ -78,9 +78,26 @@ def filter_school_csv(
     if "DIST_CODE" in df.columns:
         df["DIST_CODE"] = df["DIST_CODE"].fillna("").str.zfill(8)
 
-    # DESE/E2C use either "District" or "Public School District" on district
-    # aggregate rows depending on the dataset. Treat both as "District".
-    DISTRICT_ORG_TYPES = {"District", "Public School District"}
+    # DESE/E2C are inconsistent across datasets in how they label rows. The
+    # MCAS Achievement file labels schools "Public School" and districts
+    # "Public School District", while enrollment, graduation, attendance, etc.
+    # use the shorter "School" and "District". We accept both spellings during
+    # filtering and normalize to a canonical set after, so every downstream
+    # page can rely on the schema:
+    #
+    #     ORG_TYPE ∈ {"School", "District", "State"}
+    #
+    # Charter schools/districts aren't currently in our peer set, but if they
+    # ever are, the same normalization map collapses them into the canonical
+    # values (and we'd add a separate IS_CHARTER column if we needed to keep
+    # the distinction).
+    DISTRICT_ORG_TYPES = {"District", "Public School District", "Charter District"}
+    ORG_TYPE_CANONICAL_MAP = {
+        "Public School": "School",
+        "Charter School": "School",
+        "Public School District": "District",
+        "Charter District": "District",
+    }
 
     if "ORG_CODE" in df.columns:
         # Include schools we care about
@@ -106,11 +123,11 @@ def filter_school_csv(
         print(f"  WARN: no DIST_CODE or ORG_CODE column — skipping {csv_path.name}")
         return 0
 
-    # Normalize ORG_TYPE so downstream pages can match on the simple
-    # "District" / "State" labels regardless of upstream variation.
+    # Normalize ORG_TYPE so every page can match on the canonical
+    # {"School", "District", "State"} regardless of upstream variation.
     if "ORG_TYPE" in filtered.columns:
         filtered = filtered.assign(
-            ORG_TYPE=filtered["ORG_TYPE"].replace({"Public School District": "District"})
+            ORG_TYPE=filtered["ORG_TYPE"].replace(ORG_TYPE_CANONICAL_MAP)
         )
 
     filtered.to_parquet(out_path, index=False)
