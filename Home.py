@@ -202,10 +202,68 @@ st.markdown(
 st.divider()
 
 # ---------------------------------------------------------------------------
+# Start-here / audience-specific landing routes
+# ---------------------------------------------------------------------------
+
+st.header("Start Here — Pick the View That Fits You")
+st.markdown(
+    "There are 19 sections. Most people only need 3 or 4. Pick the path "
+    "that matches what you're here to figure out."
+)
+
+p_col, t_col, sc_col = st.columns(3)
+
+with p_col:
+    st.markdown(
+        """
+### 👨‍👩‍👧 For families
+*Choosing a school, understanding outcomes, comparing to siblings.*
+
+- **[School Profile](/School_Profile)** — who attends LEHS today
+- **[Cohort Tracking](/Cohort_Tracking)** — does the school's promise hold up through college?
+- **[College & Career](/College_and_Career)** — AP, MassCore, FAFSA, postsecondary plans
+- **[Lynn District & Siblings](/Lynn_District_and_Siblings)** — LEHS vs. Classical, Tech, others
+        """
+    )
+
+with t_col:
+    st.markdown(
+        """
+### 👩‍🏫 For teachers
+*Instructional planning, student insight, subgroup gaps.*
+
+- **[Academic Performance](/Academic_Performance)** — MCAS by subject, growth, gaps (with CIs)
+- **[ELL Pipeline](/ELL_Pipeline)** — LEHS's central narrative
+- **[Discipline & Climate](/Discipline_and_Climate)** — chronic absence by neighborhood + subgroup
+- **[Teachers & Workforce](/Teachers_and_Workforce)** — who's in the building
+        """
+    )
+
+with sc_col:
+    st.markdown(
+        """
+### 🏛️ For school committee
+*Accountability, peer comparison, dollar-for-outcome leverage.*
+
+- **[Lynn District Dashboard](/Lynn_District_Dashboard)** — LPS as a whole
+- **[Finance](/Finance)** — per-pupil spending by category
+- **[Gateway Peer Comparison](/Gateway_Peer_Comparison)** — 26-city scorecard
+- **[Correlation Lab](/Correlation_Lab)** — what moves with what
+        """
+    )
+
+st.caption(
+    "These are starting points, not the only useful pages. The full list "
+    "below shows every section."
+)
+
+st.divider()
+
+# ---------------------------------------------------------------------------
 # Section list
 # ---------------------------------------------------------------------------
 
-st.header("How to navigate")
+st.header("All sections")
 
 st.markdown("Click any section in the sidebar to jump in. The sections are organized in four groups:")
 
