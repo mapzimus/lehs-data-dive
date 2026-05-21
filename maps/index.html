@@ -8,11 +8,11 @@
     <meta property="og:title" content="Lynn Data Dive — Interactive Maps">
     <meta property="og:description" content="ArcGIS-style web map: layer panel, palette selector, classification methods, 35+ metrics across MA municipalities, school districts, and Lynn census tracts.">
     <meta property="og:type" content="website">
-    <link rel="icon" type="image/svg+xml" href="../../images/favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-    <link rel="stylesheet" href="../../css/style.css">
+    <link rel="stylesheet" href="assets/style.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="maps-page">
@@ -20,13 +20,14 @@
 
 <nav class="nav">
     <div class="nav-inner">
-        <a href="../../index.html" class="nav-logo">Maxwell Howe</a>
+        <a href="https://maxwellhowegis.com/" class="nav-logo">Maxwell Howe</a>
         <ul class="nav-links" id="navLinks">
-            <li><a href="../../about.html">About</a></li>
-            <li><a href="../../portfolio.html">Projects</a></li>
-            <li><a href="../../gallery.html">Map Gallery</a></li>
-            <li><a href="../../side-projects.html">Beyond GIS</a></li>
-            <li><a href="../../contact.html">Contact</a></li>
+            <li><a href="https://maxwellhowegis.com/about.html">About</a></li>
+            <li><a href="https://maxwellhowegis.com/portfolio.html">Projects</a></li>
+            <li><a href="https://maxwellhowegis.com/gallery.html">Map Gallery</a></li>
+            <li><a href="https://lehs-data-dive.streamlit.app">LEHS Dashboard</a></li>
+            <li><a href="https://maxwellhowegis.com/ma-atlas/">MA Atlas</a></li>
+            <li><a href="https://github.com/mapzimus/lehs-data-dive">Source</a></li>
         </ul>
         <button class="nav-hamburger" id="hamburger" aria-label="Menu">
             <span></span><span></span><span></span>
@@ -286,7 +287,17 @@
 </main>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-<script src="../../js/main.js"></script>
+<script>
+// Minimal hamburger toggle (replaces ../../js/main.js for the standalone deploy)
+document.addEventListener("DOMContentLoaded", () => {
+    const h = document.getElementById("hamburger");
+    const nl = document.getElementById("navLinks");
+    if (h && nl) {
+        h.addEventListener("click", () => nl.classList.toggle("open"));
+        nl.querySelectorAll("a").forEach(a => a.addEventListener("click", () => nl.classList.remove("open")));
+    }
+});
+</script>
 <script src="app.js"></script>
 </body>
 </html>
