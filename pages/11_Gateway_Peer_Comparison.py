@@ -208,29 +208,81 @@ if not scatter_df2.empty:
 st.divider()
 
 # ---------------------------------------------------------------------------
-# Similar-ELL peer subset
+# Algorithmically-similar peer subset
 # ---------------------------------------------------------------------------
 
-st.header("Peers with Similar ELL Share")
+st.header("Algorithmically-Similar Peers")
 st.caption(
-    "Lynn English has one of the highest ELL shares among gateway-city high "
-    "schools. Lawrence, Chelsea, and Holyoke have comparable profiles — these "
-    "are the most fair head-to-head comparisons."
+    "Rather than a hand-picked peer list, find the schools whose **demographic "
+    "profile** is closest to LEHS in normalized feature space. Distance is "
+    "Euclidean across the five demographic dimensions below, each z-score "
+    "normalized so no single feature dominates."
 )
 
-similar_peers = scorecard[
-    scorecard["City"].isin(["Lynn", "Lawrence", "Chelsea", "Holyoke", "Springfield", "Revere"])
-].copy()
-if not similar_peers.empty:
-    show = similar_peers[display_cols].rename(columns={"ORG_NAME": "School"}).copy()
-    for col in show.columns:
-        if col in ["% ELL", "% Low Income", "% High Needs", "% Hispanic/Latino",
-                   "4yr Grad Rate", "Immediate College", "% FAFSA", "% AP 3+", "% Chronic Absence"]:
+import numpy as np  # noqa: E402
+
+similarity_features = ["% ELL", "% Low Income", "% High Needs",
+                        "% Hispanic/Latino", "Enrollment"]
+
+# Build a clean numeric matrix
+sim_df = scorecard[["ORG_CODE", "City", "ORG_NAME"] + similarity_features].copy()
+sim_df = sim_df.dropna(subset=similarity_features)
+
+if (
+    not sim_df.empty
+    and (sim_df["ORG_CODE"] == LEHS_SCHOOL_CODE).any()
+):
+    # Z-score normalize each feature so that, e.g., enrollment in students
+    # doesn't drown out ELL fraction.
+    X = sim_df[similarity_features].astype(float).to_numpy()
+    mu = X.mean(axis=0)
+    sd = X.std(axis=0, ddof=0)
+    sd_safe = np.where(sd == 0, 1.0, sd)
+    Z = (X - mu) / sd_safe
+
+    lehs_idx = sim_df.index[sim_df["ORG_CODE"] == LEHS_SCHOOL_CODE][0]
+    lehs_pos = sim_df.index.get_loc(lehs_idx)
+    distances = np.sqrt(((Z - Z[lehs_pos]) ** 2).sum(axis=1))
+    sim_df = sim_df.assign(_distance=distances)
+    # Keep LEHS + 5 closest peers (excluding LEHS itself)
+    closest = sim_df.sort_values("_distance").head(6)
+
+    # Merge full scorecard so the display table has outcomes too
+    closest_full = scorecard[scorecard["ORG_CODE"].isin(closest["ORG_CODE"])].copy()
+    closest_full = closest_full.merge(
+        closest[["ORG_CODE", "_distance"]], on="ORG_CODE", how="left",
+    ).sort_values("_distance")
+
+    show_cols = ["City", "ORG_NAME", "_distance"] + similarity_features + [
+        "4yr Grad Rate", "Immediate College", "% FAFSA", "% AP 3+", "% Chronic Absence",
+    ]
+    show = closest_full[show_cols].rename(columns={
+        "ORG_NAME": "School", "_distance": "Similarity (lower = more similar)",
+    }).copy()
+    show["Similarity (lower = more similar)"] = show["Similarity (lower = more similar)"].apply(
+        lambda x: f"{x:.2f}" if pd.notna(x) else "—"
+    )
+    for col in ["% ELL", "% Low Income", "% High Needs", "% Hispanic/Latino",
+                 "4yr Grad Rate", "Immediate College", "% FAFSA", "% AP 3+", "% Chronic Absence"]:
+        if col in show.columns:
             show[col] = show[col].apply(lambda x: f"{x:.0%}" if pd.notna(x) else "—")
-        elif col == "Enrollment":
-            show[col] = show[col].apply(lambda x: f"{int(x):,}" if pd.notna(x) else "—")
-        elif col == "$ Per Pupil":
-            show[col] = show[col].apply(lambda x: f"${x:,.0f}" if pd.notna(x) else "—")
+    show["Enrollment"] = show["Enrollment"].apply(lambda x: f"{int(x):,}" if pd.notna(x) else "—")
     st.dataframe(show.style.apply(highlight_lynn_schools, axis=1),
                  use_container_width=True, hide_index=True)
+
+    # Plain-language explanation of who landed in the top-5
+    others = closest_full[closest_full["ORG_CODE"] != LEHS_SCHOOL_CODE]["City"].tolist()
+    if others:
+        st.markdown(
+            "**Closest peers by demographic similarity:** "
+            + " · ".join(f"**{c}**" for c in others)
+            + ". Differences in outcomes across these schools are the "
+            "most informative — same kinds of students, different "
+            "institutional responses."
+        )
+    st.caption(
+        "Limitation: similarity is computed only across the 26 gateway-city "
+        "main HS in the data panel. A future iteration could draw from "
+        "all-MA enrollment for a wider 'similar conditions' peer set."
+    )
 
