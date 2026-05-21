@@ -301,6 +301,51 @@ if not teacher_data.empty:
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share")
         st.plotly_chart(fig, use_container_width=True)
 
+        # By race/ethnicity — uses the separate teacher_experience_infield
+        # dataset, which disaggregates Experienced and In-Field rates by
+        # teacher race rather than by subject.
+        tei = load_dataset("teacher_experience_infield")
+        if not tei.empty:
+            tei_lynn = tei[tei["DIST_CODE"] == "01630000"].copy()
+            tei_lynn["IND_PCT"] = pd.to_numeric(tei_lynn["IND_PCT"], errors="coerce")
+            tei_lynn = tei_lynn.dropna(subset=["IND_PCT"])
+            if not tei_lynn.empty:
+                latest_tei_year = int(tei_lynn["SY"].max())
+                tei_latest = tei_lynn[tei_lynn["SY"] == latest_tei_year].copy()
+                tei_latest = tei_latest[tei_latest["RACE_ETH"] != "All Educators"]
+                if not tei_latest.empty:
+                    st.subheader(
+                        f"Experienced + In-Field by teacher race/ethnicity — "
+                        f"Lynn District (SY {latest_tei_year})"
+                    )
+                    st.caption(
+                        "Same two indicators, broken out by educator "
+                        "race/ethnicity. Useful for spotting whether the "
+                        "newer-teacher / out-of-field burden falls "
+                        "disproportionately on educators of color."
+                    )
+                    tei_latest["label"] = tei_latest["IND_PCT"].apply(
+                        lambda x: f"{x:.1f}%"
+                    )
+                    fig = px.bar(
+                        tei_latest.sort_values(["IND", "IND_PCT"]),
+                        x="IND_PCT", y="RACE_ETH", color="IND",
+                        barmode="group", orientation="h", text="label",
+                        color_discrete_map={
+                            "Experienced Teachers": LEHS_NAVY,
+                            "In-Field Teachers":    "#388E3C",
+                        },
+                    )
+                    fig.update_traces(textposition="outside")
+                    fig.update_layout(
+                        **DEFAULT_LAYOUT,
+                        xaxis_title="% of teachers in group",
+                        yaxis_title="",
+                        legend_title="",
+                    )
+                    fig.update_xaxes(range=[0, 110])
+                    st.plotly_chart(fig, use_container_width=True)
+
         # In-field by SUBJECT (LEHS-level if rows exist)
         lehs_by_subj = teacher_data[
             (teacher_data["ORG_CODE"] == LEHS_SCHOOL_CODE)
