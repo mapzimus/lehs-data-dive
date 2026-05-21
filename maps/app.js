@@ -52,37 +52,49 @@ const METRICS = [
     { id:"SWD_PCT",    label:"% Students w/ Disabilities",  cat:"Demographics", levels:["district","muni"], palette:"Purples", format:"pct" },
     { id:"FLNE_PCT",   label:"% First Lang Not English",    cat:"Demographics", levels:["district","muni"], palette:"Greens",  format:"pct" },
 
-    // Academic — mcas_g38_* live only on district features (no muni-level join)
+    // Academic — mcas_g38_* live only on district features (no muni-level join today)
     { id:"mcas_g10_ela_me",  label:"MCAS Gr10 ELA % M+E",   cat:"Academic", levels:["district","muni"], palette:"Viridis", format:"pct" },
     { id:"mcas_g10_math_me", label:"MCAS Gr10 Math % M+E",  cat:"Academic", levels:["district","muni"], palette:"Viridis", format:"pct" },
     { id:"mcas_g10_sci_me",  label:"MCAS Gr10 STE % M+E",   cat:"Academic", levels:["district","muni"], palette:"Viridis", format:"pct" },
     { id:"mcas_g38_ela_me",  label:"MCAS Gr3-8 ELA % M+E",  cat:"Academic", levels:["district"],        palette:"Viridis", format:"pct" },
     { id:"mcas_g38_math_me", label:"MCAS Gr3-8 Math % M+E", cat:"Academic", levels:["district"],        palette:"Viridis", format:"pct" },
 
-    // Outcomes — chronic_absent_pct / attendance_rate / ap_pct_3plus removed
-    // (no data anywhere in source). grad_5yr / masscore_pct district-only.
+    // Outcomes — full set mirrors the Streamlit dashboard. chronic_absent /
+    // attendance / AP currently render no-data because the pipeline build
+    // joined them but the source CSV was empty for these columns at last
+    // refresh. Re-running scripts/11_build_lynn_geo.py with a fresh raw/
+    // dir should populate them.
     { id:"grad_4yr",            label:"4-yr Graduation Rate",        cat:"Outcomes", levels:["district","muni"], palette:"Viridis", format:"pct" },
     { id:"grad_5yr",            label:"5-yr Graduation Rate",        cat:"Outcomes", levels:["district"],        palette:"Viridis", format:"pct" },
     { id:"dropout_pct",         label:"Dropout Rate",                cat:"Outcomes", levels:["district","muni"], palette:"Reds",    format:"pct" },
+    { id:"chronic_absent_pct",  label:"Chronic Absenteeism Rate",    cat:"Outcomes", levels:["district"],        palette:"Reds",    format:"pct" },
+    { id:"attendance_rate",     label:"Attendance Rate",             cat:"Outcomes", levels:["district"],        palette:"Greens",  format:"pct" },
     { id:"masscore_pct",        label:"MassCore Completion",         cat:"Outcomes", levels:["district"],        palette:"Greens",  format:"pct" },
+    { id:"ap_pct_3plus",        label:"% AP Tests Scoring 3+",       cat:"Outcomes", levels:["district"],        palette:"BuPu",    format:"pct" },
 
-    // Postsecondary plans — joined only onto district features
+    // Postsecondary plans — joined onto district features only
     { id:"pct_any_college",     label:"% Planning Any College",      cat:"Postsecondary", levels:["district"], palette:"Viridis", format:"pct" },
     { id:"pct_4yr_college",     label:"% Planning 4-yr College",     cat:"Postsecondary", levels:["district"], palette:"Viridis", format:"pct" },
     { id:"pct_2yr_college",     label:"% Planning 2-yr College",     cat:"Postsecondary", levels:["district"], palette:"BuPu",    format:"pct" },
     { id:"pct_work_after_hs",   label:"% Planning to Work after HS", cat:"Postsecondary", levels:["district"], palette:"Oranges", format:"pct" },
     { id:"pct_military",        label:"% Planning Military",         cat:"Postsecondary", levels:["district"], palette:"Greys",   format:"pct" },
 
-    // Finance — totals at both levels; breakdowns are district-only
+    // Finance — totals at both levels; breakdowns district-only
     { id:"per_pupil",                  label:"Per-Pupil $ (Total)",         cat:"Finance", levels:["district","muni"], palette:"Viridis", format:"usd" },
     { id:"per_pupil_teachers",         label:"Per-Pupil $ — Teachers",      cat:"Finance", levels:["district","muni"], palette:"Viridis", format:"usd" },
     { id:"per_pupil_admin",            label:"Per-Pupil $ — Administration",cat:"Finance", levels:["district"],        palette:"Viridis", format:"usd" },
     { id:"per_pupil_pupil_services",   label:"Per-Pupil $ — Pupil Services",cat:"Finance", levels:["district"],        palette:"Viridis", format:"usd" },
 
-    // Workforce — staff_*_pct and teacher_experienced/infield_pct removed
-    // (no data anywhere in source).
-    { id:"stu_tchr_ratio",         label:"Student : Teacher Ratio",   cat:"Workforce", levels:["district"], palette:"Reds",    format:"num" },
-    { id:"teacher_retention_pct",  label:"Teacher Retention Rate",    cat:"Workforce", levels:["district"], palette:"Greens",  format:"pct" },
+    // Workforce — full set mirrors the dashboard. staff_*_pct and
+    // teacher_experienced/infield render no-data today (same root cause as
+    // the Outcomes block — needs a pipeline rebuild against fresh raw/).
+    { id:"staff_white_pct",         label:"% Staff: White",            cat:"Workforce", levels:["district"], palette:"Greys",   format:"pct" },
+    { id:"staff_hispanic_pct",      label:"% Staff: Hispanic",         cat:"Workforce", levels:["district"], palette:"Oranges", format:"pct" },
+    { id:"staff_black_pct",         label:"% Staff: Black",            cat:"Workforce", levels:["district"], palette:"Purples", format:"pct" },
+    { id:"stu_tchr_ratio",          label:"Student : Teacher Ratio",   cat:"Workforce", levels:["district"], palette:"Reds",    format:"num" },
+    { id:"teacher_experienced_pct", label:"% Experienced Teachers",    cat:"Workforce", levels:["district"], palette:"Greens",  format:"pct" },
+    { id:"teacher_infield_pct",     label:"% Teachers In-Field",       cat:"Workforce", levels:["district"], palette:"Greens",  format:"pct" },
+    { id:"teacher_retention_pct",   label:"Teacher Retention Rate",    cat:"Workforce", levels:["district"], palette:"Greens",  format:"pct" },
 
     // Tract — ACS (Lynn only)
     { id:"non_english_pct",          label:"% non-English at home",      cat:"Tract — Census ACS", levels:["tract"], palette:"Greens",  format:"pct" },
@@ -94,8 +106,11 @@ const METRICS = [
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
 const state = {
-    level: "tract",                    // Lynn-focused → start at the tract level
-    metric: "non_english_pct",         // ACS linguistic landscape: Lynn's defining demographic story
+    // Open on the muni level so visitors land on a metric-rich view (~25 metrics)
+    // instead of the tract level (only 5 ACS metrics) and immediately see the
+    // Lynn-vs-gateway-vs-neighbors comparison this tool exists for.
+    level: "muni",
+    metric: "EL_PCT",                  // % English Learner — Lynn's defining demographic
     palette: "Greens",
     classify: "jenks",                 // Fisher-Jenks natural breaks (standard cartographic default)
     extrude3d: false,
@@ -1144,6 +1159,30 @@ function updateLegend() {
 }
 
 // ─── UI WIRING ───────────────────────────────────────────────────────────────
+// Counts features with any non-null numeric value across the base column +
+// any year-keyed (__YYYY) variants. Used to flag metrics that exist in the
+// catalog but have no data in the currently-loaded GeoJSON (usually means
+// the build pipeline ran but the source CSV was empty for those columns —
+// re-running scripts/11_build_lynn_geo.py with fresh raw/ should populate
+// them). Cached per (level, metricId) to keep the dropdown render cheap.
+const _METRIC_DATA_CACHE = {};
+function metricHasData(metricId, level) {
+    const key = `${level}|${metricId}`;
+    if (key in _METRIC_DATA_CACHE) return _METRIC_DATA_CACHE[key];
+    const fc = GEO_DATA && GEO_DATA[level];
+    if (!fc || !fc.features || !fc.features.length) {
+        return _METRIC_DATA_CACHE[key] = true;  // unknown — don't flag
+    }
+    const sample = fc.features[0].properties;
+    const cols = Object.keys(sample).filter(k => k === metricId || k.startsWith(metricId + "__"));
+    if (!cols.length) return _METRIC_DATA_CACHE[key] = false;
+    const hasAny = fc.features.some(f => cols.some(c => {
+        const v = f.properties[c];
+        return v != null && isFinite(+v);
+    }));
+    return _METRIC_DATA_CACHE[key] = hasAny;
+}
+
 function populateMetricSelect(searchTerm = "") {
     const sel = document.getElementById("metricSelect");
     const term = searchTerm.trim().toLowerCase();
@@ -1166,7 +1205,9 @@ function populateMetricSelect(searchTerm = "") {
         candidates.filter(m => m.cat === cat).forEach(m => {
             const opt = document.createElement("option");
             opt.value = m.id;
-            opt.textContent = m.label;
+            const hasData = metricHasData(m.id, state.level);
+            opt.textContent = hasData ? m.label : `${m.label}  · (data refresh pending)`;
+            if (!hasData) opt.style.color = "#9E9E9E";
             grp.appendChild(opt);
         });
         sel.appendChild(grp);
