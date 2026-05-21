@@ -38,12 +38,19 @@ IPEDS_RAW.mkdir(parents=True, exist_ok=True)
 HEADERS = {"User-Agent": "lehs-data-dive/0.2 (https://github.com/mapzimus/lehs-data-dive)"}
 TIMEOUT = 60
 
-# IPEDS College Scorecard API (lower-friction alternative to NCES bulk)
+# IPEDS College Scorecard API
 SCORECARD_BASE = "https://api.data.gov/ed/collegescorecard/v1/schools"
-# No API key required for low-volume reads as of 2025, but adding DEMO_KEY is
-# polite. Users who hit limits can set COLLEGE_SCORECARD_KEY env var.
+# As of 2025 data.gov requires a real API key — DEMO_KEY 403s on every request
+# and an empty key returns 403 with no useful error. Sign up for a free key at
+# https://api.data.gov/signup/ and either export it locally:
+#     export COLLEGE_SCORECARD_KEY=<your_key>
+# or add it as a GitHub Actions repo secret (the refresh workflow already
+# passes secrets.COLLEGE_SCORECARD_KEY through to this script).
 import os
-SCORECARD_KEY = os.environ.get("COLLEGE_SCORECARD_KEY", "DEMO_KEY")
+# os.environ.get(name, default) returns the string value even if empty, so we
+# need an explicit `or` to fall back when the env var is set but empty (which
+# is what happens in GH Actions when the secret is unset).
+SCORECARD_KEY = os.environ.get("COLLEGE_SCORECARD_KEY") or None
 
 
 def derive_destination_list() -> list[str]:
@@ -143,6 +150,14 @@ def row_from_result(name: str, res: dict | None) -> dict:
 
 def main() -> None:
     print("IPEDS / College Scorecard ingest")
+    if not SCORECARD_KEY:
+        print(
+            "  [WARN] COLLEGE_SCORECARD_KEY is not set — every lookup will 403.\n"
+            "         Sign up at https://api.data.gov/signup/ and add the key as\n"
+            "         a GitHub Actions repo secret named COLLEGE_SCORECARD_KEY.\n"
+            "         Skipping the IPEDS step and leaving the existing parquet untouched."
+        )
+        return
     targets = derive_destination_list()
     print(f"  {len(targets)} destination institutions to look up")
     rows = []
@@ -150,8 +165,19 @@ def main() -> None:
         res = lookup_institution(name)
         rows.append(row_from_result(name, res))
     df = pd.DataFrame(rows)
+    non_null_unitid = df["UNITID"].notna().sum()
+    if non_null_unitid == 0:
+        print(
+            f"  [WARN] Every lookup returned null. The Scorecard key is likely\n"
+            f"         invalid or rate-limited. Refusing to overwrite the existing\n"
+            f"         parquet with all-null rows. Check the key, then re-run."
+        )
+        return
     df.to_parquet(PROCESSED_DIR / "ipeds_destinations.parquet", index=False)
-    print(f"  Wrote ipeds_destinations.parquet ({len(df):,} rows)")
+    print(
+        f"  Wrote ipeds_destinations.parquet ({len(df):,} rows, "
+        f"{non_null_unitid} with UNITID)"
+    )
 
 
 if __name__ == "__main__":

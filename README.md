@@ -80,9 +80,16 @@ The full pipeline is orchestrated by **`scripts/refresh_all.py`** which runs eve
 # Set the Census key once (needed by 10_download_census_acs.py)
 $env:CENSUS_API_KEY = "your-key-here"
 
+# Optional but recommended — the College Scorecard step (05) silently
+# produces all-null rows without a real api.data.gov key. Sign up free
+# at https://api.data.gov/signup/.
+$env:COLLEGE_SCORECARD_KEY = "your-key-here"
+
 # Refresh everything
 python scripts/refresh_all.py
 ```
+
+For CI runs, add both keys as GitHub Actions repo secrets (`CENSUS_API_KEY`, `COLLEGE_SCORECARD_KEY`) under Settings → Secrets and variables → Actions.
 
 Step-by-step (also runnable individually):
 
