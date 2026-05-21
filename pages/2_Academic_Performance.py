@@ -172,6 +172,8 @@ st.divider()
 
 st.subheader(f"LEHS vs. LCHS vs. Lynn District vs. Massachusetts — SY {sy_label(latest_year)}")
 
+from utils.stats import wilson_ci_from_pct  # noqa: E402
+
 bench_rows = []
 for code in ["ELA", "MATH", "SCI"]:
     lehs_row = latest[latest["SUBJECT_CODE"] == code]
@@ -180,22 +182,27 @@ for code in ["ELA", "MATH", "SCI"]:
                      & (lchs["SY"] == latest_year)]
     dist_row = district[(district["SUBJECT_CODE"] == code) & (district["SY"] == latest_year)]
     state_row = state[(state["SUBJECT_CODE"] == code) & (state["SY"] == latest_year)]
-    if not lehs_row.empty:
-        bench_rows.append({"Subject": SUBJECT_MAP[code], "Scope": "LEHS",
-                           "Pct": lehs_row.iloc[0]["M_PLUS_E_PCT"]})
-    if not lchs_row.empty:
-        bench_rows.append({"Subject": SUBJECT_MAP[code], "Scope": "LCHS",
-                           "Pct": lchs_row.iloc[0]["M_PLUS_E_PCT"]})
-    if not dist_row.empty:
-        bench_rows.append({"Subject": SUBJECT_MAP[code], "Scope": "Lynn District",
-                           "Pct": dist_row.iloc[0]["M_PLUS_E_PCT"]})
-    if not state_row.empty:
-        bench_rows.append({"Subject": SUBJECT_MAP[code], "Scope": "Massachusetts",
-                           "Pct": state_row.iloc[0]["M_PLUS_E_PCT"]})
+    for label, row_df in [
+        ("LEHS", lehs_row), ("LCHS", lchs_row),
+        ("Lynn District", dist_row), ("Massachusetts", state_row),
+    ]:
+        if row_df.empty:
+            continue
+        r = row_df.iloc[0]
+        pct = r["M_PLUS_E_PCT"]
+        n = r.get("STU_CNT")
+        lo, hi = wilson_ci_from_pct(pct, n)
+        bench_rows.append({
+            "Subject": SUBJECT_MAP[code], "Scope": label, "Pct": pct,
+            "n": int(n) if pd.notna(n) else None,
+            "ci_lo": lo, "ci_hi": hi,
+        })
 
 if bench_rows:
     bench_df = pd.DataFrame(bench_rows).dropna(subset=["Pct"])
     bench_df["label"] = bench_df["Pct"].apply(lambda x: f"{x:.0%}")
+    bench_df["err_minus"] = (bench_df["Pct"] - bench_df["ci_lo"]).clip(lower=0)
+    bench_df["err_plus"] = (bench_df["ci_hi"] - bench_df["Pct"]).clip(lower=0)
     fig = px.bar(
         bench_df, x="Subject", y="Pct", color="Scope", barmode="group",
         text="label",
@@ -206,15 +213,27 @@ if bench_rows:
             "Lynn District": LEHS_NAVY,
             "Massachusetts": "#455A64",
         },
+        error_y="err_plus",
+        error_y_minus="err_minus",
+        custom_data=["n"],
     )
-    fig.update_traces(textposition="outside")
+    fig.update_traces(
+        textposition="outside",
+        hovertemplate=(
+            "<b>%{x}</b><br>%{fullData.name}: %{y:.1%}<br>"
+            "n = %{customdata[0]:,}<extra></extra>"
+        ),
+    )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="% Meeting + Exceeding",
                        xaxis_title="")
     st.plotly_chart(fig, use_container_width=True)
     st.caption(
         "Four natural benchmarks: LEHS, LCHS (Lynn Classical — Lynn's "
         "other comprehensive HS), the Lynn district aggregate (averaged "
-        "across all 22 schools), and the Massachusetts statewide average."
+        "across all 22 schools), and the Massachusetts statewide average. "
+        "Error bars are 95% Wilson confidence intervals — narrower for "
+        "the larger denominators (district and state) and visibly wider "
+        "for the single-school cohorts."
     )
 
 st.divider()
@@ -337,18 +356,56 @@ st.divider()
 st.subheader(f"Achievement Gap — Latest Year ({sy_label(latest_year)})")
 st.caption(
     "How each student group performs *relative to LEHS's school-wide average*. "
-    "Negative bars = below all-students; positive = above. The magnitude of "
-    "negative bars is where school-level intervention has the most leverage."
+    "Negative bars = below all-students; positive = above. Bars are marked "
+    "with statistical-significance flags (`*` p<0.05, `**` p<0.01, "
+    "`***` p<0.001) from a two-proportion z-test against the school-wide "
+    "rate, so small-cohort fluctuations don't read as real gaps."
 )
+
+from utils.stats import compare_proportions  # noqa: E402
 
 latest_sub = sub[sub["SY"] == sub["SY"].max()].copy()
 if not latest_sub.empty and "All Students" in latest_sub["STU_GRP"].values:
-    all_value = latest_sub.loc[latest_sub["STU_GRP"] == "All Students", "M_PLUS_E_PCT"].iloc[0]
+    all_row = latest_sub[latest_sub["STU_GRP"] == "All Students"].iloc[0]
+    all_value = all_row["M_PLUS_E_PCT"]
+    all_n = all_row.get("STU_CNT")
+    all_k = (
+        int(round(all_value * all_n))
+        if pd.notna(all_value) and pd.notna(all_n) else None
+    )
     latest_sub["Gap"] = latest_sub["M_PLUS_E_PCT"] - all_value
-    gap_data = latest_sub[latest_sub["STU_GRP"] != "All Students"].sort_values("Gap")
-    gap_data["label"] = gap_data["Gap"].apply(lambda g: f"{g*100:+.1f} pts")
 
-    colors = ["#D32F2F" if g < 0 else "#388E3C" for g in gap_data["Gap"]]
+    def _gap_stats(row):
+        n = row.get("STU_CNT")
+        pct = row["M_PLUS_E_PCT"]
+        if pd.isna(n) or pd.isna(pct) or all_k is None or pd.isna(all_n):
+            return ("", "", False)
+        k = int(round(pct * n))
+        test = compare_proportions(int(k), int(n), int(all_k), int(all_n))
+        return (test.stars, test.magnitude, test.significant)
+
+    gap_data = latest_sub[latest_sub["STU_GRP"] != "All Students"].copy()
+    gap_data[["stars", "effect", "significant"]] = gap_data.apply(
+        lambda r: pd.Series(_gap_stats(r)), axis=1,
+    )
+    gap_data = gap_data.sort_values("Gap")
+    gap_data["label"] = gap_data.apply(
+        lambda r: (
+            f"{r['Gap']*100:+.1f} pts {r['stars']}"
+            if pd.notna(r["Gap"]) else ""
+        ),
+        axis=1,
+    )
+
+    # Color = direction (red below / green above), but mute color when
+    # the gap is not statistically significant so the eye doesn't read
+    # noise as a real disparity.
+    def _bar_color(row):
+        if not row["significant"]:
+            return "#B0BEC5"  # muted gray
+        return "#D32F2F" if row["Gap"] < 0 else "#388E3C"
+
+    colors = gap_data.apply(_bar_color, axis=1).tolist()
     fig = go.Figure(go.Bar(
         y=gap_data["STU_GRP"],
         x=gap_data["Gap"] * 100,
@@ -356,6 +413,12 @@ if not latest_sub.empty and "All Students" in latest_sub["STU_GRP"].values:
         text=gap_data["label"],
         textposition="outside",
         marker_color=colors,
+        customdata=gap_data[["STU_CNT", "effect"]].values,
+        hovertemplate=(
+            "<b>%{y}</b><br>Gap: %{x:.1f} pts<br>"
+            "n = %{customdata[0]:,}<br>"
+            "Effect size: %{customdata[1]}<extra></extra>"
+        ),
     ))
     fig.update_layout(
         **DEFAULT_LAYOUT,
@@ -363,6 +426,11 @@ if not latest_sub.empty and "All Students" in latest_sub["STU_GRP"].values:
         xaxis_title="Percentage point gap",
     )
     st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        "Gray bars = gap not statistically distinguishable from the "
+        "school-wide rate at p<0.05 (often happens with the smallest "
+        "subgroups, where DESE-published percentages are noisy)."
+    )
 
 st.divider()
 
