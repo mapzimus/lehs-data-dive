@@ -42,12 +42,23 @@ TIMEOUT = 120
 ESSEX_COUNTY_FIPS = "25009"
 MA_STATE_FIPS = "25"
 
-# EJScreen bulk MA file (most recent release as of script-write). EPA cycles
-# the URL annually; fall back to known historical mirrors if 404.
-EJSCREEN_URLS = [
-    "https://gaftp.epa.gov/EJScreen/2024/2.32_July_UseMe/EJScreen_2024_Tract_with_AS_CNMI_GU_VI.csv.zip",
-    "https://gaftp.epa.gov/EJScreen/2023/2.22_September_UseMe/EJScreen_2023_Tract_StatePct_with_AS_CNMI_GU_VI.csv.zip",
-    "https://gaftp.epa.gov/EJSCREEN/2022/EJSCREEN_2022_StatePct.csv.zip",
+# EJScreen bulk tract-level file. EPA *removed* EJScreen from its website on
+# 2025-02-05 (https://envirodatagov.org/epa-removes-ejscreen-from-its-website/),
+# so the original gaftp.epa.gov URLs now 404. We use the Harvard Dataverse
+# mirror maintained by the Environment and Law Data (HELD) collection
+# (doi:10.7910/DVN/RLR5AX), which preserves EJScreen 2024 v2.32 — the last
+# release before removal. Each entry is (url, file_format) where file_format
+# is "csv" (plain) or "zip" (zipped CSV).
+EJSCREEN_SOURCES = [
+    # Harvard Dataverse — EJScreen 2024 Tract StatePct (with state percentiles).
+    # 153 MB plain CSV. File ID 10775973 in dataset doi:10.7910/DVN/RLR5AX.
+    ("https://dataverse.harvard.edu/api/access/datafile/10775973", "csv"),
+    # Fallback: same dataset, "raw values" version without state percentiles
+    # (still has the minority/low-income/pollution columns we need).
+    ("https://dataverse.harvard.edu/api/access/datafile/10775979", "csv"),
+    # Historical EPA URLs — kept in case EPA ever restores them.
+    ("https://gaftp.epa.gov/EJScreen/2024/2.32_July_UseMe/EJScreen_2024_Tract_with_AS_CNMI_GU_VI.csv.zip", "zip"),
+    ("https://gaftp.epa.gov/EJScreen/2023/2.22_September_UseMe/EJScreen_2023_Tract_StatePct_with_AS_CNMI_GU_VI.csv.zip", "zip"),
 ]
 
 # CDC PLACES tract-level dataset (Socrata)
@@ -89,27 +100,34 @@ def load_lynn_tracts() -> list[str]:
 
 
 def process_ejscreen() -> pd.DataFrame:
-    zp = CH_RAW / "ejscreen_ma.zip"
-    ok = False
-    for url in EJSCREEN_URLS:
-        if download(url, zp):
-            ok = True
+    EMPTY_COLS = [
+        "GEOID", "ENV_INDEX", "DEMO_INDEX", "EJ_INDEX_PM25",
+        "PCT_MINORITY", "PCT_LOW_INC", "PCT_LING_ISO",
+        "OZONE", "PM25", "DSLPM", "RSEI_AIR", "PRE1960_HOUSING",
+    ]
+    raw_path = None
+    source_fmt = None
+    for url, fmt in EJSCREEN_SOURCES:
+        suffix = ".zip" if fmt == "zip" else ".csv"
+        dest = CH_RAW / f"ejscreen_ma{suffix}"
+        if download(url, dest):
+            raw_path = dest
+            source_fmt = fmt
             break
-    if not ok:
-        print("  [SKIP] EJScreen download failed — writing empty parquet")
-        return pd.DataFrame(columns=[
-            "GEOID", "ENV_INDEX", "DEMO_INDEX", "EJ_INDEX_PM25",
-            "PCT_MINORITY", "PCT_LOW_INC", "PCT_LING_ISO",
-            "OZONE", "PM25", "DSLPM", "RSEI_AIR", "PRE1960_HOUSING",
-        ])
+    if raw_path is None:
+        print("  [SKIP] EJScreen download failed (all sources) — writing empty parquet")
+        return pd.DataFrame(columns=EMPTY_COLS)
     try:
-        with zipfile.ZipFile(zp) as zf:
-            csv_name = next(n for n in zf.namelist() if n.endswith(".csv"))
-            with zf.open(csv_name) as f:
-                df = pd.read_csv(f, low_memory=False, encoding_errors="replace")
+        if source_fmt == "zip":
+            with zipfile.ZipFile(raw_path) as zf:
+                csv_name = next(n for n in zf.namelist() if n.endswith(".csv"))
+                with zf.open(csv_name) as f:
+                    df = pd.read_csv(f, low_memory=False, encoding_errors="replace")
+        else:
+            df = pd.read_csv(raw_path, low_memory=False, encoding_errors="replace")
     except Exception as e:
         print(f"  [WARN] EJScreen parse failed: {e}")
-        return pd.DataFrame()
+        return pd.DataFrame(columns=EMPTY_COLS)
 
     # Filter to MA + harmonize column names. EPA renames cols every release;
     # try common variants.
