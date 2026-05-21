@@ -100,12 +100,25 @@ Step-by-step (also runnable individually):
 | 12 | `12_download_community_health.py` | EPA EJScreen + CDC PLACES |
 | 13 | `13_build_annual_report.py` | Regenerate the PDF annual report |
 
-After the geo build (step 11) finishes, copy the new GeoJSONs into the companion-map repo:
+After the geo build (step 11) finishes, copy the new GeoJSONs into the companion-map repos:
 
 ```powershell
 cp data/processed/ma_*.geojson ../maxwellhowegis/ma-atlas/data/
+cp data/processed/lynn_*.geojson ../maxwellhowegis/ma-atlas/data/
 cp data/processed/lynn_*.geojson ../maxwellhowegis/Lynn-data-dive/maps/data/
 ```
+
+> **Note:** `ma-atlas/` is now a **git submodule** pointing at [`mapzimus/ma-education-atlas`](https://github.com/mapzimus/ma-education-atlas). After copying the GeoJSONs, commit them inside the submodule, then bump the parent pointer:
+>
+> ```powershell
+> # Commit data refresh inside the submodule
+> cd ../maxwellhowegis/ma-atlas
+> git add data; git commit -m "Refresh atlas data"; git push
+>
+> # Bump the parent's submodule pointer
+> cd ..
+> git add ma-atlas; git commit -m "Bump ma-atlas submodule"; git push
+> ```
 
 A **GitHub Action** at `.github/workflows/refresh-data.yml` runs `scripts/refresh_all.py` on a semi-annual cron (January + July) and opens a PR with any changed parquets. Requires `CENSUS_API_KEY` configured as a repo secret (Settings → Secrets and variables → Actions).
 
