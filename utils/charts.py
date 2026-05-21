@@ -7,9 +7,51 @@ consistent and changes propagate everywhere.
 
 from __future__ import annotations
 
+import io
+
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import streamlit as st
+
+
+def csv_download(df: pd.DataFrame, filename: str, label: str | None = None,
+                  key: str | None = None) -> None:
+    """Render a small CSV download button for a single dataframe.
+
+    Keep button labels short — typical use is right under a chart or table.
+    """
+    if df is None or df.empty:
+        return
+    csv = df.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label or f"⬇ Download CSV ({len(df):,} rows)",
+        data=csv,
+        file_name=filename,
+        mime="text/csv",
+        key=key,
+        use_container_width=False,
+    )
+
+
+def data_downloads_panel(datasets: dict[str, pd.DataFrame],
+                          title: str = "Download underlying data") -> None:
+    """Render an expander with one CSV download button per dataset.
+
+    `datasets` maps a friendly label → DataFrame. Empty DataFrames are skipped.
+    """
+    non_empty = {k: v for k, v in datasets.items() if v is not None and not v.empty}
+    if not non_empty:
+        return
+    with st.expander(f"📁 {title}"):
+        st.caption(
+            "Every visualization on this page is built from one of the datasets "
+            "below. Download as CSV to do your own analysis."
+        )
+        for label, df in non_empty.items():
+            slug = label.lower().replace(" ", "_").replace("/", "-")
+            csv_download(df, f"{slug}.csv", label=f"⬇ {label}  ({len(df):,} rows)",
+                         key=f"dl_{slug}")
 
 from utils.constants import (
     GATEWAY_PEER_COLOR,

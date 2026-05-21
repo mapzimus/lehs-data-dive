@@ -309,3 +309,13 @@ if total_weight > 0:
             f"gateway-city main HS** on this composite index."
         )
 
+# >>> auto: csv downloads <<<
+try:
+    from utils.charts import data_downloads_panel as _dl
+    _dl({
+        'Master gateway-HS panel': panel,
+    })
+except NameError:
+    # one of the dataset variables wasn't defined on this run
+    pass
+

@@ -1,0 +1,69 @@
+name: Refresh data (semi-annual)
+
+# Runs at 07:00 UTC on the 1st of January and the 1st of July, plus on-demand
+# via the "Run workflow" button in the Actions tab.
+#
+# What it does:
+#   1. Sets up Python 3.12 with the project deps
+#   2. Runs scripts/refresh_all.py end-to-end
+#   3. If any files under data/processed/ changed, opens a PR
+#
+# Required repo secret:
+#   CENSUS_API_KEY — set under Settings → Secrets and variables → Actions
+#   (the Census ACS download step in scripts/10_download_census_acs.py needs it)
+
+on:
+  schedule:
+    - cron: "0 7 1 1,7 *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install system deps for geopandas
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y gdal-bin libgdal-dev
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run full refresh pipeline
+        env:
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+          COLLEGE_SCORECARD_KEY: ${{ secrets.COLLEGE_SCORECARD_KEY }}
+        run: python scripts/refresh_all.py
+
+      - name: Open PR if data changed
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "Data refresh ${{ github.run_id }}"
+          branch: data-refresh/${{ github.run_id }}
+          title: "Semi-annual data refresh"
+          body: |
+            Automated refresh of every parquet + geojson under `data/processed/`.
+
+            Triggered by `.github/workflows/refresh-data.yml` (cron: every 6 months,
+            or manual). Review the file changes — if numbers shifted in a way that
+            looks wrong, close this PR and investigate the underlying script.
+
+            After merge, Streamlit Cloud will redeploy automatically.
+          add-paths: |
+            data/processed/**
+            reports/**

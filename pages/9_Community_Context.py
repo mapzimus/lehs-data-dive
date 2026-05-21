@@ -191,19 +191,90 @@ indicators (where data is available at scale).
 """
 )
 
-with st.expander("What's still missing — and how to add it"):
-    st.markdown(
-        """
-- **SAIPE** (district-level child poverty estimates) — `census` Python client,
-  small download.
-- **EPA EJScreen** — environmental-justice indicators around the school
-  (lead, air quality, traffic proximity). Bulk CSV at ejscreen.epa.gov.
-- **CDC PLACES** — local health (mental health, uninsured rates).
-- **BLS / MA EOLWD** — local labor market and median wages.
-- **Town-level ACS for the 25 other Gateway Cities** — would unlock
-  side-by-side community-context comparison.
+st.divider()
 
-These would each take one focused script-writing session.
-"""
+# ---------------------------------------------------------------------------
+# Environmental Justice (EPA EJScreen) + Population Health (CDC PLACES)
+# ---------------------------------------------------------------------------
+
+st.header("Environmental justice + community health")
+st.caption(
+    "EPA EJScreen tracks pollution exposure and demographic indices; CDC PLACES "
+    "publishes tract-level prevalence of chronic disease and behavioral health. "
+    "Joined onto Lynn's 22 tracts in scripts/11_build_lynn_geo.py."
+)
+
+ej_cols = [("ENV_INDEX", "Env burden index"),
+           ("PM25", "PM2.5"),
+           ("OZONE", "Ozone"),
+           ("PRE1960_HOUSING", "% Housing built pre-1960 (lead-paint era)")]
+ej_present = [(c, l) for c, l in ej_cols if c in tracts.columns and tracts[c].notna().any()]
+
+if ej_present:
+    st.subheader("EPA EJScreen — environmental burden")
+    cols = st.columns(min(4, len(ej_present)))
+    for (col, label), st_col in zip(ej_present, cols):
+        with st_col:
+            val = pd.to_numeric(tracts[col], errors="coerce").mean()
+            if pd.notna(val):
+                st.metric(f"Lynn mean — {label}", f"{val:.1f}")
+    # Best EJScreen indicator: rank tracts by env-burden if available
+    if "ENV_INDEX" in tracts.columns and tracts["ENV_INDEX"].notna().any():
+        ej_sub = tracts.dropna(subset=["ENV_INDEX"]).sort_values("ENV_INDEX")
+        fig = px.bar(ej_sub, y="NAMELSAD", x="ENV_INDEX", orientation="h",
+                     color="ENV_INDEX", color_continuous_scale="Reds",
+                     title="Environmental burden index by Lynn tract")
+        fig.update_layout(**DEFAULT_LAYOUT, height=480,
+                          xaxis_title="Index (higher = more burden)",
+                          yaxis_title="", coloraxis_showscale=False)
+        st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info(
+        "EPA EJScreen data not yet populated — the ingest tries 3 known EPA "
+        "URLs (some have moved post-2025). See scripts/12_download_community_health.py."
     )
+
+places_cols = [("asthma_pct", "Asthma"),
+                ("mental_distress_pct", "Mental distress"),
+                ("obesity_pct", "Obesity"),
+                ("smoking_pct", "Smoking"),
+                ("high_bp_pct", "High blood pressure"),
+                ("diabetes_pct", "Diabetes")]
+pl_present = [(c, l) for c, l in places_cols if c in tracts.columns and tracts[c].notna().any()]
+
+if pl_present:
+    st.subheader("CDC PLACES — chronic-disease prevalence")
+    st.caption("Crude prevalence (% of adults), most recent release. Source: CDC PLACES.")
+    cols = st.columns(min(3, len(pl_present)))
+    for i, (col, label) in enumerate(pl_present):
+        with cols[i % 3]:
+            val = pd.to_numeric(tracts[col], errors="coerce").mean()
+            if pd.notna(val):
+                st.metric(f"Lynn mean — {label}", f"{val:.1f}%")
+    # Stacked tract-level chart for a couple high-signal indicators
+    leaders = [c for c, _ in pl_present if c in ("asthma_pct", "mental_distress_pct")]
+    if leaders:
+        long = tracts[["NAMELSAD"] + leaders].melt(
+            id_vars="NAMELSAD", var_name="metric", value_name="pct")
+        long["pct"] = pd.to_numeric(long["pct"], errors="coerce")
+        long = long.dropna(subset=["pct"])
+        if not long.empty:
+            fig = px.bar(long.sort_values("pct"), y="NAMELSAD", x="pct",
+                          color="metric", barmode="group", orientation="h",
+                          title="Asthma + mental distress by Lynn tract")
+            fig.update_layout(**DEFAULT_LAYOUT, height=520,
+                              xaxis_title="% prevalence", yaxis_title="")
+            st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("CDC PLACES data did not populate — check scripts/12_download_community_health.py.")
+
+# >>> auto: csv downloads <<<
+try:
+    from utils.charts import data_downloads_panel as _dl
+    _dl({
+        'Enrollment & demographics': enrollment,
+    })
+except NameError:
+    # one of the dataset variables wasn't defined on this run
+    pass
 

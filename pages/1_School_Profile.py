@@ -455,3 +455,13 @@ fig.update_layout(**DEFAULT_LAYOUT, xaxis_title="Students", yaxis_title="",
                    xaxis_range=[0, pop_counts["Count"].max() * 1.25])
 st.plotly_chart(fig, use_container_width=True)
 
+# >>> auto: csv downloads <<<
+try:
+    from utils.charts import data_downloads_panel as _dl
+    _dl({
+        'Enrollment & demographics': enrollment,
+    })
+except NameError:
+    # one of the dataset variables wasn't defined on this run
+    pass
+

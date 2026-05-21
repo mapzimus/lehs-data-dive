@@ -148,22 +148,82 @@ if not att_rate.empty:
 st.divider()
 
 # ---------------------------------------------------------------------------
-# What's missing
+# Disproportionality view (DESE statereport SSDR)
 # ---------------------------------------------------------------------------
 
-st.subheader("Going deeper — what's possible next")
-st.markdown(
-    """
-The bigger discipline picture lives in two places this dashboard doesn't yet
-pull from. When those layers are added, expect:
-
-- **Suspensions by race × ELL × SPED** — disproportionality analysis (from
-  DESE Profiles statereport).
-- **In-school suspensions** vs. out-of-school, expulsions counts.
-- **Federal CRDC** (Civil Rights Data Collection): school-based arrests,
-  restraint and seclusion, bullying incidents by basis.
-- **VOCAL Survey** student-reported climate, belonging, safety, engagement
-  for years LEHS participates.
-"""
+st.header("Disproportionality view")
+st.caption(
+    "Risk ratios compare each subgroup's discipline rate to the all-students "
+    "rate at the same school. A ratio >1 means that subgroup is disciplined "
+    "more often than average; <1 means less often. Source: DESE statereport "
+    "SSDR (School Safety + Discipline Report)."
 )
+
+disp = load_dataset("discipline_disproportionality")
+if disp.empty or disp["GROUP_RATE"].dropna().empty:
+    st.info(
+        "Disaggregated discipline data not yet populated — the ingest scaffold "
+        "is in place (scripts/03_download_dese_statereport.py) but the SSDR "
+        "HTML parser still needs year-specific tuning to extract per-group "
+        "values from the page tables. Risk ratios will populate once that lands."
+    )
+else:
+    org_options = disp[["ORG_CODE", "ORG_NAME"]].drop_duplicates().to_dict("records")
+    org_pick = st.selectbox(
+        "School / district",
+        options=org_options,
+        format_func=lambda r: r["ORG_NAME"],
+        key="disp_org",
+    )
+    ind_pick = st.selectbox(
+        "Indicator", options=sorted(disp["INDICATOR"].dropna().unique()), key="disp_ind",
+    )
+    sub = disp[(disp["ORG_CODE"] == org_pick["ORG_CODE"])
+               & (disp["INDICATOR"] == ind_pick)
+               & (disp["RISK_RATIO"].notna())]
+    if sub.empty:
+        st.info("No values for that combination yet.")
+    else:
+        fig = px.bar(sub.sort_values(["DIM", "GROUP"]), x="GROUP", y="RISK_RATIO",
+                     color="DIM", barmode="group",
+                     title=f"{org_pick['ORG_NAME']} — {ind_pick} risk ratios")
+        fig.add_hline(y=1.0, line_dash="dash", line_color="#444",
+                      annotation_text="All-students baseline")
+        fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Risk ratio (vs. all students)")
+        st.plotly_chart(fig, use_container_width=True)
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Federal CRDC indicators
+# ---------------------------------------------------------------------------
+
+st.header("Federal CRDC indicators")
+st.caption(
+    "Biennial federal Civil Rights Data Collection. Captures what DESE doesn't: "
+    "school-based arrests, law-enforcement referrals, restraint/seclusion. "
+    "Most recent release at script-write time was SY 2017-18. See the new "
+    "Federal CRDC page (sidebar) for the full deep-dive once data is wired in."
+)
+
+crdc = load_dataset("crdc_discipline")
+if crdc.empty:
+    st.info(
+        "CRDC bulk archive downloaded to data/raw/crdc/ — per-school row "
+        "extraction is a follow-up. See scripts/04_download_crdc.py."
+    )
+else:
+    st.dataframe(crdc.head(50), use_container_width=True)
+
+# >>> auto: csv downloads <<<
+try:
+    from utils.charts import data_downloads_panel as _dl
+    _dl({
+        'Student attendance': attendance,
+        'Discipline disproportionality': disp,
+        'CRDC discipline': crdc,
+    })
+except NameError:
+    # one of the dataset variables wasn't defined on this run
+    pass
 

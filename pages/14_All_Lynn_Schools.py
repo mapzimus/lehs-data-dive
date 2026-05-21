@@ -154,6 +154,67 @@ st.plotly_chart(fig, use_container_width=True)
 st.divider()
 
 # ---------------------------------------------------------------------------
+# Performance comparison across Lynn schools
+# ---------------------------------------------------------------------------
+
+st.subheader("Performance comparison — attendance + MCAS proficiency")
+st.caption("Latest available year for each school. Blank cells = no data published for that school × indicator.")
+
+perf = filtered[["ORG_CODE", "ORG_NAME"]].copy()
+
+# Attendance (all-students FY rate + chronic absent)
+if not attendance.empty:
+    a = attendance.copy()
+    a["PCT_CHRON_ABS_10"] = pd.to_numeric(a["PCT_CHRON_ABS_10"], errors="coerce")
+    a["ATTEND_RATE"] = pd.to_numeric(a["ATTEND_RATE"], errors="coerce")
+    a = a[(a["STU_GRP"] == "All Students") & (a["ATTEND_PERIOD"] == "FY")]
+    a_latest = a.sort_values("SY").groupby("ORG_CODE").tail(1)[
+        ["ORG_CODE", "ATTEND_RATE", "PCT_CHRON_ABS_10"]
+    ]
+    perf = perf.merge(a_latest, on="ORG_CODE", how="left")
+
+# MCAS grade 10 ELA + Math (for high schools)
+if not mcas.empty:
+    m = mcas.copy()
+    m["M_PLUS_E_PCT"] = pd.to_numeric(m.get("M_PLUS_E_PCT"), errors="coerce")
+    g10 = m[(m["TEST_GRADE"].astype(str) == "10") & (m["STU_GRP"] == "All Students")]
+    for subj, label in [("ELA", "MCAS G10 ELA M+E%"), ("MATH", "MCAS G10 Math M+E%")]:
+        s = g10[g10["SUBJECT_CODE"] == subj].sort_values("SY").groupby("ORG_CODE").tail(1)
+        s = s[["ORG_CODE", "M_PLUS_E_PCT"]].rename(columns={"M_PLUS_E_PCT": label})
+        perf = perf.merge(s, on="ORG_CODE", how="left")
+    # Grade 3-8 average for elementary/middle
+    g38 = m[m["TEST_GRADE"].astype(str).isin(["03", "04", "05", "06", "07", "08",
+                                                 "3", "4", "5", "6", "7", "8"])
+            & (m["STU_GRP"] == "All Students")]
+    for subj, label in [("ELA", "MCAS 3-8 ELA M+E%"), ("MATH", "MCAS 3-8 Math M+E%")]:
+        s = g38[g38["SUBJECT_CODE"] == subj]
+        if not s.empty:
+            latest_sy = s.sort_values("SY").groupby("ORG_CODE")["SY"].max().reset_index()
+            s_latest = s.merge(latest_sy, on=["ORG_CODE", "SY"])
+            s_avg = s_latest.groupby("ORG_CODE")["M_PLUS_E_PCT"].mean().reset_index()
+            s_avg = s_avg.rename(columns={"M_PLUS_E_PCT": label})
+            perf = perf.merge(s_avg, on="ORG_CODE", how="left")
+
+perf_display = perf.copy().rename(columns={"ORG_NAME": "School"})
+for c in perf_display.columns:
+    if c.endswith("%") or c in ("ATTEND_RATE", "PCT_CHRON_ABS_10"):
+        perf_display[c] = perf_display[c].apply(lambda x: f"{x:.0%}" if pd.notna(x) else "—")
+perf_display = perf_display.drop(columns=["ORG_CODE"]).rename(columns={
+    "ATTEND_RATE": "Attendance",
+    "PCT_CHRON_ABS_10": "Chronic Absent",
+})
+
+def highlight_lehs_perf(row):
+    if "Lynn English" in str(row.get("School", "")):
+        return ["background-color: #FFF4D6"] * len(row)
+    return [""] * len(row)
+
+st.dataframe(perf_display.sort_values("School").style.apply(highlight_lehs_perf, axis=1),
+             use_container_width=True, hide_index=True, height=500)
+
+st.divider()
+
+# ---------------------------------------------------------------------------
 # District-level totals
 # ---------------------------------------------------------------------------
 
@@ -173,4 +234,17 @@ with c3:
         st.metric("Weighted % Low Income", f"{wtd_li:.0%}")
 with c4:
     st.metric("Schools shown", f"{len(filtered)}")
+
+# >>> auto: csv downloads <<<
+try:
+    from utils.charts import data_downloads_panel as _dl
+    _dl({
+        'Enrollment & demographics': enrollment,
+        'MCAS achievement': mcas,
+        'Student attendance': attendance,
+        'Per-school performance panel': perf,
+    })
+except NameError:
+    # one of the dataset variables wasn't defined on this run
+    pass
 

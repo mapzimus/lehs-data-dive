@@ -267,11 +267,71 @@ if not ec_part.empty:
     ec_lehs = ec_part[ec_part["ORG_CODE"] == LEHS_SCHOOL_CODE].copy()
     if not ec_lehs.empty:
         st.subheader("Early College participation")
-        # Drop noisy/empty columns: CEEB_CODE is null at the school level here,
-        # and the raw DESE columns aren't user friendly
         drop_cols = ["CEEB_CODE", "DIST_CODE", "ORG_CODE", "ORG_TYPE"]
         ec_display = ec_lehs.drop(columns=[c for c in drop_cols if c in ec_lehs.columns])
         ec_display = ec_display.dropna(axis=1, how="all")
         ec_display = ec_display.sort_values("SY", ascending=False) if "SY" in ec_display else ec_display
         st.dataframe(ec_display, use_container_width=True, hide_index=True)
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Where Lynn grads land (IPEDS / College Scorecard)
+# ---------------------------------------------------------------------------
+
+st.header("Where Lynn grads land — destination college profiles")
+st.caption(
+    "Top colleges Lynn graduates enroll in, with institutional data from the "
+    "federal College Scorecard / IPEDS. Source: scripts/05_download_ipeds.py."
+)
+
+ipeds = load_dataset("ipeds_destinations")
+if ipeds.empty:
+    st.info(
+        "Destination college data not yet populated. The ingest scaffold is "
+        "at scripts/05_download_ipeds.py — it queries College Scorecard's "
+        "free API; rate-limited demo key may return empty."
+    )
+else:
+    display_cols = {
+        "INSTITUTION": "Institution",
+        "STATE": "State",
+        "SECTOR": "Sector",
+        "GRAD_RATE_150": "Grad rate (150%)",
+        "COST_IN_STATE": "In-state cost",
+        "COST_OUT_STATE": "Out-of-state cost",
+        "PELL_PCT": "% Pell recipients",
+        "BLACK_PCT": "% Black",
+        "HISP_PCT": "% Hispanic",
+        "WHITE_PCT": "% White",
+        "ASIAN_PCT": "% Asian",
+    }
+    have = [c for c in display_cols if c in ipeds.columns]
+    display = ipeds[have].rename(columns=display_cols).copy()
+    for c in ["Grad rate (150%)", "% Pell recipients", "% Black", "% Hispanic",
+              "% White", "% Asian"]:
+        if c in display.columns:
+            display[c] = display[c].apply(
+                lambda x: f"{x:.0%}" if pd.notna(x) and isinstance(x, (int, float)) else "—"
+            )
+    for c in ["In-state cost", "Out-of-state cost"]:
+        if c in display.columns:
+            display[c] = display[c].apply(
+                lambda x: f"${x:,.0f}" if pd.notna(x) and isinstance(x, (int, float)) else "—"
+            )
+    st.dataframe(display, use_container_width=True, hide_index=True, height=420)
+
+# >>> auto: csv downloads <<<
+try:
+    from utils.charts import data_downloads_panel as _dl
+    _dl({
+        'AP performance': ap,
+        'MassCore completion': masscore,
+        'Pathways enrollment': pathways,
+        'Early College participation': ec_part,
+        'IPEDS destinations': ipeds,
+    })
+except NameError:
+    # one of the dataset variables wasn't defined on this run
+    pass
 

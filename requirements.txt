@@ -22,3 +22,7 @@ pyogrio>=0.8
 streamlit>=1.36
 plotly>=5.22
 altair>=5.3
+
+# PDF annual report generator (scripts/13_build_annual_report.py)
+reportlab>=4.0
+kaleido>=1.0

@@ -273,3 +273,14 @@ population growth shown above.
 """
 )
 
+# >>> auto: csv downloads <<<
+try:
+    from utils.charts import data_downloads_panel as _dl
+    _dl({
+        'Enrollment & demographics': enrollment,
+        'MCAS achievement': mcas,
+    })
+except NameError:
+    # one of the dataset variables wasn't defined on this run
+    pass
+

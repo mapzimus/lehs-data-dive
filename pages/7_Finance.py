@@ -247,3 +247,14 @@ st.caption(
     "relationships directly."
 )
 
+# >>> auto: csv downloads <<<
+try:
+    from utils.charts import data_downloads_panel as _dl
+    _dl({
+        'School expenditures': school_exp,
+        'District expenditures': dist_exp,
+    })
+except NameError:
+    # one of the dataset variables wasn't defined on this run
+    pass
+

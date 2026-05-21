@@ -7,7 +7,7 @@ import streamlit as st
 
 from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
-from utils.constants import LYNN_DISTRICT_CODE
+from utils.constants import GATEWAY_CITIES, LYNN_DISTRICT_CODE
 from utils.data_loader import load_dataset
 from utils.interpret import sy_label
 
@@ -217,4 +217,131 @@ if not dist_exp.empty:
                            yaxis_title="$ per pupil", xaxis_title="Fiscal Year")
         with c2:
             st.plotly_chart(fig, use_container_width=True)
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Lynn vs. Gateway median vs. State median — small multiples
+# ---------------------------------------------------------------------------
+
+st.header("Lynn vs. Gateway Cities median vs. State median")
+st.caption(
+    "Each panel: Lynn (navy line) compared to the median of the 26 MA Gateway "
+    "Cities (gold) and the state-wide median (grey). Latest 8 years."
+)
+
+@st.cache_data(show_spinner=False)
+def _gateway_codes() -> set[str]:
+    """Return DIST_CODE set for the 26 Gateway-city districts.
+
+    Resolves from enrollment_demographics where DIST_NAME matches a Gateway
+    city name. Falls back to just LYNN if matching fails.
+    """
+    if enrollment.empty:
+        return {LYNN_DISTRICT_CODE}
+    by_name = enrollment[
+        enrollment["DIST_NAME"].isin([f"{c} Public Schools" for c in GATEWAY_CITIES] + GATEWAY_CITIES)
+        & (enrollment["ORG_TYPE"] == "District")
+    ]
+    return set(by_name["DIST_CODE"].dropna().unique())
+
+
+def _small_multiple(df: pd.DataFrame, value_col: str, title: str, ytick: str = ".0%") -> go.Figure:
+    """Three-line chart: Lynn, Gateway median, State median."""
+    if df.empty:
+        return None
+    df = df.copy()
+    df[value_col] = pd.to_numeric(df[value_col], errors="coerce")
+    df = df.dropna(subset=[value_col, "SY"])
+    if df.empty:
+        return None
+
+    gw_codes = _gateway_codes()
+    lynn_line = df[df["DIST_CODE"] == LYNN_DISTRICT_CODE].groupby("SY")[value_col].mean().reset_index()
+    gw_line = df[df["DIST_CODE"].isin(gw_codes)].groupby("SY")[value_col].median().reset_index()
+    state_line = df.groupby("SY")[value_col].median().reset_index()
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=state_line["SY"], y=state_line[value_col],
+                              mode="lines", name="State median",
+                              line=dict(color="#9E9E9E", width=2, dash="dot")))
+    fig.add_trace(go.Scatter(x=gw_line["SY"], y=gw_line[value_col],
+                              mode="lines+markers", name="Gateway median",
+                              line=dict(color=LEHS_GOLD, width=2, dash="dash")))
+    fig.add_trace(go.Scatter(x=lynn_line["SY"], y=lynn_line[value_col],
+                              mode="lines+markers", name="Lynn",
+                              line=dict(color=LEHS_NAVY, width=3)))
+    fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=ytick,
+                      title=title, yaxis_title="", xaxis_title="SY")
+    return fig
+
+
+col_a, col_b = st.columns(2)
+
+# Grad 4yr — districts
+if not grad.empty:
+    g4 = grad[(grad["GRAD_RATE_TYPE"] == "4-Year Adjusted Cohort Graduation Rate")
+              & (grad["ORG_TYPE"] == "District")
+              & (grad["STU_GRP"] == "All Students")][["SY", "DIST_CODE", "GRAD_PCT"]]
+    g4["GRAD_PCT"] = pd.to_numeric(g4["GRAD_PCT"], errors="coerce")
+    if g4["GRAD_PCT"].max() and g4["GRAD_PCT"].max() > 1.5:  # already in 0-100
+        g4["GRAD_PCT"] = g4["GRAD_PCT"] / 100.0
+    fig = _small_multiple(g4, "GRAD_PCT", "4-yr graduation rate")
+    if fig:
+        with col_a:
+            st.plotly_chart(fig, use_container_width=True)
+
+# Chronic absenteeism — districts
+if not attendance.empty:
+    a = attendance[(attendance["ORG_TYPE"] == "District")
+                   & (attendance["STU_GRP"] == "All Students")
+                   & (attendance["ATTEND_PERIOD"] == "FY")][["SY", "DIST_CODE", "PCT_CHRON_ABS_10"]]
+    fig = _small_multiple(a, "PCT_CHRON_ABS_10", "Chronic absenteeism")
+    if fig:
+        with col_b:
+            st.plotly_chart(fig, use_container_width=True)
+
+# MCAS G10 ELA — districts
+if not mcas.empty:
+    m_g10 = mcas[(mcas["TEST_GRADE"].astype(str) == "10")
+                 & (mcas["SUBJECT_CODE"] == "ELA")
+                 & (mcas["STU_GRP"] == "All Students")
+                 & (mcas["ORG_TYPE"].isin(["Public School District", "Charter District"]))
+                 ][["SY", "DIST_CODE", "M_PLUS_E_PCT"]]
+    m_g10["M_PLUS_E_PCT"] = pd.to_numeric(m_g10["M_PLUS_E_PCT"], errors="coerce")
+    if m_g10["M_PLUS_E_PCT"].max() and m_g10["M_PLUS_E_PCT"].max() > 1.5:
+        m_g10["M_PLUS_E_PCT"] = m_g10["M_PLUS_E_PCT"] / 100.0
+    fig = _small_multiple(m_g10, "M_PLUS_E_PCT", "MCAS Grade 10 ELA — % M+E")
+    if fig:
+        with col_a:
+            st.plotly_chart(fig, use_container_width=True)
+
+# MCAS G10 Math
+if not mcas.empty:
+    m_g10m = mcas[(mcas["TEST_GRADE"].astype(str) == "10")
+                  & (mcas["SUBJECT_CODE"] == "MATH")
+                  & (mcas["STU_GRP"] == "All Students")
+                  & (mcas["ORG_TYPE"].isin(["Public School District", "Charter District"]))
+                  ][["SY", "DIST_CODE", "M_PLUS_E_PCT"]]
+    m_g10m["M_PLUS_E_PCT"] = pd.to_numeric(m_g10m["M_PLUS_E_PCT"], errors="coerce")
+    if m_g10m["M_PLUS_E_PCT"].max() and m_g10m["M_PLUS_E_PCT"].max() > 1.5:
+        m_g10m["M_PLUS_E_PCT"] = m_g10m["M_PLUS_E_PCT"] / 100.0
+    fig = _small_multiple(m_g10m, "M_PLUS_E_PCT", "MCAS Grade 10 Math — % M+E")
+    if fig:
+        with col_b:
+            st.plotly_chart(fig, use_container_width=True)
+
+# >>> auto: csv downloads <<<
+try:
+    from utils.charts import data_downloads_panel as _dl
+    _dl({
+        'Enrollment & demographics': enrollment,
+        'Graduation rates': grad,
+        'MCAS achievement': mcas,
+        'Student attendance': attendance,
+        'District expenditures': dist_exp,
+    })
+except NameError:
+    # one of the dataset variables wasn't defined on this run
+    pass
 

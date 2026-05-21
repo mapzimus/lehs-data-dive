@@ -14,6 +14,18 @@ st.markdown(
     "caveats."
 )
 
+# Annual PDF download — built by scripts/13_build_annual_report.py
+from pathlib import Path
+_pdf_path = Path(__file__).resolve().parent.parent / "reports" / "state_of_lehs_2026.pdf"
+if _pdf_path.exists():
+    with open(_pdf_path, "rb") as _f:
+        st.download_button(
+            "📄 Download the State of LEHS 2026 (PDF)",
+            data=_f.read(),
+            file_name="state_of_lehs_2026.pdf",
+            mime="application/pdf",
+        )
+
 st.header("Data sources")
 
 sources = [

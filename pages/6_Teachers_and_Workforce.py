@@ -366,22 +366,39 @@ if not class_size.empty:
 st.divider()
 
 # ---------------------------------------------------------------------------
-# Still ahead
+# CRDC support-staff ratios (counselors, nurses, social workers, psychologists)
 # ---------------------------------------------------------------------------
 
-with st.expander("Indicators not yet sourced"):
-    st.markdown(
-        """
-A few teacher-quality indicators live in sources we haven't pulled into
-the dashboard yet:
+st.header("Support-staff ratios (federal CRDC)")
+st.caption(
+    "Counselor / nurse / social-worker / psychologist FTE per 100 students. "
+    "Source: federal CRDC, most recent release at script-write was SY 2017-18. "
+    "Compare against ASCA recommendation of 1 counselor per 250 students."
+)
 
-- **Counselor / nurse / psychologist / social worker ratios** per 100 students —
-  DESE Profiles statereport bulk download
-- **MTEL pass rates** for newly-hired teachers — Teach Mass educator-pipeline
-  Power BI
-- **Years-of-experience distribution** broken into 0–3 / 4–9 / 10+ bands —
-  partially derivable from EXP_TCHR_PCT but a finer distribution requires
-  the Profiles statereport feed
-"""
+crdc_staff = load_dataset("crdc_staffing")
+if crdc_staff.empty:
+    st.info(
+        "CRDC staffing data not yet wired in — bulk archive is at "
+        "data/raw/crdc/, parsing is a follow-up. See scripts/04_download_crdc.py."
     )
+else:
+    cols = [c for c in ["COUNSELOR_FTE", "NURSE_FTE", "SOCIAL_WORKER_FTE",
+                         "PSYCHOLOGIST_FTE", "LAW_ENFORCEMENT_FTE"]
+            if c in crdc_staff.columns]
+    if cols:
+        st.dataframe(crdc_staff[["SCHOOL_NAME", "STUDENT_ENROLLMENT"] + cols].head(30),
+                     use_container_width=True)
+
+# >>> auto: csv downloads <<<
+try:
+    from utils.charts import data_downloads_panel as _dl
+    _dl({
+        'Staffing (race/gender)': staffing,
+        'Enrollment & demographics': enrollment,
+        'CRDC staffing': crdc_staff,
+    })
+except NameError:
+    # one of the dataset variables wasn't defined on this run
+    pass
 

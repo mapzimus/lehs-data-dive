@@ -16,14 +16,18 @@ import sys
 from pathlib import Path
 
 STEPS = [
-    ("01_download_e2c.py",           "Download E2C Hub Socrata datasets"),
-    # ("02_download_dese_profiles.py", "Scrape DESE Profiles statereport bulk CSVs"),
-    # ("03_download_crdc.py",          "Download federal CRDC data"),
-    # ("04_download_census.py",        "Download Census ACS / SAIPE"),
-    # ("05_download_ipeds.py",         "Download IPEDS postsecondary data"),
-    # ("06_extract_local_files.py",    "Parse reporting-element4.xlsx + state.docx"),
-    # ("07_identify_peer_schools.py",  "Resolve sibling + gateway school codes"),
-    # ("08_build_master_panel.py",     "Join everything --> master Parquet"),
+    ("01_download_e2c.py",                 "Download E2C Hub Socrata datasets"),
+    ("03_download_dese_statereport.py",    "Scrape DESE statereport (disaggregated discipline)"),
+    ("04_download_crdc.py",                "Download federal CRDC bulk data"),
+    ("05_download_ipeds.py",               "Download IPEDS / College Scorecard destinations"),
+    ("06_extract_local_files.py",          "Parse reporting-element4.xlsx + state.docx"),
+    ("07_identify_peer_schools.py",        "Resolve sibling + gateway school codes"),
+    ("08_build_master_panel.py",           "Join everything --> master Parquet"),
+    ("09_download_massgis.py",             "Download MassGIS shapefiles"),
+    ("10_download_census_acs.py",          "Download Census ACS tract data"),
+    ("11_build_lynn_geo.py",               "Build processed GeoJSON layers"),
+    ("12_download_community_health.py",    "Download EJScreen + CDC PLACES"),
+    ("13_build_annual_report.py",          "Build the State of LEHS PDF report"),
 ]
 
 

@@ -448,3 +448,13 @@ st.caption(
     "drives how much subgroup detail you can actually see."
 )
 
+# >>> auto: csv downloads <<<
+try:
+    from utils.charts import data_downloads_panel as _dl
+    _dl({
+        'MCAS achievement': mcas,
+    })
+except NameError:
+    # one of the dataset variables wasn't defined on this run
+    pass
+

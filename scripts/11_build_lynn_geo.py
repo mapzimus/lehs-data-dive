@@ -187,6 +187,43 @@ def join_acs_to_tracts(tracts: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
                 on="GEOID", how="left",
             )
 
+    # EJScreen (env-justice) — tract-level rollup of EPA block-group indicators
+    ej_path = PROCESSED_DIR / "ejscreen_lynn.parquet"
+    if ej_path.exists():
+        ej = pd.read_parquet(ej_path)
+        if not ej.empty and "GEOID" in ej.columns:
+            ej["GEOID"] = ej["GEOID"].astype(str).str.zfill(11)
+            ej_keep = [c for c in ["GEOID", "ENV_INDEX", "DEMO_INDEX", "EJ_INDEX_PM25",
+                                    "PM25", "OZONE", "DSLPM", "PRE1960_HOUSING"]
+                       if c in ej.columns]
+            out = out.merge(ej[ej_keep].drop_duplicates("GEOID"),
+                            on="GEOID", how="left")
+
+    # CDC PLACES — pivot health measures to columns, tract-level
+    places_path = PROCESSED_DIR / "places_lynn.parquet"
+    if places_path.exists():
+        pl = pd.read_parquet(places_path)
+        if not pl.empty and {"GEOID", "MEASUREID", "DATA_VALUE"}.issubset(pl.columns):
+            pl["GEOID"] = pl["GEOID"].astype(str).str.zfill(11)
+            # Keep a curated handful of the most useful indicators
+            wanted = {
+                "CASTHMA":  "asthma_pct",
+                "MHLTH":    "mental_distress_pct",
+                "OBESITY":  "obesity_pct",
+                "CSMOKING": "smoking_pct",
+                "BPHIGH":   "high_bp_pct",
+                "DIABETES": "diabetes_pct",
+                "LPA":      "no_leisure_phys_pct",
+            }
+            pl_sub = pl[pl["MEASUREID"].isin(wanted)].copy()
+            if not pl_sub.empty:
+                pivot = pl_sub.pivot_table(
+                    index="GEOID", columns="MEASUREID",
+                    values="DATA_VALUE", aggfunc="first",
+                ).reset_index()
+                pivot = pivot.rename(columns=wanted)
+                out = out.merge(pivot, on="GEOID", how="left")
+
     return out
 
 
@@ -207,7 +244,9 @@ def load_lynn_tracts(lynn_town: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 
 # Year range we expose per metric in the year-keyed schema. The map app
 # binds a slider to this range. Years outside it fall back to "latest".
-YEAR_KEYED_RANGE = list(range(2017, 2027))  # SY 2017 through SY 2026
+# Extended back to 1994 so enrollment trends can show the long view; most
+# other metrics only have data from 2017+, slider degrades gracefully.
+YEAR_KEYED_RANGE = list(range(1994, 2027))  # SY 1994 through SY 2026
 
 # Student-group filter schema. DESE's STU_GRP strings → short codes baked
 # into the column names. The map app uses these codes when looking up

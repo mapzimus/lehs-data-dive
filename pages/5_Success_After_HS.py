@@ -306,3 +306,15 @@ if not chain_df.empty:
                        yaxis_ticksuffix="%", yaxis_range=[0, 100])
     st.plotly_chart(fig, use_container_width=True)
 
+# >>> auto: csv downloads <<<
+try:
+    from utils.charts import data_downloads_panel as _dl
+    _dl({
+        'DART (Success After HS)': dart,
+        'Graduation rates': grad,
+        'Plans of graduates': plans,
+    })
+except NameError:
+    # one of the dataset variables wasn't defined on this run
+    pass
+
