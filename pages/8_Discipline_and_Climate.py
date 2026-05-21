@@ -127,6 +127,85 @@ if not sub_g.empty:
     add_pandemic_band(fig)
     st.plotly_chart(fig, use_container_width=True)
 
+    # ---------------------------------------------------------------------------
+    # Latest year — chronic absence rates with 95% Wilson CIs by subgroup
+    # ---------------------------------------------------------------------------
+    # Attendance data has no STU_CNT column. We compute denominators from the
+    # enrollment file: subgroup-specific counts where available, otherwise from
+    # PCT * TOTAL_CNT for race groups.
+
+    enrollment = load_dataset("enrollment_demographics")
+    SUBGROUP_TO_ENR = {
+        "All Students":               ("TOTAL_CNT", None),
+        "English Learners":           ("EL_CNT",   None),
+        "Low Income":                 ("LI_CNT",   None),
+        "Students with Disabilities": ("SWD_CNT",  None),
+        "High Needs":                 ("HN_CNT",   None),
+        "Hispanic or Latino":         (None, "HL_PCT"),
+        "Black or African American":  (None, "BAA_PCT"),
+        "Asian":                      (None, "AS_PCT"),
+        "White":                      (None, "WH_PCT"),
+    }
+
+    if not enrollment.empty:
+        latest_att_year = int(sub_g["SY"].max())
+        enr_row = enrollment[
+            (enrollment["ORG_CODE"] == LEHS_SCHOOL_CODE)
+            & (enrollment["SY"] == latest_att_year)
+        ]
+        if not enr_row.empty:
+            enr_row = enr_row.iloc[0]
+            total = pd.to_numeric(enr_row.get("TOTAL_CNT"), errors="coerce")
+            rows_for_summary = []
+            for group, (cnt_col, pct_col) in SUBGROUP_TO_ENR.items():
+                # Pull the chronic-absence pct for that group in latest year
+                pct_row = sub_g[
+                    (sub_g["STU_GRP"] == group)
+                    & (sub_g["SY"] == latest_att_year)
+                ]
+                if pct_row.empty:
+                    continue
+                pct = pd.to_numeric(pct_row.iloc[0]["PCT_CHRON_ABS_10"], errors="coerce")
+                if pd.isna(pct):
+                    continue
+                # Estimate the denominator
+                if cnt_col and cnt_col in enr_row.index:
+                    n = pd.to_numeric(enr_row[cnt_col], errors="coerce")
+                elif pct_col and pct_col in enr_row.index and pd.notna(total):
+                    n = float(enr_row[pct_col]) * float(total)
+                else:
+                    continue
+                if pd.isna(n) or n <= 0:
+                    continue
+                rows_for_summary.append({
+                    "STU_GRP": group,
+                    "pct": pct,
+                    "n": int(round(n)),
+                })
+
+            if rows_for_summary:
+                from utils.stats import subgroup_summary_md  # noqa: E402
+                summary_df = pd.DataFrame(rows_for_summary)
+                md = subgroup_summary_md(
+                    summary_df,
+                    group_col="STU_GRP",
+                    pct_col="pct",
+                    n_col="n",
+                    reference_group="All Students",
+                    group_order=priority,
+                    title=(
+                        f"SY {latest_att_year - 1}-{str(latest_att_year)[-2:]} "
+                        f"chronic absence — point estimates with 95% Wilson CIs"
+                    ),
+                )
+                if md:
+                    st.markdown(md)
+                    st.caption(
+                        "Denominators for race/ethnicity rows are estimated from "
+                        "enrollment percentages × total enrollment. EL / LI / "
+                        "SWD / HN counts come directly from DESE."
+                    )
+
 st.divider()
 
 # ---------------------------------------------------------------------------
