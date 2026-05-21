@@ -221,6 +221,116 @@ if not dist_exp.empty:
 st.divider()
 
 # ---------------------------------------------------------------------------
+# Special-education program (district-level)
+# ---------------------------------------------------------------------------
+
+st.header("Special Education Program — Lynn District")
+st.caption(
+    "DESE publishes a separate *Special Education Indicators* dataset that "
+    "tracks the LPS SpEd program end-to-end: identification, MCAS performance "
+    "for students with disabilities (SWD), and postsecondary outcomes. "
+    "All figures are district-level, K-12 (or grade range as noted)."
+)
+
+sped = load_dataset("special_ed_indicators")
+if not sped.empty:
+    sped_lynn = sped[sped["DIST_CODE"] == LYNN_DISTRICT_CODE].copy()
+    sped_lynn["IND_PCT"] = pd.to_numeric(sped_lynn["IND_PCT"], errors="coerce")
+
+    if not sped_lynn.empty:
+        # Headline metrics — most recent year, K-12, key indicators
+        ctx = sped_lynn[
+            (sped_lynn["IND_CAT"] == "CONTEXT")
+            & (sped_lynn["IND_DESC"] == "Student Enrollment")
+            & (sped_lynn["GRADES"] == "K-12")
+        ].sort_values("SY")
+        if not ctx.empty:
+            latest_year_sped = int(ctx["SY"].max())
+            swd_row = ctx[
+                (ctx["SY"] == latest_year_sped)
+                & (ctx["STU_GRP"] == "Students with Disabilities")
+            ]
+            if not swd_row.empty:
+                swd_pct = swd_row.iloc[0]["IND_PCT"]
+                swd_cnt = swd_row.iloc[0]["IND_CNT"]
+                tot_cnt = swd_row.iloc[0]["TOT_CNT"]
+                st.metric(
+                    f"% Students with Disabilities (K-12, SY {latest_year_sped})",
+                    f"{swd_pct:.1f}%",
+                    f"{int(swd_cnt):,} of {int(tot_cnt):,} students",
+                    delta_color="off",
+                )
+
+        # MCAS M+E by SWD vs non-SWD — Grade 10 latest year
+        mcas_sped = sped_lynn[
+            (sped_lynn["IND_CAT"] == "ASSESSMENTS (Next Gen MCAS)")
+            & (sped_lynn["IND_DESC"].str.contains("Meeting or exceeding", na=False))
+            & (sped_lynn["GRADES"] == "Grade 10")
+            & (sped_lynn["STU_GRP"].isin(["Students with Disabilities", "Students without Disabilities"]))
+        ].copy()
+        if not mcas_sped.empty:
+            latest_sped_mcas = int(mcas_sped["SY"].max())
+            snap = mcas_sped[mcas_sped["SY"] == latest_sped_mcas].copy()
+            # Pull subject from IND_DESC, e.g. "...on ELA (Grade 10)" / "...on Math (Grade 10)"
+            snap["Subject"] = snap["IND_DESC"].str.extract(r"on (ELA|Math|Science)")[0]
+            snap = snap.dropna(subset=["Subject"])
+            if not snap.empty:
+                st.subheader(
+                    f"Grade 10 MCAS — % Meeting + Exceeding, SWD vs. non-SWD "
+                    f"(SY {latest_sped_mcas})"
+                )
+                fig = px.bar(
+                    snap, x="Subject", y="IND_PCT", color="STU_GRP",
+                    barmode="group",
+                    color_discrete_map={
+                        "Students with Disabilities":    "#D32F2F",
+                        "Students without Disabilities": LEHS_NAVY,
+                    },
+                    text=snap["IND_PCT"].round(1).astype(str) + "%",
+                )
+                fig.update_traces(textposition="outside")
+                fig.update_layout(
+                    **DEFAULT_LAYOUT,
+                    yaxis_title="% Meeting + Exceeding",
+                    xaxis_title="",
+                    legend_title="",
+                )
+                st.plotly_chart(fig, use_container_width=True)
+                st.caption(
+                    "The gap between the two groups is one of DESE's most "
+                    "tracked indicators for SpEd program effectiveness."
+                )
+
+        # Postsecondary outcomes for SWD
+        post = sped_lynn[
+            (sped_lynn["IND_CAT"] == "POSTSECONDARY OUTCOMES")
+            & (sped_lynn["STU_GRP"] == "Students with Disabilities")
+        ].copy()
+        if not post.empty:
+            latest_post = int(post["SY"].max())
+            post_latest = post[post["SY"] == latest_post].sort_values("IND_PCT", ascending=True)
+            if not post_latest.empty:
+                st.subheader(
+                    f"Postsecondary outcomes for Lynn SWD graduates "
+                    f"(SY {latest_post})"
+                )
+                fig = px.bar(
+                    post_latest, y="IND_DESC", x="IND_PCT", orientation="h",
+                    color_discrete_sequence=[LEHS_NAVY],
+                    text=post_latest["IND_PCT"].round(1).astype(str) + "%",
+                )
+                fig.update_traces(textposition="outside")
+                fig.update_layout(
+                    **DEFAULT_LAYOUT,
+                    xaxis_title="% of SWD graduates",
+                    yaxis_title="",
+                    height=max(280, 28 * len(post_latest)),
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
+st.divider()
+
+# ---------------------------------------------------------------------------
 # Lynn vs. Gateway median vs. State median — small multiples
 # ---------------------------------------------------------------------------
 
