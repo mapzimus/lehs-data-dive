@@ -1,5 +1,7 @@
 ﻿"""Section 8 — Discipline, Climate & Safety."""
 
+from pathlib import Path
+
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -7,7 +9,7 @@ import streamlit as st
 
 from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
-from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE
+from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE, PROCESSED_DIR
 from utils.data_loader import get_dart_indicator, load_dataset
 from utils.interpret import sy_label
 
@@ -122,6 +124,108 @@ if not sub_g.empty:
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                        yaxis_title="% Chronically Absent")
     st.plotly_chart(fig, use_container_width=True)
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Geographic distribution of chronic absenteeism (original research)
+# ---------------------------------------------------------------------------
+
+st.header("Where the Absence Comes From — Geographic Analysis")
+st.markdown(
+    "The headline absenteeism rate is one number for the whole school. This "
+    "analysis — **original geospatial research by Maxwell Howe** combining "
+    "LEHS student addresses with daily attendance records — answers the "
+    "harder question: *which neighborhoods drive that number, and how "
+    "strongly does distance from school predict whether a student shows up?*"
+)
+
+st.info(
+    "**Privacy note.** Individual student addresses are never shown. All "
+    "maps below are aggregated — KDE density surfaces, 100m/150m grid "
+    "cells, hexbins, or statistical distributions. Cells with fewer than "
+    "the minimum count are filtered out. The full identifying analysis is "
+    "held privately and is not part of the public dashboard. See *Where "
+    "Our Students Live* (sidebar) for the residential-pattern view."
+)
+
+_RESEARCH_IMG_DIR = PROCESSED_DIR / "lehs_research"
+
+
+def _research_image(slug: str, caption: str = "") -> None:
+    path = _RESEARCH_IMG_DIR / f"{slug}.png"
+    if not path.exists():
+        st.caption(f"_(image not yet generated: {slug}.png)_")
+        return
+    st.image(str(path), caption=caption, use_container_width=True)
+
+
+st.subheader("Does distance from school predict absence?")
+st.markdown(
+    "Spoiler: **yes** — but the relationship is non-linear, with the largest "
+    "effect appearing in specific distance bands rather than uniformly."
+)
+
+_research_image(
+    "distance_histogram",
+    "Distribution of how far LEHS students live from the school. Most "
+    "students live within 1-2 miles, with a long tail.",
+)
+_research_image(
+    "absence_vs_distance_gam",
+    "Absence rate vs. distance to school (GAM-smoothed). Reveals a "
+    "non-linear pattern that simple linear regression would miss.",
+)
+
+c1, c2 = st.columns(2)
+with c1:
+    _research_image(
+        "absence_by_distance_band",
+        "Mean absence rate by distance band "
+        "(0-0.25, 0.25-0.5, 0.5-1, 1-2, 2-3, 3+ miles).",
+    )
+with c2:
+    _research_image(
+        "absence_by_distance_quintile",
+        "Absence rate by distance quintile — same students split into "
+        "5 equally-sized groups by distance from school.",
+    )
+
+st.subheader("Geographic absenteeism hotspots")
+st.markdown(
+    "Identifies *regions* of Lynn with concentrated absence rates above "
+    "policy thresholds (20%, 30%). Hotspots are shown as aggregated "
+    "hexagonal cells, never individual points."
+)
+
+_research_image(
+    "absenteeism_hotspots_geo",
+    "Citywide view of absenteeism hotspots — colored regions where "
+    "average absence rates exceed 20% or 30%.",
+)
+
+c1, c2 = st.columns(2)
+with c1:
+    _research_image(
+        "hexbin_absenteeism_100m",
+        "Hexbin map of average absence rate per 100m hexagonal cell. "
+        "Cells with fewer than ~5% student presence are filtered out.",
+    )
+with c2:
+    _research_image(
+        "hotspot_hexagons_above_20",
+        "Hexagonal cells (100m) where average absence rate > 20% — the "
+        "explicit policy-attention hotspots citywide.",
+    )
+
+st.markdown(
+    "**Implication.** Aggregate absence rates can mask sharply concentrated "
+    "geographic patterns. Schools targeting outreach to the highest-absence "
+    "neighborhoods get more leverage per dollar than uniform interventions. "
+    "When read against the *Community Context* page (Census ACS demographics "
+    "by tract), this also separates *distance effects* from *neighborhood "
+    "demographic effects*."
+)
 
 st.divider()
 

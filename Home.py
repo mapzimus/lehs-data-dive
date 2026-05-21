@@ -241,7 +241,7 @@ with c2:
 **Companion + research (14–18, 99)**
 - **All Lynn Schools** — filter/sort all 22 LPS schools
 - **Lynn District Dashboard** — LPS as a whole
-- **Catchment Research** — original geospatial analysis
+- **Where Our Students Live** — residential pattern of the LEHS body (private SIS data, aggregated)
 - **Federal CRDC** — civil-rights data: discipline, offerings, staffing
 - **Cohort Tracking** — 9th grade → graduation → college persistence
 - **Methodology** — sources and caveats
