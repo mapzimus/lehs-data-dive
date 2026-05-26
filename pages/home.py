@@ -217,7 +217,7 @@ with p_col:
 - **[School Profile](/School_Profile)** — who attends LEHS today
 - **[Cohort Tracking](/Cohort_Tracking)** — does the school's promise hold up through college?
 - **[College & Career](/College_and_Career)** — AP, MassCore, FAFSA, postsecondary plans
-- **[District & Siblings](/Lynn_District_and_Siblings)** — LEHS vs. Classical, Tech, others
+- **[Lynn District](/Lynn_District)** — LEHS vs. Classical, Tech, others (*LEHS vs Siblings* tab)
         """
     )
 
@@ -240,7 +240,7 @@ with sc_col:
 ### For school committee
 *Accountability, peer comparison, dollar-for-outcome leverage.*
 
-- **[District Dashboard](/Lynn_District_Dashboard)** — LPS as a whole
+- **[Lynn District](/Lynn_District)** — LPS as a whole (*Snapshot* tab)
 - **[Finance](/Finance)** — per-pupil spending by category
 - **[Gateway Cities](/Gateway_Peer_Comparison)** — 26-city scorecard
 - **[Correlation Lab](/Correlation_Lab)** — what moves with what
@@ -293,11 +293,8 @@ with c2:
     st.markdown(
         """
 **Lynn**
-- **District Dashboard** — LPS as a whole
-- **All Lynn Schools** — filter/sort all 22 LPS schools
-- **District & Siblings** — *closest comparison*
-- **City Overview** — Lynn demographics, economy, history
-- **Community Context** — tract-level Census + EJScreen + CDC PLACES
+- **District** — Snapshot of LPS as a whole · All Lynn Schools (filter/sort 22 schools) · LEHS vs Siblings (*closest comparison*). Three tabs in one page.
+- **City** — Citywide demographics, economy, history · Neighborhoods (tract-level ACS, EJScreen, CDC PLACES). Two tabs in one page.
 
 **Comparison**
 - **Gateway Cities** — 26-city scorecard
