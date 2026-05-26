@@ -14,7 +14,7 @@ from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
 from utils.constants import LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
 from utils.data_loader import load_dataset
-from utils.interpret import sy_label
+from utils.interpret import sgp_methodology_note, sy_label
 
 st.set_page_config(page_title="Academic Performance | LEHS", page_icon="📈", layout="wide")
 sidebar_attribution()
@@ -653,6 +653,55 @@ if not sgp.empty:
         )
         st.plotly_chart(fig, use_container_width=True)
 
+    # ---------------------------------------------------------------------------
+    # SGP vs. peers — where does LEHS sit in the Gateway HS distribution?
+    # Most school-level SGP coverage in this dataset is SY 2024+, so the
+    # peer-comparison view is anchored to the latest year.
+    # ---------------------------------------------------------------------------
+    peer_sgp = mcas[
+        (mcas["TEST_GRADE"] == "10")
+        & (mcas["STU_GRP"] == "All Students")
+        & (mcas["AVG_SGP"].notna())
+        & (mcas["ORG_TYPE"] == "School")
+        & (mcas["SUBJECT_CODE"].isin(["ELA", "MATH"]))
+        & (mcas["SY"] == mcas[mcas["AVG_SGP"].notna() & (mcas["ORG_TYPE"] == "School")]["SY"].max())
+    ].copy()
+    if not peer_sgp.empty:
+        peer_year = int(peer_sgp["SY"].max())
+        st.subheader(f"LEHS vs. Gateway-Peer High Schools — SY {sy_label(peer_year)}")
+        st.caption(
+            "Each dot is one comprehensive high school in a Massachusetts "
+            "Gateway city. LEHS is highlighted in gold; the dashed line "
+            "marks the statewide median (50). Faster growth = right."
+        )
+        peer_sgp["is_lehs"] = peer_sgp["ORG_CODE"] == LEHS_SCHOOL_CODE
+        peer_sgp["Subject"] = peer_sgp["SUBJECT_CODE"].map({"ELA": "ELA", "MATH": "Math"})
+        # plot strip + LEHS marker overlay so LEHS pops visually
+        fig = px.strip(
+            peer_sgp.sort_values("Subject"),
+            x="AVG_SGP", y="Subject", color="is_lehs",
+            color_discrete_map={True: LEHS_GOLD, False: "#B0BEC5"},
+            hover_data={"ORG_NAME": True, "AVG_SGP": True, "STU_CNT": True, "is_lehs": False, "Subject": False},
+            stripmode="overlay",
+        )
+        fig.update_traces(marker=dict(size=11, line=dict(width=1, color="#455A64")), jitter=0.25)
+        # overlay the LEHS dot a second time at larger size so it isn't lost in the swarm
+        lehs_dots = peer_sgp[peer_sgp["is_lehs"]]
+        if not lehs_dots.empty:
+            fig.add_trace(go.Scatter(
+                x=lehs_dots["AVG_SGP"], y=lehs_dots["Subject"],
+                mode="markers+text",
+                marker=dict(size=18, color=LEHS_GOLD, line=dict(width=2, color=LEHS_NAVY)),
+                text=["LEHS"] * len(lehs_dots),
+                textposition="top center", textfont=dict(color=LEHS_NAVY, size=11),
+                hoverinfo="skip", showlegend=False,
+            ))
+        fig.add_vline(x=50, line_dash="dash", line_color="gray",
+                      annotation_text="State median", annotation_position="top")
+        fig.update_layout(**DEFAULT_LAYOUT, xaxis_title="Average SGP",
+                          yaxis_title="", xaxis_range=[0, 100], showlegend=False)
+        st.plotly_chart(fig, use_container_width=True)
+
     # SGP by subgroup — latest year, ELA + Math only (SCI SGP often sparse)
     sgp_sub = lehs[
         (lehs["STU_GRP"].isin(groups_of_interest))
@@ -688,6 +737,8 @@ if not sgp.empty:
         st.plotly_chart(fig, use_container_width=True)
 else:
     st.caption("SGP data not available for LEHS in this dataset.")
+
+st.caption(sgp_methodology_note())
 
 st.divider()
 
