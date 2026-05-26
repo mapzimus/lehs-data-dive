@@ -58,3 +58,36 @@ def trend_phrase(values: list[float], unit: str = "pts") -> str:
         return f"largely flat over the period (~{first:.1f} → {last:.1f})"
     direction = "rising" if diff > 0 else "falling"
     return f"{direction} from {first:.1f} to {last:.1f} ({diff:+.1f} {unit})"
+
+
+# ---------------------------------------------------------------------------
+# Methodology-break notes for charts that cross known DESE methodology
+# changes. Returned text is meant to drop into st.caption() under a chart.
+# ---------------------------------------------------------------------------
+
+
+def sgp_methodology_note() -> str:
+    """Note for any chart showing AVG_SGP across years.
+
+    DESE changed SGP from median to mean starting SY 2018, and used a
+    COVID-baseline SGP for SY 2019-2021 (cohort-referenced thereafter).
+    """
+    return (
+        "**About SGP (Student Growth Percentile):** measures a student's growth "
+        "vs. academic peers who scored similarly the prior year — 50 = average "
+        "growth, higher = faster growth. DESE reports AVG_SGP as the median in "
+        "SY 2017 and as the mean from SY 2018 onward, and the SY 2019–2021 "
+        "values use a COVID-era baseline. Treat trend lines across those years "
+        "as directional rather than precise."
+    )
+
+
+def chronic_absenteeism_methodology_note() -> str:
+    """Note for any chart showing PCT_CHRON_ABS_10 / PCT_CHRON_ABS_20."""
+    return (
+        "**Chronic absenteeism** is DESE's accountability measure: the share "
+        "of students who missed **10% or more of enrolled school days** in a "
+        "given year (about 18 days in a 180-day calendar). It includes both "
+        "excused and unexcused absences. A separate ≥20% threshold is also "
+        "published for students missing roughly a month or more."
+    )
