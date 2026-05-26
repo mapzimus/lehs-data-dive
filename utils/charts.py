@@ -64,8 +64,13 @@ from utils.constants import (
 
 DEFAULT_LAYOUT = dict(
     template="simple_white",
-    font=dict(family="sans-serif", size=13, color="#0A1F44"),
-    margin=dict(l=40, r=20, t=50, b=40),
+    # Font color lifted to match the new pastel LEHS_NAVY token in constants.
+    font=dict(family="sans-serif", size=13, color="#3F4D66"),
+    # Margins tightened per UI audit — every chart gains ~3-5% vertical
+    # real estate.
+    margin=dict(l=30, r=10, t=30, b=30),
+    plot_bgcolor="#FAFBFD",
+    paper_bgcolor="rgba(0,0,0,0)",
     hoverlabel=dict(bgcolor="white", font_size=12),
 )
 

@@ -1,4 +1,4 @@
-﻿"""Section 1 — School Profile: demographics, enrollment trends, headline metrics."""
+"""Section 1 — School Profile: demographics, enrollment trends, headline metrics."""
 
 import pandas as pd
 import plotly.express as px
@@ -78,8 +78,6 @@ with c5:
         yoy_delta(current["HN_PCT"] * 100, prior["HN_PCT"] * 100, "pts") if prior is not None else "",
     )
 
-st.divider()
-
 # ---------------------------------------------------------------------------
 # Long-term transformation
 # ---------------------------------------------------------------------------
@@ -125,8 +123,6 @@ with c4:
     if res:
         st.metric("% White", res[0], res[1])
 
-st.divider()
-
 # ---------------------------------------------------------------------------
 # Total enrollment trend
 # ---------------------------------------------------------------------------
@@ -155,8 +151,6 @@ st.caption(
     f"SY {sy_label(peak_year['SY'])} and reached its lowest at "
     f"**{int(trough_year['TOTAL_CNT']):,}** in SY {sy_label(trough_year['SY'])}."
 )
-
-st.divider()
 
 # ---------------------------------------------------------------------------
 # LEHS vs Lynn district — same-year comparison
@@ -197,8 +191,6 @@ if not district.empty:
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share",
                        xaxis_title="")
     st.plotly_chart(fig, use_container_width=True)
-
-st.divider()
 
 # ---------------------------------------------------------------------------
 # Race/ethnicity — current snapshot + composition over time
@@ -283,8 +275,6 @@ race_table["Approx. students"] = race_table["Approx. students"].apply(
 )
 st.dataframe(race_table, use_container_width=True, hide_index=True)
 
-st.divider()
-
 # ---------------------------------------------------------------------------
 # Gender breakdown
 # ---------------------------------------------------------------------------
@@ -306,8 +296,6 @@ fig = px.area(
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share",
                    xaxis_title="School Year")
 st.plotly_chart(fig, use_container_width=True)
-
-st.divider()
 
 # ---------------------------------------------------------------------------
 # Selected populations trend
@@ -361,8 +349,6 @@ if len(ell_with_data) >= 2:
         f"*(+{(last_ell['EL_PCT'] - first_ell['EL_PCT']) * 100:.0f} percentage points)*."
     )
 
-st.divider()
-
 # ---------------------------------------------------------------------------
 # Grade-level enrollment + grade-by-race breakdown
 # ---------------------------------------------------------------------------
@@ -403,8 +389,6 @@ if pd.notna(current["G9_CNT"]) and pd.notna(current["G12_CNT"]):
             f"graduation). See **Success After HS** for cohort-tracked attrition."
         )
     st.caption(narrative)
-
-st.divider()
 
 # ---------------------------------------------------------------------------
 # Enrollment by selected populations — counts, not just percentages

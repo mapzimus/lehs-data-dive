@@ -12,6 +12,15 @@ AUTHOR_SITE = "maxwellhowegis.com"
 # actually works on a phone screen.
 _MOBILE_CSS = """
 <style>
+/* Desktop default: shrink Streamlit's generous block-container top padding
+   so the hero starts higher and pages feel less spacious. Fires on every
+   viewport; mobile media query below overrides if needed. */
+.main .block-container,
+section.main > div.block-container {
+    padding-top: 1.5rem !important;
+    padding-bottom: 1.5rem !important;
+}
+
 @media (max-width: 768px) {
     /* === Streamlit sidebar collapse button — MUST be findable on mobile === */
     button[data-testid="collapsedControl"],

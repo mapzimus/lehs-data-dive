@@ -134,7 +134,7 @@ with tab_snapshot:
     ].sort_values("SY")
 
     if district.empty:
-        st.warning("No Lynn district-level enrollment rows found.")
+        st.caption("Lynn district-level enrollment rows aren't loaded yet.")
     else:
         current = district.iloc[-1]
 
@@ -153,8 +153,6 @@ with tab_snapshot:
             st.metric("% High Needs", f"{current['HN_PCT']:.0%}")
         with c5:
             st.metric("% Hispanic/Latino", f"{current['HL_PCT']:.0%}")
-
-        st.divider()
 
         # -------------------------------------------------------------------
         # District enrollment + demographics trend
@@ -191,8 +189,6 @@ with tab_snapshot:
         )
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share")
         st.plotly_chart(fig, use_container_width=True)
-
-        st.divider()
 
         # -------------------------------------------------------------------
         # District MCAS performance
@@ -234,8 +230,6 @@ with tab_snapshot:
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                    yaxis_title="Avg % M+E across grades")
                 st.plotly_chart(fig, use_container_width=True)
-
-        st.divider()
 
         # -------------------------------------------------------------------
         # District graduation
@@ -279,8 +273,6 @@ with tab_snapshot:
                                yaxis_title="% Chronically Absent (10%+ missed)")
             st.plotly_chart(fig, use_container_width=True)
 
-        st.divider()
-
         # -------------------------------------------------------------------
         # District finance
         # -------------------------------------------------------------------
@@ -306,8 +298,6 @@ with tab_snapshot:
                                    yaxis_title="$ per pupil", xaxis_title="Fiscal Year")
                 with c2:
                     st.plotly_chart(fig, use_container_width=True)
-
-        st.divider()
 
         # -------------------------------------------------------------------
         # Lynn middle schools (LEHS feeders)
@@ -372,8 +362,6 @@ with tab_snapshot:
             )
             st.dataframe(ms_table, use_container_width=True, hide_index=True)
             st.caption(f"School year {ms_latest_year}. Sources: enrollment_demographics + mcas_achievement parquets.")
-
-        st.divider()
 
         # -------------------------------------------------------------------
         # Special-education program (district-level)
@@ -481,8 +469,6 @@ with tab_snapshot:
                         )
                         st.plotly_chart(fig, use_container_width=True)
 
-        st.divider()
-
         # -------------------------------------------------------------------
         # Lynn vs. Gateway median vs. State median — small multiples
         # -------------------------------------------------------------------
@@ -561,7 +547,7 @@ with tab_all_schools:
     ].copy()
 
     if lynn_all.empty:
-        st.warning("No Lynn district schools found in enrollment data.")
+        st.caption("Lynn district school list isn't loaded yet.")
     else:
         latest = lynn_all.sort_values("SY").groupby("ORG_CODE").tail(1)
         latest_year_all = int(latest["SY"].max())
@@ -646,8 +632,6 @@ with tab_all_schools:
         st.dataframe(display.sort_values("School").style.apply(highlight_lehs, axis=1),
                      use_container_width=True, hide_index=True, height=500)
 
-        st.divider()
-
         # -------------------------------------------------------------------
         # Scatter: enrollment vs % ELL
         # -------------------------------------------------------------------
@@ -670,8 +654,6 @@ with tab_all_schools:
             xaxis_title="Enrollment", yaxis_title="% ELL",
         )
         st.plotly_chart(fig, use_container_width=True)
-
-        st.divider()
 
         # -------------------------------------------------------------------
         # Performance comparison
@@ -728,8 +710,6 @@ with tab_all_schools:
         st.dataframe(perf_display.sort_values("School").style.apply(highlight_lehs_perf, axis=1),
                      use_container_width=True, hide_index=True, height=500)
 
-        st.divider()
-
         # -------------------------------------------------------------------
         # District-level totals
         # -------------------------------------------------------------------
@@ -782,8 +762,6 @@ with tab_siblings:
         "01630575": "Frederick Douglass",
         "01630525": "Harold Durgin",
     }
-
-    st.divider()
 
     # -------------------------------------------------------------------
     # Lynn high schools — side by side
@@ -881,8 +859,6 @@ with tab_siblings:
         "different demographic profiles than the two main comprehensive schools."
     )
 
-    st.divider()
-
     # -------------------------------------------------------------------
     # MCAS Grade 10 comparison
     # -------------------------------------------------------------------
@@ -916,8 +892,6 @@ with tab_siblings:
                 xaxis_title="School Year",
             )
             st.plotly_chart(fig, use_container_width=True)
-
-    st.divider()
 
     # -------------------------------------------------------------------
     # Graduation rates
@@ -968,8 +942,6 @@ with tab_siblings:
         )
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", xaxis_title="")
         st.plotly_chart(fig, use_container_width=True)
-
-    st.divider()
 
     # -------------------------------------------------------------------
     # Key analytical question
