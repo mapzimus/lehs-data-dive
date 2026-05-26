@@ -215,7 +215,7 @@ with p_col:
 *Choosing a school, understanding outcomes, comparing to siblings.*
 
 - **[School Profile](/School_Profile)** — who attends LEHS today
-- **[Cohort Tracking](/Cohort_Tracking)** — does the school's promise hold up through college?
+- **[After Graduation](/Cohort_Tracking)** — does the school's promise hold up through college?
 - **[College & Career](/College_and_Career)** — AP, MassCore, FAFSA, postsecondary plans
 - **[Lynn District](/Lynn_District)** — LEHS vs. Classical, Tech, others (*LEHS vs Siblings* tab)
         """
@@ -228,7 +228,7 @@ with t_col:
 *Instructional planning, student insight, subgroup gaps.*
 
 - **[Academic Performance](/Academic_Performance)** — MCAS by subject, growth, gaps (with CIs)
-- **[ELL Pipeline](/ELL_Pipeline)** — LEHS's central narrative
+- **[English Learners](/ELL_Pipeline)** — LEHS's central narrative
 - **[Discipline & Climate](/Discipline_and_Climate)** — chronic absence by neighborhood + subgroup
 - **[Teachers & Workforce](/Teachers_and_Workforce)** — who's in the building
         """
@@ -243,7 +243,7 @@ with sc_col:
 - **[Lynn District](/Lynn_District)** — LPS as a whole (*Snapshot* tab)
 - **[Finance](/Finance)** — per-pupil spending by category
 - **[Gateway Cities](/Gateway_Peer_Comparison)** — 26-city scorecard
-- **[Correlation Lab](/Correlation_Lab)** — what moves with what
+- **[Cross-Topic Explorer](/Correlation_Lab)** — what moves with what
         """
     )
 
@@ -276,16 +276,15 @@ with c1:
 
 **The School (LEHS)**
 - **School Profile** — demographics, enrollment trends
+- **After Graduation** — 9th grade → graduation → college persistence
 - **Academic Performance** — MCAS, growth, gaps
-- **ELL Pipeline** *(central narrative)*
+- **English Learners** *(central narrative)*
 - **College & Career** — AP, MassCore, FAFSA, plans
 - **Success After HS** — graduation, college persistence
 - **Teachers & Workforce** — diversity, staffing
 - **Finance** — per-pupil spending breakdowns
 - **Discipline & Climate** — suspensions, attendance
 - **Where Students Live** — residential pattern (private SIS, aggregated)
-- **Cohort Tracking** — 9th grade → graduation → college persistence
-- **Federal CRDC** — civil-rights data: discipline, offerings, staffing
 """
     )
 
@@ -298,7 +297,7 @@ with c2:
 
 **Comparison**
 - **Gateway Cities** — 26-city scorecard
-- **Correlation Lab** — cross-domain analysis
+- **Cross-Topic Explorer** — cross-domain analysis
 
 **About**
 - **Methodology** — sources and caveats

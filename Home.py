@@ -31,16 +31,22 @@ nav = {
     ],
     "The School (LEHS)": [
         st.Page("pages/1_School_Profile.py", title="School Profile", url_path="School_Profile"),
+        # Promoted: per Home persona pathways, this is the second stop for
+        # families ("does the school's promise hold up through college?").
+        st.Page("pages/18_Cohort_Tracking.py", title="After Graduation", url_path="Cohort_Tracking"),
         st.Page("pages/2_Academic_Performance.py", title="Academic Performance", url_path="Academic_Performance"),
-        st.Page("pages/3_ELL_Pipeline.py", title="ELL Pipeline", url_path="ELL_Pipeline"),
+        # Renamed for the public audience — "ELL Pipeline" is analyst-speak.
+        st.Page("pages/3_ELL_Pipeline.py", title="English Learners", url_path="ELL_Pipeline"),
         st.Page("pages/4_College_and_Career.py", title="College & Career", url_path="College_and_Career"),
         st.Page("pages/5_Success_After_HS.py", title="Success After HS", url_path="Success_After_HS"),
         st.Page("pages/6_Teachers_and_Workforce.py", title="Teachers & Workforce", url_path="Teachers_and_Workforce"),
         st.Page("pages/7_Finance.py", title="Finance", url_path="Finance"),
         st.Page("pages/8_Discipline_and_Climate.py", title="Discipline & Climate", url_path="Discipline_and_Climate"),
         st.Page("pages/16_Where_Students_Live.py", title="Where Students Live", url_path="Where_Students_Live"),
-        st.Page("pages/18_Cohort_Tracking.py", title="Cohort Tracking", url_path="Cohort_Tracking"),
-        st.Page("pages/17_Federal_CRDC.py", title="Federal CRDC", url_path="Federal_CRDC"),
+        # Federal CRDC removed from the sidebar until the data pipeline ships.
+        # Page file remains in pages/17_Federal_CRDC.py for when the ingest is
+        # done; re-add the st.Page line below to bring it back.
+        # st.Page("pages/17_Federal_CRDC.py", title="Civil Rights Data", url_path="Federal_CRDC"),
     ],
     "Lynn": [
         st.Page("pages/Lynn_District.py", title="District", url_path="Lynn_District"),
@@ -48,7 +54,8 @@ nav = {
     ],
     "Comparison": [
         st.Page("pages/11_Gateway_Peer_Comparison.py", title="Gateway Cities", url_path="Gateway_Peer_Comparison"),
-        st.Page("pages/12_Correlation_Lab.py", title="Correlation Lab", url_path="Correlation_Lab"),
+        # Renamed for the public audience — "Correlation Lab" reads as jargon.
+        st.Page("pages/12_Correlation_Lab.py", title="Cross-Topic Explorer", url_path="Correlation_Lab"),
     ],
     "About": [
         st.Page("pages/99_Methodology.py", title="Methodology", url_path="Methodology"),
