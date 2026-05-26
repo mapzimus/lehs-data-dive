@@ -317,11 +317,12 @@ if not early_credits.empty:
                 hover_data={"STU_CNT": True, "REG_CREDITS_CNT": True, "pass_rate": ":.0%"},
                 text=ec_agg["EARNED_CREDIT_CNT"].astype(int).astype(str),
             )
-            fig.update_traces(textposition="outside")
+            fig.update_traces(textposition="outside", cliponaxis=False)
             fig.update_layout(
                 **DEFAULT_LAYOUT,
                 height=max(280, 36 * len(ec_agg)),
                 xaxis_title="Credits earned",
+                xaxis_range=[0, ec_agg["EARNED_CREDIT_CNT"].max() * 1.15],
                 yaxis_title="",
                 coloraxis_colorbar=dict(title="Pass rate"),
             )
