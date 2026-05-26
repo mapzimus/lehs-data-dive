@@ -7,9 +7,18 @@ import streamlit as st
 
 from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
-from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
+from utils.constants import (
+    LCHS_SCHOOL_CODE,
+    LEHS_SCHOOL_CODE,
+    LYNN_DISTRICT_CODE,
+    PROCESSED_DIR,
+)
 from utils.data_loader import load_dataset
-from utils.interpret import sy_label, yoy_delta
+from utils.interpret import (
+    chronic_absenteeism_methodology_note,
+    sy_label,
+    yoy_delta,
+)
 
 st.set_page_config(page_title="School Profile | LEHS", page_icon="📊", layout="wide")
 sidebar_attribution()
@@ -422,11 +431,145 @@ fig.update_layout(**DEFAULT_LAYOUT, xaxis_title="Students", yaxis_title="",
                    xaxis_range=[0, pop_counts["Count"].max() * 1.25])
 st.plotly_chart(fig, use_container_width=True)
 
+# ---------------------------------------------------------------------------
+# Attendance & Chronic Absenteeism
+# DESE accountability metric: share missing ≥10% of school days. LEHS hovers
+# near 50% — one of the most consequential numbers on the page.
+# ---------------------------------------------------------------------------
+
+attendance = load_dataset("student_attendance")
+if not attendance.empty:
+    eoy = attendance[attendance["ATTEND_PERIOD"] == "End of Year"].copy()
+    lehs_att = eoy[(eoy["ORG_CODE"] == LEHS_SCHOOL_CODE) & (eoy["STU_GRP"] == "All Students")].sort_values("SY")
+    dist_att = eoy[
+        (eoy["DIST_CODE"] == LYNN_DISTRICT_CODE)
+        & (eoy["ORG_TYPE"] == "District")
+        & (eoy["STU_GRP"] == "All Students")
+    ].sort_values("SY")
+    state_att = eoy[(eoy["ORG_TYPE"] == "State") & (eoy["STU_GRP"] == "All Students")].sort_values("SY")
+
+    if not lehs_att.empty:
+        st.divider()
+        st.subheader("Attendance & Chronic Absenteeism")
+
+        latest_att = lehs_att.iloc[-1]
+        prior_att = lehs_att.iloc[-2] if len(lehs_att) > 1 else None
+
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.metric(
+                f"Chronic absenteeism (SY {sy_label(int(latest_att['SY']))})",
+                f"{latest_att['PCT_CHRON_ABS_10']:.0%}" if pd.notna(latest_att["PCT_CHRON_ABS_10"]) else "—",
+                (
+                    yoy_delta(
+                        latest_att["PCT_CHRON_ABS_10"] * 100,
+                        prior_att["PCT_CHRON_ABS_10"] * 100,
+                        "pts",
+                    )
+                    if prior_att is not None
+                    else ""
+                ),
+            )
+        with c2:
+            st.metric(
+                "Severely absent (≥20% of days)",
+                f"{latest_att['PCT_CHRON_ABS_20']:.0%}" if pd.notna(latest_att["PCT_CHRON_ABS_20"]) else "—",
+            )
+        with c3:
+            st.metric(
+                "Average attendance rate",
+                f"{latest_att['ATTEND_RATE']:.0%}" if pd.notna(latest_att["ATTEND_RATE"]) else "—",
+            )
+
+        # Trend: LEHS vs Lynn district vs MA state
+        trend_frames = []
+        for label, frame in [("LEHS", lehs_att), ("Lynn District", dist_att), ("Massachusetts", state_att)]:
+            t = frame[["SY", "PCT_CHRON_ABS_10"]].dropna().copy()
+            if not t.empty:
+                t["Scope"] = label
+                trend_frames.append(t)
+        if trend_frames:
+            trend_df = pd.concat(trend_frames, ignore_index=True)
+            trend_df["label"] = trend_df["PCT_CHRON_ABS_10"].apply(lambda x: f"{x:.0%}")
+            fig = px.line(
+                trend_df.sort_values(["Scope", "SY"]),
+                x="SY", y="PCT_CHRON_ABS_10", color="Scope", markers=True, text="label",
+                color_discrete_map={"LEHS": LEHS_GOLD, "Lynn District": LEHS_NAVY, "Massachusetts": "#455A64"},
+            )
+            fig.update_traces(textposition="top center", textfont=dict(size=10))
+            fig.update_layout(
+                **DEFAULT_LAYOUT,
+                yaxis_tickformat=".0%",
+                yaxis_title="% chronically absent (≥10% of days)",
+                xaxis_title="School Year",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            st.caption(
+                "The post-COVID spike (SY 2022) is visible across MA, but LEHS "
+                "has not recovered to its pre-pandemic baseline. Even the "
+                "current rate (~half of students) is substantially elevated "
+                "vs. the statewide average."
+            )
+
+        # Subgroup breakdown — latest year, sorted high-to-low
+        sub = eoy[
+            (eoy["ORG_CODE"] == LEHS_SCHOOL_CODE)
+            & (eoy["SY"] == latest_att["SY"])
+            & (eoy["STU_GRP"] != "All Students")
+        ].copy()
+        sub = sub.dropna(subset=["PCT_CHRON_ABS_10"]).sort_values("PCT_CHRON_ABS_10")
+        if not sub.empty:
+            st.markdown(f"**Chronic absenteeism by student group — SY {sy_label(int(latest_att['SY']))}**")
+            sub["label"] = sub["PCT_CHRON_ABS_10"].apply(lambda x: f"{x:.0%}")
+            fig = px.bar(
+                sub, x="PCT_CHRON_ABS_10", y="STU_GRP", orientation="h", text="label",
+            )
+            fig.update_traces(marker_color=LEHS_NAVY, textposition="outside", cliponaxis=False)
+            fig.add_vline(
+                x=latest_att["PCT_CHRON_ABS_10"], line_dash="dash", line_color=LEHS_GOLD,
+                annotation_text="All-students rate", annotation_position="top",
+            )
+            fig.update_layout(
+                **DEFAULT_LAYOUT,
+                xaxis_tickformat=".0%", xaxis_title="% chronically absent",
+                yaxis_title="", height=max(360, 28 * len(sub)),
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        # Geographic context — pull in the lehs_research distance/spatial analyses
+        st.markdown("**Where chronically absent students live**")
+        st.caption(
+            "Internal research on the geographic distribution of LEHS "
+            "absenteeism — chronic absenteeism rises with distance from "
+            "the school, and clusters in identifiable parts of Lynn."
+        )
+        research_dir = PROCESSED_DIR / "lehs_research"
+        col_a, col_b = st.columns(2)
+        absence_band = research_dir / "absence_by_distance_band.png"
+        hexbin = research_dir / "hexbin_absenteeism_100m.png"
+        if absence_band.exists():
+            with col_a:
+                st.image(
+                    str(absence_band),
+                    caption="Average absenteeism by distance from LEHS (banded).",
+                    use_container_width=True,
+                )
+        if hexbin.exists():
+            with col_b:
+                st.image(
+                    str(hexbin),
+                    caption="Spatial clustering of chronic absenteeism (100 m hex grid).",
+                    use_container_width=True,
+                )
+
+        st.caption(chronic_absenteeism_methodology_note())
+
 # >>> auto: csv downloads <<<
 try:
     from utils.charts import data_downloads_panel as _dl
     _dl({
         'Enrollment & demographics': enrollment,
+        'Attendance & chronic absenteeism': attendance,
     })
 except NameError:
     # one of the dataset variables wasn't defined on this run
