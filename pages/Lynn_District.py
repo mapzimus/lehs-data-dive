@@ -539,14 +539,6 @@ with tab_snapshot:
                 with col_b:
                     st.plotly_chart(fig, use_container_width=True)
 
-        data_downloads_panel({
-            "Enrollment & demographics": enrollment,
-            "Graduation rates": grad,
-            "MCAS achievement": mcas,
-            "Student attendance": attendance,
-            "District expenditures": dist_exp,
-        })
-
 
 # ===========================================================================
 # TAB 2 — ALL SCHOOLS (former 14_All_Lynn_Schools.py)
@@ -753,13 +745,6 @@ with tab_all_schools:
                 st.metric("Weighted % Low Income", f"{wtd_li:.0%}")
         with c4:
             st.metric("Schools shown", f"{len(filtered)}")
-
-        data_downloads_panel({
-            "Enrollment & demographics": enrollment,
-            "MCAS achievement": mcas,
-            "Student attendance": attendance,
-            "Per-school performance panel": perf,
-        })
 
 
 # ===========================================================================
@@ -998,3 +983,21 @@ the two comprehensive HS may all show different patterns despite operating
 under the same district leadership.
 """
     )
+
+
+# ===========================================================================
+# Shared data downloads (one consolidated panel for the whole page)
+#
+# Lives outside the `with tab_*` blocks so it appears below the tab bar and
+# avoids the StreamlitDuplicateElementKey bug that would fire if two tabs
+# each rendered their own panel with overlapping dataset labels.
+# ===========================================================================
+
+data_downloads_panel({
+    "Enrollment & demographics": enrollment,
+    "Graduation rates": grad,
+    "MCAS achievement": mcas,
+    "Student attendance": attendance,
+    "District expenditures": dist_exp,
+    "Special education indicators": sped,
+})
