@@ -13,7 +13,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.branding import sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE, add_pandemic_band
+from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
 from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE, PROCESSED_DIR
 from utils.data_loader import load_dataset
 
@@ -77,7 +77,6 @@ fig.update_layout(
     yaxis_title="% English Learner",
     xaxis_title="School Year",
 )
-add_pandemic_band(fig)
 st.plotly_chart(fig, use_container_width=True)
 
 st.caption(
@@ -182,7 +181,6 @@ for subject_code, subject_label in [("ELA", "English Language Arts"), ("MATH", "
         yaxis_title="% Meeting + Exceeding",
         xaxis_title="School Year",
     )
-    add_pandemic_band(fig)
     st.plotly_chart(fig, use_container_width=True)
 
     # Statistical summary for the latest year — gives the line chart context

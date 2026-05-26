@@ -70,41 +70,6 @@ DEFAULT_LAYOUT = dict(
 )
 
 
-def add_pandemic_band(
-    fig: go.Figure,
-    *,
-    start_sy: int = 2020,
-    end_sy: int = 2022,
-    annotation: bool = True,
-    label: str = "Pandemic-disrupted years",
-) -> go.Figure:
-    """Shade SY 2019-20 through SY 2021-22 on a time-series chart.
-
-    DESE labels school years by their *spring* year (2020 = SY 2019-20).
-    MCAS testing was waived in spring 2020 and modified in 2021. Attendance
-    and graduation cohorts that overlap this window read very differently
-    from pre-pandemic trends. A consistent visual marker lets readers
-    immediately see which dips are pandemic noise vs. structural shifts.
-
-    Default range covers the three most-affected school years; pass
-    different `start_sy` / `end_sy` for cohort-keyed charts (e.g. a
-    cohort that graduated 2024 was disrupted as 8th-9th-10th graders).
-    """
-    fig.add_vrect(
-        x0=start_sy - 0.5,
-        x1=end_sy + 0.5,
-        fillcolor="#FFB81C",
-        opacity=0.10,
-        layer="below",
-        line_width=0,
-        annotation_text=label if annotation else None,
-        annotation_position="top left",
-        annotation_font_size=11,
-        annotation_font_color="#7B8FA1",
-    )
-    return fig
-
-
 def trend_line(
     df: pd.DataFrame,
     x: str,

@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.branding import sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE, add_pandemic_band
+from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
 from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
 from utils.data_loader import load_dataset
 from utils.interpret import sy_label
@@ -114,8 +114,11 @@ fig = px.line(
 fig.update_traces(textposition="top center", textfont=dict(size=10))
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                    yaxis_title="% Meeting or Exceeding")
-add_pandemic_band(fig)
 st.plotly_chart(fig, use_container_width=True)
+st.caption(
+    "MCAS was waived in spring 2020 and modified in 2021 — those years "
+    "show fewer data points and shouldn't be read as a real trend break."
+)
 
 st.divider()
 
