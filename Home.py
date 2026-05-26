@@ -43,11 +43,8 @@ nav = {
         st.Page("pages/17_Federal_CRDC.py", title="Federal CRDC", url_path="Federal_CRDC"),
     ],
     "Lynn": [
-        st.Page("pages/15_Lynn_District_Dashboard.py", title="District Dashboard", url_path="Lynn_District_Dashboard"),
-        st.Page("pages/14_All_Lynn_Schools.py", title="All Lynn Schools", url_path="All_Lynn_Schools"),
-        st.Page("pages/10_Lynn_District_and_Siblings.py", title="District & Siblings", url_path="Lynn_District_and_Siblings"),
-        st.Page("pages/19_Lynn_Overview.py", title="City Overview", url_path="Lynn_Overview"),
-        st.Page("pages/9_Community_Context.py", title="Community Context", url_path="Community_Context"),
+        st.Page("pages/Lynn_District.py", title="District", url_path="Lynn_District"),
+        st.Page("pages/Lynn_City.py", title="City", url_path="Lynn_City"),
     ],
     "Comparison": [
         st.Page("pages/11_Gateway_Peer_Comparison.py", title="Gateway Cities", url_path="Gateway_Peer_Comparison"),
