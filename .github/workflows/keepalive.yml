@@ -1,0 +1,38 @@
+name: Keepalive — ping Streamlit Cloud
+
+# Streamlit Community Cloud puts apps to sleep after ~7 days without traffic.
+# This workflow pings the public URL every 6 hours so the app stays warm and
+# users never see the "Zzzz" wake-up screen.
+#
+# Cost: 4 runs/day × ~30s × 31 days ≈ 60 minutes/month, well under the
+# 2,000-minute free GitHub Actions quota for public repos.
+#
+# If the ping ever fails (HTTP error or "Zzzz" page detected), the job fails
+# and you'll get an email — that's a real signal that the app needs attention.
+
+on:
+  schedule:
+    # Every 6 hours, at minute 17 to avoid the top-of-hour scheduler stampede.
+    - cron: "17 */6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install requests
+        run: pip install --quiet requests
+
+      - name: Ping the app
+        run: python scripts/keepalive_ping.py
