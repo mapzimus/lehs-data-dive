@@ -165,6 +165,13 @@ def _latest_per_school(p: pd.DataFrame) -> pd.DataFrame:
 latest = _latest_per_school(panel)
 latest["City"] = latest["DIST_NAME"]
 latest["is_lehs"] = latest["ORG_CODE"] == "01630510"
+# Disambiguate Lynn-the-district from LEHS-the-school in chart labels.
+# `City` is the district name (used in tables); `School` is the unambiguous
+# display label used on scatter text + tooltips.
+latest["School"] = latest.apply(
+    lambda r: "Lynn English" if r["is_lehs"] else r["City"],
+    axis=1,
+)
 
 curated_pairs = [
     ("PerPupil", "GradRate_4yr", "Does per-pupil spending correlate with graduation?"),
@@ -181,16 +188,17 @@ curated_pairs = [
 for x, y, label in curated_pairs:
     if x not in latest.columns or y not in latest.columns:
         continue
-    sub = latest[["City", x, y, "is_lehs"]].dropna()
+    sub = latest[["City", "School", x, y, "is_lehs"]].dropna()
     if len(sub) < 5:
         continue
     stats = pearson(sub, x, y)
     with st.expander(f"{label}  ·  r = {stats['r']:+.2f}  ({interpret_r(stats['r'])})"):
         sub["highlight"] = sub["is_lehs"].map({True: "LEHS", False: "Other Gateway HS"})
         fig = px.scatter(
-            sub, x=x, y=y, text="City", color="highlight",
+            sub, x=x, y=y, text="School", color="highlight",
             color_discrete_map={"LEHS": LEHS_GOLD, "Other Gateway HS": GATEWAY_PEER_COLOR},
             trendline="ols",
+            hover_data={"City": True, "School": False, "highlight": False},
         )
         fig.update_traces(textposition="top center", textfont_size=10)
         fig.update_layout(**DEFAULT_LAYOUT, xaxis_title=x, yaxis_title=y)
@@ -225,11 +233,15 @@ scope = st.radio(
 )
 
 if scope.startswith("Gateway HS (cross"):
-    data = latest[["ORG_CODE", "City", x_var, y_var, "is_lehs"]].dropna()
+    data = latest[["ORG_CODE", "City", "School", x_var, y_var, "is_lehs"]].dropna()
 else:
     data = panel[["SY", "ORG_CODE", "DIST_NAME", x_var, y_var]].dropna()
     data["City"] = data["DIST_NAME"]
     data["is_lehs"] = data["ORG_CODE"] == "01630510"
+    data["School"] = data.apply(
+        lambda r: "Lynn English" if r["is_lehs"] else r["City"],
+        axis=1,
+    )
 
 if len(data) >= 3:
     data["highlight"] = data["is_lehs"].map({True: "LEHS", False: "Other"})
@@ -237,7 +249,7 @@ if len(data) >= 3:
         data, x=x_var, y=y_var, color="highlight",
         color_discrete_map={"LEHS": LEHS_GOLD, "Other": GATEWAY_PEER_COLOR},
         trendline="ols",
-        hover_data=["City"],
+        hover_data={"School": True, "City": True, "highlight": False},
     )
     fig.update_layout(**DEFAULT_LAYOUT, xaxis_title=x_var, yaxis_title=y_var)
     st.plotly_chart(fig, use_container_width=True)
@@ -304,9 +316,14 @@ x_side["SY_target"] = x_side["SY"] + lag_years
 lagged = x_side.merge(y_side, on=["SY_target", "ORG_CODE"], how="inner")
 lagged["is_lehs"] = lagged["ORG_CODE"] == "01630510"
 lagged["highlight"] = lagged["is_lehs"].map({True: "LEHS", False: "Other"})
+# Use "Lynn English" for LEHS rows so the tooltip doesn't read just "Lynn"
+# (which would be ambiguous with Lynn the district).
 lagged["pair_label"] = (
-    lagged["DIST_NAME"].fillna("") + " "
-    + lagged["SY"].astype(str) + " -> " + lagged["SY_target"].astype(str)
+    lagged.apply(
+        lambda r: ("Lynn English" if r["is_lehs"] else (r["DIST_NAME"] or "")),
+        axis=1,
+    )
+    + " " + lagged["SY"].astype(str) + " -> " + lagged["SY_target"].astype(str)
 )
 
 if len(lagged) >= 5:
@@ -382,20 +399,27 @@ if total_weight > 0:
         + w_ap * z("AP_Enrolled").fillna(0)
     ) / total_weight
 
-    ranked = latest[["City", "ORG_NAME", "SuccessIndex"]].dropna().sort_values(
-        "SuccessIndex", ascending=False
-    ).reset_index(drop=True)
-    ranked["Rank"] = ranked.index + 1
-    ranked = ranked[["Rank", "City", "ORG_NAME", "SuccessIndex"]]
+    # The "Lynn" row in this gateway-cities table represents LEHS (the city's
+    # main comprehensive HS in the gateway_main_hs manifest). Disambiguate in
+    # the display so the row label can't be confused with the Lynn district.
+    ranked_src = latest[["City", "ORG_NAME", "SuccessIndex", "is_lehs"]].dropna(
+        subset=["SuccessIndex"]
+    ).sort_values("SuccessIndex", ascending=False).reset_index(drop=True)
+    ranked_src["Rank"] = ranked_src.index + 1
+    ranked_src["City"] = ranked_src.apply(
+        lambda r: "Lynn — LEHS" if r["is_lehs"] else r["City"],
+        axis=1,
+    )
+    ranked = ranked_src[["Rank", "City", "ORG_NAME", "SuccessIndex"]].copy()
     ranked["SuccessIndex"] = ranked["SuccessIndex"].round(2)
 
-    def highlight_lehs(row):
-        return ["background-color: #FFF4D6" if row["City"] == "Lynn" else "" for _ in row]
+    def highlight_lehs_row(row):
+        return ["background-color: #FFF4D6" if row["City"] == "Lynn — LEHS" else "" for _ in row]
 
-    st.dataframe(ranked.style.apply(highlight_lehs, axis=1),
+    st.dataframe(ranked.style.apply(highlight_lehs_row, axis=1),
                  use_container_width=True, hide_index=True)
 
-    lehs_row = ranked[ranked["City"] == "Lynn"]
+    lehs_row = ranked[ranked["City"] == "Lynn — LEHS"]
     if not lehs_row.empty:
         st.success(
             f"**LEHS ranks #{int(lehs_row.iloc[0]['Rank'])} of {len(ranked)} "

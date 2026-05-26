@@ -106,7 +106,7 @@ def _small_multiple(df: pd.DataFrame, value_col: str, title: str, ytick: str = "
                               mode="lines+markers", name="Gateway median",
                               line=dict(color=LEHS_GOLD, width=2, dash="dash")))
     fig.add_trace(go.Scatter(x=lynn_line["SY"], y=lynn_line[value_col],
-                              mode="lines+markers", name="Lynn",
+                              mode="lines+markers", name="Lynn district",
                               line=dict(color=LEHS_NAVY, width=3)))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=ytick,
                       title=title, yaxis_title="", xaxis_title="SY")
