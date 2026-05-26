@@ -1,4 +1,9 @@
-﻿"""Section 5 — Success After High School: graduation, college enrollment, persistence."""
+"""Section 5 — Success After High School.
+
+The whole pipeline: 9th-grade cohort entry → graduation → postsecondary
+enrollment → persistence → degree completion → earnings. Folds in the
+former Cohort Tracking content so visitors see one connected story.
+"""
 
 import pandas as pd
 import plotly.express as px
@@ -7,7 +12,7 @@ import streamlit as st
 
 from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
-from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE
+from utils.constants import LEHS_SCHOOL_CODE
 from utils.data_loader import get_dart_indicator, load_dataset
 
 st.set_page_config(page_title="Success After HS | LEHS", page_icon="🏆", layout="wide")
@@ -15,19 +20,96 @@ sidebar_attribution()
 
 st.title("Success After High School")
 st.markdown(
-    "Graduation cohorts, postsecondary enrollment by institution type, and "
-    "college persistence to the second year — drawn from DESE's DART: Success "
-    "After High School data."
+    "**The headline question every parent, teacher, and school committee "
+    "member asks: of every 100 9th-graders who walk into LEHS, how many "
+    "graduate, how many enroll in college, and how many are still there "
+    "a year later?** This page follows the full pipeline from 9th-grade "
+    "entry through degree completion and into the workforce."
 )
 
 dart = load_dataset("dart_success_after_hs")
 grad = load_dataset("graduation_rates")
+prog = load_dataset("student_progression_hs_to_postsec")
 if dart.empty or grad.empty:
     st.info("Data is temporarily unavailable. Please check back later.")
     st.stop()
 
 # ---------------------------------------------------------------------------
-# Headline metrics
+# Cohort funnel — the hero. Of every 100 9th-graders, how many reach each
+# stage? This used to be a separate "Cohort Tracking" page; folded in here
+# because it's the same Success story.
+# ---------------------------------------------------------------------------
+
+YEAR2_INDICATOR = "Student progression from high school through second year of postsecondary education"
+DEGREE_INDICATOR = "Student progression from high school through postsecondary degree completion"
+
+cohort_n = grad_n = enr_n = pers_n = None
+latest_cohort = None
+
+if not prog.empty:
+    prog["DIST_CODE"] = prog["DIST_CODE"].astype(str).str.zfill(8)
+    prog["ORG_CODE"] = prog["ORG_CODE"].astype(str).str.zfill(8)
+    lehs_prog = prog[prog["ORG_CODE"] == LEHS_SCHOOL_CODE].copy()
+    lehs_y2_all = lehs_prog[
+        (lehs_prog["INDICATOR"] == YEAR2_INDICATOR) & (lehs_prog["STU_GRP"] == "All Students")
+    ].sort_values("COHORTYR")
+
+    if not lehs_y2_all.empty:
+        latest = lehs_y2_all.iloc[-1]
+        latest_cohort = int(latest["COHORTYR"])
+        cohort_n = int(latest["COHORT_CNT"])
+        grad_n = int(latest["GRAD_CNT"]) if pd.notna(latest["GRAD_CNT"]) else 0
+        enr_n = int(latest["IMMEDIATEENR_CNT"]) if pd.notna(latest["IMMEDIATEENR_CNT"]) else 0
+        pers_n = int(latest["PERSIST_CNT"]) if pd.notna(latest["PERSIST_CNT"]) else 0
+
+if cohort_n:
+    st.header(f"The Cohort Funnel — {latest_cohort - 4}–{latest_cohort} Class")
+    st.caption(
+        f"All Students who entered LEHS as 9th-graders before the SY "
+        f"{latest_cohort - 1}-{str(latest_cohort)[-2:]} graduation, tracked "
+        f"through their second year of college."
+    )
+
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.metric("Entered 9th grade", f"{cohort_n:,}", "baseline cohort")
+    with c2:
+        st.metric("Graduated high school", f"{grad_n:,}",
+                  f"{grad_n / cohort_n:.0%} of cohort", delta_color="off")
+    with c3:
+        st.metric("Enrolled in college", f"{enr_n:,}",
+                  f"{enr_n / cohort_n:.0%} of cohort", delta_color="off")
+    with c4:
+        st.metric("Still enrolled year 2", f"{pers_n:,}",
+                  f"{pers_n / cohort_n:.0%} of cohort", delta_color="off")
+
+    stages = ["Entered 9th grade", "Graduated", "Enrolled in college", "Persisted to year 2"]
+    counts = [cohort_n, grad_n, enr_n, pers_n]
+    pcts = [c / cohort_n for c in counts]
+    labels = [f"{c:,}<br>({p:.0%})" for c, p in zip(counts, pcts)]
+
+    fig = go.Figure(
+        go.Funnel(
+            y=stages, x=counts, text=labels, textposition="inside",
+            textfont=dict(color="white", size=14),
+            marker=dict(color=[LEHS_NAVY, "#1E3A6F", "#2F559A", LEHS_GOLD]),
+            connector=dict(line=dict(color="#B0BEC5", width=1)),
+        )
+    )
+    fig.update_layout(**DEFAULT_LAYOUT, height=360)
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown(
+        f"**The headline number:** of every 100 LEHS 9th-graders, "
+        f"~{round(grad_n / cohort_n * 100)} graduate, "
+        f"~{round(enr_n / cohort_n * 100)} enroll in college, and only "
+        f"**~{round(pers_n / cohort_n * 100)} are still in college a year later**."
+    )
+
+    st.divider()
+
+# ---------------------------------------------------------------------------
+# Pipeline metrics — headline DART indicators
 # ---------------------------------------------------------------------------
 
 st.header("Headline Pipeline Metrics")
@@ -111,6 +193,81 @@ if not g_focus.empty:
     )
     st.plotly_chart(fig, use_container_width=True)
 
+# ---------------------------------------------------------------------------
+# Where the pipeline leaks — subgroup cohort progression (from cohort tracking)
+# ---------------------------------------------------------------------------
+
+if not prog.empty and latest_cohort is not None:
+    st.header(f"Where the Pipeline Leaks — by Subgroup ({latest_cohort - 4}–{latest_cohort} Cohort)")
+    st.caption(
+        "The headline numbers above hide within-school disparities. Same cohort, "
+        "broken out by subgroup. Bar length = share of that subgroup's 9th-grade "
+        "entrants who reach each stage. Empty bars are DESE-suppressed (cell <10 students)."
+    )
+
+    sub_groups = lehs_prog[
+        (lehs_prog["INDICATOR"] == YEAR2_INDICATOR)
+        & (lehs_prog["COHORTYR"] == latest_cohort)
+        & (lehs_prog["STU_GRP"] != "All Students")
+    ].copy()
+    sub_groups = sub_groups.assign(
+        grad_pct=lambda d: d["GRAD_CNT"] / d["COHORT_CNT"],
+        enr_pct=lambda d: d["IMMEDIATEENR_CNT"] / d["COHORT_CNT"],
+        pers_pct=lambda d: d["PERSIST_CNT"] / d["COHORT_CNT"],
+    )
+    sub_groups = sub_groups[sub_groups["COHORT_CNT"] >= 10].copy()
+    sub_groups = sub_groups.sort_values("pers_pct", ascending=True, na_position="first")
+
+    if not sub_groups.empty:
+        stage_labels = {
+            "grad_pct": "Graduated",
+            "enr_pct": "Enrolled in college",
+            "pers_pct": "Persisted to year 2",
+        }
+        stage_colors = {
+            "Graduated": "#90A4AE",
+            "Enrolled in college": "#2F559A",
+            "Persisted to year 2": LEHS_GOLD,
+        }
+        melted = sub_groups.melt(
+            id_vars=["STU_GRP", "COHORT_CNT"],
+            value_vars=["grad_pct", "enr_pct", "pers_pct"],
+            var_name="stage", value_name="pct",
+        )
+        melted["stage"] = melted["stage"].map(stage_labels)
+
+        fig = px.bar(
+            melted, x="pct", y="STU_GRP", color="stage", barmode="group",
+            orientation="h", color_discrete_map=stage_colors,
+            category_orders={"stage": ["Graduated", "Enrolled in college", "Persisted to year 2"]},
+            text=melted["pct"].apply(lambda x: f"{x:.0%}" if pd.notna(x) else ""),
+        )
+        fig.update_traces(textposition="outside", textfont=dict(size=10), cliponaxis=False)
+        fig.update_layout(
+            **DEFAULT_LAYOUT,
+            height=max(360, 28 * len(sub_groups)),
+            xaxis_tickformat=".0%",
+            xaxis_range=[0, 1.1],
+            xaxis_title="Share of 9th-grade entrants reaching each stage",
+            yaxis_title="",
+            legend_title="",
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Surface the widest gap
+        if not sub_groups["pers_pct"].dropna().empty:
+            top_row = sub_groups.iloc[-1]
+            bot_row = sub_groups.iloc[0]
+            top_pct = top_row["pers_pct"]
+            bot_pct = bot_row["pers_pct"]
+            if pd.notna(top_pct) and pd.notna(bot_pct):
+                st.markdown(
+                    f"**The widest gap:** {top_row['STU_GRP']} students persist to "
+                    f"college year 2 at **{top_pct:.0%}**, while "
+                    f"{bot_row['STU_GRP']} students persist at **{bot_pct:.0%}** "
+                    f"— a **{(top_pct - bot_pct) * 100:.0f}-point** spread."
+                )
+
 st.divider()
 
 # ---------------------------------------------------------------------------
@@ -148,10 +305,6 @@ st.divider()
 
 # ---------------------------------------------------------------------------
 # Postsecondary enrollment pathway
-#
-# (The LEHS-vs-LCHS 4-year graduation chart that used to live here moved to
-# pages/Lynn_District.py LEHS-vs-Siblings tab, where it shows all 5 Lynn
-# high schools.)
 # ---------------------------------------------------------------------------
 
 st.header("Where do LEHS graduates go?")
@@ -235,6 +388,97 @@ if not plans_lehs.empty:
 st.divider()
 
 # ---------------------------------------------------------------------------
+# Multi-cohort trend (from cohort tracking) — long view of the pipeline
+# ---------------------------------------------------------------------------
+
+if not prog.empty and 'lehs_y2_all' in dir() and not lehs_y2_all.empty:
+    st.header("Pipeline Trend — Multiple 9th-grade Cohorts")
+    st.caption(
+        "Each line is a stage of the pipeline as it has moved over time. "
+        "Cohorts graduating 2020–2024 were disrupted as 8th–10th graders; "
+        "expect noisier patterns for those years."
+    )
+
+    trend_all = lehs_prog[
+        (lehs_prog["INDICATOR"] == YEAR2_INDICATOR) & (lehs_prog["STU_GRP"] == "All Students")
+    ].sort_values("COHORTYR").copy()
+    trend_all["grad_pct"] = trend_all["GRAD_CNT"] / trend_all["COHORT_CNT"]
+    trend_all["enr_pct"] = trend_all["IMMEDIATEENR_CNT"] / trend_all["COHORT_CNT"]
+    trend_all["pers_pct"] = trend_all["PERSIST_CNT"] / trend_all["COHORT_CNT"]
+
+    trend_long = trend_all.melt(
+        id_vars=["COHORTYR"],
+        value_vars=["grad_pct", "enr_pct", "pers_pct"],
+        var_name="stage", value_name="pct",
+    ).dropna(subset=["pct"])
+    trend_long["stage"] = trend_long["stage"].map({
+        "grad_pct": "Graduated",
+        "enr_pct": "Enrolled in college",
+        "pers_pct": "Persisted to year 2",
+    })
+
+    fig = px.line(
+        trend_long, x="COHORTYR", y="pct", color="stage", markers=True,
+        color_discrete_map={
+            "Graduated":            "#90A4AE",
+            "Enrolled in college":  "#2F559A",
+            "Persisted to year 2":  LEHS_GOLD,
+        },
+        category_orders={"stage": ["Graduated", "Enrolled in college", "Persisted to year 2"]},
+    )
+    fig.update_layout(
+        **DEFAULT_LAYOUT,
+        yaxis_tickformat=".0%",
+        yaxis_title="Share of 9th-grade cohort",
+        xaxis_title="Graduation cohort year",
+        legend_title="",
+    )
+    if not trend_long.empty:
+        fig.update_yaxes(range=[0, max(trend_long["pct"].max() * 1.1, 1.0)])
+    st.plotly_chart(fig, use_container_width=True)
+
+    # ---------------------------------------------------------------------------
+    # Six-year degree completion
+    # ---------------------------------------------------------------------------
+
+    st.subheader("Degree Completion — 6-Year View")
+    st.caption(
+        "Following cohorts six years past HS graduation: how many actually "
+        "completed a 2-yr or 4-yr degree?"
+    )
+
+    lehs_deg = lehs_prog[
+        (lehs_prog["INDICATOR"] == DEGREE_INDICATOR) & (lehs_prog["STU_GRP"] == "All Students")
+    ].sort_values("COHORTYR")
+
+    if not lehs_deg.empty:
+        latest_deg = lehs_deg.iloc[-1]
+        deg_year = int(latest_deg["COHORTYR"])
+        deg_pct = latest_deg["OBTAINDEGREE_PCT"]
+        if pd.notna(deg_pct):
+            st.metric(
+                f"Obtained a postsecondary degree ({deg_year - 4}–{deg_year} cohort)",
+                f"{deg_pct:.0%}",
+                help="Share of the 9th-grade cohort that completed a 2-yr or 4-yr degree within ~6 years of HS graduation.",
+            )
+
+        deg_trend = lehs_deg.dropna(subset=["OBTAINDEGREE_PCT"]).copy()
+        if len(deg_trend) >= 2:
+            fig = px.line(deg_trend, x="COHORTYR", y="OBTAINDEGREE_PCT", markers=True)
+            fig.update_traces(line=dict(color=LEHS_NAVY, width=3))
+            fig.update_layout(
+                **DEFAULT_LAYOUT,
+                yaxis_tickformat=".0%",
+                yaxis_title="Share of cohort obtaining a degree",
+                xaxis_title="Cohort year",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.caption("6-year degree-completion data not available for LEHS yet.")
+
+    st.divider()
+
+# ---------------------------------------------------------------------------
 # Earnings of HS graduates by industry (district-level)
 # ---------------------------------------------------------------------------
 
@@ -243,7 +487,7 @@ st.caption(
     "DESE's *Average Earnings of HS Graduates by Industry* dataset follows "
     "every Lynn-district HS graduate's W-2 earnings by NAICS industry. "
     "Reported at the district level, so this includes graduates of LEHS, "
-    "LCHS, Lynn Tech, and the alternative HS combined."
+    "Classical, Tech, and the alternative HS combined."
 )
 
 earnings = load_dataset("earnings_by_industry")
@@ -253,7 +497,6 @@ if not earnings.empty:
     e_lynn["EMP_CNT"] = pd.to_numeric(e_lynn["EMP_CNT"], errors="coerce")
     e_lynn["GRAD_CNT"] = pd.to_numeric(e_lynn["GRAD_CNT"], errors="coerce")
 
-    # "All Students" row is total-across-industries; pull it out for headline
     headline = e_lynn[
         (e_lynn["NAICS_DESC"] == "All Students")
         & (e_lynn["HS_GRAD_YEAR"] == e_lynn["EARNINGS_YEAR"])
@@ -277,9 +520,7 @@ if not earnings.empty:
                 f"{int(latest['GRAD_CNT']):,} graduates with reported wages."
             )
         with c2:
-            fig = px.line(
-                headline, x="HS_GRAD_YEAR", y="AVG_EARNINGS", markers=True,
-            )
+            fig = px.line(headline, x="HS_GRAD_YEAR", y="AVG_EARNINGS", markers=True)
             fig.update_traces(line=dict(color=LEHS_NAVY, width=3))
             fig.update_layout(
                 **DEFAULT_LAYOUT,
@@ -289,18 +530,17 @@ if not earnings.empty:
             )
             st.plotly_chart(fig, use_container_width=True)
 
-    # Industry breakdown — latest cohort
     if not e_lynn.empty:
-        latest_year = e_lynn["HS_GRAD_YEAR"].max()
+        latest_year_e = e_lynn["HS_GRAD_YEAR"].max()
         industries = e_lynn[
-            (e_lynn["HS_GRAD_YEAR"] == latest_year)
-            & (e_lynn["EARNINGS_YEAR"] == latest_year)
+            (e_lynn["HS_GRAD_YEAR"] == latest_year_e)
+            & (e_lynn["EARNINGS_YEAR"] == latest_year_e)
             & (e_lynn["NAICS_DESC"] != "All Students")
             & (e_lynn["EMP_CNT"].notna())
         ].sort_values("EMP_CNT", ascending=True)
         if not industries.empty:
             st.subheader(
-                f"Where the cohort works — {int(latest_year)} graduates "
+                f"Where the cohort works — {int(latest_year_e)} graduates "
                 f"with reported wages in their grad year"
             )
             st.caption(
@@ -327,7 +567,7 @@ if not earnings.empty:
             )
             st.plotly_chart(fig, use_container_width=True)
 else:
-    st.info("Earnings data not yet loaded.")
+    st.caption("Earnings data not yet loaded.")
 
 st.divider()
 
@@ -370,6 +610,23 @@ if not chain_df.empty:
                        yaxis_ticksuffix="%", yaxis_range=[0, 100])
     st.plotly_chart(fig, use_container_width=True)
 
+with st.expander("How to read this page · methodology"):
+    st.markdown(
+        """
+- **Cohort** means the group of students who first entered 9th grade together,
+  not the graduating class. A 2023 cohort started 9th grade around 2019.
+- **Immediate enrollment** is in college the fall immediately after HS graduation.
+- **Persisted to year 2** = still enrolled in college one year after immediate
+  enrollment. Strongest single predictor of degree completion.
+- **Stage percentages** in the cohort funnel are always relative to the original
+  9th-grade cohort, not to the previous stage.
+- **DESE suppression**: cells under 10 students are blanked.
+- **Source**: MA DESE Education-to-Career Hub — DART (Success After HS),
+  Graduation Rates, Student Progression HS→Postsec, Plans of Graduates,
+  Earnings by Industry.
+"""
+    )
+
 # >>> auto: csv downloads <<<
 try:
     from utils.charts import data_downloads_panel as _dl
@@ -377,8 +634,7 @@ try:
         'DART (Success After HS)': dart,
         'Graduation rates': grad,
         'Plans of graduates': plans,
+        'Cohort progression (9th-grade → degree)': prog,
     })
 except NameError:
-    # one of the dataset variables wasn't defined on this run
     pass
-

@@ -31,13 +31,13 @@ nav = {
     ],
     "The School (LEHS)": [
         st.Page("pages/1_School_Profile.py", title="School Profile", url_path="School_Profile"),
-        # Promoted: per Home persona pathways, this is the second stop for
-        # families ("does the school's promise hold up through college?").
-        st.Page("pages/18_Cohort_Tracking.py", title="After Graduation", url_path="Cohort_Tracking"),
         st.Page("pages/2_Academic_Performance.py", title="Academic Performance", url_path="Academic_Performance"),
         # Renamed for the public audience — "ELL Pipeline" is analyst-speak.
         st.Page("pages/3_ELL_Pipeline.py", title="English Learners", url_path="ELL_Pipeline"),
         st.Page("pages/4_College_and_Career.py", title="College & Career", url_path="College_and_Career"),
+        # Success After HS now includes the former "After Graduation" cohort
+        # tracking content as its hero funnel — one connected story instead of
+        # two near-duplicate pages.
         st.Page("pages/5_Success_After_HS.py", title="Success After HS", url_path="Success_After_HS"),
         st.Page("pages/6_Teachers_and_Workforce.py", title="Teachers & Workforce", url_path="Teachers_and_Workforce"),
         st.Page("pages/7_Finance.py", title="Finance", url_path="Finance"),

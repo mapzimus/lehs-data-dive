@@ -215,7 +215,7 @@ with p_col:
 *Choosing a school, understanding outcomes, comparing to siblings.*
 
 - **[School Profile](/School_Profile)** — who attends LEHS today
-- **[After Graduation](/Cohort_Tracking)** — does the school's promise hold up through college?
+- **[Success After HS](/Success_After_HS)** — does the school's promise hold up through college?
 - **[College & Career](/College_and_Career)** — AP, MassCore, FAFSA, postsecondary plans
 - **[Lynn District](/Lynn_District)** — LEHS vs. Classical, Tech, others (*LEHS vs Siblings* tab)
         """
@@ -276,7 +276,7 @@ with c1:
 
 **The School (LEHS)**
 - **School Profile** — demographics, enrollment trends
-- **After Graduation** — 9th grade → graduation → college persistence
+- **Success After HS** — full pipeline (9th grade → grad → college → persistence → degrees → earnings)
 - **Academic Performance** — MCAS, growth, gaps
 - **English Learners** *(central narrative)*
 - **College & Career** — AP, MassCore, FAFSA, plans
