@@ -62,7 +62,11 @@ if not susp_lehs.empty:
                 mode="lines+markers", name="Lynn Classical",
                 line=dict(color=LCHS_COLOR, width=2, dash="dash"),
             ))
-        fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="% suspended at least once")
+        fig.update_layout(
+            **DEFAULT_LAYOUT,
+            yaxis_title="% suspended at least once",
+            yaxis_ticksuffix="%",
+        )
         st.plotly_chart(fig, use_container_width=True)
 
 st.divider()

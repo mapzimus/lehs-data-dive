@@ -158,10 +158,20 @@ if _TRACTS_PATH.exists():
             coloraxis_showscale=False,
             height=480,
         )
-        if "_pct" in col or fmt.startswith("{:.0%}"):
-            fig.update_layout(xaxis_tickformat=".0%")
-        elif col == "median_household_income":
+        # Drive tickformat from data range, not column name. Columns like
+        # asthma_pct / mental_distress_pct are 0-100 (CDC PLACES) while
+        # foreign_born_pct is 0-1 (Census fraction) — same _pct suffix,
+        # different scales. Treating both as 0-1 produces a "1230%" axis.
+        col_max = d[col].max()
+        if col == "median_household_income":
             fig.update_layout(xaxis_tickformat="$,.0f")
+        elif col_max <= 1.5:
+            # Values are a 0-1 ratio (e.g. foreign_born_pct = 0.27)
+            fig.update_layout(xaxis_tickformat=".0%")
+        elif fmt.endswith("%}"):
+            # Values are already in percent units (e.g. asthma_pct = 12.3);
+            # render as a number with a % suffix.
+            fig.update_layout(xaxis_ticksuffix="%")
         st.plotly_chart(fig, use_container_width=True)
 
     c1, c2 = st.columns(2)

@@ -438,10 +438,12 @@ with tab_snapshot:
                             },
                             text=snap["IND_PCT"].round(1).astype(str) + "%",
                         )
-                        fig.update_traces(textposition="outside")
+                        fig.update_traces(textposition="outside", cliponaxis=False)
                         fig.update_layout(
                             **DEFAULT_LAYOUT,
                             yaxis_title="% Meeting + Exceeding",
+                            yaxis_ticksuffix="%",
+                            yaxis_range=[0, max(snap["IND_PCT"].max() * 1.15, 10)],
                             xaxis_title="",
                             legend_title="",
                         )
@@ -468,10 +470,12 @@ with tab_snapshot:
                             color_discrete_sequence=[LEHS_NAVY],
                             text=post_latest["IND_PCT"].round(1).astype(str) + "%",
                         )
-                        fig.update_traces(textposition="outside")
+                        fig.update_traces(textposition="outside", cliponaxis=False)
                         fig.update_layout(
                             **DEFAULT_LAYOUT,
                             xaxis_title="% of SWD graduates",
+                            xaxis_ticksuffix="%",
+                            xaxis_range=[0, max(post_latest["IND_PCT"].max() * 1.18, 10)],
                             yaxis_title="",
                             height=max(280, 28 * len(post_latest)),
                         )

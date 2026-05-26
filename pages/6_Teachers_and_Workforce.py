@@ -336,10 +336,11 @@ if not teacher_data.empty:
                             "In-Field Teachers":    "#388E3C",
                         },
                     )
-                    fig.update_traces(textposition="outside")
+                    fig.update_traces(textposition="outside", cliponaxis=False)
                     fig.update_layout(
                         **DEFAULT_LAYOUT,
                         xaxis_title="% of teachers in group",
+                        xaxis_ticksuffix="%",
                         yaxis_title="",
                         legend_title="",
                     )
@@ -363,8 +364,9 @@ if not teacher_data.empty:
                     sub, y="SUBJECT", x="TCHR_INFLD_PCT", orientation="h", text="label",
                     color_discrete_sequence=[LEHS_NAVY],
                 )
-                fig.update_traces(textposition="outside")
+                fig.update_traces(textposition="outside", cliponaxis=False)
                 fig.update_layout(**DEFAULT_LAYOUT, xaxis_tickformat=".0%",
+                                  xaxis_range=[0, 1.12],
                                   xaxis_title="% teachers with subject licensure",
                                   yaxis_title="")
                 st.plotly_chart(fig, use_container_width=True)

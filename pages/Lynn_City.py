@@ -134,8 +134,7 @@ with tab_city:
                                   marker=dict(size=7)))
         fig.update_layout(**DEFAULT_LAYOUT,
                           yaxis_title="Total population",
-                          xaxis_title="Decennial Census year",
-                          title="Lynn population, 1790–2020 (US Decennial Census)")
+                          xaxis_title="Decennial Census year")
         st.plotly_chart(fig, use_container_width=True)
 
         st.divider()
@@ -156,11 +155,17 @@ with tab_city:
             fig.add_trace(go.Bar(y=band_order, x=female["count"], orientation="h",
                                   name="Female", marker_color=LEHS_GOLD))
             fig.update_layout(**DEFAULT_LAYOUT, barmode="overlay", bargap=0.05,
-                               title="Lynn age pyramid — ACS 2019-2023",
                                xaxis_title="Population (left = male, right = female)",
                                yaxis_title="Age band")
-            fig.update_xaxes(tickformat=",.0f", tickvals=[-5000, -2500, 0, 2500, 5000],
-                             ticktext=["5K", "2.5K", "0", "2.5K", "5K"])
+            # Symmetric ticks driven by the data. Round up to nearest 1K so
+            # ticks land on clean numbers regardless of which band peaks.
+            max_band = max(int(male["count"].max() or 0), int(female["count"].max() or 0))
+            step = max(1000, ((max_band // 4) // 500 + 1) * 500)  # quarter-range, snapped to 500
+            n = (max_band // step) + 1
+            tickvals = [step * i for i in range(-n, n + 1)]
+            ticktext = [f"{abs(v):,}" for v in tickvals]
+            fig.update_xaxes(tickvals=tickvals, ticktext=ticktext,
+                             range=[-step * (n + 0.2), step * (n + 0.2)])
             st.plotly_chart(fig, use_container_width=True)
 
         st.divider()
@@ -188,7 +193,6 @@ with tab_city:
                          color="group",
                          color_discrete_sequence=px.colors.qualitative.Bold)
             fig.update_layout(**DEFAULT_LAYOUT, showlegend=False,
-                              title="Race / ethnicity composition (note: race and Hispanic origin overlap per Census)",
                               yaxis_title="", xaxis_title="People")
             st.plotly_chart(fig, use_container_width=True)
             st.caption(
@@ -225,8 +229,7 @@ with tab_city:
             specific = birthplaces[~is_roll & (birthplaces["country"] != "Foreign-born total")]
             specific = specific.sort_values("count", ascending=True).tail(15)
             fig = px.bar(specific, y="country", x="count", orientation="h",
-                         color="count", color_continuous_scale="Plasma",
-                         title="Top countries of birth — Lynn foreign-born residents")
+                         color="count", color_continuous_scale="Blues")
             fig.update_layout(**DEFAULT_LAYOUT, showlegend=False, height=520,
                               yaxis_title="", xaxis_title="Foreign-born residents",
                               coloraxis_showscale=False)
@@ -257,8 +260,9 @@ with tab_city:
             fig = px.bar(lang_show, y="language", x="count", orientation="h",
                          color_discrete_sequence=[LEHS_NAVY])
             fig.update_layout(**DEFAULT_LAYOUT,
-                              title=f"Languages spoken at home (Lynn, pop 5+: {lang_total:,})" if lang_total else "Languages",
                               yaxis_title="", xaxis_title="Speakers")
+            if lang_total:
+                st.caption(f"Population age 5+: {lang_total:,}")
             st.plotly_chart(fig, use_container_width=True)
 
             if lang_total:
@@ -315,9 +319,8 @@ with tab_city:
         if not industries.empty:
             ind_sorted = industries.sort_values("employed", ascending=True)
             fig = px.bar(ind_sorted, y="industry", x="employed", orientation="h",
-                         color="employed", color_continuous_scale="Viridis",
-                         title="Civilian employed population by industry sector (ACS S2403)")
-            fig.update_layout(**DEFAULT_LAYOUT, height=520, showlegend=False,
+                         color="employed", color_continuous_scale="Blues")
+            fig.update_layout(**DEFAULT_LAYOUT, height=480, showlegend=False,
                               yaxis_title="", xaxis_title="Lynn residents employed",
                               coloraxis_showscale=False)
             st.plotly_chart(fig, use_container_width=True)
@@ -387,8 +390,7 @@ with tab_city:
                                             ordered=True)
             yr_df = yr_df.sort_values("era")
             fig = px.bar(yr_df, x="era", y="units",
-                          color="units", color_continuous_scale="Cividis",
-                          title="When Lynn's housing was built (units by year-built band)")
+                          color="units", color_continuous_scale="Blues")
             fig.update_layout(**DEFAULT_LAYOUT, showlegend=False, coloraxis_showscale=False,
                               yaxis_title="Housing units", xaxis_title="")
             st.plotly_chart(fig, use_container_width=True)

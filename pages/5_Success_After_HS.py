@@ -349,10 +349,11 @@ if not earnings.empty:
                 text=industries["EMP_CNT"].astype(int).astype(str) + " grads",
                 hover_data={"AVG_EARNINGS": ":$,.0f", "GRAD_CNT": True},
             )
-            fig.update_traces(textposition="outside")
+            fig.update_traces(textposition="outside", cliponaxis=False)
             fig.update_layout(
                 **DEFAULT_LAYOUT,
                 xaxis_title="Number of graduates employed",
+                xaxis_range=[0, industries["EMP_CNT"].max() * 1.18],
                 yaxis_title="",
                 coloraxis_colorbar=dict(title="Avg $/yr"),
                 height=400,
