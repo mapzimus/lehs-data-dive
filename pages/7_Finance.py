@@ -11,7 +11,13 @@ from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE, LYNN_DISTRICT_CO
 from utils.data_loader import load_dataset
 from utils.interpret import sy_label
 
+# Per-school chart contrasts compare LEHS against Lynn's two other large
+# comprehensive high schools: Lynn Classical (LCHS) and Lynn Vocational
+# Technical Institute (LVTI / Lynn Tech). Same district, same budget rules,
+# similar enrollment scale — meaningful side-by-side comparison.
+LVTI_SCHOOL_CODE = "01630605"
 LCHS_COLOR = LEHS_GOLD
+LVTI_COLOR = "#26A69A"  # teal — distinct from navy + gold
 
 st.set_page_config(page_title="Finance | LEHS", page_icon="💰", layout="wide")
 sidebar_attribution()
@@ -20,9 +26,9 @@ st.title("Finance & Resource Allocation")
 st.markdown(
     "School-level expenditures by category, teacher compensation, and "
     "federal-vs-state-and-local funding split — drawn from DESE's School "
-    "Expenditures by Spending Category dataset. Lynn English vs. Lynn "
-    "Classical comparisons isolate school-level effects within the same "
-    "district budget."
+    "Expenditures by Spending Category dataset. Where chart contrasts "
+    "appear, they include Lynn Classical (LCHS) and Lynn Tech (LVTI) "
+    "alongside LEHS — same district, same budget rules."
 )
 
 school_exp = load_dataset("school_expenditures")
@@ -36,6 +42,9 @@ lehs_exp["IND_VALUE"] = pd.to_numeric(lehs_exp["IND_VALUE"], errors="coerce")
 
 lchs_exp = school_exp[school_exp["ORG_CODE"] == LCHS_SCHOOL_CODE].copy()
 lchs_exp["IND_VALUE"] = pd.to_numeric(lchs_exp["IND_VALUE"], errors="coerce")
+
+lvti_exp = school_exp[school_exp["ORG_CODE"] == LVTI_SCHOOL_CODE].copy()
+lvti_exp["IND_VALUE"] = pd.to_numeric(lvti_exp["IND_VALUE"], errors="coerce")
 
 # ---------------------------------------------------------------------------
 # Total per-pupil trend — LEHS vs LCHS
@@ -51,6 +60,7 @@ def _total_per_pupil(df: pd.DataFrame) -> pd.DataFrame:
 
 total_exp = _total_per_pupil(lehs_exp)
 total_lchs = _total_per_pupil(lchs_exp)
+total_lvti = _total_per_pupil(lvti_exp)
 
 if not total_exp.empty:
     latest = total_exp.iloc[-1]
@@ -65,11 +75,15 @@ if not total_exp.empty:
         )
         if not total_lchs.empty:
             latest_l = total_lchs.iloc[-1]
-            diff = latest["IND_VALUE"] - latest_l["IND_VALUE"]
             st.metric(
                 f"LCHS Per Pupil (FY {int(latest_l['SY'])})",
                 f"${latest_l['IND_VALUE']:,.0f}",
-                f"${diff:+,.0f} LEHS – LCHS",
+            )
+        if not total_lvti.empty:
+            latest_t = total_lvti.iloc[-1]
+            st.metric(
+                f"Lynn Tech Per Pupil (FY {int(latest_t['SY'])})",
+                f"${latest_t['IND_VALUE']:,.0f}",
             )
 
     fig = go.Figure()
@@ -81,6 +95,11 @@ if not total_exp.empty:
         fig.add_trace(go.Scatter(
             x=total_lchs["SY"], y=total_lchs["IND_VALUE"], mode="lines+markers",
             name="Lynn Classical", line=dict(color=LCHS_COLOR, width=2, dash="dash"),
+        ))
+    if not total_lvti.empty:
+        fig.add_trace(go.Scatter(
+            x=total_lvti["SY"], y=total_lvti["IND_VALUE"], mode="lines+markers",
+            name="Lynn Tech", line=dict(color=LVTI_COLOR, width=2, dash="dot"),
         ))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="$,.0f",
                       yaxis_title="$ per pupil", xaxis_title="Fiscal Year")
@@ -159,22 +178,29 @@ def _ind(df: pd.DataFrame, subcat: str) -> pd.DataFrame:
 
 salary = _ind(lehs_exp, "Average Teacher Salary")
 salary_l = _ind(lchs_exp, "Average Teacher Salary")
+salary_t = _ind(lvti_exp, "Average Teacher Salary")
 teach_per_100 = _ind(lehs_exp, "Teachers per 100 FTE students")
 teach_per_100_l = _ind(lchs_exp, "Teachers per 100 FTE students")
+teach_per_100_t = _ind(lvti_exp, "Teachers per 100 FTE students")
 
 c1, c2 = st.columns(2)
 if not salary.empty:
     latest_sal = salary.iloc[-1]
     with c1:
-        m1, m2 = st.columns(2)
+        m1, m2, m3 = st.columns(3)
         with m1:
-            st.metric(f"LEHS Avg Salary ({int(latest_sal['SY'])})",
+            st.metric(f"LEHS ({int(latest_sal['SY'])})",
                       f"${latest_sal['IND_VALUE']:,.0f}")
         if not salary_l.empty:
             with m2:
                 latest_l = salary_l.iloc[-1]
-                st.metric(f"LCHS Avg Salary ({int(latest_l['SY'])})",
+                st.metric(f"LCHS ({int(latest_l['SY'])})",
                           f"${latest_l['IND_VALUE']:,.0f}")
+        if not salary_t.empty:
+            with m3:
+                latest_t = salary_t.iloc[-1]
+                st.metric(f"Lynn Tech ({int(latest_t['SY'])})",
+                          f"${latest_t['IND_VALUE']:,.0f}")
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=salary["SY"], y=salary["IND_VALUE"],
                                  mode="lines+markers", name="Lynn English",
@@ -183,23 +209,31 @@ if not salary.empty:
             fig.add_trace(go.Scatter(x=salary_l["SY"], y=salary_l["IND_VALUE"],
                                      mode="lines+markers", name="Lynn Classical",
                                      line=dict(color=LCHS_COLOR, width=2, dash="dash")))
+        if not salary_t.empty:
+            fig.add_trace(go.Scatter(x=salary_t["SY"], y=salary_t["IND_VALUE"],
+                                     mode="lines+markers", name="Lynn Tech",
+                                     line=dict(color=LVTI_COLOR, width=2, dash="dot")))
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="$,.0f",
-                          yaxis_title="Average salary",
-                          title="Average teacher salary trend")
+                          yaxis_title="Average salary")
         st.plotly_chart(fig, use_container_width=True)
 
 if not teach_per_100.empty:
     latest_r = teach_per_100.iloc[-1]
     with c2:
-        m1, m2 = st.columns(2)
+        m1, m2, m3 = st.columns(3)
         with m1:
-            st.metric(f"LEHS Teachers/100 ({int(latest_r['SY'])})",
+            st.metric(f"LEHS ({int(latest_r['SY'])})",
                       f"{latest_r['IND_VALUE']:.1f}")
         if not teach_per_100_l.empty:
             with m2:
                 latest_lr = teach_per_100_l.iloc[-1]
-                st.metric(f"LCHS Teachers/100 ({int(latest_lr['SY'])})",
+                st.metric(f"LCHS ({int(latest_lr['SY'])})",
                           f"{latest_lr['IND_VALUE']:.1f}")
+        if not teach_per_100_t.empty:
+            with m3:
+                latest_tr = teach_per_100_t.iloc[-1]
+                st.metric(f"Lynn Tech ({int(latest_tr['SY'])})",
+                          f"{latest_tr['IND_VALUE']:.1f}")
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=teach_per_100["SY"], y=teach_per_100["IND_VALUE"],
                                  mode="lines+markers", name="Lynn English",
@@ -208,8 +242,11 @@ if not teach_per_100.empty:
             fig.add_trace(go.Scatter(x=teach_per_100_l["SY"], y=teach_per_100_l["IND_VALUE"],
                                      mode="lines+markers", name="Lynn Classical",
                                      line=dict(color=LCHS_COLOR, width=2, dash="dash")))
-        fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Teachers per 100 students",
-                          title="Staffing intensity trend")
+        if not teach_per_100_t.empty:
+            fig.add_trace(go.Scatter(x=teach_per_100_t["SY"], y=teach_per_100_t["IND_VALUE"],
+                                     mode="lines+markers", name="Lynn Tech",
+                                     line=dict(color=LVTI_COLOR, width=2, dash="dot")))
+        fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Teachers per 100 students")
         st.plotly_chart(fig, use_container_width=True)
 
 st.divider()

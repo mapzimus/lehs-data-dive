@@ -159,19 +159,16 @@ st.caption(
 st.divider()
 
 # ---------------------------------------------------------------------------
-# LEHS vs LCHS vs Lynn District — same-year comparison
+# LEHS vs Lynn district — same-year comparison
 # ---------------------------------------------------------------------------
 
-st.subheader(f"LEHS vs. Lynn Classical vs. Lynn district ({sy_label(current['SY'])})")
+st.subheader(f"LEHS vs. Lynn district ({sy_label(current['SY'])})")
 st.caption(
-    "LEHS and Lynn Classical (LCHS) are Lynn Public Schools' two main "
-    "comprehensive high schools, drawing from overlapping catchment areas. "
-    "The whole-district bar averages across all 22 Lynn schools (PK-12)."
+    "How LEHS's student body compares to the Lynn Public Schools district "
+    "average (across all 22 schools, PK-12). For school-to-school "
+    "comparison against other Lynn high schools, see "
+    "[Lynn District](/Lynn_District) (LEHS vs Siblings tab)."
 )
-
-# Pull LCHS row for the same year
-lchs_all = enrollment[enrollment["ORG_CODE"] == LCHS_SCHOOL_CODE].sort_values("SY")
-lchs_current = lchs_all.iloc[-1] if not lchs_all.empty else None
 
 if not district.empty:
     d_current = district.iloc[-1]
@@ -186,8 +183,6 @@ if not district.empty:
     data = {"Indicator": [r[0] for r in rows],
             "LEHS":            [current[r[1]] for r in rows],
             "Lynn District":   [d_current[r[1]] for r in rows]}
-    if lchs_current is not None:
-        data["LCHS"] = [lchs_current[r[1]] for r in rows]
     compare = pd.DataFrame(data)
     long = compare.melt(id_vars="Indicator", var_name="Scope", value_name="Pct").dropna()
     fig = px.bar(
@@ -195,7 +190,6 @@ if not district.empty:
         text=long["Pct"].apply(lambda x: f"{x:.0%}"),
         color_discrete_map={
             "LEHS":          LEHS_GOLD,
-            "LCHS":          "#1A8FE3",
             "Lynn District": LEHS_NAVY,
         },
     )
@@ -203,17 +197,6 @@ if not district.empty:
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share",
                        xaxis_title="")
     st.plotly_chart(fig, use_container_width=True)
-    if lchs_current is not None:
-        st.caption(
-            "LEHS and LCHS serve broadly similar Lynn populations but "
-            "differ at the margins — useful for isolating school-level "
-            "effects, since both pull from the same city and district policies."
-        )
-    else:
-        st.caption(
-            "LCHS data unavailable for this year; comparison shows LEHS vs "
-            "the whole Lynn district."
-        )
 
 st.divider()
 

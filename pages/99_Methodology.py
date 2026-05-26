@@ -58,29 +58,59 @@ for name, url, desc in sources:
 
 st.divider()
 
+st.header("Naming conventions")
+
+st.markdown(
+    """
+The dashboard uses three distinct scopes of "Lynn." Read these
+consistently:
+
+- **LEHS** — Lynn English High School. The single school this dashboard is
+  about (ORG_CODE `01630510`).
+- **Lynn district** / **LPS** — Lynn Public Schools, the K-12 district
+  that contains LEHS plus 21 other schools (DIST_CODE `01630000`).
+- **Lynn** (alone) — the city/place of Lynn, Massachusetts. Used for
+  Census, demographics, geography.
+- **Lynn Classical** / **Lynn Tech** / **Frederick Douglass** /
+  **Harold Durgin** — specific Lynn sibling high schools, always spelled
+  out by name.
+
+When a chart contrasts LEHS with another scope, the legend says which
+scope. "Lynn" alone never refers to LEHS.
+"""
+)
+
+st.divider()
+
 st.header("Peer cohort framework")
 
 st.markdown(
     """
-The dashboard compares LEHS against three nested peer cohorts to isolate
-different kinds of effects:
+The dashboard uses three peer-comparison cohorts, each in its dedicated
+home so the rest of the pages can stay LEHS-focused:
 
-1. **Lynn Classical High School (LCHS)** — Lynn's *other* comprehensive
-   high school. Same district, same city, same school board. Differences
-   between LEHS and LCHS isolate **school-level practices** (curriculum,
-   discipline policy, ELL programming, scheduling) from city-wide
-   demographic effects. You'll see LCHS as a dashed-line overlay on
-   *School Profile*, *Academic Performance*, *ELL Pipeline*, *College &
-   Career*, *Success After HS*, *Teachers & Workforce*, *Finance*, and
-   *Discipline & Climate*.
-2. **All Lynn high schools** (Lynn Tech, Fredrick Douglass, Harold Durgin
-   alongside LEHS and LCHS) — visible on the *Lynn District & Siblings*
-   page and *All Lynn Schools* page. Shows where LEHS sits inside the
-   Lynn Public Schools high-school portfolio.
+1. **Lynn sibling high schools** (LEHS vs. Lynn Classical, Lynn Tech,
+   Frederick Douglass, Harold Durgin) — the same-district, same-policies
+   comparison. Lives on the **[Lynn District](/Lynn_District)** page,
+   *LEHS vs Siblings* tab. Differences here isolate school-level
+   practices (curriculum, discipline policy, ELL programming) from
+   city-wide demographics. Where surviving chart contrasts on other
+   pages (Finance, Discipline) include Classical alongside LEHS, Lynn
+   Tech is included too.
+2. **Lynn Public Schools as a whole** — district context, 22 schools.
+   Shown on the **[Lynn District](/Lynn_District)** *Snapshot* tab and
+   referenced on other pages where the district benchmark adds context.
 3. **26 Massachusetts Gateway Cities** — main comprehensive HS of each
-   peer city. Shown on *Gateway Peer Comparison* and as a scatter cloud
-   on *Correlation Lab*. This is the *across-cities* benchmark; the
-   LEHS-vs-LCHS pairing is the *within-city* benchmark.
+   peer city. Shown on the **[Gateway Cities](/Gateway_Peer_Comparison)**
+   page and as a scatter cloud on the
+   **[Cross-Topic Explorer](/Correlation_Lab)**. This is the
+   across-cities benchmark.
+
+LEHS-focused pages (School Profile, Academic Performance, English
+Learners, College & Career, Success After HS, Teachers & Workforce,
+Finance, Discipline & Climate, Where Students Live, After Graduation)
+lead with LEHS's own story. School-to-school comparison lives in the
+dedicated Siblings tab; cross-city comparison lives in Gateway Cities.
 """
 )
 
@@ -95,7 +125,7 @@ st.markdown(
 - **Earnings data paused**: Average Earnings of HS Graduates by Industry — DESE paused updates in 2025 due to a methodology issue affecting students who didn't attend MA public postsecondary institutions.
 - **VOCAL participation**: not all schools participate every year — LEHS coverage is noted where it appears.
 - **ACS geography**: We use whole-city Lynn ACS rather than a precise LEHS catchment area. The catchment is roughly the eastern half of the city but exact boundaries are not published.
-- **CRDC frequency**: Federal CRDC data is biennial. The latest release reflects the 2020-21 school year.
+- **CRDC frequency**: Federal CRDC data is biennial. The latest release reflects the 2020-21 school year. The Civil Rights Data page is hidden from the sidebar until the ingest pipeline is finished.
 - **Correlation ≠ causation**: The Correlation Lab surfaces patterns. Confirming cause-and-effect requires more than this dashboard can show.
 """
 )

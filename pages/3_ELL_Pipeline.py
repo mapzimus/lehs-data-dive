@@ -40,19 +40,13 @@ if enrollment.empty or mcas.empty:
 st.header("How big is the EL population at LEHS?")
 
 lehs_enroll = enrollment[enrollment["ORG_CODE"] == LEHS_SCHOOL_CODE].sort_values("SY").copy()
-lchs_enroll = enrollment[enrollment["ORG_CODE"] == LCHS_SCHOOL_CODE].sort_values("SY").copy()
 current = lehs_enroll.iloc[-1]
-current_l = lchs_enroll.iloc[-1] if not lchs_enroll.empty else None
 
 c1, c2, c3, c4 = st.columns(4)
 with c1:
     st.metric("LEHS Current ELL count", f"{int(current['EL_CNT']):,}")
 with c2:
-    delta = None
-    if current_l is not None:
-        delta = f"LCHS: {current_l['EL_PCT']:.0%}"
-    st.metric("LEHS % English Learner", f"{current['EL_PCT']:.0%}",
-              delta=delta, delta_color="off")
+    st.metric("LEHS % English Learner", f"{current['EL_PCT']:.0%}")
 with c3:
     st.metric("% First Language Not English", f"{current['FLNE_PCT']:.0%}")
 with c4:
@@ -64,15 +58,9 @@ fig.add_trace(go.Scatter(
     name="Lynn English",
     line=dict(color=SUBGROUP_PALETTE["English Learner"], width=3),
 ))
-if not lchs_enroll.empty:
-    fig.add_trace(go.Scatter(
-        x=lchs_enroll["SY"], y=lchs_enroll["EL_PCT"], mode="lines+markers",
-        name="Lynn Classical",
-        line=dict(color="#7B8FA1", width=2, dash="dash"),
-    ))
 fig.update_layout(
     **DEFAULT_LAYOUT,
-    title="English Learner share — Lynn English vs. Lynn Classical, 1992-present",
+    title="English Learner share — Lynn English, 1992-present",
     yaxis_tickformat=".0%",
     yaxis_title="% English Learner",
     xaxis_title="School Year",
@@ -82,8 +70,8 @@ st.plotly_chart(fig, use_container_width=True)
 st.caption(
     "The EL share at LEHS has more than doubled since the early 2000s — a "
     "dramatic shift in who the school serves and what supports are required. "
-    "LCHS, in the same district, serves a markedly smaller EL share, which "
-    "shapes much of what follows on this page."
+    "For cross-school comparison, see "
+    "[Lynn District](/Lynn_District) (LEHS vs Siblings tab)."
 )
 
 st.divider()

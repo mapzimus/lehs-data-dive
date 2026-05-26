@@ -147,44 +147,11 @@ if not g_both.empty:
 st.divider()
 
 # ---------------------------------------------------------------------------
-# LEHS vs LCHS — 4-year graduation rate (Lynn's two main HS side-by-side)
-# ---------------------------------------------------------------------------
-
-st.header("LEHS vs. Lynn Classical — 4-Year Graduation Rate")
-st.caption(
-    "Lynn's two comprehensive high schools side-by-side. Same district, "
-    "same policies, overlapping catchments — meaningful differences in "
-    "graduation rate isolate school-level effects rather than city-level "
-    "demographics."
-)
-
-g_both_schools = grad[
-    (grad["ORG_CODE"].isin([LEHS_SCHOOL_CODE, LCHS_SCHOOL_CODE]))
-    & (grad["STU_GRP"] == "All Students")
-    & (grad["GRAD_RATE_TYPE"] == "4-Year Adjusted Cohort Graduation Rate")
-].copy()
-g_both_schools["School"] = g_both_schools["ORG_CODE"].map({
-    LEHS_SCHOOL_CODE: "LEHS",
-    LCHS_SCHOOL_CODE: "LCHS",
-})
-
-if not g_both_schools.empty:
-    fig = px.line(
-        g_both_schools.sort_values("SY"), x="SY", y="GRAD_PCT", color="School",
-        markers=True,
-        color_discrete_map={"LEHS": LEHS_GOLD, "LCHS": "#1A8FE3"},
-    )
-    fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
-                       yaxis_title="4-Year Graduation Rate",
-                       xaxis_title="Cohort Year")
-    st.plotly_chart(fig, use_container_width=True)
-else:
-    st.info("Both-school graduation rate data not available.")
-
-st.divider()
-
-# ---------------------------------------------------------------------------
 # Postsecondary enrollment pathway
+#
+# (The LEHS-vs-LCHS 4-year graduation chart that used to live here moved to
+# pages/Lynn_District.py LEHS-vs-Siblings tab, where it shows all 5 Lynn
+# high schools.)
 # ---------------------------------------------------------------------------
 
 st.header("Where do LEHS graduates go?")

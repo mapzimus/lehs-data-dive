@@ -13,16 +13,21 @@ from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE, PROCESSED_DIR
 from utils.data_loader import get_dart_indicator, load_dataset
 from utils.interpret import sy_label
 
+# Same-district contrast: LEHS, LCHS, and LVTI (Lynn Tech) are Lynn's three
+# largest comprehensive high schools. Comparing them isolates school-level
+# effects from city-level demographics.
+LVTI_SCHOOL_CODE = "01630605"
 LCHS_COLOR = LEHS_GOLD
+LVTI_COLOR = "#26A69A"  # teal
 
 st.set_page_config(page_title="Discipline & Climate | LEHS", page_icon="⚖️", layout="wide")
 sidebar_attribution()
 
 st.title("Discipline, Climate & Safety")
 st.markdown(
-    "Out-of-school suspension rates and chronic absenteeism for LEHS vs. Lynn "
-    "Classical, by student group where available. Same district, same city — "
-    "differences isolate school-level effects."
+    "Out-of-school suspension rates and chronic absenteeism at LEHS, with "
+    "by-subgroup breakdowns and same-district contrast against Lynn Classical "
+    "and Lynn Tech where the data supports it."
 )
 
 attendance = load_dataset("student_attendance")
@@ -38,6 +43,7 @@ st.header("Out-of-School Suspension Rate")
 
 susp_lehs = get_dart_indicator(LEHS_SCHOOL_CODE, "Students suspended out-of-school at least once")
 susp_lchs = get_dart_indicator(LCHS_SCHOOL_CODE, "Students suspended out-of-school at least once")
+susp_lvti = get_dart_indicator(LVTI_SCHOOL_CODE, "Students suspended out-of-school at least once")
 
 if not susp_lehs.empty:
     latest = susp_lehs.iloc[-1]
@@ -49,6 +55,10 @@ if not susp_lehs.empty:
             latest_lchs = susp_lchs.iloc[-1]
             st.metric(f"LCHS (SY {sy_label(latest_lchs['SY'])})",
                       f"{latest_lchs['VALUE']:.1f}%")
+        if not susp_lvti.empty:
+            latest_lvti = susp_lvti.iloc[-1]
+            st.metric(f"Lynn Tech (SY {sy_label(latest_lvti['SY'])})",
+                      f"{latest_lvti['VALUE']:.1f}%")
     with c2:
         fig = go.Figure()
         fig.add_trace(go.Scatter(
@@ -61,6 +71,12 @@ if not susp_lehs.empty:
                 x=susp_lchs["SY"], y=susp_lchs["VALUE"],
                 mode="lines+markers", name="Lynn Classical",
                 line=dict(color=LCHS_COLOR, width=2, dash="dash"),
+            ))
+        if not susp_lvti.empty:
+            fig.add_trace(go.Scatter(
+                x=susp_lvti["SY"], y=susp_lvti["VALUE"],
+                mode="lines+markers", name="Lynn Tech",
+                line=dict(color=LVTI_COLOR, width=2, dash="dot"),
             ))
         fig.update_layout(
             **DEFAULT_LAYOUT,
@@ -82,21 +98,32 @@ st.caption(
     "of low college-going rates."
 )
 
-att = attendance[attendance["ORG_CODE"].isin([LEHS_SCHOOL_CODE, LCHS_SCHOOL_CODE])].copy()
+att = attendance[attendance["ORG_CODE"].isin(
+    [LEHS_SCHOOL_CODE, LCHS_SCHOOL_CODE, LVTI_SCHOOL_CODE]
+)].copy()
 att["STU_GRP"] = att["STU_GRP"].astype(str).str.replace("\xa0", " ")
 att["PCT_CHRON_ABS_10"] = pd.to_numeric(att["PCT_CHRON_ABS_10"], errors="coerce")
-att["School"] = att["ORG_CODE"].map({LEHS_SCHOOL_CODE: "Lynn English", LCHS_SCHOOL_CODE: "Lynn Classical"})
+att["School"] = att["ORG_CODE"].map({
+    LEHS_SCHOOL_CODE: "Lynn English",
+    LCHS_SCHOOL_CODE: "Lynn Classical",
+    LVTI_SCHOOL_CODE: "Lynn Tech",
+})
 
-# Overall trend — LEHS vs LCHS
+# Overall trend — LEHS vs LCHS vs Lynn Tech
 all_stu = att[(att["STU_GRP"] == "All Students") & (att["ATTEND_PERIOD"] == "FY")].sort_values("SY")
 if not all_stu.empty:
     fig = px.line(
         all_stu, x="SY", y="PCT_CHRON_ABS_10", color="School", markers=True,
-        color_discrete_map={"Lynn English": LEHS_NAVY, "Lynn Classical": LCHS_COLOR},
-        title="Chronic absenteeism — Lynn English vs. Lynn Classical (all students)",
+        color_discrete_map={
+            "Lynn English": LEHS_NAVY,
+            "Lynn Classical": LCHS_COLOR,
+            "Lynn Tech": LVTI_COLOR,
+        },
     )
     fig.update_traces(selector=dict(name="Lynn Classical"),
                       line=dict(dash="dash", width=2))
+    fig.update_traces(selector=dict(name="Lynn Tech"),
+                      line=dict(dash="dot", width=2))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                       yaxis_title="% Chronically Absent (10%+ missed)")
     st.plotly_chart(fig, use_container_width=True)
@@ -323,11 +350,16 @@ if not att_rate.empty:
     fig = px.line(
         att_rate.sort_values("SY"), x="SY", y="ATTEND_RATE", color="School",
         markers=True,
-        color_discrete_map={"Lynn English": LEHS_NAVY, "Lynn Classical": LCHS_COLOR},
-        title="Attendance rate — Lynn English vs. Lynn Classical",
+        color_discrete_map={
+            "Lynn English": LEHS_NAVY,
+            "Lynn Classical": LCHS_COLOR,
+            "Lynn Tech": LVTI_COLOR,
+        },
     )
     fig.update_traces(selector=dict(name="Lynn Classical"),
                       line=dict(dash="dash", width=2))
+    fig.update_traces(selector=dict(name="Lynn Tech"),
+                      line=dict(dash="dot", width=2))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                       yaxis_title="Attendance rate")
     st.plotly_chart(fig, use_container_width=True)

@@ -46,13 +46,11 @@ def build_master_panel() -> pd.DataFrame:
         info["school_code"] for info in peers["gateway_main_hs"].values()
         if info.get("school_code")
     ]
-    # Include BOTH Lynn comprehensive high schools so the gateway scatter
-    # shows them as distinct points (LEHS + LCHS). Lynn (district) is the
-    # whole 22-school district — comparing it against single-school
-    # gateway-city HS would be apples-to-oranges.
-    for code in (LEHS_SCHOOL_CODE, LCHS_SCHOOL_CODE):
-        if code not in gateway_codes:
-            gateway_codes.append(code)
+    # Include LEHS in the gateway pool so Lynn is represented in the
+    # cross-city scatter (one school per city — Lynn-the-district has
+    # 22 schools and isn't comparable to a single gateway-city HS).
+    if LEHS_SCHOOL_CODE not in gateway_codes:
+        gateway_codes.append(LEHS_SCHOOL_CODE)
 
     # 1) Enrollment + demographics
     enr = load_dataset("enrollment_demographics")
