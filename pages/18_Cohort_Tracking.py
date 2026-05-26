@@ -276,68 +276,9 @@ st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
-# ---------------------------------------------------------------------------
-# LEHS vs Lynn sibling high schools — latest cohort
-# ---------------------------------------------------------------------------
-
-st.subheader(f"LEHS vs. Lynn Sibling High Schools — {latest_cohort - 4}–{latest_cohort} Cohort")
-st.caption(
-    "Same-district, same-policies comparison. Differences here isolate "
-    "school-level effects rather than city-level demographics. Hover for counts."
-)
-
-sibling_codes = list(LYNN_SIBLING_HS.values())
-siblings = prog[
-    prog["ORG_CODE"].isin(sibling_codes)
-    & (prog["INDICATOR"] == YEAR2_INDICATOR)
-    & (prog["STU_GRP"] == "All Students")
-    & (prog["COHORTYR"] == latest_cohort)
-].copy()
-
-if not siblings.empty:
-    siblings = siblings.assign(
-        grad_pct=lambda d: d["GRAD_CNT"] / d["COHORT_CNT"],
-        enr_pct=lambda d: d["IMMEDIATEENR_CNT"] / d["COHORT_CNT"],
-        pers_pct=lambda d: d["PERSIST_CNT"] / d["COHORT_CNT"],
-    )
-    # Only schools with enough students to be meaningful
-    siblings = siblings[siblings["COHORT_CNT"] >= 20].sort_values("pers_pct")
-
-    melted_s = siblings.melt(
-        id_vars=["ORG_NAME", "COHORT_CNT"],
-        value_vars=["grad_pct", "enr_pct", "pers_pct"],
-        var_name="stage",
-        value_name="pct",
-    )
-    melted_s["stage"] = melted_s["stage"].map(stage_labels)
-
-    fig = px.bar(
-        melted_s,
-        x="pct",
-        y="ORG_NAME",
-        color="stage",
-        barmode="group",
-        orientation="h",
-        color_discrete_map=stage_colors,
-        category_orders={"stage": ["Graduated", "Enrolled in college", "Persisted to year 2"]},
-        text=melted_s["pct"].apply(lambda x: f"{x:.0%}" if pd.notna(x) else ""),
-        hover_data={"COHORT_CNT": True},
-    )
-    fig.update_traces(textposition="outside", textfont=dict(size=10))
-    fig.update_layout(
-        **DEFAULT_LAYOUT,
-        height=max(280, 60 * len(siblings)),
-        xaxis_tickformat=".0%",
-        xaxis_title="Share of 9th-grade entrants reaching each stage",
-        yaxis_title="",
-        legend_title="",
-    )
-    fig.update_xaxes(range=[0, 1.1])
-    st.plotly_chart(fig, use_container_width=True)
-else:
-    st.info("No sibling-school cohort data for this year.")
-
-st.divider()
+# (The 5-school LEHS-vs-Siblings chart that lived here moved to
+# pages/Lynn_District.py LEHS-vs-Siblings tab, where it lives alongside
+# the other school-to-school comparisons.)
 
 # ---------------------------------------------------------------------------
 # Six-year degree completion (longest available cohort)

@@ -7,10 +7,13 @@ import streamlit as st
 
 from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
-from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE
+from utils.constants import LEHS_SCHOOL_CODE
 from utils.data_loader import load_dataset
 
-LCHS_COLOR = "#7B8FA1"  # neutral grey-blue so LCHS doesn't visually compete with LEHS's gold
+# Per Max's editorial direction: this page is LEHS-focused. School-to-school
+# teacher comparison (LEHS vs Classical vs Tech) lives in
+# pages/Lynn_District.py LEHS-vs-Siblings tab, where it can be done properly
+# across all 5 Lynn high schools.
 
 st.set_page_config(page_title="Teachers & Workforce | LEHS", page_icon="👩‍🏫", layout="wide")
 sidebar_attribution()
@@ -60,11 +63,6 @@ def _pct_teachers_of_color(teachers_row_df: pd.DataFrame) -> float | None:
     tot = pd.to_numeric(teachers_row_df["FTE_TOTAL"], errors="coerce").sum()
     return (nonwhite / tot) if tot > 0 else None
 
-# LCHS comparison data for the headline row
-lchs_staff_latest = staffing[(staffing["ORG_CODE"] == LCHS_SCHOOL_CODE) & (staffing["SY"] == latest_year)]
-lchs_teachers = lchs_staff_latest[lchs_staff_latest["JOBCLASS"].astype(str).str.lower() == "teacher"]
-lchs_pct_color = _pct_teachers_of_color(lchs_teachers)
-
 c1, c2, c3, c4 = st.columns(4)
 with c1:
     total_fte = pd.to_numeric(all_staff["FTE_TOTAL"], errors="coerce").sum() if not all_staff.empty else 0
@@ -80,11 +78,7 @@ with c3:
 with c4:
     lehs_pct_color = _pct_teachers_of_color(teachers)
     if lehs_pct_color is not None:
-        delta = None
-        if lchs_pct_color is not None:
-            delta = f"LCHS: {lchs_pct_color:.0%}"
-        st.metric("LEHS % Teachers of Color", f"{lehs_pct_color:.0%}", delta=delta,
-                  delta_color="off")
+        st.metric("LEHS % Teachers of Color", f"{lehs_pct_color:.0%}")
 
 st.divider()
 
@@ -103,7 +97,6 @@ st.caption(
 if not teachers.empty and not enr.empty:
     teach_row = teachers.iloc[0]
     stu = enr.iloc[0]
-    lchs_teach_row = lchs_teachers.iloc[0] if not lchs_teachers.empty else None
     groups = [
         ("Hispanic/Latino",          "HL_PCT",   "HL_PCT"),
         ("African American/Black",   "BAA_PCT",  "BAA_PCT"),
@@ -117,7 +110,6 @@ if not teachers.empty and not enr.empty:
             "Group": label,
             "LEHS Teachers": pd.to_numeric(teach_row.get(teach_col, 0), errors="coerce") or 0,
             "LEHS Students": pd.to_numeric(stu.get(stu_col, 0), errors="coerce") or 0,
-            "LCHS Teachers": (pd.to_numeric(lchs_teach_row.get(teach_col, 0), errors="coerce") or 0) if lchs_teach_row is not None else 0,
         })
     diversity_df = pd.DataFrame(rows)
 
@@ -126,16 +118,11 @@ if not teachers.empty and not enr.empty:
                          y=diversity_df["LEHS Students"], marker_color=LEHS_GOLD))
     fig.add_trace(go.Bar(name="LEHS Teachers", x=diversity_df["Group"],
                          y=diversity_df["LEHS Teachers"], marker_color=LEHS_NAVY))
-    if lchs_teach_row is not None:
-        fig.add_trace(go.Bar(name="LCHS Teachers", x=diversity_df["Group"],
-                             y=diversity_df["LCHS Teachers"], marker_color=LCHS_COLOR))
     fig.update_layout(**DEFAULT_LAYOUT, barmode="group", yaxis_tickformat=".0%",
                        yaxis_title="Share")
     st.plotly_chart(fig, use_container_width=True)
 
-    # Gap callout — read from the actual DataFrame columns (LEHS Students /
-    # LEHS Teachers), not the bare "Students" / "Teachers" names that the
-    # original code assumed.
+    # Representation gap callout
     hl_gap = diversity_df.loc[diversity_df["Group"] == "Hispanic/Latino", "LEHS Students"].iloc[0] - \
              diversity_df.loc[diversity_df["Group"] == "Hispanic/Latino", "LEHS Teachers"].iloc[0]
     if hl_gap > 0.2:

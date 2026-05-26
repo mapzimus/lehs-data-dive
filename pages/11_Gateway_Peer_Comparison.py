@@ -20,14 +20,11 @@ sidebar_attribution()
 
 st.title("Gateway Peer Comparison")
 st.markdown(
-    "LEHS and **Lynn Classical High School (LCHS)** benchmarked against the main "
-    "comprehensive high school in each of the other 25 Massachusetts Gateway "
-    "Cities — similar urban contexts and demographic profiles."
-)
-st.caption(
-    "Note: \"Lynn\" by itself refers to the whole district (16k+ students across "
-    "22 schools). LEHS and LCHS are the two largest comprehensive high schools "
-    "inside that district — both shown here for fair school-to-school comparison."
+    "LEHS benchmarked against the main comprehensive high school in each of "
+    "the other 25 Massachusetts Gateway Cities — similar urban contexts and "
+    "demographic profiles. For school-to-school comparison within Lynn (LEHS "
+    "vs. Classical, Tech, and the alternative academies), see "
+    "[Lynn District](/Lynn_District) (LEHS vs Siblings tab)."
 )
 
 # Load the peer-schools manifest
@@ -45,15 +42,11 @@ city_to_school = {
 school_to_city = {v: k for k, v in city_to_school.items()}
 gateway_codes = list(city_to_school.values())
 
-# Add LCHS alongside LEHS so the Lynn comparison isn't "one school vs 25 cities"
-if LCHS_SCHOOL_CODE not in gateway_codes:
-    gateway_codes.append(LCHS_SCHOOL_CODE)
-    school_to_city[LCHS_SCHOOL_CODE] = "Lynn"
-
-# Friendly labels — distinguishes LEHS / LCHS from each other and from other Lynn rows
+# Friendly label for LEHS in the per-city scorecard (every other city's row
+# uses its district name, e.g. "Lawrence"; for Lynn we say "Lynn — LEHS" so
+# the row is unambiguously the school, not the whole 22-school district).
 LYNN_SCHOOL_LABELS = {
     LEHS_SCHOOL_CODE: "Lynn — LEHS",
-    LCHS_SCHOOL_CODE: "Lynn — LCHS",
 }
 
 enrollment = load_dataset("enrollment_demographics")
@@ -150,15 +143,15 @@ for col in ["% ELL", "% Low Income", "% High Needs", "% Hispanic/Latino",
 display["Enrollment"] = display["Enrollment"].apply(lambda x: f"{int(x):,}" if pd.notna(x) else "—")
 display["$ Per Pupil"] = display["$ Per Pupil"].apply(lambda x: f"${x:,.0f}" if pd.notna(x) else "—")
 
-# Highlight LEHS + LCHS rows (Lynn's two main comprehensive HS)
-def highlight_lynn_schools(row):
-    if str(row["City"]).startswith("Lynn"):
+# Highlight the LEHS row
+def highlight_lehs_row(row):
+    if str(row["City"]) == "Lynn — LEHS":
         return ["background-color: #FFF4D6"] * len(row)
     return [""] * len(row)
 
-st.dataframe(display.style.apply(highlight_lynn_schools, axis=1),
+st.dataframe(display.style.apply(highlight_lehs_row, axis=1),
              use_container_width=True, hide_index=True)
-st.caption(f"School year {latest_enr_year}. Lynn schools (LEHS + LCHS) highlighted in gold.")
+st.caption(f"School year {latest_enr_year}. LEHS row highlighted in gold.")
 
 st.divider()
 
@@ -173,12 +166,12 @@ st.subheader("Per-pupil spending vs. 4-year graduation rate")
 scatter_df = scorecard.dropna(subset=["$ Per Pupil", "4yr Grad Rate"]).copy()
 if not scatter_df.empty:
     scatter_df["highlight"] = scatter_df["City"].apply(
-        lambda x: "Lynn HS" if str(x).startswith("Lynn") else "Other Gateway HS"
+        lambda x: "LEHS" if x == "Lynn — LEHS" else "Other Gateway HS"
     )
     fig = px.scatter(
         scatter_df, x="$ Per Pupil", y="4yr Grad Rate",
         text="City", color="highlight",
-        color_discrete_map={"Lynn HS": LEHS_GOLD, "Other Gateway HS": GATEWAY_PEER_COLOR},
+        color_discrete_map={"LEHS": LEHS_GOLD, "Other Gateway HS": GATEWAY_PEER_COLOR},
         trendline="ols",
     )
     fig.update_traces(textposition="top center", textfont_size=10)
@@ -195,12 +188,12 @@ st.subheader("ELL share vs. 4-year graduation rate")
 scatter_df2 = scorecard.dropna(subset=["% ELL", "4yr Grad Rate"]).copy()
 if not scatter_df2.empty:
     scatter_df2["highlight"] = scatter_df2["City"].apply(
-        lambda x: "Lynn HS" if str(x).startswith("Lynn") else "Other Gateway HS"
+        lambda x: "LEHS" if x == "Lynn — LEHS" else "Other Gateway HS"
     )
     fig = px.scatter(
         scatter_df2, x="% ELL", y="4yr Grad Rate",
         text="City", color="highlight",
-        color_discrete_map={"Lynn HS": LEHS_GOLD, "Other Gateway HS": GATEWAY_PEER_COLOR},
+        color_discrete_map={"LEHS": LEHS_GOLD, "Other Gateway HS": GATEWAY_PEER_COLOR},
         trendline="ols",
     )
     fig.update_traces(textposition="top center", textfont_size=10)

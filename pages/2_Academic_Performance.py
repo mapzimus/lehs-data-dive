@@ -174,21 +174,19 @@ st.divider()
 # LEHS vs Lynn district vs MA state — by subject, latest year
 # ---------------------------------------------------------------------------
 
-st.subheader(f"LEHS vs. LCHS vs. Lynn District vs. Massachusetts — SY {sy_label(latest_year)}")
+st.subheader(f"LEHS vs. Lynn district vs. Massachusetts — SY {sy_label(latest_year)}")
 
 from utils.stats import wilson_ci_from_pct  # noqa: E402
 
 bench_rows = []
 for code in ["ELA", "MATH", "SCI"]:
     lehs_row = latest[latest["SUBJECT_CODE"] == code]
-    lchs_row = lchs[(lchs["STU_GRP"] == "All Students")
-                     & (lchs["SUBJECT_CODE"] == code)
-                     & (lchs["SY"] == latest_year)]
     dist_row = district[(district["SUBJECT_CODE"] == code) & (district["SY"] == latest_year)]
     state_row = state[(state["SUBJECT_CODE"] == code) & (state["SY"] == latest_year)]
     for label, row_df in [
-        ("LEHS", lehs_row), ("LCHS", lchs_row),
-        ("Lynn District", dist_row), ("Massachusetts", state_row),
+        ("LEHS", lehs_row),
+        ("Lynn district", dist_row),
+        ("Massachusetts", state_row),
     ]:
         if row_df.empty:
             continue
@@ -210,11 +208,10 @@ if bench_rows:
     fig = px.bar(
         bench_df, x="Subject", y="Pct", color="Scope", barmode="group",
         text="label",
-        category_orders={"Scope": ["LEHS", "LCHS", "Lynn District", "Massachusetts"]},
+        category_orders={"Scope": ["LEHS", "Lynn district", "Massachusetts"]},
         color_discrete_map={
             "LEHS":          LEHS_GOLD,
-            "LCHS":          "#1A8FE3",
-            "Lynn District": LEHS_NAVY,
+            "Lynn district": LEHS_NAVY,
             "Massachusetts": "#455A64",
         },
         error_y="err_plus",
@@ -232,12 +229,13 @@ if bench_rows:
                        xaxis_title="")
     st.plotly_chart(fig, use_container_width=True)
     st.caption(
-        "Four natural benchmarks: LEHS, LCHS (Lynn Classical — Lynn's "
-        "other comprehensive HS), the Lynn district aggregate (averaged "
-        "across all 22 schools), and the Massachusetts statewide average. "
-        "Error bars are 95% Wilson confidence intervals — narrower for "
-        "the larger denominators (district and state) and visibly wider "
-        "for the single-school cohorts."
+        "Three natural benchmarks: LEHS, the Lynn district aggregate "
+        "(averaged across all 22 schools), and the Massachusetts statewide "
+        "average. Error bars are 95% Wilson confidence intervals — narrower "
+        "for the larger denominators (district and state) and visibly wider "
+        "for LEHS's single-school cohort. For school-to-school MCAS comparison "
+        "with Lynn Classical, Tech, and the alternative academies, see "
+        "[Lynn District](/Lynn_District) (LEHS vs Siblings tab)."
     )
 
 st.divider()
