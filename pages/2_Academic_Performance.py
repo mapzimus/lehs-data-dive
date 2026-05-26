@@ -59,8 +59,28 @@ if lehs.empty:
     st.error("No LEHS Grade 10 MCAS data found.")
     st.stop()
 
+# Detect whether we have multi-year data. The mcas_achievement parquet
+# currently ships with only the most recent SY for school-level rows (an
+# ingest-pipeline limitation upstream from this page). Trend charts that
+# expect 5+ years collapse to single dots if we don't guard for this — so
+# detect it once and gate the trend sections below on HAS_HISTORY.
+N_YEARS = lehs["SY"].nunique()
+HAS_HISTORY = N_YEARS >= 3
+
 SUBJECT_MAP = {"ELA": "English Language Arts", "MATH": "Mathematics", "SCI": "Science"}
 SUBJECT_COLOR = {"ELA": "#1976D2", "MATH": "#D32F2F", "SCI": "#388E3C"}
+
+# Show a one-time banner when the parquet is single-year so visitors aren't
+# confused by trend sections that would otherwise be empty/sparse.
+if not HAS_HISTORY:
+    st.info(
+        f"**Showing latest year only** (SY {sy_label(int(lehs['SY'].max()))}). "
+        f"The MCAS Achievement parquet currently includes only the most recent "
+        f"school year for LEHS — multi-year trend charts are hidden until the "
+        f"data pipeline is refreshed to pull historical years. The single-year "
+        f"sections below (full distribution, benchmarks vs district & state, "
+        f"subgroup breakdown) all render correctly."
+    )
 
 # ===========================================================================
 # 1. HERO — most recent year, all subjects, growth percentile
@@ -108,55 +128,56 @@ st.caption(
 st.divider()
 
 # ===========================================================================
-# 2. % MEETING+EXCEEDING — multi-year trend per subject
+# 2. % MEETING+EXCEEDING — multi-year trend per subject  (HAS_HISTORY only)
 # ===========================================================================
 
-st.header("% Meeting or Exceeding — Trend by Subject")
+if HAS_HISTORY:
+    st.header("% Meeting or Exceeding — Trend by Subject")
 
-trend = all_students.sort_values(["SUBJECT_CODE", "SY"]).copy()
-trend["label"] = trend["M_PLUS_E_PCT"].apply(lambda x: f"{x:.0%}" if pd.notna(x) else "")
+    trend = all_students.sort_values(["SUBJECT_CODE", "SY"]).copy()
+    trend["label"] = trend["M_PLUS_E_PCT"].apply(lambda x: f"{x:.0%}" if pd.notna(x) else "")
 
-fig = px.line(
-    trend, x="SY", y="M_PLUS_E_PCT", color="SUBJECT_CODE",
-    color_discrete_map=SUBJECT_COLOR, markers=True, text="label",
-    labels={"SUBJECT_CODE": "Subject", "M_PLUS_E_PCT": "% M+E", "SY": "Year"},
-)
-fig.update_traces(textposition="top center", textfont=dict(size=10))
-fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
-                   yaxis_title="% Meeting or Exceeding")
-st.plotly_chart(fig, use_container_width=True)
-st.caption(
-    "MCAS was waived in spring 2020 and modified in 2021 — those years "
-    "show fewer data points and shouldn't be read as a real trend break."
-)
+    fig = px.line(
+        trend, x="SY", y="M_PLUS_E_PCT", color="SUBJECT_CODE",
+        color_discrete_map=SUBJECT_COLOR, markers=True, text="label",
+        labels={"SUBJECT_CODE": "Subject", "M_PLUS_E_PCT": "% M+E", "SY": "Year"},
+    )
+    fig.update_traces(textposition="top center", textfont=dict(size=10))
+    fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
+                       yaxis_title="% Meeting or Exceeding")
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        "MCAS was waived in spring 2020 and modified in 2021 — those years "
+        "show fewer data points and shouldn't be read as a real trend break."
+    )
 
-# ---------------------------------------------------------------------------
-# Avg scaled score trend — same data, different lens
-# ---------------------------------------------------------------------------
+    # ---------------------------------------------------------------------------
+    # Avg scaled score trend — same data, different lens
+    # ---------------------------------------------------------------------------
 
-st.subheader("Average Scaled Score Trend")
-st.caption(
-    "Scaled scores run roughly **440–560**, with **500 = Meeting Expectations**. "
-    "Useful for measuring fine-grained year-to-year change that gets compressed "
-    "in the M+E percentage view above."
-)
+    st.subheader("Average Scaled Score Trend")
+    st.caption(
+        "Scaled scores run roughly **440–560**, with **500 = Meeting Expectations**. "
+        "Useful for measuring fine-grained year-to-year change that gets compressed "
+        "in the M+E percentage view above."
+    )
 
-scaled_trend = all_students.dropna(subset=["AVG_SCALED_SCORE"]).copy()
-scaled_trend["label"] = scaled_trend["AVG_SCALED_SCORE"].apply(lambda x: f"{x:.0f}")
+    scaled_trend = all_students.dropna(subset=["AVG_SCALED_SCORE"]).copy()
+    scaled_trend["label"] = scaled_trend["AVG_SCALED_SCORE"].apply(lambda x: f"{x:.0f}")
 
-fig = px.line(
-    scaled_trend.sort_values(["SUBJECT_CODE", "SY"]),
-    x="SY", y="AVG_SCALED_SCORE", color="SUBJECT_CODE",
-    color_discrete_map=SUBJECT_COLOR, markers=True, text="label",
-)
-fig.update_traces(textposition="top center", textfont=dict(size=10))
-fig.add_hline(y=500, line_dash="dash", line_color="gray",
-              annotation_text="Meets Expectations (500)", annotation_position="right")
-fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Average scaled score",
-                   xaxis_title="School Year")
-st.plotly_chart(fig, use_container_width=True)
+    fig = px.line(
+        scaled_trend.sort_values(["SUBJECT_CODE", "SY"]),
+        x="SY", y="AVG_SCALED_SCORE", color="SUBJECT_CODE",
+        color_discrete_map=SUBJECT_COLOR, markers=True, text="label",
+    )
+    fig.update_traces(textposition="top center", textfont=dict(size=10))
+    fig.add_hline(y=500, line_dash="dash", line_color="gray",
+                  annotation_text="Meets Expectations (500)", annotation_position="right")
+    fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Average scaled score",
+                       xaxis_title="School Year")
+    st.plotly_chart(fig, use_container_width=True)
 
-st.divider()
+    st.divider()
 
 # ===========================================================================
 # 3. FULL ACHIEVEMENT-LEVEL DISTRIBUTION — latest year + multi-year stacked
@@ -204,51 +225,52 @@ fig.update_layout(**DEFAULT_LAYOUT, xaxis_tickformat=".0%", xaxis_title="Share o
 st.plotly_chart(fig, use_container_width=True)
 
 # ---------------------------------------------------------------------------
-# Distribution evolution over time — per subject
+# Distribution evolution over time — per subject  (HAS_HISTORY only)
 # ---------------------------------------------------------------------------
 
-st.subheader("How the Distribution Has Shifted Over Time")
-st.caption(
-    "Same four levels, plotted year by year per subject. Watch the **Not "
-    "Meeting** band — shrinking it is the school's hardest-and-most-meaningful "
-    "challenge."
-)
-
-dist_subject_choice = st.radio(
-    "Subject",
-    options=["ELA", "MATH", "SCI"],
-    format_func=lambda c: SUBJECT_MAP[c],
-    horizontal=True,
-    key="dist_subj",
-)
-
-dist_yearly = all_students[all_students["SUBJECT_CODE"] == dist_subject_choice].copy()
-dist_yearly = dist_yearly.dropna(subset=["E_PCT", "M_PCT", "PM_PCT", "NM_PCT"]).sort_values("SY")
-
-if not dist_yearly.empty:
-    dist_long = dist_yearly.melt(
-        id_vars="SY",
-        value_vars=["E_PCT", "M_PCT", "PM_PCT", "NM_PCT"],
-        var_name="Level",
-        value_name="Pct",
+if HAS_HISTORY:
+    st.subheader("How the Distribution Has Shifted Over Time")
+    st.caption(
+        "Same four levels, plotted year by year per subject. Watch the **Not "
+        "Meeting** band — shrinking it is the school's hardest-and-most-meaningful "
+        "challenge."
     )
-    level_map = {"E_PCT": "Exceeding", "M_PCT": "Meeting",
-                 "PM_PCT": "Partially Meeting", "NM_PCT": "Not Meeting"}
-    dist_long["Level"] = dist_long["Level"].map(level_map)
-    fig = px.bar(
-        dist_long, x="SY", y="Pct", color="Level",
-        category_orders={"Level": ["Not Meeting", "Partially Meeting", "Meeting", "Exceeding"]},
-        color_discrete_map={
-            "Exceeding":         "#1B5E20",
-            "Meeting":           "#388E3C",
-            "Partially Meeting": "#F57C00",
-            "Not Meeting":       "#D32F2F",
-        },
-        barmode="stack",
+
+    dist_subject_choice = st.radio(
+        "Subject",
+        options=["ELA", "MATH", "SCI"],
+        format_func=lambda c: SUBJECT_MAP[c],
+        horizontal=True,
+        key="dist_subj",
     )
-    fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
-                       yaxis_title="Share of test-takers", xaxis_title="School Year")
-    st.plotly_chart(fig, use_container_width=True)
+
+    dist_yearly = all_students[all_students["SUBJECT_CODE"] == dist_subject_choice].copy()
+    dist_yearly = dist_yearly.dropna(subset=["E_PCT", "M_PCT", "PM_PCT", "NM_PCT"]).sort_values("SY")
+
+    if not dist_yearly.empty:
+        dist_long = dist_yearly.melt(
+            id_vars="SY",
+            value_vars=["E_PCT", "M_PCT", "PM_PCT", "NM_PCT"],
+            var_name="Level",
+            value_name="Pct",
+        )
+        level_map = {"E_PCT": "Exceeding", "M_PCT": "Meeting",
+                     "PM_PCT": "Partially Meeting", "NM_PCT": "Not Meeting"}
+        dist_long["Level"] = dist_long["Level"].map(level_map)
+        fig = px.bar(
+            dist_long, x="SY", y="Pct", color="Level",
+            category_orders={"Level": ["Not Meeting", "Partially Meeting", "Meeting", "Exceeding"]},
+            color_discrete_map={
+                "Exceeding":         "#1B5E20",
+                "Meeting":           "#388E3C",
+                "Partially Meeting": "#F57C00",
+                "Not Meeting":       "#D32F2F",
+            },
+            barmode="stack",
+        )
+        fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
+                           yaxis_title="Share of test-takers", xaxis_title="School Year")
+        st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -319,44 +341,45 @@ if bench_rows:
     )
 
 # ---------------------------------------------------------------------------
-# LEHS gap to MA over time — multi-year benchmark
+# LEHS gap to MA over time — multi-year benchmark  (HAS_HISTORY only)
 # ---------------------------------------------------------------------------
 
-st.subheader("LEHS Gap to Massachusetts — Over Time")
-st.caption(
-    "How far LEHS has been from the statewide average each year. A flat or "
-    "shrinking gap means LEHS is keeping pace or catching up; a widening gap "
-    "means the school is falling behind."
-)
+if HAS_HISTORY:
+    st.subheader("LEHS Gap to Massachusetts — Over Time")
+    st.caption(
+        "How far LEHS has been from the statewide average each year. A flat or "
+        "shrinking gap means LEHS is keeping pace or catching up; a widening gap "
+        "means the school is falling behind."
+    )
 
-gap_rows = []
-for code in ["ELA", "MATH", "SCI"]:
-    lehs_subj = all_students[all_students["SUBJECT_CODE"] == code][["SY", "M_PLUS_E_PCT"]].copy()
-    state_subj = state[state["SUBJECT_CODE"] == code][["SY", "M_PLUS_E_PCT"]].copy()
-    state_subj = state_subj.rename(columns={"M_PLUS_E_PCT": "MA"})
-    merged = lehs_subj.merge(state_subj, on="SY", how="inner")
-    merged["gap"] = merged["M_PLUS_E_PCT"] - merged["MA"]
-    merged["Subject"] = SUBJECT_MAP[code]
-    gap_rows.append(merged)
+    gap_rows = []
+    for code in ["ELA", "MATH", "SCI"]:
+        lehs_subj = all_students[all_students["SUBJECT_CODE"] == code][["SY", "M_PLUS_E_PCT"]].copy()
+        state_subj = state[state["SUBJECT_CODE"] == code][["SY", "M_PLUS_E_PCT"]].copy()
+        state_subj = state_subj.rename(columns={"M_PLUS_E_PCT": "MA"})
+        merged = lehs_subj.merge(state_subj, on="SY", how="inner")
+        merged["gap"] = merged["M_PLUS_E_PCT"] - merged["MA"]
+        merged["Subject"] = SUBJECT_MAP[code]
+        gap_rows.append(merged)
 
-if gap_rows:
-    gap_df = pd.concat(gap_rows, ignore_index=True).dropna(subset=["gap"])
-    if not gap_df.empty:
-        fig = px.line(
-            gap_df.sort_values("SY"), x="SY", y="gap", color="Subject",
-            color_discrete_map={
-                SUBJECT_MAP["ELA"]: SUBJECT_COLOR["ELA"],
-                SUBJECT_MAP["MATH"]: SUBJECT_COLOR["MATH"],
-                SUBJECT_MAP["SCI"]: SUBJECT_COLOR["SCI"],
-            },
-            markers=True,
-        )
-        fig.add_hline(y=0, line_dash="dash", line_color="gray",
-                      annotation_text="MA average (0)", annotation_position="right")
-        fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="+.0%",
-                           yaxis_title="LEHS minus MA (percentage points)",
-                           xaxis_title="School Year")
-        st.plotly_chart(fig, use_container_width=True)
+    if gap_rows:
+        gap_df = pd.concat(gap_rows, ignore_index=True).dropna(subset=["gap"])
+        if not gap_df.empty:
+            fig = px.line(
+                gap_df.sort_values("SY"), x="SY", y="gap", color="Subject",
+                color_discrete_map={
+                    SUBJECT_MAP["ELA"]: SUBJECT_COLOR["ELA"],
+                    SUBJECT_MAP["MATH"]: SUBJECT_COLOR["MATH"],
+                    SUBJECT_MAP["SCI"]: SUBJECT_COLOR["SCI"],
+                },
+                markers=True,
+            )
+            fig.add_hline(y=0, line_dash="dash", line_color="gray",
+                          annotation_text="MA average (0)", annotation_position="right")
+            fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="+.0%",
+                               yaxis_title="LEHS minus MA (percentage points)",
+                               xaxis_title="School Year")
+            st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -416,59 +439,89 @@ sub.loc[latest_sub_idx, "label"] = sub.loc[latest_sub_idx, "M_PLUS_E_PCT"].apply
     lambda x: f"{x:.0%}" if pd.notna(x) else ""
 )
 
-st.subheader(f"% M+E Trend — {SUBJECT_MAP[subject_choice]}, by Student Group")
-fig = px.line(
-    sub, x="SY", y="M_PLUS_E_PCT", color="STU_GRP", markers=True,
-    color_discrete_map=color_map, text="label",
-)
-fig.update_traces(textposition="middle right", textfont=dict(size=10))
-fig.update_layout(
-    **DEFAULT_LAYOUT,
-    yaxis_tickformat=".0%",
-    yaxis_title=f"{SUBJECT_MAP[subject_choice]} — % M+E",
-    xaxis_title="School Year",
-)
-st.plotly_chart(fig, use_container_width=True)
-
-# ---------------------------------------------------------------------------
-# NEW — Gap-to-school-wide evolution over time
-# ---------------------------------------------------------------------------
-
-st.subheader(f"Gap to School-Wide Average — Over Time, {SUBJECT_MAP[subject_choice]}")
-st.caption(
-    "Each line = one subgroup's gap (in percentage points) to the LEHS "
-    "school-wide rate, plotted year by year. **Lines moving up toward zero** "
-    "means the gap is shrinking. Lines below zero = subgroup performs below "
-    "school-wide; lines above = subgroup performs above."
-)
-
-if not sub.empty:
-    all_by_year = (
-        sub[sub["STU_GRP"] == "All Students"][["SY", "M_PLUS_E_PCT"]]
-        .rename(columns={"M_PLUS_E_PCT": "all_pct"})
+if HAS_HISTORY:
+    st.subheader(f"% M+E Trend — {SUBJECT_MAP[subject_choice]}, by Student Group")
+    fig = px.line(
+        sub, x="SY", y="M_PLUS_E_PCT", color="STU_GRP", markers=True,
+        color_discrete_map=color_map, text="label",
     )
-    gap_long = (
-        sub[sub["STU_GRP"] != "All Students"]
-        [["SY", "STU_GRP", "M_PLUS_E_PCT"]]
-        .merge(all_by_year, on="SY", how="inner")
+    fig.update_traces(textposition="middle right", textfont=dict(size=10))
+    fig.update_layout(
+        **DEFAULT_LAYOUT,
+        yaxis_tickformat=".0%",
+        yaxis_title=f"{SUBJECT_MAP[subject_choice]} — % M+E",
+        xaxis_title="School Year",
     )
-    gap_long["gap"] = gap_long["M_PLUS_E_PCT"] - gap_long["all_pct"]
-    gap_long = gap_long.dropna(subset=["gap"])
-
-    if not gap_long.empty:
-        fig = px.line(
-            gap_long.sort_values("SY"), x="SY", y="gap", color="STU_GRP",
-            markers=True, color_discrete_map=color_map,
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    # Single-year fallback: horizontal bar of every subgroup's M+E for the
+    # selected subject in the latest available year. Same information as the
+    # trend chart would carry, but readable with one data point.
+    latest_year_sub = sub[sub["SY"] == sub["SY"].max()].copy()
+    if not latest_year_sub.empty:
+        st.subheader(
+            f"% M+E by Student Group — {SUBJECT_MAP[subject_choice]}, "
+            f"SY {sy_label(int(latest_year_sub['SY'].max()))}"
         )
-        fig.add_hline(y=0, line_dash="dash", line_color="gray",
-                      annotation_text="School-wide (0 gap)", annotation_position="right")
+        bar = latest_year_sub.dropna(subset=["M_PLUS_E_PCT"]).sort_values("M_PLUS_E_PCT").copy()
+        bar["label"] = bar["M_PLUS_E_PCT"].apply(lambda x: f"{x:.0%}")
+        fig = px.bar(
+            bar, x="M_PLUS_E_PCT", y="STU_GRP", orientation="h",
+            color="STU_GRP", color_discrete_map=color_map,
+            text="label",
+        )
+        fig.update_traces(textposition="outside", cliponaxis=False)
         fig.update_layout(
             **DEFAULT_LAYOUT,
-            yaxis_tickformat="+.0%",
-            yaxis_title="Gap to school-wide (pp)",
-            xaxis_title="School Year",
+            xaxis_tickformat=".0%",
+            xaxis_title=f"{SUBJECT_MAP[subject_choice]} — % M+E",
+            yaxis_title="",
+            xaxis_range=[0, max(bar["M_PLUS_E_PCT"].max() * 1.18, 0.1)],
+            showlegend=False,
+            height=max(360, 32 * len(bar)),
         )
         st.plotly_chart(fig, use_container_width=True)
+
+# ---------------------------------------------------------------------------
+# Gap-to-school-wide evolution over time  (HAS_HISTORY only)
+# ---------------------------------------------------------------------------
+
+if HAS_HISTORY:
+    st.subheader(f"Gap to School-Wide Average — Over Time, {SUBJECT_MAP[subject_choice]}")
+    st.caption(
+        "Each line = one subgroup's gap (in percentage points) to the LEHS "
+        "school-wide rate, plotted year by year. **Lines moving up toward zero** "
+        "means the gap is shrinking. Lines below zero = subgroup performs below "
+        "school-wide; lines above = subgroup performs above."
+    )
+
+    if not sub.empty:
+        all_by_year = (
+            sub[sub["STU_GRP"] == "All Students"][["SY", "M_PLUS_E_PCT"]]
+            .rename(columns={"M_PLUS_E_PCT": "all_pct"})
+        )
+        gap_long = (
+            sub[sub["STU_GRP"] != "All Students"]
+            [["SY", "STU_GRP", "M_PLUS_E_PCT"]]
+            .merge(all_by_year, on="SY", how="inner")
+        )
+        gap_long["gap"] = gap_long["M_PLUS_E_PCT"] - gap_long["all_pct"]
+        gap_long = gap_long.dropna(subset=["gap"])
+
+        if not gap_long.empty:
+            fig = px.line(
+                gap_long.sort_values("SY"), x="SY", y="gap", color="STU_GRP",
+                markers=True, color_discrete_map=color_map,
+            )
+            fig.add_hline(y=0, line_dash="dash", line_color="gray",
+                          annotation_text="School-wide (0 gap)", annotation_position="right")
+            fig.update_layout(
+                **DEFAULT_LAYOUT,
+                yaxis_tickformat="+.0%",
+                yaxis_title="Gap to school-wide (pp)",
+                xaxis_title="School Year",
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
 # ---------------------------------------------------------------------------
 # Latest-year achievement gap with statistical significance markers
@@ -583,16 +636,37 @@ sgp = lehs[(lehs["STU_GRP"] == "All Students") & (lehs["AVG_SGP"].notna())].sort
 sgp["label"] = sgp["AVG_SGP"].apply(lambda x: f"{x:.0f}")
 
 if not sgp.empty:
-    fig = px.line(
-        sgp, x="SY", y="AVG_SGP", color="SUBJECT_CODE",
-        color_discrete_map=SUBJECT_COLOR, markers=True, text="label",
-    )
-    fig.update_traces(textposition="top center", textfont=dict(size=10))
-    fig.add_hline(y=50, line_dash="dash", line_color="gray",
-                   annotation_text="Statewide median (50)", annotation_position="right")
-    fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Average SGP — All Students",
-                       xaxis_title="School Year", yaxis_range=[0, 100])
-    st.plotly_chart(fig, use_container_width=True)
+    if HAS_HISTORY:
+        fig = px.line(
+            sgp, x="SY", y="AVG_SGP", color="SUBJECT_CODE",
+            color_discrete_map=SUBJECT_COLOR, markers=True, text="label",
+        )
+        fig.update_traces(textposition="top center", textfont=dict(size=10))
+        fig.add_hline(y=50, line_dash="dash", line_color="gray",
+                       annotation_text="Statewide median (50)", annotation_position="right")
+        fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Average SGP — All Students",
+                           xaxis_title="School Year", yaxis_range=[0, 100])
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        # Single-year: show SGP as bar tiles per subject vs. the statewide
+        # median reference line.
+        latest_sgp = sgp[sgp["SY"] == sgp["SY"].max()].copy()
+        latest_sgp["Subject"] = latest_sgp["SUBJECT_CODE"].map(SUBJECT_MAP)
+        fig = px.bar(
+            latest_sgp.sort_values("Subject"),
+            x="Subject", y="AVG_SGP",
+            color="SUBJECT_CODE", color_discrete_map=SUBJECT_COLOR,
+            text=latest_sgp["AVG_SGP"].round(0).astype(int).astype(str),
+        )
+        fig.update_traces(textposition="outside", cliponaxis=False, showlegend=False)
+        fig.add_hline(y=50, line_dash="dash", line_color="gray",
+                      annotation_text="Statewide median (50)", annotation_position="right")
+        fig.update_layout(
+            **DEFAULT_LAYOUT,
+            xaxis_title="", yaxis_title=f"Avg SGP (SY {sy_label(int(sgp['SY'].max()))})",
+            yaxis_range=[0, 100], showlegend=False,
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
     # ---------------------------------------------------------------------------
     # SGP vs. peers — where does LEHS sit in the Gateway HS distribution?
@@ -689,48 +763,78 @@ st.divider()
 
 st.header("Test Health Metrics")
 
-# Achievement percentile trend
+# Achievement percentile — trend when we have history, bar tiles otherwise
 ach_trend = all_students.dropna(subset=["ACH_PERCENTILE"]).copy()
 if not ach_trend.empty:
     st.subheader("LEHS Achievement Percentile — Rank vs. All MA Schools")
     st.caption(
         "Percentile rank of LEHS against every MA public school on MCAS. "
-        "50 = at the statewide median. A rising line = LEHS is gaining "
-        "ground relative to peer schools statewide; falling = losing ground."
+        "50 = at the statewide median. Higher = better than most MA schools."
     )
-    ach_trend["label"] = ach_trend["ACH_PERCENTILE"].apply(lambda x: f"{x:.0f}" if pd.notna(x) else "")
-    fig = px.line(
-        ach_trend.sort_values(["SUBJECT_CODE", "SY"]),
-        x="SY", y="ACH_PERCENTILE", color="SUBJECT_CODE",
-        color_discrete_map=SUBJECT_COLOR, markers=True, text="label",
-    )
-    fig.update_traces(textposition="top center", textfont=dict(size=10))
-    fig.add_hline(y=50, line_dash="dash", line_color="gray",
-                  annotation_text="Statewide median", annotation_position="right")
-    fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Achievement percentile",
-                      xaxis_title="School Year", yaxis_range=[0, 100])
-    st.plotly_chart(fig, use_container_width=True)
+    if HAS_HISTORY:
+        ach_trend["label"] = ach_trend["ACH_PERCENTILE"].apply(lambda x: f"{x:.0f}" if pd.notna(x) else "")
+        fig = px.line(
+            ach_trend.sort_values(["SUBJECT_CODE", "SY"]),
+            x="SY", y="ACH_PERCENTILE", color="SUBJECT_CODE",
+            color_discrete_map=SUBJECT_COLOR, markers=True, text="label",
+        )
+        fig.update_traces(textposition="top center", textfont=dict(size=10))
+        fig.add_hline(y=50, line_dash="dash", line_color="gray",
+                      annotation_text="Statewide median", annotation_position="right")
+        fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Achievement percentile",
+                          xaxis_title="School Year", yaxis_range=[0, 100])
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        latest_ach = ach_trend[ach_trend["SY"] == ach_trend["SY"].max()].copy()
+        latest_ach["Subject"] = latest_ach["SUBJECT_CODE"].map(SUBJECT_MAP)
+        fig = px.bar(
+            latest_ach.sort_values("Subject"),
+            x="Subject", y="ACH_PERCENTILE",
+            color="SUBJECT_CODE", color_discrete_map=SUBJECT_COLOR,
+            text=latest_ach["ACH_PERCENTILE"].round(0).astype(int).astype(str),
+        )
+        fig.update_traces(textposition="outside", cliponaxis=False, showlegend=False)
+        fig.add_hline(y=50, line_dash="dash", line_color="gray",
+                      annotation_text="Statewide median", annotation_position="right")
+        fig.update_layout(
+            **DEFAULT_LAYOUT,
+            xaxis_title="",
+            yaxis_title=f"Achievement percentile (SY {sy_label(int(ach_trend['SY'].max()))})",
+            yaxis_range=[0, 100], showlegend=False,
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
 # Participation rate
 st.subheader("Participation Rate — Who actually takes the test?")
 st.caption(
-    "DESE requires 95%+ participation for full accountability credit. Schools "
-    "missing this threshold face additional accountability review."
+    "DESE requires 95%+ participation for full accountability credit."
 )
 
 part = all_students.dropna(subset=["STU_PART_PCT"]).sort_values(["SUBJECT_CODE", "SY"]).copy()
 part["label"] = part["STU_PART_PCT"].apply(lambda x: f"{x:.0%}")
 
-fig = px.line(
-    part, x="SY", y="STU_PART_PCT", color="SUBJECT_CODE",
-    color_discrete_map=SUBJECT_COLOR, markers=True, text="label",
-)
-fig.update_traces(textposition="bottom center", textfont=dict(size=10))
-fig.add_hline(y=0.95, line_dash="dash", line_color="#D32F2F",
-              annotation_text="DESE threshold (95%)", annotation_position="right")
-fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Participation rate",
-                   xaxis_title="School Year", yaxis_range=[0.5, 1.05])
-st.plotly_chart(fig, use_container_width=True)
+if HAS_HISTORY:
+    fig = px.line(
+        part, x="SY", y="STU_PART_PCT", color="SUBJECT_CODE",
+        color_discrete_map=SUBJECT_COLOR, markers=True, text="label",
+    )
+    fig.update_traces(textposition="bottom center", textfont=dict(size=10))
+    fig.add_hline(y=0.95, line_dash="dash", line_color="#D32F2F",
+                  annotation_text="DESE threshold (95%)", annotation_position="right")
+    fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Participation rate",
+                       xaxis_title="School Year", yaxis_range=[0.5, 1.05])
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    # Show as metric tiles instead
+    pcols = st.columns(3)
+    for col, code in zip(pcols, ["ELA", "MATH", "SCI"]):
+        prow = part[(part["SUBJECT_CODE"] == code) & (part["SY"] == part["SY"].max())]
+        if not prow.empty:
+            v = prow.iloc[0]["STU_PART_PCT"]
+            with col:
+                st.metric(f"{SUBJECT_MAP[code]} participation", f"{v:.0%}",
+                          delta="below 95%" if v < 0.95 else "meets 95%",
+                          delta_color="inverse" if v < 0.95 else "normal")
 
 # Cohort size
 st.subheader("Grade-10 Cohort Size Tested per Year")
@@ -742,14 +846,23 @@ st.caption(
 counts = all_students.dropna(subset=["STU_CNT"]).sort_values(["SUBJECT_CODE", "SY"]).copy()
 counts["label"] = counts["STU_CNT"].apply(lambda x: f"{int(x):,}")
 
-fig = px.line(
-    counts, x="SY", y="STU_CNT", color="SUBJECT_CODE",
-    color_discrete_map=SUBJECT_COLOR, markers=True, text="label",
-)
-fig.update_traces(textposition="top center", textfont=dict(size=9))
-fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Students tested",
-                   xaxis_title="School Year")
-st.plotly_chart(fig, use_container_width=True)
+if HAS_HISTORY:
+    fig = px.line(
+        counts, x="SY", y="STU_CNT", color="SUBJECT_CODE",
+        color_discrete_map=SUBJECT_COLOR, markers=True, text="label",
+    )
+    fig.update_traces(textposition="top center", textfont=dict(size=9))
+    fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Students tested",
+                       xaxis_title="School Year")
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    ccols = st.columns(3)
+    for col, code in zip(ccols, ["ELA", "MATH", "SCI"]):
+        crow = counts[(counts["SUBJECT_CODE"] == code) & (counts["SY"] == counts["SY"].max())]
+        if not crow.empty:
+            n = int(crow.iloc[0]["STU_CNT"])
+            with col:
+                st.metric(f"{SUBJECT_MAP[code]} tested", f"{n:,}")
 
 # >>> auto: csv downloads <<<
 try:
