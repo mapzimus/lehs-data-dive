@@ -36,8 +36,8 @@ st.markdown(
     "questions live on neighboring pages: *how does distance from school "
     "predict attendance?* is now part of "
     "[Discipline & Climate](/Discipline_and_Climate), and *what is the "
-    "community context around those addresses?* lives on "
-    "[Community Context](/Community_Context)."
+    "community context around those addresses?* lives on the "
+    "[Lynn page](/Lynn_City) (Neighborhoods tab)."
 )
 
 # ---------------------------------------------------------------------------
@@ -199,8 +199,8 @@ if _TRACTS_PATH.exists():
         "the city's lower-income, more-foreign-born, higher-health-burden "
         "neighborhoods. That's a structural finding: school-level interventions "
         "happen *inside* a community that already has community-level needs. "
-        "See [Community Context](/Community_Context) for the full statewide-"
-        "comparison view of these same indicators."
+        "See the [Lynn page](/Lynn_City) (Neighborhoods tab) for the full "
+        "statewide-comparison view of these same indicators."
     )
 
     if "ENV_INDEX" not in _tracts_df.columns or _tracts_df["ENV_INDEX"].isna().all():

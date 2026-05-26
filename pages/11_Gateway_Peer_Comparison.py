@@ -93,14 +93,19 @@ scorecard["City"] = scorecard.apply(
     axis=1,
 )
 
-# Add DART indicators: graduation, immediate college, FAFSA
+# Add DART indicators: graduation, immediate college, FAFSA.
+# DART stores percent values as 0-100 (e.g., 81.5 for an 81.5% rate). Normalize
+# to 0-1 here so every downstream `:.0%` formatter (scorecard + scatter axes)
+# renders correctly. Without this, formatters multiply by another 100 and
+# values display as "8150%". All current pivot_dart callers ask for percent
+# indicators; if a non-percent indicator is added later, add a flag.
 def pivot_dart(indicator: str, label: str) -> pd.DataFrame:
     sub = dart[
         (dart["ORG_CODE"].isin(gateway_codes))
         & (dart["INDICATOR"] == indicator)
         & (dart["STU_GRP"] == "All Students")
     ].copy()
-    sub["VALUE"] = pd.to_numeric(sub["VALUE"], errors="coerce")
+    sub["VALUE"] = pd.to_numeric(sub["VALUE"], errors="coerce") / 100.0
     latest = sub.sort_values("SY").groupby("ORG_CODE").tail(1)
     return latest[["ORG_CODE", "VALUE"]].rename(columns={"VALUE": label})
 

@@ -133,15 +133,17 @@ if not teachers.empty and not enr.empty:
                        yaxis_title="Share")
     st.plotly_chart(fig, use_container_width=True)
 
-    # Gap callout
-    hl_gap = diversity_df.loc[diversity_df["Group"] == "Hispanic/Latino", "Students"].iloc[0] - \
-             diversity_df.loc[diversity_df["Group"] == "Hispanic/Latino", "Teachers"].iloc[0]
+    # Gap callout — read from the actual DataFrame columns (LEHS Students /
+    # LEHS Teachers), not the bare "Students" / "Teachers" names that the
+    # original code assumed.
+    hl_gap = diversity_df.loc[diversity_df["Group"] == "Hispanic/Latino", "LEHS Students"].iloc[0] - \
+             diversity_df.loc[diversity_df["Group"] == "Hispanic/Latino", "LEHS Teachers"].iloc[0]
     if hl_gap > 0.2:
         st.warning(
             f"**Representation gap**: Hispanic/Latino students make up "
-            f"{diversity_df.loc[diversity_df['Group']=='Hispanic/Latino','Students'].iloc[0]:.0%} "
+            f"{diversity_df.loc[diversity_df['Group']=='Hispanic/Latino','LEHS Students'].iloc[0]:.0%} "
             f"of LEHS enrollment, but only "
-            f"{diversity_df.loc[diversity_df['Group']=='Hispanic/Latino','Teachers'].iloc[0]:.0%} "
+            f"{diversity_df.loc[diversity_df['Group']=='Hispanic/Latino','LEHS Teachers'].iloc[0]:.0%} "
             f"of teachers identify the same way — a "
             f"**{hl_gap*100:.0f}-point gap**."
         )
