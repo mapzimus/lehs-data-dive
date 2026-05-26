@@ -9,7 +9,12 @@ import streamlit as st
 
 from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
-from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE, PROCESSED_DIR
+from utils.constants import (
+    LCHS_SCHOOL_CODE,
+    LEHS_SCHOOL_CODE,
+    LYNN_DISTRICT_CODE,
+    PROCESSED_DIR,
+)
 from utils.data_loader import get_dart_indicator, load_dataset
 from utils.interpret import sy_label
 
@@ -363,6 +368,121 @@ if not att_rate.empty:
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                       yaxis_title="Attendance rate")
     st.plotly_chart(fig, use_container_width=True)
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Student Mobility — churn / intake / stability. Mid-year movement is a
+# strong driver of the chronic-absenteeism + academic-disruption story.
+# ---------------------------------------------------------------------------
+
+st.header("Student Mobility — Churn, Intake, Stability")
+st.caption(
+    "**Churn** = % of students who left LEHS mid-year. **Intake** = % who "
+    "joined mid-year. **Stability** = % enrolled on both Oct 1 and the last "
+    "day of school. High churn means real instructional disruption — teachers "
+    "lose students they've built relationships with, and arrivals miss the "
+    "first months of context."
+)
+
+mobility = load_dataset("student_mobility")
+if not mobility.empty:
+    lehs_mob = mobility[
+        (mobility["ORG_CODE"] == LEHS_SCHOOL_CODE) & (mobility["STU_GRP"] == "All Students")
+    ].sort_values("SY")
+    dist_mob = mobility[
+        (mobility["DIST_CODE"] == LYNN_DISTRICT_CODE)
+        & (mobility["ORG_TYPE"] == "District")
+        & (mobility["STU_GRP"] == "All Students")
+    ].sort_values("SY")
+
+    if not lehs_mob.empty:
+        latest_mob = lehs_mob.iloc[-1]
+        latest_sy_mob = int(latest_mob["SY"])
+
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.metric(
+                f"Churn (SY {sy_label(latest_sy_mob)})",
+                f"{latest_mob['CHURN_PCT']:.0%}" if pd.notna(latest_mob["CHURN_PCT"]) else "—",
+                f"{int(latest_mob['CHURN_ENROLL_CNT']):,} students enrolled at some point" if pd.notna(latest_mob["CHURN_ENROLL_CNT"]) else "",
+                delta_color="off",
+            )
+        with c2:
+            st.metric(
+                "Intake (joined mid-year)",
+                f"{latest_mob['INTAKE_PCT']:.0%}" if pd.notna(latest_mob["INTAKE_PCT"]) else "—",
+            )
+        with c3:
+            st.metric(
+                "Stability (stayed all year)",
+                f"{latest_mob['STAB_PCT']:.0%}" if pd.notna(latest_mob["STAB_PCT"]) else "—",
+            )
+
+        # Trend: LEHS vs Lynn district, churn + intake
+        trend_rows = []
+        for scope_name, frame in [("LEHS", lehs_mob), ("Lynn District", dist_mob)]:
+            for col, metric in [("CHURN_PCT", "Churn"), ("INTAKE_PCT", "Intake"), ("STAB_PCT", "Stability")]:
+                sub = frame[["SY", col]].dropna().copy()
+                if sub.empty:
+                    continue
+                sub = sub.rename(columns={col: "Pct"})
+                sub["Scope"] = scope_name
+                sub["Metric"] = metric
+                trend_rows.append(sub)
+
+        if trend_rows:
+            trend_df = pd.concat(trend_rows, ignore_index=True)
+            for metric in ["Churn", "Intake"]:
+                sub_trend = trend_df[trend_df["Metric"] == metric]
+                if sub_trend.empty:
+                    continue
+                st.markdown(f"**{metric} rate — LEHS vs. Lynn district**")
+                fig = px.line(
+                    sub_trend.sort_values(["Scope", "SY"]),
+                    x="SY", y="Pct", color="Scope", markers=True,
+                    color_discrete_map={"LEHS": LEHS_NAVY, "Lynn District": "#90A4AE"},
+                )
+                fig.update_traces(selector=dict(name="Lynn District"), line=dict(dash="dash"))
+                fig.update_layout(
+                    **DEFAULT_LAYOUT, yaxis_tickformat=".0%",
+                    yaxis_title=f"% {metric.lower()}", xaxis_title="School Year",
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
+        # Subgroup breakdown — latest year, sorted by churn descending
+        sub = mobility[
+            (mobility["ORG_CODE"] == LEHS_SCHOOL_CODE)
+            & (mobility["SY"] == latest_sy_mob)
+            & (mobility["STU_GRP"] != "All Students")
+        ].dropna(subset=["CHURN_PCT"]).copy()
+        if not sub.empty:
+            st.markdown(f"**Churn rate by student group — SY {sy_label(latest_sy_mob)}**")
+            sub = sub.sort_values("CHURN_PCT")
+            sub["label"] = sub["CHURN_PCT"].apply(lambda x: f"{x:.0%}")
+            fig = px.bar(
+                sub, x="CHURN_PCT", y="STU_GRP", orientation="h", text="label",
+            )
+            fig.update_traces(marker_color=LEHS_NAVY, textposition="outside", cliponaxis=False)
+            fig.add_vline(
+                x=latest_mob["CHURN_PCT"], line_dash="dash", line_color=LEHS_GOLD,
+                annotation_text="All-students rate", annotation_position="top",
+            )
+            fig.update_layout(
+                **DEFAULT_LAYOUT,
+                xaxis_tickformat=".0%", xaxis_title="% who left mid-year",
+                yaxis_title="", height=max(360, 28 * len(sub)),
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        st.caption(
+            "**About these rates:** churn includes any student who was enrolled at "
+            "LEHS at some point during the year but had left by year-end. Intake "
+            "is the mirror — students who arrived after Oct 1. Both rates use the "
+            "full \"enrolled at any point\" denominator. DESE renamed the \"Low "
+            "Income\" / \"Economically Disadvantaged\" subgroup twice (2015, 2022), "
+            "so subgroup trends across those years should be read cautiously."
+        )
 
 st.divider()
 
