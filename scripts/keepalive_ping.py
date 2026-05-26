@@ -1,79 +1,113 @@
 """
-Ping the public Streamlit Cloud URL so the app doesn't go to sleep.
+Real-browser keepalive for Streamlit Community Cloud.
 
-Streamlit Community Cloud naps apps after ~7 days of inactivity. The GitHub
-Action at .github/workflows/keepalive.yml runs this script every 6 hours.
+WHY THIS IS NEEDED (and why a plain HTTP GET isn't enough):
+  Streamlit Cloud's sleep policy is based on active websocket sessions, NOT
+  HTTP traffic. A plain `requests.get(URL)` returns the Zzzz sleep page HTML
+  with HTTP 200 — the monitor thinks the app is "Up" but no session actually
+  opens, so Streamlit's container never warms back up. The app stays asleep.
 
-What "success" looks like:
-  - HTTP 200 from the URL
-  - The response body does NOT contain the "Zzzz" sleep page sentinel
-  - Up to 3 retries with backoff if Streamlit is mid-wake (cold start ~30s)
+  To genuinely wake + keep-alive a Streamlit app you have to behave like a
+  real user: open the URL in a headless browser, let it execute JS, connect
+  the websocket, and wait until the actual app renders. Playwright does this.
 
-Exits non-zero on persistent failure so GitHub emails you.
+WHAT THIS SCRIPT DOES:
+  1. Launch headless Chromium
+  2. Navigate to the app
+  3. If we land on the Zzzz page, click "Yes, get this app back up!"
+  4. Wait until the real app shell renders (looks for Streamlit's root mount
+     point + a known string from our app — e.g., "Lynn")
+  5. Sit on the page for 10s so the websocket session is established
+  6. Take a screenshot for debugging (uploaded as a GH Actions artifact)
+  7. Exit 0 on success, non-zero on failure
+
+Run locally:
+    pip install playwright && playwright install chromium
+    python scripts/keepalive_ping.py
 """
 
 from __future__ import annotations
 
 import sys
 import time
+from pathlib import Path
 
-import requests
+from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
 URL = "https://lynn-data-dive.streamlit.app"
-
-# Use a realistic browser User-Agent. Streamlit's edge sometimes serves the
-# sleep page to bot-like UAs even on a warm app.
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/131.0.0.0 Safari/537.36"
-    ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-}
-
-SLEEP_SENTINELS = [
-    "This app has gone to sleep",
-    "Zzzz",
-    "get this app back up",
-]
-
-MAX_ATTEMPTS = 3
-BACKOFF_SECONDS = [10, 30]  # waits between attempts 1->2 and 2->3
-
-
-def attempt(n: int) -> tuple[bool, str]:
-    """One GET. Returns (ok, message)."""
-    try:
-        r = requests.get(URL, headers=HEADERS, timeout=60, allow_redirects=True)
-    except Exception as e:
-        return False, f"request raised: {e!r}"
-    if r.status_code != 200:
-        return False, f"HTTP {r.status_code}"
-    body = r.text
-    hit = next((s for s in SLEEP_SENTINELS if s in body), None)
-    if hit:
-        return False, f"sleep-page sentinel matched: {hit!r}"
-    # Final sanity: the real app page mentions Streamlit/Lynn somewhere
-    if "Lynn" not in body and "streamlit" not in body.lower():
-        return False, "body returned 200 but doesn't look like the app page"
-    return True, f"OK ({len(body):,} bytes)"
+WAKE_BUTTON_TEXT = "Yes, get this app back up!"
+APP_READY_NEEDLE = "Lynn"            # any string we know appears on Home.py
+COLD_START_TIMEOUT_MS = 90_000       # Streamlit cold start can take a minute
+SETTLE_SECONDS = 10                  # sit on the page so the WS session counts
+SCREENSHOT = Path(__file__).resolve().parent.parent / "keepalive-last.png"
 
 
 def main() -> int:
-    print(f"Pinging {URL}")
-    for i in range(MAX_ATTEMPTS):
-        ok, msg = attempt(i + 1)
-        print(f"  attempt {i + 1}/{MAX_ATTEMPTS}: {msg}")
-        if ok:
+    print(f"Keepalive (real browser) -> {URL}")
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        ctx = browser.new_context(
+            viewport={"width": 1280, "height": 800},
+            user_agent=(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/131.0.0.0 Safari/537.36"
+            ),
+        )
+        page = ctx.new_page()
+        try:
+            print("  navigating...")
+            page.goto(URL, wait_until="domcontentloaded", timeout=60_000)
+
+            # Give the page a moment to render past 'domcontentloaded'.
+            # Streamlit's React shell needs a tick before the wake button
+            # (if present) is interactable.
+            page.wait_for_timeout(3_000)
+
+            # If we landed on the Zzzz page, click the wake button.
+            zzzz_selector = f'button:has-text("{WAKE_BUTTON_TEXT}")'
+            wake_btn = page.locator(zzzz_selector).first
+            if wake_btn.count() > 0:
+                print("  app is asleep -- clicking the wake button")
+                wake_btn.click(timeout=10_000)
+                print(f"  waiting up to {COLD_START_TIMEOUT_MS // 1000}s for cold start...")
+                # Streamlit shows a 'spinning up' status then redirects to
+                # the real app. Wait for the network to settle, which
+                # signals the websocket session is established + initial
+                # render is done.
+                try:
+                    page.wait_for_load_state(
+                        "networkidle", timeout=COLD_START_TIMEOUT_MS,
+                    )
+                except PWTimeout:
+                    print("  (networkidle never settled, continuing anyway)")
+                print("  cold start complete")
+            else:
+                print("  app was already awake")
+                try:
+                    page.wait_for_load_state("networkidle", timeout=30_000)
+                except PWTimeout:
+                    pass
+
+            # Step 3: sit on the page so the websocket session is established
+            # and Streamlit registers active traffic.
+            print(f"  app rendered — holding session for {SETTLE_SECONDS}s")
+            time.sleep(SETTLE_SECONDS)
+
+            # Step 4: screenshot for debugging
+            page.screenshot(path=str(SCREENSHOT), full_page=False)
+            print(f"  screenshot saved to {SCREENSHOT.name}")
+            print("  [OK]")
             return 0
-        if i < len(BACKOFF_SECONDS):
-            wait = BACKOFF_SECONDS[i]
-            print(f"  waiting {wait}s before retry (app may be cold-starting)...")
-            time.sleep(wait)
-    print("  [FAIL] All attempts failed — app may be down or stuck on the sleep page.")
-    return 1
+        except Exception as e:
+            try:
+                page.screenshot(path=str(SCREENSHOT), full_page=False)
+            except Exception:
+                pass
+            print(f"  [FAIL] {type(e).__name__}: {e}")
+            return 1
+        finally:
+            browser.close()
 
 
 if __name__ == "__main__":

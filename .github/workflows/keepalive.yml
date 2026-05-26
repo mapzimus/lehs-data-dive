@@ -1,19 +1,20 @@
-name: Keepalive — ping Streamlit Cloud
+name: Keepalive — wake Streamlit Cloud (real browser)
 
-# Streamlit Community Cloud puts apps to sleep after ~7 days without traffic.
-# This workflow pings the public URL every 6 hours so the app stays warm and
-# users never see the "Zzzz" wake-up screen.
+# Streamlit Cloud's sleep policy is based on active WEBSOCKET SESSIONS, not
+# HTTP traffic. A plain `curl` or `requests.get` returns the Zzzz sleep page
+# with 200 OK but never wakes the app. We use Playwright + headless Chromium
+# to actually open the page, click the wake button if needed, and hold the
+# session long enough that Streamlit counts it as active traffic.
 #
-# Cost: 4 runs/day × ~30s × 31 days ≈ 60 minutes/month, well under the
-# 2,000-minute free GitHub Actions quota for public repos.
+# Schedule: every 4 hours. Streamlit's exact sleep threshold isn't documented
+# but is typically ~12 hours of session inactivity. 4h gives generous margin.
 #
-# If the ping ever fails (HTTP error or "Zzzz" page detected), the job fails
-# and you'll get an email — that's a real signal that the app needs attention.
+# Cost: 6 runs/day × ~90s × 31 days ≈ 280 GH Actions minutes/month, well
+# under the 2,000-min free quota for public repos.
 
 on:
   schedule:
-    # Every 6 hours, at minute 17 to avoid the top-of-hour scheduler stampede.
-    - cron: "17 */6 * * *"
+    - cron: "23 */4 * * *"   # every 4h at :23
   workflow_dispatch: {}
 
 permissions:
@@ -22,7 +23,7 @@ permissions:
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
 
@@ -30,9 +31,21 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
 
-      - name: Install requests
-        run: pip install --quiet requests
+      - name: Install Playwright + Chromium
+        run: |
+          pip install --quiet playwright
+          playwright install --with-deps chromium
 
-      - name: Ping the app
+      - name: Wake + hold session
         run: python scripts/keepalive_ping.py
+
+      - name: Upload screenshot for debugging
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: keepalive-screenshot-${{ github.run_id }}
+          path: keepalive-last.png
+          if-no-files-found: ignore
+          retention-days: 7
