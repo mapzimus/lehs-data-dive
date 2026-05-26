@@ -63,7 +63,7 @@ lehs_y2_all = lehs[
 ].sort_values("COHORTYR")
 
 if lehs_y2_all.empty:
-    st.warning("No year-2 progression data for LEHS All Students.")
+    st.caption("Year-2 progression data isn't loaded yet. Check back after the next data refresh.")
     st.stop()
 
 latest = lehs_y2_all.iloc[-1]

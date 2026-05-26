@@ -1,4 +1,4 @@
-﻿"""Section 2 — Academic Performance: MCAS trends, growth, subgroup gaps."""
+"""Section 2 — Academic Performance: MCAS trends, growth, subgroup gaps."""
 
 import pandas as pd
 import plotly.express as px
@@ -95,8 +95,6 @@ st.caption(
     "vs. academic peers (50 = average annual growth)."
 )
 
-st.divider()
-
 # ---------------------------------------------------------------------------
 # Trend: All Students % M+E by subject — with inline labels
 # ---------------------------------------------------------------------------
@@ -119,8 +117,6 @@ st.caption(
     "MCAS was waived in spring 2020 and modified in 2021 — those years "
     "show fewer data points and shouldn't be read as a real trend break."
 )
-
-st.divider()
 
 # ---------------------------------------------------------------------------
 # Achievement-level distribution (E / M / PM / NM) for latest year
@@ -167,8 +163,6 @@ fig.update_traces(textposition="inside", textfont=dict(color="white", size=11))
 fig.update_layout(**DEFAULT_LAYOUT, xaxis_tickformat=".0%", xaxis_title="Share of test-takers",
                    yaxis_title="", barmode="stack")
 st.plotly_chart(fig, use_container_width=True)
-
-st.divider()
 
 # ---------------------------------------------------------------------------
 # LEHS vs Lynn district vs MA state — by subject, latest year
@@ -238,8 +232,6 @@ if bench_rows:
         "[Lynn District](/Lynn_District) (LEHS vs Siblings tab)."
     )
 
-st.divider()
-
 # ---------------------------------------------------------------------------
 # Avg scaled score trend — by subject
 # ---------------------------------------------------------------------------
@@ -264,8 +256,6 @@ fig.add_hline(y=500, line_dash="dash", line_color="gray",
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Average scaled score",
                    xaxis_title="School Year")
 st.plotly_chart(fig, use_container_width=True)
-
-st.divider()
 
 # ---------------------------------------------------------------------------
 # Subject-toggleable student-group breakdown
@@ -348,8 +338,6 @@ if not latest_year_sub.empty:
     table["Avg score"] = table["Avg score"].apply(lambda x: f"{x:.0f}" if pd.notna(x) else "—")
     st.markdown(f"**SY {sy_label(latest_year_sub['SY'].max())} — by student group**")
     st.dataframe(table.sort_values("Student group"), use_container_width=True, hide_index=True)
-
-st.divider()
 
 # ---------------------------------------------------------------------------
 # Achievement gap chart
@@ -434,8 +422,6 @@ if not latest_sub.empty and "All Students" in latest_sub["STU_GRP"].values:
         "subgroups, where DESE-published percentages are noisy)."
     )
 
-st.divider()
-
 # ---------------------------------------------------------------------------
 # Student Growth Percentile
 # ---------------------------------------------------------------------------
@@ -466,8 +452,6 @@ if not sgp.empty:
 else:
     st.info("No SGP data available for LEHS in this dataset.")
 
-st.divider()
-
 # ---------------------------------------------------------------------------
 # Participation rate trend
 # ---------------------------------------------------------------------------
@@ -491,8 +475,6 @@ fig.add_hline(y=0.95, line_dash="dash", line_color="#D32F2F",
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Participation rate",
                    xaxis_title="School Year", yaxis_range=[0.5, 1.05])
 st.plotly_chart(fig, use_container_width=True)
-
-st.divider()
 
 # ---------------------------------------------------------------------------
 # Number of students tested per year

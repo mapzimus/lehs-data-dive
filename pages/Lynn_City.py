@@ -108,8 +108,6 @@ with tab_city:
             "(Lynn Woods Reservation, 2,200 acres)."
         )
 
-        st.divider()
-
         # -------------------------------------------------------------------
         # 2. Population over time (decadal census)
         # -------------------------------------------------------------------
@@ -136,8 +134,6 @@ with tab_city:
                           yaxis_title="Total population",
                           xaxis_title="Decennial Census year")
         st.plotly_chart(fig, use_container_width=True)
-
-        st.divider()
 
         # -------------------------------------------------------------------
         # 3. Age pyramid
@@ -167,8 +163,6 @@ with tab_city:
             fig.update_xaxes(tickvals=tickvals, ticktext=ticktext,
                              range=[-step * (n + 0.2), step * (n + 0.2)])
             st.plotly_chart(fig, use_container_width=True)
-
-        st.divider()
 
         # -------------------------------------------------------------------
         # 4. Race + ethnicity
@@ -200,8 +194,6 @@ with tab_city:
                 "appear in multiple bars (e.g., Hispanic + White-alone). The "
                 "*White, non-Hispanic* bar is the single mutually-exclusive Hispanic-excluded category."
             )
-
-        st.divider()
 
         # -------------------------------------------------------------------
         # 5. Foreign-born population + birthplaces
@@ -241,8 +233,6 @@ with tab_city:
                 "particularly from Western Africa — has grown notably in recent ACS releases."
             )
 
-        st.divider()
-
         # -------------------------------------------------------------------
         # 6. Languages spoken at home
         # -------------------------------------------------------------------
@@ -273,8 +263,6 @@ with tab_city:
                     f"({non_eng / lang_total:.0%} of population 5+). Spanish is by far the largest, "
                     f"followed by Russian/Polish/Slavic and Arabic groups."
                 )
-
-        st.divider()
 
         # -------------------------------------------------------------------
         # 7. Economy — income + poverty
@@ -309,8 +297,6 @@ with tab_city:
             "state median income and above state poverty rates — a pattern shared across "
             "the 26 Gateway Cities."
         )
-
-        st.divider()
 
         # -------------------------------------------------------------------
         # 8. Employment by industry
@@ -349,8 +335,6 @@ with tab_city:
             "MGB system filings, City of Lynn HR. Counts are approximate point-in-time as of "
             "early-2026 reporting cycles."
         )
-
-        st.divider()
 
         # -------------------------------------------------------------------
         # 9. Housing
@@ -404,8 +388,6 @@ with tab_city:
                     f"in the *Neighborhoods* tab."
                 )
 
-        st.divider()
-
         # -------------------------------------------------------------------
         # 10. Commute
         # -------------------------------------------------------------------
@@ -430,8 +412,6 @@ with tab_city:
             "MBTA bus routes 426, 429, 435, 436, 439, 441, 442, 448, 449, 450, 455, 459. "
             "Major car arteries: Lynnway (Route 1A), Route 107, Route 129, Western Ave."
         )
-
-        st.divider()
 
         # -------------------------------------------------------------------
         # 11. Geography
@@ -466,8 +446,6 @@ with tab_city:
         ], columns=["Neighborhood", "Notes"])
         st.dataframe(nbhds, use_container_width=True, hide_index=True)
 
-        st.divider()
-
         # -------------------------------------------------------------------
         # 12. Education context
         # -------------------------------------------------------------------
@@ -486,8 +464,6 @@ with tab_city:
   graduates attend (with grad rate, Pell %, demographics from IPEDS).
 """
         )
-
-        st.divider()
 
         # -------------------------------------------------------------------
         # 13. History highlights
@@ -520,8 +496,6 @@ with tab_city:
   facility.
 """
         )
-
-        st.divider()
 
         # -------------------------------------------------------------------
         # 14. Related dashboard pages
@@ -621,8 +595,6 @@ with tab_nbhds:
             "substantially higher non-English-at-home share."
         )
 
-        st.divider()
-
         # -------------------------------------------------------------------
         # Distribution of each variable across the 22 tracts
         # -------------------------------------------------------------------
@@ -665,8 +637,6 @@ with tab_nbhds:
                 fig.update_layout(xaxis_tickformat="$,.0f")
             st.plotly_chart(fig, use_container_width=True)
 
-        st.divider()
-
         # -------------------------------------------------------------------
         # Languages spoken at home — the linguistic landscape
         # -------------------------------------------------------------------
@@ -697,8 +667,6 @@ with tab_nbhds:
             fig.update_layout(**DEFAULT_LAYOUT, height=380)
             st.plotly_chart(fig, use_container_width=True)
 
-        st.divider()
-
         # -------------------------------------------------------------------
         # Map link
         # -------------------------------------------------------------------
@@ -715,8 +683,6 @@ public school district in MA colored by 40+ metrics including these community
 indicators (where data is available at scale).
 """
         )
-
-        st.divider()
 
         # -------------------------------------------------------------------
         # Environmental Justice (EPA EJScreen) + Population Health (CDC PLACES)

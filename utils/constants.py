@@ -144,25 +144,30 @@ STUDENT_GROUPS = [
 ]
 
 # ---------------------------------------------------------------------------
-# Chart colors (Lynn English: navy + gold)
+# Chart colors — pastels.
+#
+# Per Max (2026-05-26): "lean towards lighter pastel colors". Brand cue is
+# still LEHS navy + gold, but muted/lifted ~50% so neighboring charts read
+# as calmer surface. Subgroup palette pastel-pivoted to match.
+# Old values are preserved as comments in case we ever want to revert.
 # ---------------------------------------------------------------------------
 
-LEHS_NAVY = "#0A1F44"
-LEHS_GOLD = "#FFB81C"
-LYNN_SIBLING_COLOR = "#7B8FA1"
-GATEWAY_PEER_COLOR = "#B0BEC5"
-STATE_COLOR = "#455A64"
+LEHS_NAVY = "#7A8FB8"           # was "#0A1F44" — dusty navy
+LEHS_GOLD = "#F4D88A"           # was "#FFB81C" — cream gold
+LYNN_SIBLING_COLOR = "#C2CCD9"  # was "#7B8FA1" — pastel slate
+GATEWAY_PEER_COLOR = "#DBE2E8"  # was "#B0BEC5" — near-neutral so LEHS pops
+STATE_COLOR = "#A8B5BD"         # was "#455A64" — mute the reference line
 
 SUBGROUP_PALETTE = {
-    "All Students":                    "#0A1F44",
-    "African American/Black":          "#D32F2F",
-    "Asian":                           "#7B1FA2",
-    "Hispanic/Latino":                 "#F57C00",
-    "White":                           "#1976D2",
-    "Multi-Race, Non-Hispanic/Latino": "#00897B",
-    "English Learner":                 "#388E3C",
-    "Former English Learner":          "#689F38",
-    "Students w/ Disabilities":        "#5D4037",
-    "Low Income":                      "#C2185B",
-    "High Needs":                      "#7E57C2",
+    "All Students":                    "#7A8FB8",  # dusty navy
+    "African American/Black":          "#E89B9B",  # pastel coral
+    "Asian":                           "#C5A8D6",  # pastel violet
+    "Hispanic/Latino":                 "#F5C28B",  # pastel orange
+    "White":                           "#A6C8E8",  # pastel sky
+    "Multi-Race, Non-Hispanic/Latino": "#9CCFC4",  # pastel teal
+    "English Learner":                 "#B5D6A8",  # pastel leaf
+    "Former English Learner":          "#C8DEA8",  # lighter leaf
+    "Students w/ Disabilities":        "#C2A99E",  # dusty taupe
+    "Low Income":                      "#E8A8C2",  # pastel rose
+    "High Needs":                      "#BDAFD9",  # pastel lavender
 }

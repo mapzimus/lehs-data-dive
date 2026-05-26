@@ -44,7 +44,7 @@ st.markdown(
 # Privacy notice — same as before; this work uses private SIS data
 # ---------------------------------------------------------------------------
 
-st.warning(
+st.caption(
     "**Data privacy notice.** These visualizations are generated from secure "
     "Lynn Public Schools student information system data. **Individual "
     "student addresses are not publicly shared.** All maps on this page "
