@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.branding import sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE, add_pandemic_band
+from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
 from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE, PROCESSED_DIR
 from utils.data_loader import get_dart_indicator, load_dataset
 from utils.interpret import sy_label
@@ -99,7 +99,6 @@ if not all_stu.empty:
                       line=dict(dash="dash", width=2))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                       yaxis_title="% Chronically Absent (10%+ missed)")
-    add_pandemic_band(fig)
     st.plotly_chart(fig, use_container_width=True)
 
 # By subgroup — LEHS only (LCHS comparison on subgroups would clutter the chart)
@@ -128,7 +127,6 @@ if not sub_g.empty:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                        yaxis_title="% Chronically Absent")
-    add_pandemic_band(fig)
     st.plotly_chart(fig, use_container_width=True)
 
     # ---------------------------------------------------------------------------

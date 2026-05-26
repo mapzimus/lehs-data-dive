@@ -236,7 +236,8 @@ st.divider()
 st.subheader("Trend Over Multiple Cohorts")
 st.caption(
     "Each line shows how a single stage of the pipeline has moved over time. "
-    "The shaded band marks pandemic-disrupted school years."
+    "Cohorts graduating 2020–2024 were disrupted as 8th–10th graders; "
+    "expect noisier patterns for those years."
 )
 
 trend_all = lehs[
@@ -271,17 +272,6 @@ fig.update_layout(
     legend_title="",
 )
 fig.update_yaxes(range=[0, max(trend_long["pct"].max() * 1.1, 1.0)])
-
-# Pandemic shading: SY 2019-20 disruption affected the cohort that graduated
-# in 2020, and to a lesser extent 2021 and 2022.
-fig.add_vrect(
-    x0=2019.5, x1=2022.5,
-    fillcolor="#FFB81C", opacity=0.10,
-    layer="below", line_width=0,
-    annotation_text="Pandemic-disrupted cohorts",
-    annotation_position="top left",
-    annotation_font_size=11,
-)
 st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
