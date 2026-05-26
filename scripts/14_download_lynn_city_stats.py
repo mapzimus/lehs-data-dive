@@ -82,6 +82,12 @@ def _to_dict(rows: list[list]) -> dict:
 
 DP_VARS = {
     # DP05 — Demographics
+    # NOTE: race/ethnicity codes are the 2023 ACS DP05 schema. The table was
+    # restructured between 2019 and 2023 (more detailed tribal/ancestry rows
+    # inserted), so most race codes shifted. White/Black/AIAN-alone kept their
+    # 2019 numbers, everything else moved. Verify against
+    # https://api.census.gov/data/2023/acs/acs5/profile/variables.json before
+    # bumping to a future ACS vintage.
     "DP05_0001E": "pop_total",
     "DP05_0002E": "pop_male",
     "DP05_0003E": "pop_female",
@@ -89,12 +95,11 @@ DP_VARS = {
     "DP05_0037E": "white_alone",
     "DP05_0038E": "black_alone",
     "DP05_0039E": "amerindian_alone",
-    "DP05_0044E": "asian_alone",
-    "DP05_0052E": "nhpi_alone",
-    "DP05_0057E": "other_alone",
-    "DP05_0058E": "two_or_more",
-    "DP05_0071E": "hispanic_any_race",
-    "DP05_0077E": "white_alone_nh",
+    "DP05_0047E": "asian_alone",
+    "DP05_0055E": "nhpi_alone",
+    "DP05_0035E": "two_or_more",
+    "DP05_0076E": "hispanic_any_race",
+    "DP05_0082E": "white_alone_nh",
     # DP02 — Social
     "DP02_0001E": "households_total",
     "DP02_0006E": "married_couple_fam",
