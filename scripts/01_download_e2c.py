@@ -35,7 +35,9 @@ E2C_RAW_DIR.mkdir(parents=True, exist_ok=True)
 
 CATALOG_URL = "https://api.us.socrata.com/api/catalog/v1"
 
-# (slug used in constants.py, exact-ish title to find, optional priority hint)
+# Entries are (slug, title) or (slug, title, dataset_id_hint).
+# When dataset_id_hint is provided, skip catalog search and use it directly —
+# more robust for datasets whose name might match multiple results (chart views, etc.).
 TARGETS = [
     # Tier 1 — core datasets
     ("mcas_achievement",                "MCAS Achievement Results"),
@@ -68,6 +70,12 @@ TARGETS = [
     ("teacher_experience_infield",      "Experienced and In-Field Teachers by Race/Ethnicity"),
     ("staff_retention",                 "Elementary and Secondary Staff Retention Rates"),
     ("teacher_data",                    "Elementary and Secondary Teacher Data"),
+
+    # Phase A (2026-05-26) — accountability + growth additions.
+    # IDs are hinted because catalog search returns chart views / wrong matches.
+    ("sat_performance",                 "SAT Performance",              "wihy-jkek"),
+    ("student_mobility",                "Student Mobility Rate",        "5jqj-jcbt"),
+    ("advanced_course_completion",      "Advanced Course Completion",   "ujwr-ux9i"),
 ]
 
 USER_AGENT = "lehs-data-dive/0.1 (https://github.com/mapzimus/lehs-data-dive)"
@@ -145,20 +153,27 @@ def main() -> None:
     manifest: dict[str, dict] = {}
     failures: list[tuple[str, str]] = []
 
-    for slug, title in TARGETS:
-        print(f"\n-> {slug}: searching for '{title}'")
+    for entry in TARGETS:
+        slug, title, *rest = entry
+        dataset_id_hint = rest[0] if rest else None
         try:
-            results = search_catalog(title)
-            match = best_match(results, title)
-            if not match:
-                print(f"  [X] no match found")
-                failures.append((slug, "no match"))
-                continue
-
-            res = match["resource"]
-            dataset_id = res["id"]
-            matched_name = res["name"]
-            print(f"  [OK] matched: {matched_name}  ({dataset_id})")
+            if dataset_id_hint:
+                print(f"\n-> {slug}: using ID hint '{dataset_id_hint}'")
+                dataset_id = dataset_id_hint
+                matched_name = title
+                print(f"  [OK] hinted: {matched_name}  ({dataset_id})")
+            else:
+                print(f"\n-> {slug}: searching for '{title}'")
+                results = search_catalog(title)
+                match = best_match(results, title)
+                if not match:
+                    print(f"  [X] no match found")
+                    failures.append((slug, "no match"))
+                    continue
+                res = match["resource"]
+                dataset_id = res["id"]
+                matched_name = res["name"]
+                print(f"  [OK] matched: {matched_name}  ({dataset_id})")
 
             out_csv = E2C_RAW_DIR / f"{slug}.csv"
             size = download_csv(dataset_id, out_csv)
@@ -171,6 +186,7 @@ def main() -> None:
                 "url": f"https://{E2C_DOMAIN}/d/{dataset_id}",
                 "csv_path": str(out_csv.relative_to(out_csv.parent.parent.parent)),
                 "size_bytes": size,
+                "id_hinted": dataset_id_hint is not None,
             }
 
             time.sleep(0.5)  # be polite to Socrata
