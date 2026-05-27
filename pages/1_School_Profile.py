@@ -29,6 +29,81 @@ st.markdown(
     "back to the 1992–93 school year."
 )
 
+# ---------------------------------------------------------------------------
+# Phase E — DESE ESSA accountability classification. This is the single
+# highest-stakes status indicator the state publishes about LEHS; it
+# determines whether the school is subject to federal/state intervention
+# requirements. Show it up top before any demographic context.
+# ---------------------------------------------------------------------------
+
+_acc = load_dataset("accountability")
+if not _acc.empty:
+    _lehs_acc = _acc[(_acc["ORG_CODE"] == LEHS_SCHOOL_CODE) & (_acc["ORG_TYPE"] == "School")]
+    _dist_acc = _acc[(_acc["ORG_CODE"] == LYNN_DISTRICT_CODE) & (_acc["ORG_TYPE"] == "District")]
+    if not _lehs_acc.empty:
+        _row = _lehs_acc.iloc[0]
+        _sy = _row["SY"]
+        _classif = _row["CLASSIFICATION"]
+        _reason = _row["REASON"]
+        _pct = _row["PERCENTILE"]
+        _progress = _row["PROGRESS_PCT"]
+
+        # Color the callout by classification severity. DESE has 4 buckets;
+        # everything starting with "Requiring" is in the intervention tier.
+        if isinstance(_classif, str) and _classif.lower().startswith("requiring"):
+            _alert = st.error
+            _icon = "⚠️"
+        elif isinstance(_classif, str) and _classif.lower().startswith("not requiring"):
+            _alert = st.success
+            _icon = "✓"
+        else:
+            _alert = st.info
+            _icon = "ℹ️"
+
+        _district_blurb = ""
+        if not _dist_acc.empty:
+            _drow = _dist_acc.iloc[0]
+            _district_blurb = (
+                f"  \n_Lynn district overall:_ **{_drow['CLASSIFICATION']}** "
+                f"({_drow['REASON'].lower()})."
+            )
+
+        _alert(
+            f"{_icon} **DESE Accountability ({_sy}): {_classif}** — {_reason}." + _district_blurb
+        )
+
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.metric(
+                "Statewide Accountability Percentile",
+                f"{int(_pct)}" if pd.notna(_pct) else "—",
+                help=(
+                    "DESE ranks every MA school 1-99 on a composite of MCAS achievement, "
+                    "growth, English-learner progress, chronic absenteeism, dropout, and "
+                    "graduation. Higher is better. LEHS at 1 means it scores at or near "
+                    "the bottom of the statewide distribution on the composite — though "
+                    "the underlying inputs each tell different stories (see Academic "
+                    "Performance, Discipline & Climate, and Success After HS)."
+                ),
+            )
+        with c2:
+            st.metric(
+                "Cumulative progress toward targets",
+                f"{int(_progress)}%" if pd.notna(_progress) else "—",
+                help=(
+                    "% of LEHS's improvement-target indicators where the school has met "
+                    "or exceeded its annual target."
+                ),
+            )
+        with c3:
+            st.markdown(
+                "<small>Source: DESE statereport accountability report. "
+                "Classifications: *Schools of Recognition* &gt; *Not requiring "
+                "assistance* &gt; *Requiring assistance or intervention* &gt; *Underperforming* "
+                "&gt; *Chronically Underperforming*.</small>",
+                unsafe_allow_html=True,
+            )
+
 enrollment = load_dataset("enrollment_demographics")
 if enrollment.empty:
     st.info("Data is temporarily unavailable. Please check back later.")
