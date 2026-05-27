@@ -1,8 +1,10 @@
-# LEHS Athletics — hand-curated history that complements the MaxPreps
-# season records (which begin in the mid-2000s).
+# LEHS Athletics — hand-curated history + current staff that complements
+# the MaxPreps season records (which begin in the mid-2000s).
 #
 # Schema is loose on purpose — fill in what you know, leave what you don't.
 # Sources for the seed entries below:
+#   - lynnschools.org/departments/athletics/high_school_athletics
+#   - itemlive.com (the Lynn Item — current coverage)
 #   - en.wikipedia.org/wiki/Lynn_English_High_School
 #   - baseball-reference.com/bullpen/Lynn_English_High_School
 #   - boston.com/uncategorized/noprimarytagmatch/2013/11/28/a-rivalry-for-the-ages/
@@ -29,27 +31,114 @@ rivalry:
   sport: "Football"
   tradition: "Thanksgiving Day"
   started: 1911
-  all_time_series: "Lynn Classical leads 53-37-9"   # as of 2013 reporting
+  all_time_series: "Lynn Classical leads 53-37-9 (as of 2013)"
+  most_recent: "Lynn English 36, Lynn Classical 12 (Thanksgiving 2025)"
   venue: |
     Originally played at *The Bowl* (capacity ~20,000). Now hosted at
     Manning Field. The game shares a single home field — "there is no
     away team."
   notes: |
-    Originally East-Lynn vs West-Lynn, geographic district boundaries
-    split the city down Washington Street. Since 1990s school choice,
-    the rivalry is more about identity than catchment.
+    Originally East-Lynn vs West-Lynn — a geographic district split down
+    Washington Street. Since 1990s school choice, the rivalry is more
+    about identity than catchment.
+
+# ---------------------------------------------------------------------------
+# Current athletic director.
+# ---------------------------------------------------------------------------
+athletic_director:
+  name: "Ashley Aldred"
+  since: "July 2025"
+  historic_note: "First female Athletic Director in the City of Lynn."
+  bio: |
+    Arlington, MA native who played college softball at Salem State.
+    Joined LEHS as varsity softball head coach in 2019; coached the
+    English-Classical powderpuff game in fall 2024. Named *The Item*'s
+    Coach of the Year in 2023 after leading the Bulldogs softball team
+    to their first postseason appearance since 1999 — finishing the
+    regular season on a six-game win streak after a 4-9 start.
+  replaced: |
+    Dick Newton, who served as AD from 2016 until his retirement in
+    June 2025.
+
+# ---------------------------------------------------------------------------
+# Current head coaches (in addition to the AD).
+# Add as confirmed. Per-sport line.
+# ---------------------------------------------------------------------------
+current_coaches:
+  - name: "Tyllor McDonald"
+    sport: "Football"
+    since: "2024"
+    bio: |
+      Second-year head coach in 2025; former quarterback. Led the
+      Bulldogs to a **9-2** season — best at LEHS in a decade — winning
+      nine straight after an 0-2 start, capturing the **2025 GBL
+      Championship** outright (32-22 over Somerville) and closing the
+      season 36-12 over Lynn Classical on Thanksgiving. Named *The
+      Item*'s Fall 2025 Coach of the Year.
+
+  - name: "Dina Wavezwa"
+    sport: "Boys Basketball"
+    since: "April 2025"
+    bio: |
+      LEHS class of **1992**; grew up in the Meadows neighborhood
+      across the street from the school. Was an assistant on **Antonio
+      Anderson**'s 2019-20 back-to-back MA Division 1 state-championship
+      staff, and later an assistant at Lynn Classical. Replaced Alvin
+      Abreu (stepped down March 2025).
+
+  - name: "Stephanie Vasquez"
+    sport: "Girls Basketball"
+    since: "2026"
+    bio: |
+      Coaching stops at St. Mary's Middle School, KIPP Academy, Lynn
+      English (previously under Rachael Bradley in 2014), Essex Tech,
+      and Salem State. Played at St. Mary's (7th grade through
+      sophomore — varsity as an 8th grader) before transferring to
+      Salem High (Class of 2007). Replaces Sydney Brennan; takes over
+      a Bulldogs team coming off a 2-16 season.
+
+  - name: "Ashley Aldred"
+    sport: "Softball"
+    since: "2019"
+    bio: |
+      Now also Athletic Director (see above). 2023 *Item* Coach of the
+      Year — broke a 24-year postseason drought.
+
+  - name: "Dan Koziski"
+    sport: "Wrestling (Lynn co-op)"
+    since: ""
+    bio: |
+      Head coach of the Lynn wrestling co-op — a combined program
+      drawing athletes from all four city programs (Lynn English,
+      Classical, Tech, and St. Mary's).
 
 # ---------------------------------------------------------------------------
 # State / sectional / conference championships.
 # ---------------------------------------------------------------------------
 championships:
+  - year: 2025
+    sport: "Football"
+    level: "Greater Boston League Champions"
+    coach: "Tyllor McDonald"
+    record: "9-2"
+    notes: |
+      Beat Somerville 32-22 for the outright GBL title — Lynn English's
+      best football season in a decade. Won nine straight after starting
+      0-2, capped by a 36-12 Thanksgiving win over Lynn Classical.
+      Shane Knowlton-Simard (QB/DB, '26) named GBL MVP.
+  - year: 2024
+    sport: "Football"
+    level: "Greater Boston League Co-Champions"
+    notes: "Tied with Medford for the GBL title in McDonald's first season."
   - year: 2020
     sport: "Boys Basketball"
     level: "Massachusetts Division 1 State Champions"
+    coach: "Antonio Anderson"
     notes: "Back-to-back state titles (2019, 2020) — a Bulldogs program peak."
   - year: 2019
     sport: "Boys Basketball"
     level: "Massachusetts Division 1 State Champions"
+    coach: "Antonio Anderson"
     notes: "First of back-to-back D1 titles."
   - year: 2017
     sport: "Marine Corps JROTC Drill Team"
@@ -63,23 +152,41 @@ championships:
 # Notable individual seasons — undefeated runs, deep tourney runs, etc.
 # Add as confirmed.
 # ---------------------------------------------------------------------------
-notable_seasons: []
+notable_seasons:
+  - year: 2023
+    sport: "Softball"
+    coach: "Ashley Aldred"
+    notes: |
+      First postseason appearance since 1999. Started the season 4-9
+      but closed the regular season with six straight wins to clinch a
+      playoff berth.
 
 # ---------------------------------------------------------------------------
-# Coaches with long tenures or significant impact.
+# Coaches who've moved on but defined an era.
 # ---------------------------------------------------------------------------
 legacy_coaches:
-  - name: "Peter Holey"
-    sport: "Football"
-    years: "current"
+  - name: "Antonio Anderson"
+    sport: "Boys Basketball"
+    years: "through ~2020"
     highlights: |
-      Bulldogs head football coach during the recent Thanksgiving rivalry
-      games against Lynn Classical (Coach Tim Phelps).
+      Head coach of the back-to-back MA Division 1 state champion
+      Bulldogs in 2019 and 2020. Several of his assistants (incl. Dina
+      Wavezwa) have stayed in the program.
+  - name: "Alvin Abreu"
+    sport: "Boys Basketball"
+    years: "post-Anderson — March 2025"
+    highlights: "Stepped down in March 2025; replaced by Dina Wavezwa."
+  - name: "Dick Newton"
+    sport: "Athletic Director"
+    years: "2016 – June 2025"
+    highlights: |
+      Director of Athletics for nearly a decade. Retired June 2025;
+      Ashley Aldred succeeded him in July, making history as Lynn's
+      first female AD.
 
 # ---------------------------------------------------------------------------
 # Notable alumni — primarily athletic but a few cultural / civic
 # figures included where they've shaped the school's identity.
-# Sort by graduation year (oldest first) or by category.
 # ---------------------------------------------------------------------------
 notable_alumni:
   # Major League Baseball — most documented LEHS pro-athlete pipeline.
