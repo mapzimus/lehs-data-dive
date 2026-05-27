@@ -9,7 +9,7 @@ file just provides the body.
 import streamlit as st
 
 from utils.branding import AUTHOR_NAME, AUTHOR_SITE, sidebar_attribution
-from utils.constants import LEHS_SCHOOL_CODE
+from utils.constants import IMAGES_DIR, LEHS_SCHOOL_CODE
 from utils.data_loader import load_dataset
 from utils.interpret import sy_label
 
@@ -55,10 +55,13 @@ st.markdown(
 # Header
 # ---------------------------------------------------------------------------
 
-col_title, col_author = st.columns([3, 1])
+col_logo, col_title, col_author = st.columns([1, 3, 1.2])
+with col_logo:
+    # LEHS Bulldogs logo — visual anchor for the dashboard, signals school identity.
+    st.image(str(IMAGES_DIR / "lehs-bulldog.png"), width=110)
 with col_title:
     st.title("Lynn English High School")
-    st.subheader("Data Dive")
+    st.subheader("Data Dive · *Home of the Bulldogs*")
 with col_author:
     st.markdown(
         f"""

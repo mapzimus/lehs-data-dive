@@ -8,6 +8,7 @@ import streamlit as st
 from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
 from utils.constants import (
+    IMAGES_DIR,
     LCHS_SCHOOL_CODE,
     LEHS_SCHOOL_CODE,
     LYNN_DISTRICT_CODE,
@@ -28,6 +29,32 @@ st.markdown(
     "Demographics, enrollment trends, and headline metrics for LEHS, going "
     "back to the 1992–93 school year."
 )
+
+# Building photo — anchors the page in the actual physical school rather
+# than a wall of charts. The 1928-built classical-revival main entrance
+# on O'Callaghan Way is the most recognizable image of LEHS.
+st.image(
+    str(IMAGES_DIR / "lehs-building.jpg"),
+    use_container_width=True,
+    caption="Lynn English High School — main entrance, O'Callaghan Way",
+)
+
+# ---------------------------------------------------------------------------
+# Leadership — Principal Rardy Pena. Two-column with photo so the reader
+# knows who runs the school they're about to read 18 pages of data about.
+# ---------------------------------------------------------------------------
+
+_lead_l, _lead_r = st.columns([1, 4])
+with _lead_l:
+    st.image(str(IMAGES_DIR / "principal-rardy-pena.jpg"), width=160)
+with _lead_r:
+    st.markdown(
+        "### Principal: Rardy Peña  \n"
+        "Lynn English High School is led by **Principal Rardy Peña**. "
+        "The data on the rest of this page tells a story about students, "
+        "demographics, and outcomes — the people leading the school's "
+        "response to that story matter just as much."
+    )
 
 # ---------------------------------------------------------------------------
 # Phase E — DESE ESSA accountability classification. This is the single

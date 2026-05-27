@@ -28,6 +28,7 @@ from utils.charts import (
 )
 from utils.constants import (
     GATEWAY_CITIES,
+    IMAGES_DIR,
     LEHS_SCHOOL_CODE,
     LYNN_DISTRICT_CODE,
     LYNN_SIBLING_HS,
@@ -40,14 +41,18 @@ st.set_page_config(
 )
 sidebar_attribution()
 
-st.title("Lynn Public Schools — District")
-st.markdown(
-    "A district-wide view of Lynn Public Schools (LPS) — the system that "
-    "includes LEHS, Classical, Tech, and all elementary and middle schools. "
-    "**Snapshot** shows district-level trends. **All Schools** lets you filter "
-    "every school in the district. **LEHS vs Siblings** is the closest peer "
-    "comparison — same district, same policies, same student pool."
-)
+_hdr_l, _hdr_r = st.columns([1, 6])
+with _hdr_l:
+    st.image(str(IMAGES_DIR / "lps-logo.png"), width=110)
+with _hdr_r:
+    st.title("Lynn Public Schools — District")
+    st.markdown(
+        "A district-wide view of Lynn Public Schools (LPS) — the system that "
+        "includes LEHS, Classical, Tech, and all elementary and middle schools. "
+        "**Snapshot** shows district-level trends. **All Schools** lets you filter "
+        "every school in the district. **LEHS vs Siblings** is the closest peer "
+        "comparison — same district, same policies, same student pool."
+    )
 
 # ---------------------------------------------------------------------------
 # Shared data loads (used across tabs)
@@ -773,6 +778,17 @@ with tab_siblings:
         "(vocational), **Frederick Douglass Collegiate Academy** (alternative), "
         "and **Harold Durgin Success Academy** (alternative)."
     )
+
+    # School-identity strip: logos for the three comprehensive HS that have
+    # an established mascot/brand. The two alternative academies don't have
+    # publicly published logos, so the strip is three-wide.
+    _logo_l, _logo_m, _logo_r = st.columns(3)
+    with _logo_l:
+        st.image(str(IMAGES_DIR / "lehs-bulldog.png"), width=110, caption="Lynn English — Bulldogs")
+    with _logo_m:
+        st.image(str(IMAGES_DIR / "lchs-rams.png"), width=110, caption="Lynn Classical — Rams")
+    with _logo_r:
+        st.image(str(IMAGES_DIR / "lynn-tech-logo.png"), width=110, caption="Lynn Tech — Tigers")
 
     siblings = enrollment[enrollment["ORG_CODE"].isin(SIBLING_CODES)].copy()
     siblings["School"] = siblings["ORG_CODE"].map(NAME_OVERRIDES)

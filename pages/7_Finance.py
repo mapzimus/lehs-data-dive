@@ -7,7 +7,7 @@ import streamlit as st
 
 from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY
-from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
+from utils.constants import IMAGES_DIR, LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
 from utils.data_loader import load_dataset
 from utils.interpret import sy_label
 
@@ -170,6 +170,17 @@ st.divider()
 # ---------------------------------------------------------------------------
 
 st.header("Teacher Compensation")
+
+# Three-school visual identity strip — the rest of this section's metrics
+# trio (LEHS, LCHS, Lynn Tech) maps directly to these logos in the same
+# left-to-right order.
+_t_l, _t_m, _t_r = st.columns(3)
+with _t_l:
+    st.image(str(IMAGES_DIR / "lehs-bulldog.png"), width=70, caption="Lynn English")
+with _t_m:
+    st.image(str(IMAGES_DIR / "lchs-rams.png"), width=70, caption="Lynn Classical")
+with _t_r:
+    st.image(str(IMAGES_DIR / "lynn-tech-logo.png"), width=70, caption="Lynn Tech")
 
 def _ind(df: pd.DataFrame, subcat: str) -> pd.DataFrame:
     return df[
