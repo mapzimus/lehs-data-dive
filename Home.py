@@ -42,6 +42,7 @@ nav = {
         st.Page("pages/6_Teachers_and_Workforce.py", title="Teachers & Workforce", url_path="Teachers_and_Workforce"),
         st.Page("pages/7_Finance.py", title="Finance", url_path="Finance"),
         st.Page("pages/8_Discipline_and_Climate.py", title="Discipline & Climate", url_path="Discipline_and_Climate"),
+        st.Page("pages/9_Athletics.py", title="Athletics", url_path="Athletics"),
         st.Page("pages/16_Where_Students_Live.py", title="Where Students Live", url_path="Where_Students_Live"),
         # Federal CRDC removed from the sidebar until the data pipeline ships.
         # Page file remains in pages/17_Federal_CRDC.py for when the ingest is

@@ -12,6 +12,7 @@ pyarrow>=15.0
 requests>=2.31
 beautifulsoup4>=4.12
 lxml>=5.0
+pyyaml>=6.0       # curated YAML files (assets/curated/) read by the Athletics page
 
 # Geospatial — used by map pages
 geopandas>=1.0

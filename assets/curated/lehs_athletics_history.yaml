@@ -1,0 +1,44 @@
+# LEHS Athletics — pre-MaxPreps historical record.
+#
+# MaxPreps coverage of Lynn English begins in 2007-08. Anything older
+# (state titles, league titles, undefeated seasons, hall-of-fame teams,
+# coaching legacies, etc.) needs to be hand-curated from school yearbooks,
+# the Daily Item archive, banners in the gym, AD records, and alumni
+# memory. Add entries here over time — the Athletics page renders
+# whatever is present.
+#
+# Schema is loose on purpose — fill in what you know, leave what you don't.
+
+# ---------------------------------------------------------------------------
+# State / sectional championships and conference titles (pre-2007).
+# Listed newest-first; add entries as they're confirmed.
+# ---------------------------------------------------------------------------
+championships: []
+  # - year: 1992
+  #   sport: Football
+  #   level: "Division 2 State Champion"
+  #   coach: "Joe Public"
+  #   record: "11-1"
+  #   notes: |
+  #     Defeated North Andover in the Super Bowl at Sullivan Stadium.
+
+# ---------------------------------------------------------------------------
+# Hall-of-fame / undefeated / notable individual seasons.
+# Use freely — these are the "you had to be there" memories.
+# ---------------------------------------------------------------------------
+notable_seasons: []
+  # - year: 1968
+  #   sport: Boys Basketball
+  #   coach: "Coach Name"
+  #   record: "22-2"
+  #   league: "NEC champions"
+  #   notes: "Reached state semifinals; lost to Cambridge Rindge."
+
+# ---------------------------------------------------------------------------
+# Coaches with long tenures or significant impact.
+# ---------------------------------------------------------------------------
+legacy_coaches: []
+  # - name: "Coach Name"
+  #   sport: Football
+  #   years: "1965–1998"
+  #   highlights: "200+ career wins, 3 state titles, MIAA Hall of Fame."
