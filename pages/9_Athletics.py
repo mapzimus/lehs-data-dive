@@ -276,6 +276,39 @@ if school_hist:
     st.subheader("The school, briefly")
     st.markdown(school_hist)
 
+# Current Athletic Director — features prominently because leadership
+# context shapes how every other entry on the page reads.
+ad = history.get("athletic_director") or {}
+if ad:
+    st.subheader("Athletic Director")
+    cols = st.columns([3, 2])
+    with cols[0]:
+        st.markdown(
+            f"### {ad.get('name', '—')}"
+            + (f"  \n*Since {ad['since']}*" if ad.get("since") else "")
+        )
+        if ad.get("historic_note"):
+            st.success(f"**Historic note.** {ad['historic_note']}")
+        if ad.get("bio"):
+            st.markdown(ad["bio"])
+    with cols[1]:
+        if ad.get("replaced"):
+            st.markdown("**Replaced**")
+            st.caption(ad["replaced"])
+
+# Current head coaches roster
+coaches = history.get("current_coaches") or []
+if coaches:
+    st.subheader("Current head coaches")
+    for c in coaches:
+        with st.expander(
+            f"**{c.get('sport', '—')}** — {c.get('name', '')}"
+            + (f"  ·  since {c['since']}" if c.get("since") else ""),
+            expanded=False,
+        ):
+            if c.get("bio"):
+                st.markdown(c["bio"])
+
 # Rivalry — its own callout. The Thanksgiving game is the single most
 # institutional sports thing about Lynn English.
 riv = history.get("rivalry") or {}
@@ -288,6 +321,8 @@ if riv:
         st.metric("All-time series", f"{riv.get('all_time_series', '—')}")
     with rc3:
         st.metric("Sport", f"{riv.get('sport', '—')}")
+    if riv.get("most_recent"):
+        st.markdown(f"**Most recent.** {riv['most_recent']}")
     if riv.get("venue"):
         st.markdown(f"**Venue.** {riv['venue']}")
     if riv.get("notes"):
