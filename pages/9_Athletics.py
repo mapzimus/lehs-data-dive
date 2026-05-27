@@ -105,8 +105,14 @@ total_wins = int(active["wins"].fillna(0).sum())
 total_losses = int(active["losses"].fillna(0).sum())
 overall_pct = total_wins / max(total_wins + total_losses, 1)
 
-best_row = active.sort_values("win_pct", ascending=False).head(1)
-worst_row = active[active["games_played"].fillna(0) >= 5].sort_values("win_pct", ascending=True).head(1)
+# Min-games threshold for "best/worst" stats. A 1-0 COVID Fall-II
+# soccer season is technically a 100% record but doesn't belong on the
+# headline next to a 20-game season; require at least 5 games either
+# way so the leader is meaningful.
+MIN_GAMES = 5
+active_qualifying = active[active["games_played"].fillna(0) >= MIN_GAMES]
+best_row = active_qualifying.sort_values("win_pct", ascending=False).head(1)
+worst_row = active_qualifying.sort_values("win_pct", ascending=True).head(1)
 
 c1, c2, c3, c4 = st.columns(4)
 with c1:
@@ -187,15 +193,29 @@ with c1:
     total_w = int(team_df["wins"].fillna(0).sum())
     total_l = int(team_df["losses"].fillna(0).sum())
     all_pct = total_w / max(total_w + total_l, 1)
-    best_season = team_df.sort_values("win_pct", ascending=False).head(1).iloc[0]
+    # Apply the same min-games threshold here — a 1-0 sample doesn't
+    # belong on the "Best season" line above 20-game proper seasons.
+    qualifying = team_df[team_df["games_played"].fillna(0) >= MIN_GAMES]
+    best_season = (
+        qualifying.sort_values("win_pct", ascending=False).head(1).iloc[0]
+        if not qualifying.empty else None
+    )
     st.metric(f"{selected_team} — career on MaxPreps", f"{total_w}-{total_l}",
               f"{all_pct:.1%} across {seasons} seasons", delta_color="off")
-    st.metric(
-        "Best season",
-        f"20{best_season['year']}",
-        f"{int(best_season['wins'])}-{int(best_season['losses'])} ({best_season['win_pct']:.1%})",
-        delta_color="off",
-    )
+    if best_season is not None:
+        st.metric(
+            "Best season",
+            f"20{best_season['year']}",
+            f"{int(best_season['wins'])}-{int(best_season['losses'])} ({best_season['win_pct']:.1%})",
+            delta_color="off",
+        )
+    else:
+        st.metric(
+            "Best season",
+            "—",
+            f"No season with ≥{MIN_GAMES} games on MaxPreps",
+            delta_color="off",
+        )
 
 with c2:
     # Win % by season — bar
@@ -462,7 +482,9 @@ if venues:
                     if k == "capacity_orig":
                         st.metric(labels[k], f"{int(val):,}")
                     else:
-                        st.metric(labels[k], str(val))
+                        # Streamlit's metric value treats `$` as LaTeX math
+                        # delimiters — escape them so "$500K" renders as text.
+                        st.metric(labels[k], str(val).replace("$", r"\$"))
         if v.get("history"):
             st.markdown(v["history"])
 
