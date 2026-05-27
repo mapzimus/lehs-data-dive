@@ -4,10 +4,12 @@
 # Schema is loose on purpose — fill in what you know, leave what you don't.
 # Sources for the seed entries below:
 #   - lynnschools.org/departments/athletics/high_school_athletics
-#   - itemlive.com (the Lynn Item — current coverage)
-#   - en.wikipedia.org/wiki/Lynn_English_High_School
+#   - itemlive.com (the Lynn Item — current and historical coverage)
+#   - en.wikipedia.org (Lynn_English_High_School, Manning_Bowl,
+#     Anthony_Anderson_(basketball))
+#   - lynnenglishalumni.org (Hall of Fame)
 #   - baseball-reference.com/bullpen/Lynn_English_High_School
-#   - boston.com/uncategorized/noprimarytagmatch/2013/11/28/a-rivalry-for-the-ages/
+#   - boston.com (2013 "A rivalry for the ages")
 
 # ---------------------------------------------------------------------------
 # Brief school-history sidebar — non-athletic but anchoring context.
@@ -34,13 +36,44 @@ rivalry:
   all_time_series: "Lynn Classical leads 53-37-9 (as of 2013)"
   most_recent: "Lynn English 36, Lynn Classical 12 (Thanksgiving 2025)"
   venue: |
-    Originally played at *The Bowl* (capacity ~20,000). Now hosted at
-    Manning Field. The game shares a single home field — "there is no
-    away team."
+    Originally played at *Manning Bowl* (capacity ~20,000, opened 1937
+    as Municipal Stadium, renamed for Mayor J. Fred Manning in 1938).
+    The Bowl closed after the 2004 Thanksgiving game and was demolished
+    in 2005. Replaced by *Manning Field* on the same site — both teams
+    share the home field, so "there is no away team."
   notes: |
     Originally East-Lynn vs West-Lynn — a geographic district split down
     Washington Street. Since 1990s school choice, the rivalry is more
     about identity than catchment.
+
+# ---------------------------------------------------------------------------
+# Manning Bowl / Manning Field — the venue that *is* Lynn HS football.
+# ---------------------------------------------------------------------------
+venues:
+  - name: "Manning Bowl (1937–2004) / Manning Field (2005–present)"
+    capacity_orig: 20000
+    history: |
+      **Manning Bowl** opened on November 24, 1937, originally named
+      *Municipal Stadium*, and was rededicated for Mayor J. Fred Manning
+      after construction wrapped on June 21, 1938. The Bowl was a 20,000-
+      seat amphitheater that hosted the Lynn English / Lynn Classical
+      Thanksgiving game for 67 years. It also hosted the *Harry Agganis
+      All-Star Football Classic* from 1956–1959 and 1965–2003.
+
+      The first touchdown ever scored at the Bowl was by **Henry Pazik**
+      (LEHS) — a 33-yard pass from quarterback Joe McNulty in the
+      opening 1937 Thanksgiving game (LEHS 13, Classical 6). The final
+      touchdown ever scored there was also by a Bulldog: **Mike Orfanos**
+      on a 2-yard run in the 2004 closer, LEHS 28-8.
+
+      The Bowl was renovated in 1974, closed after the 2004 Thanksgiving
+      game, and demolished in 2005. **Manning Field** opened on the same
+      site in 2005 and remains the shared home field for Lynn English,
+      Lynn Classical, Lynn Tech, and St. Mary's.
+
+      A nice generational note: Henry Pazik's son, **Mike Pazik** (also
+      LEHS, also a quarterback), went on to play in MLB with the
+      Minnesota Twins.
 
 # ---------------------------------------------------------------------------
 # Current athletic director.
@@ -62,7 +95,6 @@ athletic_director:
 
 # ---------------------------------------------------------------------------
 # Current head coaches (in addition to the AD).
-# Add as confirmed. Per-sport line.
 # ---------------------------------------------------------------------------
 current_coaches:
   - name: "Tyllor McDonald"
@@ -130,6 +162,13 @@ championships:
     sport: "Football"
     level: "Greater Boston League Co-Champions"
     notes: "Tied with Medford for the GBL title in McDonald's first season."
+  - year: 2021
+    sport: "Boys Basketball"
+    level: "Greater Boston League Champions"
+    coach: "Antonio Anderson"
+    notes: |
+      Beat Everett for the GBL title — Anderson's farewell game before
+      stepping down as head coach after four seasons.
   - year: 2020
     sport: "Boys Basketball"
     level: "Massachusetts Division 1 State Champions"
@@ -143,14 +182,14 @@ championships:
   - year: 2017
     sport: "Marine Corps JROTC Drill Team"
     level: "National Champions"
+    coach: "SgtMaj Kenneth Oswald (USMC, Ret.)"
     notes: |
-      Repeatedly voted the #1 JROTC program in its region — three times
-      since 2000 as of fall 2019. Drill team competition, not MIAA, but
-      a championship the school carries with pride.
+      One of *three* National All-Service Drill Team championships
+      under Oswald's 26-year tenure (1995–2021). LEHS won 21
+      consecutive Naval Honor School Awards in that span.
 
 # ---------------------------------------------------------------------------
-# Notable individual seasons — undefeated runs, deep tourney runs, etc.
-# Add as confirmed.
+# Notable individual seasons.
 # ---------------------------------------------------------------------------
 notable_seasons:
   - year: 2023
@@ -160,6 +199,63 @@ notable_seasons:
       First postseason appearance since 1999. Started the season 4-9
       but closed the regular season with six straight wins to clinch a
       playoff berth.
+  - year: 2000
+    sport: "Boys Basketball"
+    coach: "Ronald Bennett"
+    notes: |
+      19-5 season led by senior point guard **Anthony Anderson**
+      (24/10/9, NEC MVP, *Boston Globe* All-Scholastic). Coach Bennett
+      called Anderson "in 35 years, the best player I've ever had."
+
+# ---------------------------------------------------------------------------
+# Hall of Fame — full class lists by induction year.
+# ---------------------------------------------------------------------------
+hall_of_fame:
+  - year: 2024
+    ceremony_date: "November 7, 2024"
+    location: "Harborview Ballroom, Danversport Yacht Club, Danvers, MA"
+    inductees:
+      - name: "Anthony Anderson"
+        grad_year: 2000
+        sport: "Boys Basketball"
+        notes: "Boston Globe All-Scholastic 2000. UMass Minutemen 2001-05. Pro: NBL Canada all-time leading scorer, 2014 league MVP."
+      - name: "Daniel Connelly"
+        grad_year: 1990
+      - name: "Joseph Crowley"
+        grad_year: 1995
+      - name: "Allan Ditchfield"
+        grad_year: 1955
+      - name: "Michelle Fabian Ennis"
+        grad_year: 1984
+        sport: "Soccer / Basketball / Softball"
+        notes: "Multi-sport athlete."
+      - name: "Ryan Ferguson"
+        grad_year: 1998
+      - name: "Alisa Fila"
+        grad_year: 1984
+      - name: "John Hoffman"
+      - name: "Deidre (Jackson) Roper"
+        grad_year: 1995
+      - name: "Martha Jamieson"
+        grad_year: 1984
+      - name: "John Langan"
+        grad_year: 1948
+      - name: "Kara (Lunden) Migliozzi"
+        grad_year: 1995
+      - name: "SgtMaj (ret.) Kenneth Oswald"
+        sport: "JROTC"
+        notes: |
+          Marine Corps JROTC instructor 1995–2021 (26 years). Three
+          National All-Service Drill Team championships, 21 consecutive
+          Naval Honor School Awards, three Marine Corps Reserve
+          Association Awards.
+      - name: "William Rafuse"
+        grad_year: 1968
+      - name: "Jeison Gonzalez"
+        grad_year: 2004
+        notes: "Originally inducted in the 2022 class; recognized at the 2024 ceremony."
+  - year: 2022
+    notes: "Inducted class — individual names not yet captured in this file."
 
 # ---------------------------------------------------------------------------
 # Coaches who've moved on but defined an era.
@@ -167,15 +263,37 @@ notable_seasons:
 legacy_coaches:
   - name: "Antonio Anderson"
     sport: "Boys Basketball"
-    years: "through ~2020"
+    years: "2017–2021 (four seasons)"
     highlights: |
       Head coach of the back-to-back MA Division 1 state champion
-      Bulldogs in 2019 and 2020. Several of his assistants (incl. Dina
-      Wavezwa) have stayed in the program.
+      Bulldogs in 2019 and 2020. Stepped down March 2021 after winning
+      the GBL title in his farewell game (over Everett). Younger
+      brother of LEHS HoF inductee Anthony Anderson; played at Memphis
+      under John Calipari (C-USA Defensive Player of the Year 2009),
+      then 10-day NBA contracts with the OKC Thunder in 2010 and the
+      NBA D-League. Several of his LEHS assistants stayed in the
+      program — Dina Wavezwa, the current head coach, was one of them.
+
+  - name: "Ronald Bennett"
+    sport: "Boys Basketball"
+    years: "circa 2000 era"
+    highlights: |
+      Coached LEHS boys basketball for 35+ years. Coach of the 2000
+      Anthony Anderson team. Called Anderson "in 35 years, the best
+      player I've ever had."
+
   - name: "Alvin Abreu"
     sport: "Boys Basketball"
     years: "post-Anderson — March 2025"
     highlights: "Stepped down in March 2025; replaced by Dina Wavezwa."
+
+  - name: "SgtMaj (ret.) Kenneth Oswald, USMC"
+    sport: "Marine Corps JROTC"
+    years: "1995–2021 (26 years)"
+    highlights: |
+      Three National All-Service Drill Team championships, 21
+      consecutive Naval Honor School Awards. HoF Class of 2024.
+
   - name: "Dick Newton"
     sport: "Athletic Director"
     years: "2016 – June 2025"
@@ -184,50 +302,91 @@ legacy_coaches:
       Ashley Aldred succeeded him in July, making history as Lynn's
       first female AD.
 
+  - name: "Tom Whelan"
+    sport: "Principal / Athletic Director (also MLB)"
+    years: "1940s–1950s"
+    highlights: |
+      Two-sport pro (MLB Boston Braves infielder 1920, Canton Bulldogs
+      football alongside Jim Thorpe 1919–1920) who returned to LEHS as
+      teacher, baseball coach, AD, and ultimately principal. The
+      Whelan Family Scholarship at LEHS is named in his honor.
+
 # ---------------------------------------------------------------------------
-# Notable alumni — primarily athletic but a few cultural / civic
-# figures included where they've shaped the school's identity.
+# Notable alumni.
 # ---------------------------------------------------------------------------
 notable_alumni:
-  # Major League Baseball — most documented LEHS pro-athlete pipeline.
+  # Basketball — the Anderson brothers are the most decorated 2000s era story.
+  - name: "Anthony Anderson"
+    grad_year: "2000"
+    sport: "Basketball"
+    bio: |
+      LEHS HoF Class of 2024. Boston Globe All-Scholastic 2000; NEC
+      MVP as a junior and senior; senior averages of 24 points / 10
+      assists / 9 rebounds led the Bulldogs to a 19-5 record. Played
+      at **UMass Amherst** 2001–2005, finishing as the program's
+      second-best all-time three-point shooter (275 made threes);
+      named Atlantic 10 Rookie of the Year in 2002. Pro: played in
+      the ABA, PBL, and NBL Canada — became the NBL Canada all-time
+      leading scorer and won the 2014 league MVP. Older brother of
+      Antonio Anderson.
+  - name: "Antonio Anderson"
+    sport: "Basketball"
+    bio: |
+      Started high school at LEHS before transferring to Lynn Tech,
+      where he won a MA Division 3 state title as a junior in 2002
+      under coach Marvin Avery. Played at **Memphis** under John
+      Calipari; **Conference USA Defensive Player of the Year 2009**.
+      Signed multiple 10-day contracts with the Oklahoma City Thunder
+      in 2010, played in the NBA D-League. Returned home as LEHS
+      boys-basketball head coach 2017–2021 — back-to-back state titles
+      2019 + 2020.
+
+  # Major League Baseball
   - name: "Bump Hadley"
     grad_year: "1920s"
     sport: "Baseball (MLB)"
     bio: |
       Right-handed pitcher; 16 MLB seasons (1926–1941). Won three World
-      Series with the New York Yankees in the 1930s. One of the era's
-      most well-traveled hurlers — Senators, White Sox, Browns, Yankees,
-      Giants, Athletics.
+      Series with the New York Yankees in the 1930s. Pitched for the
+      Senators, White Sox, Browns, Yankees, Giants, and Athletics.
   - name: "Jim Hegan"
     grad_year: "1938"
-    sport: "Baseball (MLB)"
+    sport: "Baseball (MLB) / Football (HS QB)"
     bio: |
-      Catcher; 17 MLB seasons (1941–1960), mostly with the Cleveland
-      Indians. Five-time All-Star, member of the 1948 World Series
-      champion Indians. Considered one of the best defensive catchers
-      of his era; later a long-tenured Yankees coach.
+      Played quarterback at LEHS during the early Manning Bowl years.
+      Then 17 MLB seasons as a catcher (1941–1960), mostly with the
+      Cleveland Indians. Five-time All-Star, World Series champion in
+      1948, widely considered one of the best defensive catchers of
+      his era. Later a long-tenured Yankees coach.
+  - name: "Henry Pazik"
+    sport: "Football"
+    bio: |
+      Scored the **first touchdown ever** at Manning Bowl on Nov 24,
+      1937 — a 33-yard pass from QB Joe McNulty in LEHS's 13-6
+      Thanksgiving win over Classical. Father of MLB pitcher Mike Pazik.
+  - name: "Mike Pazik"
+    sport: "Baseball (MLB) / Football (HS QB)"
+    bio: |
+      Quarterback at LEHS like his father Henry. Pitcher with the
+      Minnesota Twins in the mid-1970s.
   - name: "Les Burke"
     sport: "Baseball (MLB)"
     bio: |
-      Infielder; played for the Detroit Tigers in the 1920s.
+      Infielder; Detroit Tigers, 1920s.
   - name: "Tom Whelan"
     sport: "Baseball (MLB) + Football"
     bio: |
-      Infielder for the Boston Braves (1920). One of the country's first
-      two-sport professional athletes — played on the World-Championship
-      Canton Bulldogs alongside Jim Thorpe in 1919 and 1920. Later
-      returned to LEHS as a teacher, baseball coach, and eventually
-      headmaster.
-  - name: "Mike Pazik"
-    sport: "Baseball (MLB)"
-    bio: |
-      Pitcher; appeared for the Minnesota Twins in the mid-1970s.
+      Infielder for the Boston Braves (1920) — one of the country's
+      first two-sport pros. Played on the World-Championship Canton
+      Bulldogs alongside Jim Thorpe in 1919 and 1920. Returned to LEHS
+      as teacher, baseball coach, AD, and principal during the
+      1940s–50s. The Whelan Family Scholarship honors his legacy.
   - name: "Ben Bowden"
     grad_year: "2013"
     sport: "Baseball (MLB)"
     bio: |
-      Left-handed pitcher; reached the majors with the Colorado Rockies
-      in 2021 after a standout career at Vanderbilt.
+      Left-handed pitcher; reached the majors with the Colorado
+      Rockies in 2021 after a standout career at Vanderbilt.
 
   # Music
   - name: "Sib Hashian"
@@ -235,22 +394,21 @@ notable_alumni:
     bio: |
       Drummer for the rock band *Boston* — performed on the band's
       self-titled 1976 debut, one of the best-selling debut albums of
-      all time. Lynn-born, LEHS-educated.
+      all time.
 
   # Acting
   - name: "Jack Noseworthy"
     grad_year: "1982"
     sport: "Acting"
     bio: |
-      Film and TV actor — *Event Horizon*, *S.W.A.T.*, *Killing Kennedy*,
-      Broadway and off-Broadway credits.
+      Film and TV actor — *Event Horizon*, *S.W.A.T.*, *Killing
+      Kennedy*, Broadway and off-Broadway credits.
 
   # Academia + civic
   - name: "John A. Curry"
     grad_year: "1951"
     sport: "Higher Education"
-    bio: |
-      Served as president of Northeastern University.
+    bio: "Served as president of Northeastern University."
   - name: "John J. Donovan"
     grad_year: "1959"
     sport: "Academia / Tech"
@@ -258,7 +416,7 @@ notable_alumni:
       MIT professor and entrepreneur; founder of multiple software
       companies in the Cambridge tech ecosystem.
 
-  # Controversial / political — included for completeness
+  # Controversial / political — included for historical completeness
   - name: "Lyndon LaRouche"
     grad_year: "1940"
     sport: "Politics / Economics"
