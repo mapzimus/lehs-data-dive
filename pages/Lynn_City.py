@@ -389,6 +389,103 @@ with tab_city:
                 )
 
         # -------------------------------------------------------------------
+        # 9.5 Housing market trend (Zillow ZHVI + ZORI) — Phase D
+        # ACS gives a single-snapshot median; Zillow gives the time series
+        # that shows whether Lynn's market is heating, cooling, or sliding
+        # relative to MA + the country.
+        # -------------------------------------------------------------------
+        housing_trend = load_dataset("lynn_housing_trend")
+        if not housing_trend.empty:
+            st.subheader("Housing market — Lynn vs. MA vs. US trend")
+            housing_trend["date"] = pd.to_datetime(housing_trend["date"], errors="coerce")
+            housing_trend = housing_trend.dropna(subset=["date"])
+
+            zhvi = housing_trend[housing_trend["metric"] == "ZHVI"]
+            zori = housing_trend[housing_trend["metric"] == "ZORI"]
+
+            # Latest snapshot bar
+            latest_dt = housing_trend["date"].max()
+            latest = housing_trend[housing_trend["date"] == latest_dt].copy()
+            lynn_zhvi = latest[(latest["scope"] == "Lynn") & (latest["metric"] == "ZHVI")]
+            lynn_zori = latest[(latest["scope"] == "Lynn") & (latest["metric"] == "ZORI")]
+
+            hc1, hc2, hc3 = st.columns(3)
+            if not lynn_zhvi.empty:
+                with hc1:
+                    st.metric(
+                        f"Lynn typical home value ({latest_dt:%b %Y})",
+                        f"${lynn_zhvi.iloc[0]['value']:,.0f}",
+                        help="Zillow ZHVI — typical home value (33rd–67th percentile, smoothed, seasonally adjusted).",
+                    )
+            ma_zhvi = latest[(latest["scope"] == "Massachusetts") & (latest["metric"] == "ZHVI")]
+            if not lynn_zhvi.empty and not ma_zhvi.empty:
+                gap = lynn_zhvi.iloc[0]["value"] - ma_zhvi.iloc[0]["value"]
+                with hc2:
+                    st.metric(
+                        "vs MA",
+                        f"${ma_zhvi.iloc[0]['value']:,.0f}",
+                        f"{gap:+,.0f} (Lynn vs MA)",
+                        delta_color="normal" if gap >= 0 else "inverse",
+                    )
+            if not lynn_zori.empty:
+                with hc3:
+                    st.metric(
+                        f"Lynn typical rent ({latest_dt:%b %Y})",
+                        f"${lynn_zori.iloc[0]['value']:,.0f}",
+                        help="Zillow ZORI — typical asking rent across SFR + condo + multifamily, smoothed.",
+                    )
+
+            # ZHVI trend
+            if not zhvi.empty:
+                fig = px.line(
+                    zhvi.sort_values("date"),
+                    x="date", y="value", color="scope",
+                    color_discrete_map={
+                        "Lynn": LEHS_GOLD,
+                        "Massachusetts": LEHS_NAVY,
+                        "United States": "#455A64",
+                    },
+                )
+                fig.update_layout(
+                    **DEFAULT_LAYOUT,
+                    yaxis_tickprefix="$", yaxis_tickformat=",.0f",
+                    yaxis_title="Typical home value (ZHVI)",
+                    xaxis_title="",
+                    legend_title="",
+                    title="Home values — Lynn vs. Massachusetts vs. United States",
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
+            # ZORI trend (Lynn + US only — ZORI is not published at state level)
+            if not zori.empty:
+                fig = px.line(
+                    zori.sort_values("date"),
+                    x="date", y="value", color="scope",
+                    color_discrete_map={
+                        "Lynn": LEHS_GOLD,
+                        "United States": "#455A64",
+                    },
+                )
+                fig.update_layout(
+                    **DEFAULT_LAYOUT,
+                    yaxis_tickprefix="$", yaxis_tickformat=",.0f",
+                    yaxis_title="Typical asking rent (ZORI)",
+                    xaxis_title="",
+                    legend_title="",
+                    title="Rents — Lynn vs. United States",
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
+            st.caption(
+                "Source: Zillow Research public CSVs. **ZHVI** (Zillow Home Value Index) "
+                "is the typical value of a home in the 33rd–67th percentile range, "
+                "smoothed and seasonally adjusted. **ZORI** (Observed Rent Index) is "
+                "typical asking rent across single-family, condo, and multifamily. "
+                "Rapid home-value appreciation outpacing wage growth shows up downstream "
+                "as housing burden + displacement pressure on school families."
+            )
+
+        # -------------------------------------------------------------------
         # 10. Commute
         # -------------------------------------------------------------------
         st.header("How Lynn gets to work")
