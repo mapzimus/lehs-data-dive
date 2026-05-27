@@ -252,6 +252,136 @@ if not teach_per_100.empty:
 st.divider()
 
 # ---------------------------------------------------------------------------
+# Phase C — Teacher Salary in Gateway-City context. The per-school comparison
+# above (LEHS vs LCHS vs Lynn Tech) is useful but every Lynn school operates
+# under the same district pay scale — so it understates variation. The peer
+# comparison below puts Lynn's average teacher salary against the other 25
+# MA Gateway Cities, where contract negotiations vary independently.
+# ---------------------------------------------------------------------------
+
+st.header("Teacher Pay vs. Gateway-City Peers")
+st.markdown(
+    "Average teacher salary is set at the **district** level — every Lynn "
+    "school pays from the same scale. To see whether Lynn pays competitively, "
+    "the comparison that matters is against other MA Gateway Cities: similar "
+    "demographic profile, similar fiscal pressures, independently negotiated "
+    "contracts."
+)
+
+if not dist_exp.empty:
+    dsal = dist_exp[
+        (dist_exp["IND_CAT"] == "Teacher Salaries")
+        & (dist_exp["IND_SUBCAT"] == "Average Teacher Salary")
+    ].copy()
+    dsal["IND_VALUE"] = pd.to_numeric(dsal["IND_VALUE"], errors="coerce")
+    dsal["SY"] = pd.to_numeric(dsal["SY"], errors="coerce").astype("Int64")
+    dsal = dsal.dropna(subset=["IND_VALUE", "SY"])
+
+    if dsal.empty:
+        st.info("No district-level teacher-salary rows found.")
+    else:
+        latest_dy = int(dsal["SY"].max())
+        latest_dsal = dsal[dsal["SY"] == latest_dy].copy()
+        lynn_row = latest_dsal[latest_dsal["DIST_CODE"] == LYNN_DISTRICT_CODE]
+        peer_med = latest_dsal["IND_VALUE"].median()
+        peer_max = latest_dsal["IND_VALUE"].max()
+        peer_min = latest_dsal["IND_VALUE"].min()
+
+        c1, c2, c3 = st.columns(3)
+        if not lynn_row.empty:
+            lynn_sal = lynn_row.iloc[0]["IND_VALUE"]
+            rank = int((latest_dsal["IND_VALUE"] > lynn_sal).sum() + 1)
+            total_n = len(latest_dsal)
+            with c1:
+                st.metric(
+                    f"Lynn avg teacher salary (FY {latest_dy})",
+                    f"${lynn_sal:,.0f}",
+                    f"Rank {rank} of {total_n} Gateway Cities",
+                )
+            with c2:
+                diff = lynn_sal - peer_med
+                st.metric(
+                    "vs. Gateway peer median",
+                    f"${peer_med:,.0f}",
+                    f"{diff:+,.0f} vs Lynn",
+                )
+        with c3:
+            st.metric(
+                "Gateway range",
+                f"${peer_min/1000:.0f}K – ${peer_max/1000:.0f}K",
+                help="Lowest to highest average teacher salary across the 26 MA Gateway-City districts.",
+            )
+
+        # Peer ranking — latest year
+        ranked = latest_dsal.sort_values("IND_VALUE", ascending=True).copy()
+        ranked["is_lynn"] = ranked["DIST_CODE"] == LYNN_DISTRICT_CODE
+        ranked["label"] = ranked["IND_VALUE"].apply(lambda x: f"${x:,.0f}")
+
+        st.markdown(f"**Gateway-City average teacher salaries — FY {latest_dy}**")
+        fig = px.bar(
+            ranked, x="IND_VALUE", y="DIST_NAME", orientation="h", text="label",
+            color="is_lynn",
+            color_discrete_map={True: LEHS_GOLD, False: LEHS_NAVY},
+        )
+        fig.update_traces(textposition="outside", cliponaxis=False)
+        fig.add_vline(
+            x=peer_med, line_dash="dash", line_color="#455A64",
+            annotation_text=f"Peer median ${peer_med:,.0f}",
+            annotation_position="top",
+        )
+        fig.update_layout(
+            **DEFAULT_LAYOUT,
+            xaxis_tickprefix="$", xaxis_tickformat=",.0f",
+            xaxis_title="Average teacher salary",
+            yaxis_title="",
+            showlegend=False,
+            height=max(420, 22 * len(ranked)),
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Trend — Lynn vs peer median over time
+        peer_trend = (
+            dsal.groupby("SY")["IND_VALUE"]
+            .median()
+            .reset_index()
+            .rename(columns={"IND_VALUE": "PeerMedian"})
+        )
+        lynn_trend = (
+            dsal[dsal["DIST_CODE"] == LYNN_DISTRICT_CODE][["SY", "IND_VALUE"]]
+            .rename(columns={"IND_VALUE": "Lynn"})
+        )
+        trend = peer_trend.merge(lynn_trend, on="SY", how="outer").sort_values("SY")
+        if not trend.empty and len(trend) > 1:
+            st.markdown("**Trend — Lynn vs. Gateway peer median**")
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=trend["SY"], y=trend["Lynn"], mode="lines+markers",
+                name="Lynn", line=dict(color=LEHS_GOLD, width=3),
+            ))
+            fig.add_trace(go.Scatter(
+                x=trend["SY"], y=trend["PeerMedian"], mode="lines+markers",
+                name="Gateway peer median", line=dict(color=LEHS_NAVY, width=2, dash="dash"),
+            ))
+            fig.update_layout(
+                **DEFAULT_LAYOUT,
+                yaxis_tickprefix="$", yaxis_tickformat=",.0f",
+                yaxis_title="Average teacher salary",
+                xaxis_title="Fiscal Year",
+                legend_title="",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        st.caption(
+            "Average teacher salary reflects the joint effect of pay scale and "
+            "workforce experience mix — a district with a more senior workforce "
+            "will show a higher average even on the same scale. Pair with "
+            "*% Experienced Teachers* on the Teachers & Workforce page to "
+            "separate the two."
+        )
+
+st.divider()
+
+# ---------------------------------------------------------------------------
 # Lynn district context
 # ---------------------------------------------------------------------------
 
