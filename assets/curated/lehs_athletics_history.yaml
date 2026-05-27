@@ -51,29 +51,67 @@ rivalry:
 # ---------------------------------------------------------------------------
 venues:
   - name: "Manning Bowl (1937–2004) / Manning Field (2005–present)"
-    capacity_orig: 20000
+    image: "manning-bowl.jpg"
+    image_caption: |
+      Manning Stadium (later Manning Bowl), Lynn, MA — vintage aerial
+      postcard, c. 1940s. Source: Boston Public Library / Wikimedia
+      Commons (public domain).
+    capacity_orig: 21000
+    architect: "Cyril Harding"
+    cost: "$500,000 (~$11.2M in 2025 dollars)"
     history: |
-      **Manning Bowl** opened on November 24, 1937, originally named
-      *Municipal Stadium*, and was rededicated for Mayor J. Fred Manning
-      after construction wrapped on June 21, 1938. The Bowl was a 20,000-
-      seat amphitheater that hosted the Lynn English / Lynn Classical
-      Thanksgiving game for 67 years. It also hosted the *Harry Agganis
-      All-Star Football Classic* from 1956–1959 and 1965–2003.
+      **Manning Bowl** broke ground in September 1936 as a Works
+      Progress Administration project, and opened on **November 24,
+      1937** for the LEHS / Classical Thanksgiving game while still
+      under construction (then called *Municipal Stadium*). It was
+      formally completed on **June 21, 1938** and dedicated to Mayor
+      J. Fred Manning. A 21,000-seat amphitheater designed by Cyril
+      Harding; total construction cost was about $500,000 (≈ $11.2M
+      in 2025 dollars).
 
+      **Football firsts and lasts**
       The first touchdown ever scored at the Bowl was by **Henry Pazik**
-      (LEHS) — a 33-yard pass from quarterback Joe McNulty in the
-      opening 1937 Thanksgiving game (LEHS 13, Classical 6). The final
-      touchdown ever scored there was also by a Bulldog: **Mike Orfanos**
-      on a 2-yard run in the 2004 closer, LEHS 28-8.
+      (LEHS) — a 33-yard pass from QB Joe McNulty in the opening 1937
+      Thanksgiving game (LEHS 13, Classical 6). The last touchdown was
+      also a Bulldog: **Mike Orfanos** on a 2-yard run in the 2004
+      closer, LEHS 28-8. In between, the Bowl hosted the *Harry Agganis
+      All-Star Football Classic* (1956–59 and 1965–2003) and the very
+      first **televised high school football game** in Massachusetts,
+      a 1948 WNAC-TV broadcast.
 
-      The Bowl was renovated in 1974, closed after the 2004 Thanksgiving
-      game, and demolished in 2005. **Manning Field** opened on the same
-      site in 2005 and remains the shared home field for Lynn English,
-      Lynn Classical, Lynn Tech, and St. Mary's.
+      **Bigger-stage moments**
+      * Sep 18, 1945 — **Boston Yanks** (NFL) beat the **NY Giants**
+        14-3 in front of 8,500 fans
+      * Sep 26, 1953 — **Holy Cross beat Dartmouth 28-7**, nationally
+        televised to an estimated 80 million viewers
+      * 1959 — Chicago Bears defeated Philadelphia Eagles 24-21
+        (Cardinal Cushing Charity Game)
+      * 1966–1982 — host of the **Drum & Bugle Corps World Open
+        Championship**
+
+      **Rock concerts (1966–1985)**
+      The Bowl had a brief, wild run as a major concert venue:
+      * Jun 24, 1966 — **The Rolling Stones** kicked off their North
+        American tour here; police cut the show short due to a crowd
+        surge
+      * Jul 11, 1976 — **Ray Charles** charity show (with Four Tops,
+        Dorothy Moore)
+      * Sep 23, 1984 — **Beach Boys**
+      * Aug 3, 1985 — **Mötley Crüe** drew ~15,000 (with Accept, Y&T)
+      * Sep 8, 1985 — **The Kinks**, ~7,000
+      * Sep 14, 1985 — **Aerosmith** drew ~25,000; the show resulted
+        in a traffic jam and 12 arrests, prompting Lynn city council
+        to ban rock concerts at the Bowl 11 days later
+
+      **Closed and replaced**
+      Renovated in 1974, closed after the 2004 Thanksgiving game, and
+      demolished in 2005. **Manning Field** opened on the same site
+      that year as the shared home field for Lynn English, Lynn
+      Classical, Lynn Tech, and St. Mary's.
 
       A nice generational note: Henry Pazik's son, **Mike Pazik** (also
-      LEHS, also a quarterback), went on to play in MLB with the
-      Minnesota Twins.
+      LEHS, also a quarterback, also a Hall-of-Famer — Class of 2019),
+      went on to pitch in MLB with the Minnesota Twins.
 
 # ---------------------------------------------------------------------------
 # Current athletic director.
@@ -254,8 +292,66 @@ hall_of_fame:
       - name: "Jeison Gonzalez"
         grad_year: 2004
         notes: "Originally inducted in the 2022 class; recognized at the 2024 ceremony."
+
   - year: 2022
-    notes: "Inducted class — individual names not yet captured in this file."
+    notes: "Inducted class — individual names not yet captured in this file. (Jeison Gonzalez, '04, was one of them; he was re-recognized at the 2024 ceremony.)"
+
+  - year: 2019
+    ceremony_date: "October 2019"
+    inductees:
+      - name: "Joel Abramson"
+        grad_year: 1964
+      - name: "Douglas Anderson"
+        grad_year: 1968
+      - name: "Shawn Bleau"
+        grad_year: 1988
+        notes: "Inducted as an athlete."
+      - name: "Gary Bogart"
+        grad_year: 1966
+        sport: "Football"
+        notes: "Played football at Tyler Junior College (TX) and Eastern Michigan University. AD Dick Newton singled out Bogart's induction speech as the highlight of the evening."
+      - name: "Raymond Brown"
+        grad_year: 1942
+      - name: "James Down"
+        grad_year: 1969
+      - name: "Kevin Franklin"
+        grad_year: 1978
+      - name: "Peter Holey"
+        grad_year: 1981
+      - name: "Joyce Knappe"
+      - name: "Donald Lucia"
+        grad_year: 1955
+      - name: "Joseph O'Connor"
+        grad_year: 1980
+        notes: "Inducted as an athlete."
+      - name: "Michael Pazik"
+        grad_year: 1968
+        sport: "Baseball (MLB)"
+        notes: "MLB pitcher (Minnesota Twins, mid-1970s); also an LEHS QB and son of Henry Pazik (the first-TD scorer at Manning Bowl)."
+      - name: "Christine Pierce"
+        grad_year: 1978
+
+  - year: 2013
+    ceremony_date: "March 19, 2013"
+    location: "The Porthole Restaurant, Lynn"
+    inductees:
+      - name: "The Conlon Family"
+        sport: "Soccer / Swimming"
+        notes: "Collective family induction — six members of one of LEHS's most decorated soccer-and-swimming families: Bart Conlon, Diane Conlon, Marianne (Conlon) Duncan, Melissa (Conlon) McElaney, and (posthumously) Michelle Conlon and Michael Conlon."
+      - name: "Dick Newton"
+        sport: "Football / Baseball"
+        notes: "Inducted as a player; would later become LEHS Athletic Director (2016–2025)."
+      - name: "Ron Bennett"
+        sport: "Boys Basketball / Baseball (coach)"
+        notes: "35+-year coaching career at LEHS; amassed 700+ coaching wins."
+      - name: "Dr. Miriam Morse"
+      - name: "John Timothy Phelan"
+      - name: "Carol Ruggiero"
+      - name: "Francie Sudak"
+      - name: "Michael Sullivan"
+      - name: "Edward Turmenne"
+      - name: "Donald Twomey"
+      - name: "Dr. Joseph Wescott"
 
 # ---------------------------------------------------------------------------
 # Coaches who've moved on but defined an era.
@@ -274,13 +370,14 @@ legacy_coaches:
       NBA D-League. Several of his LEHS assistants stayed in the
       program — Dina Wavezwa, the current head coach, was one of them.
 
-  - name: "Ronald Bennett"
-    sport: "Boys Basketball"
-    years: "circa 2000 era"
+  - name: "Ronald (Ron) Bennett"
+    sport: "Boys Basketball + Baseball"
+    years: "35+ years at LEHS"
     highlights: |
-      Coached LEHS boys basketball for 35+ years. Coach of the 2000
-      Anthony Anderson team. Called Anderson "in 35 years, the best
-      player I've ever had."
+      One of LEHS's all-time-winningest coaches across both sports —
+      **700+ coaching wins**. Head coach of the 2000 Anthony Anderson
+      team; called Anderson "in 35 years, the best player I've ever
+      had." Inducted into the LEHS Hall of Fame in the 2013 class.
 
   - name: "Alvin Abreu"
     sport: "Boys Basketball"
@@ -295,12 +392,14 @@ legacy_coaches:
       consecutive Naval Honor School Awards. HoF Class of 2024.
 
   - name: "Dick Newton"
-    sport: "Athletic Director"
-    years: "2016 – June 2025"
+    sport: "Athletic Director (also Football + Baseball player)"
+    years: "AD 2016 – June 2025"
     highlights: |
-      Director of Athletics for nearly a decade. Retired June 2025;
-      Ashley Aldred succeeded him in July, making history as Lynn's
-      first female AD.
+      An LEHS lifer — played football and baseball at the school
+      himself, inducted into the LEHS Hall of Fame as a player in the
+      2013 class, then returned as Director of Athletics for nearly a
+      decade (2016–2025). Retired June 2025; Ashley Aldred succeeded
+      him the next month, making history as Lynn's first female AD.
 
   - name: "Tom Whelan"
     sport: "Principal / Athletic Director (also MLB)"

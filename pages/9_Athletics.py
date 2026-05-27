@@ -414,6 +414,29 @@ if venues:
     st.subheader("Venues & milestones")
     for v in venues:
         st.markdown(f"### {v.get('name', '—')}")
+        # Optional image (e.g. the Manning Bowl postcard)
+        img_name = v.get("image")
+        if img_name:
+            img_path = IMAGES_DIR / img_name
+            if img_path.exists():
+                st.image(
+                    str(img_path),
+                    caption=v.get("image_caption", ""),
+                    use_container_width=True,
+                )
+        # Optional structured facts row (capacity, architect, cost)
+        facts = [(k, v.get(k)) for k in ("capacity_orig", "architect", "cost") if v.get(k)]
+        if facts:
+            cols = st.columns(len(facts))
+            labels = {"capacity_orig": "Original capacity",
+                      "architect": "Architect",
+                      "cost": "Construction cost"}
+            for (k, val), col in zip(facts, cols):
+                with col:
+                    if k == "capacity_orig":
+                        st.metric(labels[k], f"{int(val):,}")
+                    else:
+                        st.metric(labels[k], str(val))
         if v.get("history"):
             st.markdown(v["history"])
 
