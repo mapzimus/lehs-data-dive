@@ -366,6 +366,51 @@ if coaches:
         if c.get("highlights"):
             st.caption(c["highlights"])
 
+# Hall of Fame — full class lists by induction year
+hof = history.get("hall_of_fame") or []
+if hof:
+    st.subheader("Hall of Fame")
+    st.caption(
+        "The LEHS Athletics & Distinguished Alumni Hall of Fame inducts "
+        "classes periodically. Full class lists below — names without "
+        "additional notes mean the public record we've gathered so far "
+        "doesn't include their specifics (yet)."
+    )
+    for cls in sorted(hof, key=lambda x: x.get("year", 0), reverse=True):
+        ttl = f"**Class of {cls.get('year')}**"
+        if cls.get("ceremony_date"):
+            ttl += f"  ·  {cls['ceremony_date']}"
+        if cls.get("location"):
+            ttl += f"  ·  *{cls['location']}*"
+        with st.expander(ttl, expanded=False):
+            inductees = cls.get("inductees") or []
+            if not inductees:
+                if cls.get("notes"):
+                    st.markdown(cls["notes"])
+                else:
+                    st.info("No inductee detail captured yet.")
+            for ind in inductees:
+                yr = ind.get("grad_year")
+                line = f"**{ind.get('name', '—')}**"
+                if yr:
+                    line += f" (LEHS '{yr})"
+                if ind.get("sport"):
+                    line += f" · *{ind['sport']}*"
+                st.markdown(line)
+                if ind.get("notes"):
+                    st.caption(ind["notes"])
+            if cls.get("notes") and inductees:
+                st.caption(cls["notes"])
+
+# Venues & milestones — Manning Bowl history etc.
+venues = history.get("venues") or []
+if venues:
+    st.subheader("Venues & milestones")
+    for v in venues:
+        st.markdown(f"### {v.get('name', '—')}")
+        if v.get("history"):
+            st.markdown(v["history"])
+
 # Notable alumni
 alumni = history.get("notable_alumni") or []
 if alumni:
