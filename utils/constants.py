@@ -16,6 +16,8 @@ DATA_DIR = PROJECT_ROOT / "data"
 RAW_DIR = DATA_DIR / "raw"
 PROCESSED_DIR = DATA_DIR / "processed"
 REPORTS_DIR = PROJECT_ROOT / "reports"
+ASSETS_DIR = PROJECT_ROOT / "assets"
+IMAGES_DIR = ASSETS_DIR / "images"
 
 # ---------------------------------------------------------------------------
 # Focus school + district
