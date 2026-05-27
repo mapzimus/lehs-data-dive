@@ -7,8 +7,9 @@ import streamlit as st
 
 from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
-from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE
+from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
 from utils.data_loader import get_dart_indicator, load_dataset
+from utils.interpret import sat_methodology_note, sy_label
 
 st.set_page_config(page_title="College & Career | LEHS", page_icon="🎓", layout="wide")
 sidebar_attribution()
@@ -128,6 +129,180 @@ if not ap_groups.empty:
                       title="AP tests taken by student group at LEHS")
     st.plotly_chart(fig, use_container_width=True)
 
+    # AP pass rate (PCT_3_5) by subgroup — the equity story access alone misses.
+    # Access = how many students sat for an exam. Pass rate = how many of those
+    # earned a college-credit-eligible score (3+). Both matter; pass rate is
+    # often the gap most amenable to instructional intervention.
+    pass_by_grp = latest_ap.dropna(subset=["PCT_3_5"]).sort_values("PCT_3_5", ascending=True)
+    if not pass_by_grp.empty:
+        st.markdown(f"**AP pass rate (% scoring 3+) by student group — SY {sy_label(int(pass_by_grp['SY'].max()))}**")
+        pass_by_grp["label"] = pass_by_grp.apply(
+            lambda r: f"{r['PCT_3_5']:.0%} ({int(r['TESTS_TAKEN'])} tests)" if pd.notna(r["TESTS_TAKEN"]) else f"{r['PCT_3_5']:.0%}",
+            axis=1,
+        )
+        fig = px.bar(
+            pass_by_grp, x="PCT_3_5", y="STU_GRP", orientation="h", text="label",
+        )
+        fig.update_traces(marker_color=LEHS_GOLD, textposition="outside", cliponaxis=False)
+        all_rate = latest_ap[latest_ap["STU_GRP"] == "All Students"]["PCT_3_5"]
+        if not all_rate.empty and pd.notna(all_rate.iloc[0]):
+            fig.add_vline(
+                x=all_rate.iloc[0], line_dash="dash", line_color=LEHS_NAVY,
+                annotation_text="All-students rate", annotation_position="top",
+            )
+        fig.update_layout(
+            **DEFAULT_LAYOUT,
+            xaxis_tickformat=".0%", xaxis_title="% of exams scoring 3+ (college-credit-eligible)",
+            yaxis_title="", height=max(360, 28 * len(pass_by_grp)),
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        st.caption(
+            "Pass rate (scoring 3 or higher) is what makes an AP exam count for "
+            "college credit. The DESE subgroup label \"Economically Disadvantaged\" "
+            "was renamed \"Low Income\" in 2022 — older charts may use the prior "
+            "name for the same group."
+        )
+
+    # AP pass rate by subject — which AP courses are LEHS strong/weak at?
+    ap_subj = ap[
+        (ap["ORG_CODE"] == LEHS_SCHOOL_CODE)
+        & (ap["STU_GRP"] == "All Students")
+        & (ap["SUBJ"] != "All Subjects")
+    ].copy()
+    if not ap_subj.empty:
+        latest_subj_year = int(ap_subj["SY"].max())
+        ap_subj_latest = ap_subj[
+            (ap_subj["SY"] == latest_subj_year) & (ap_subj["TESTS_TAKEN"] >= 5)
+        ].dropna(subset=["PCT_3_5"]).sort_values("PCT_3_5", ascending=True)
+        if not ap_subj_latest.empty:
+            st.markdown(f"**AP pass rate by subject — SY {sy_label(latest_subj_year)}** (subjects with ≥5 takers)")
+            ap_subj_latest["label"] = ap_subj_latest.apply(
+                lambda r: f"{r['PCT_3_5']:.0%} ({int(r['TESTS_TAKEN'])})", axis=1
+            )
+            fig = px.bar(
+                ap_subj_latest, x="PCT_3_5", y="SUBJ", orientation="h", text="label",
+                color="SUBJ_CAT",
+            )
+            fig.update_traces(textposition="outside", cliponaxis=False)
+            fig.update_layout(
+                **DEFAULT_LAYOUT,
+                xaxis_tickformat=".0%",
+                xaxis_title="% scoring 3+",
+                yaxis_title="", legend_title="Subject area",
+                height=max(360, 24 * len(ap_subj_latest)),
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Advanced Course Completion — DESE's measure of HS course rigor: % of 11th &
+# 12th graders who completed an advanced course (AP, IB, dual enrollment,
+# Project Lead The Way, etc.) in any subject. Broader than AP alone.
+# ---------------------------------------------------------------------------
+
+st.header("Advanced Course Completion")
+st.caption(
+    "DESE counts a student as completing an *advanced course* if they finished "
+    "an AP, IB, dual-enrollment, or Project Lead The Way course (or one of "
+    "several other state-recognized rigorous options). This is broader than "
+    "AP alone — it captures the full set of \"college-rigor\" experiences "
+    "across all 11th and 12th graders."
+)
+
+adv = load_dataset("advanced_course_completion")
+if not adv.empty:
+    lehs_adv = adv[
+        (adv["ORG_CODE"] == LEHS_SCHOOL_CODE) & (adv["STU_GRP"] == "All Students")
+    ].sort_values("SY")
+    dist_adv = adv[
+        (adv["DIST_CODE"] == LYNN_DISTRICT_CODE)
+        & (adv["ORG_TYPE"] == "District")
+        & (adv["STU_GRP"] == "All Students")
+    ].sort_values("SY")
+    state_adv = adv[
+        (adv["ORG_TYPE"] == "State") & (adv["STU_GRP"] == "All Students")
+    ].sort_values("SY")
+
+    if not lehs_adv.empty:
+        latest_adv = lehs_adv.iloc[-1]
+        prior_adv = lehs_adv.iloc[-2] if len(lehs_adv) > 1 else None
+        latest_sy_adv = int(latest_adv["SY"])
+
+        c1, c2 = st.columns(2)
+        with c1:
+            comp_delta = ""
+            if prior_adv is not None and pd.notna(prior_adv["ADV_COMP_PCT"]):
+                d = (latest_adv["ADV_COMP_PCT"] - prior_adv["ADV_COMP_PCT"]) * 100
+                comp_delta = f"{d:+.1f} pts vs SY {sy_label(int(prior_adv['SY']))}"
+            st.metric(
+                f"Completed any advanced course (SY {sy_label(latest_sy_adv)})",
+                f"{latest_adv['ADV_COMP_PCT']:.0%}" if pd.notna(latest_adv["ADV_COMP_PCT"]) else "—",
+                comp_delta,
+            )
+        with c2:
+            st.metric(
+                "Of 11th + 12th grade students",
+                f"{int(latest_adv['G11_G12_CNT']):,}" if pd.notna(latest_adv["G11_G12_CNT"]) else "—",
+            )
+
+        # Trend: LEHS vs Lynn district vs MA state
+        trend_rows = []
+        for scope_name, frame in [("LEHS", lehs_adv), ("Lynn District", dist_adv), ("Massachusetts", state_adv)]:
+            sub = frame[["SY", "ADV_COMP_PCT"]].dropna().copy()
+            if not sub.empty:
+                sub["Scope"] = scope_name
+                trend_rows.append(sub)
+        if trend_rows:
+            trend_df = pd.concat(trend_rows, ignore_index=True)
+            trend_df["label"] = trend_df["ADV_COMP_PCT"].apply(lambda x: f"{x:.0%}")
+            fig = px.line(
+                trend_df.sort_values(["Scope", "SY"]),
+                x="SY", y="ADV_COMP_PCT", color="Scope", markers=True, text="label",
+                color_discrete_map={"LEHS": LEHS_GOLD, "Lynn District": LEHS_NAVY, "Massachusetts": "#455A64"},
+            )
+            fig.update_traces(textposition="top center", textfont=dict(size=10))
+            fig.update_layout(
+                **DEFAULT_LAYOUT, yaxis_tickformat=".0%",
+                yaxis_title="% of 11–12 graders completing an advanced course",
+                xaxis_title="School Year",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        # By subject area — where is LEHS rigor strong vs weak?
+        SUBJ_AREA_COLS = {
+            "ADV_ELA_PCT":   "English Language Arts",
+            "ADV_MATH_PCT":  "Math",
+            "ADV_SCI_PCT":   "Science",
+            "ADV_HSS_PCT":   "History & Social Science",
+            "ADV_CIS_PCT":   "Computer & Info Sciences",
+            "ADV_ART_PCT":   "Arts",
+            "ADV_OTHER_PCT": "Other",
+        }
+        subj_rows = []
+        for col, label in SUBJ_AREA_COLS.items():
+            val = latest_adv.get(col)
+            if pd.notna(val):
+                subj_rows.append({"Subject area": label, "Pct": val})
+        if subj_rows:
+            st.markdown(f"**By subject area — LEHS SY {sy_label(latest_sy_adv)}**")
+            subj_df = pd.DataFrame(subj_rows).sort_values("Pct", ascending=True)
+            subj_df["label"] = subj_df["Pct"].apply(lambda x: f"{x:.0%}")
+            fig = px.bar(
+                subj_df, x="Pct", y="Subject area", orientation="h", text="label",
+            )
+            fig.update_traces(marker_color=LEHS_NAVY, textposition="outside", cliponaxis=False)
+            fig.update_layout(
+                **DEFAULT_LAYOUT, xaxis_tickformat=".0%",
+                xaxis_title="% of 11–12 graders completing an advanced course in that area",
+                yaxis_title="",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            st.caption(
+                "A student can complete advanced courses in multiple subject areas, "
+                "so the per-area percentages don't sum to the overall completion rate."
+            )
+
 st.divider()
 
 # ---------------------------------------------------------------------------
@@ -169,24 +344,154 @@ if not mc_groups.empty:
 st.divider()
 
 # ---------------------------------------------------------------------------
-# SAT averages
+# SAT — full performance dataset (takers, RW, Math) for LEHS + Lynn + state.
+# Lynn shifted to school-day SAT in SY 2024-25, which spikes the takers count
+# and depresses average scores because the testing pool now includes
+# non-college-bound students who previously opted out. Surface that inline.
 # ---------------------------------------------------------------------------
 
-st.header("SAT Average Scores")
-sat_math = get_dart_indicator(LEHS_SCHOOL_CODE, "SAT average score - Mathematics")
-sat_read = get_dart_indicator(LEHS_SCHOOL_CODE, "SAT average score - Reading")
+st.header("SAT Performance")
 
-if not sat_math.empty or not sat_read.empty:
-    sat = pd.concat([
-        sat_math.assign(Subject="Math"),
-        sat_read.assign(Subject="Reading"),
-    ])
-    fig = px.line(
-        sat.sort_values("SY"), x="SY", y="VALUE", color="Subject", markers=True,
-        color_discrete_map={"Math": "#D32F2F", "Reading": "#1976D2"},
-    )
-    fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Average score")
-    st.plotly_chart(fig, use_container_width=True)
+sat_perf = load_dataset("sat_performance")
+if not sat_perf.empty:
+    lehs_sat = sat_perf[
+        (sat_perf["ORG_CODE"] == LEHS_SCHOOL_CODE) & (sat_perf["STU_GRP"] == "All Students")
+    ].sort_values("SY")
+    dist_sat = sat_perf[
+        (sat_perf["DIST_CODE"] == LYNN_DISTRICT_CODE)
+        & (sat_perf["ORG_TYPE"] == "District")
+        & (sat_perf["STU_GRP"] == "All Students")
+    ].sort_values("SY")
+    state_sat = sat_perf[
+        (sat_perf["ORG_TYPE"] == "State") & (sat_perf["STU_GRP"] == "All Students")
+    ].sort_values("SY")
+
+    if not lehs_sat.empty:
+        latest_sat = lehs_sat.iloc[-1]
+        prior_sat = lehs_sat.iloc[-2] if len(lehs_sat) > 1 else None
+        latest_sy_sat = int(latest_sat["SY"])
+
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            takers_delta = ""
+            if prior_sat is not None and pd.notna(prior_sat["TAKEN_CNT"]):
+                d = int(latest_sat["TAKEN_CNT"]) - int(prior_sat["TAKEN_CNT"])
+                takers_delta = f"{d:+,} vs SY {sy_label(int(prior_sat['SY']))}"
+            st.metric(
+                f"Test takers (SY {sy_label(latest_sy_sat)})",
+                f"{int(latest_sat['TAKEN_CNT']):,}" if pd.notna(latest_sat["TAKEN_CNT"]) else "—",
+                takers_delta,
+                delta_color="off",
+            )
+        with c2:
+            rw_delta = ""
+            if prior_sat is not None and pd.notna(prior_sat["READ_WRITE_SCORE"]):
+                d = latest_sat["READ_WRITE_SCORE"] - prior_sat["READ_WRITE_SCORE"]
+                rw_delta = f"{d:+.0f} pts vs SY {sy_label(int(prior_sat['SY']))}"
+            st.metric(
+                "Reading & Writing — mean",
+                f"{latest_sat['READ_WRITE_SCORE']:.0f}" if pd.notna(latest_sat["READ_WRITE_SCORE"]) else "—",
+                rw_delta,
+                delta_color="off",
+            )
+        with c3:
+            m_delta = ""
+            if prior_sat is not None and pd.notna(prior_sat["MATH_SCORE"]):
+                d = latest_sat["MATH_SCORE"] - prior_sat["MATH_SCORE"]
+                m_delta = f"{d:+.0f} pts vs SY {sy_label(int(prior_sat['SY']))}"
+            st.metric(
+                "Math — mean",
+                f"{latest_sat['MATH_SCORE']:.0f}" if pd.notna(latest_sat["MATH_SCORE"]) else "—",
+                m_delta,
+                delta_color="off",
+            )
+
+        # Lynn moved to school-day SAT in SY 2024-25 — surface that context now
+        # if the latest year shows the characteristic takers-up-scores-down signature.
+        if prior_sat is not None:
+            t_now, t_prev = latest_sat.get("TAKEN_CNT"), prior_sat.get("TAKEN_CNT")
+            if pd.notna(t_now) and pd.notna(t_prev) and t_prev > 0 and t_now / t_prev >= 2.0:
+                st.warning(
+                    f"**SY {sy_label(latest_sy_sat)} is a school-day SAT year for Lynn Public Schools** — "
+                    f"all eligible LEHS juniors tested during the school day rather than opting in. "
+                    f"The takers count {int(t_prev):,} → {int(t_now):,} jump (and the corresponding score "
+                    f"drop) reflects a wider testing pool, not a quality change."
+                )
+
+        # Trend: LEHS vs Lynn district vs MA state, both subjects
+        trend_rows = []
+        for scope_name, frame in [("LEHS", lehs_sat), ("Lynn District", dist_sat), ("Massachusetts", state_sat)]:
+            for col, subj in [("READ_WRITE_SCORE", "Reading & Writing"), ("MATH_SCORE", "Math")]:
+                sub = frame[["SY", col]].dropna().copy()
+                if sub.empty:
+                    continue
+                sub = sub.rename(columns={col: "Score"})
+                sub["Scope"] = scope_name
+                sub["Subject"] = subj
+                trend_rows.append(sub)
+
+        if trend_rows:
+            trend_df = pd.concat(trend_rows, ignore_index=True)
+            for subj in ["Reading & Writing", "Math"]:
+                sub_trend = trend_df[trend_df["Subject"] == subj]
+                if sub_trend.empty:
+                    continue
+                st.markdown(f"**{subj} — trend by scope**")
+                fig = px.line(
+                    sub_trend.sort_values(["Scope", "SY"]),
+                    x="SY", y="Score", color="Scope", markers=True,
+                    color_discrete_map={"LEHS": LEHS_GOLD, "Lynn District": LEHS_NAVY, "Massachusetts": "#455A64"},
+                )
+                fig.update_layout(
+                    **DEFAULT_LAYOUT,
+                    yaxis_title=f"Mean {subj} score",
+                    xaxis_title="School Year",
+                    yaxis_range=[300, 650],
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
+        # Subgroup breakdown — latest year
+        sub = sat_perf[
+            (sat_perf["ORG_CODE"] == LEHS_SCHOOL_CODE)
+            & (sat_perf["SY"] == latest_sy_sat)
+            & (sat_perf["STU_GRP"] != "All Students")
+        ].dropna(subset=["READ_WRITE_SCORE", "MATH_SCORE"], how="all").copy()
+        if not sub.empty:
+            st.markdown(f"**LEHS SAT scores by student group — SY {sy_label(latest_sy_sat)}**")
+            sub_long = sub.melt(
+                id_vars=["STU_GRP", "TAKEN_CNT"],
+                value_vars=["READ_WRITE_SCORE", "MATH_SCORE"],
+                var_name="Subject", value_name="Score",
+            ).dropna(subset=["Score"])
+            sub_long["Subject"] = sub_long["Subject"].map(
+                {"READ_WRITE_SCORE": "Reading & Writing", "MATH_SCORE": "Math"}
+            )
+            sub_long["label"] = sub_long.apply(
+                lambda r: f"{r['Score']:.0f} (n={int(r['TAKEN_CNT'])})" if pd.notna(r["TAKEN_CNT"]) else f"{r['Score']:.0f}",
+                axis=1,
+            )
+            rw_order = (
+                sub_long[sub_long["Subject"] == "Reading & Writing"]
+                .sort_values("Score")["STU_GRP"]
+                .tolist()
+            )
+            fig = px.bar(
+                sub_long, x="Score", y="STU_GRP", color="Subject",
+                orientation="h", barmode="group", text="label",
+                color_discrete_map={"Reading & Writing": "#1976D2", "Math": "#D32F2F"},
+                category_orders={"STU_GRP": rw_order},
+            )
+            fig.update_traces(textposition="outside", cliponaxis=False)
+            fig.update_layout(
+                **DEFAULT_LAYOUT,
+                xaxis_title="Mean SAT score (200–800 scale)",
+                yaxis_title="",
+                xaxis_range=[200, 800],
+                height=max(380, 28 * sub_long["STU_GRP"].nunique()),
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        st.caption(sat_methodology_note())
 
 st.divider()
 

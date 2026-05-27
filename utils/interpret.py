@@ -91,3 +91,23 @@ def chronic_absenteeism_methodology_note() -> str:
         "excused and unexcused absences. A separate ≥20% threshold is also "
         "published for students missing roughly a month or more."
     )
+
+
+def sat_methodology_note() -> str:
+    """Note for any chart showing SAT scores across multiple years.
+
+    Two known discontinuities: (1) the College Board redesigned the SAT in
+    2016, so DESE switched to a single Reading & Writing scaled score in
+    SY 2017 — pre-2017 rows have only a Math score; (2) when a district
+    expands to a school-day universal-SAT model, the takers count jumps and
+    average scores typically drop because the testing population now
+    includes students who would not have self-selected into the test.
+    """
+    return (
+        "**About SAT scores:** the test was redesigned in 2016; from SY 2017 "
+        "onward DESE reports a single combined Reading & Writing score plus "
+        "Math (each scaled 200–800), and pre-2017 rows show Math only. When "
+        "the **takers count jumps sharply** (e.g., a school-day SAT mandate), "
+        "scores typically fall: the testing pool now includes students who "
+        "previously opted out, not because the school got worse."
+    )
