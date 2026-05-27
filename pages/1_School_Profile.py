@@ -235,6 +235,132 @@ with c4:
         st.metric("% White", res[0], res[1])
 
 # ---------------------------------------------------------------------------
+# A broader history of LEHS — not just the data deltas above. Sourced from
+# Wikipedia (LEHS + English High School 1892 building + Lynn Public Schools),
+# Itemlive (principal-transition coverage), DESE report cards, and the
+# Boston Public Library postcard collection.
+# ---------------------------------------------------------------------------
+
+st.divider()
+st.subheader("A history of Lynn English")
+st.caption(
+    "How the school went from a Romanesque brick pile on Essex Street in 1892 "
+    "to the Classical-Revival campus on Goodridge Street today. "
+    "Sourced from Wikipedia, *The Lynn Item*, DESE report cards, and the "
+    "Boston Public Library archive."
+)
+
+_hist_tab_origin, _hist_tab_today, _hist_tab_leaders, _hist_tab_district = st.tabs([
+    "Origins & the 1924 fire",
+    "The current building",
+    "Recent leadership",
+    "District context",
+])
+
+with _hist_tab_origin:
+    st.markdown(
+        """
+**Founded 1892** as the city's second high school, English originally lived
+at **498 Essex Street** — a Romanesque brick building designed by the firm
+of **Wheeler & Northend** and built directly across Liberty Street from
+Lynn's first high school (the Old Lynn High School, 1850–51). A James
+Street–facing addition by Wheeler & Johnson followed in **1916** as
+enrollment grew.
+
+**March 29, 1924 — the fire.** The original 1892 portion was destroyed in
+a major fire. One Lynn firefighter was killed in the response. The school
+was rebuilt almost immediately as a **T-shaped three-story Jacobethan
+structure designed by George A. Cornet**, completed later in 1924, so
+classes could resume on the same site.
+
+The post-fire Essex Street building served as Lynn English's home through
+**1932**, then was converted to a junior high school, then sat vacant
+(documented as such in 1985), and was eventually adapted into residential
+units. The building was added to the **National Register of Historic
+Places on September 11, 1986**.
+        """
+    )
+
+with _hist_tab_today:
+    st.markdown(
+        """
+The current Lynn English campus opened on **Goodridge Street in East Lynn
+in 1931** — a Classical Revival design with the **Lincoln Foyer** (its
+life-sized Abraham Lincoln statue donated by the class of 1934) as the
+ceremonial entrance. Construction cost **$1.8M** in 1931 dollars.
+
+A later push to rename the school "Eastern Senior High" was beaten back
+when **alumni organized a parade of 2,000+ people** through the city in
+defense of the Lynn English name. The name survived; the parade is the
+kind of small civic event that ends up in the school's institutional
+self-image for generations.
+
+LEHS is today **the largest school in Lynn Public Schools** by enrollment.
+        """
+    )
+
+with _hist_tab_leaders:
+    st.markdown(
+        """
+**Recent principals**
+
+- **Dr. Rardy Peña** — current principal. Hired Aldred (the first female
+  AD in Lynn) in 2025, citing her "understanding of student-athlete
+  development."
+- **Tessie Mower** — interim principal, **July 1, 2020 →** the permanent
+  search. A LEHS alumna and former English Department head, Mower came
+  from the vice principal role at Lynn Classical. She started teaching in
+  Lynn Public Schools in 1994.
+- **Thomas Strangie** — *did not return* for the 2020–21 school year
+  after decades of service, following social-media criticism of staff at
+  both Lynn English and Lynn Classical. Superintendent Patrick Tutwiler
+  framed the transition publicly: "English High is the largest school in
+  the Lynn Public Schools and it is a school that in recent weeks has
+  indicated a need for change… leadership that can help it heal, first
+  and foremost, and evolve."
+
+**Earlier 20th-century note**
+
+In the **1940s–50s**, LEHS was led by **Tom Whelan** — the same Tom
+Whelan who'd been an MLB infielder (Boston Braves, 1920) and a
+two-sport pro who'd played football alongside Jim Thorpe on the
+Canton Bulldogs in 1919–20. He came home to teach, coach baseball,
+serve as AD, and eventually as principal. The **Whelan Family
+Scholarship** at LEHS is named in his honor.
+        """
+    )
+
+with _hist_tab_district:
+    st.markdown(
+        """
+**Lynn Public Schools (LPS)** — the district LEHS sits inside — enrolled
+**17,447 students across 27 schools** as of June 2024. The LPS high
+schools:
+
+- **Lynn English** (9–12) — the focus of this dashboard
+- **Lynn Classical** (9–12) — sister school, the Thanksgiving football rival
+- **Lynn Vocational & Technical Institute (LVTI / Lynn Tech)** (8–12)
+- **Frederick Douglass Collegiate Academy** at North Shore Community College (9–12, opened Fall 2022)
+- **Fecteau-Leary Junior/Senior High School** (7–12)
+
+**A few district-context moments worth remembering:**
+
+- Around **2011**, the UN High Commission for Refugees relocated families
+  to Lynn from many countries, sharply increasing the district's English
+  Learner population — see the *English Learners* page for what that
+  looked like at LEHS specifically.
+- **2017** — Lynn voters rejected a ballot proposal to fund two new
+  middle schools.
+- **2018** — Dr. **Patrick Tutwiler** became LPS's first Black
+  superintendent; instituted free meals and Operating Protocols.
+  Resigned in summer 2022.
+- The superintendent position was **vacant** as of mid-2024 per the LPS
+  Wikipedia article; current assistant superintendents include Debra
+  Ruggiero, Maricel Goris, and Molly Cohen.
+        """
+    )
+
+# ---------------------------------------------------------------------------
 # Total enrollment trend
 # ---------------------------------------------------------------------------
 
