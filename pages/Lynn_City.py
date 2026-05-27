@@ -664,6 +664,10 @@ with tab_nbhds:
             if col in tracts.columns:
                 tracts[col] = pd.to_numeric(tracts[col], errors="coerce")
 
+        acs_cols = ["median_household_income", "foreign_born_pct",
+                    "bachelors_or_higher_pct", "non_english_pct"]
+        has_acs = any(c in tracts.columns for c in acs_cols)
+
         st.header("Census ACS — Lynn's 22 Census Tracts")
         st.caption(
             "5-year ACS estimates (2019–2023). Lynn has 22 census tracts; each is a "
@@ -671,98 +675,110 @@ with tab_nbhds:
             "tracts shows how Lynn is not demographically uniform."
         )
 
-        c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            med_inc = tracts["median_household_income"].median()
-            st.metric("Median household income (Lynn median tract)", f"${med_inc:,.0f}")
-        with c2:
-            fb = tracts["foreign_born_pct"].mean()
-            st.metric("Avg % Foreign-born", f"{fb:.0%}")
-        with c3:
-            ba = tracts["bachelors_or_higher_pct"].mean()
-            st.metric("Avg % Bachelor's or higher (age 25+)", f"{ba:.0%}")
-        with c4:
-            nm = tracts["non_english_pct"].mean()
-            st.metric("Avg % non-English at home", f"{nm:.0%}")
-
-        st.caption(
-            "**Massachusetts state averages for comparison**: median household income "
-            "~$96,500 · foreign-born ~17% · bachelor's+ ~46% · non-English at home ~26%. "
-            "Lynn's tracts skew significantly lower-income and more foreign-born, with "
-            "substantially higher non-English-at-home share."
-        )
-
-        # -------------------------------------------------------------------
-        # Distribution of each variable across the 22 tracts
-        # -------------------------------------------------------------------
-        st.header("Variation Across Lynn's Census Tracts")
-        st.caption("Each row is one census tract. Bars show how much spread there is across the city.")
-
-        metrics = [
-            ("median_household_income", "Median household income", "${:,.0f}", "Greens"),
-            ("foreign_born_pct",        "% Foreign-born",          "{:.0%}",   "Purples"),
-            ("non_english_pct",         "% Non-English at home",   "{:.0%}",   "Greens"),
-            ("bachelors_or_higher_pct", "% Bachelor's or higher",  "{:.0%}",   "Blues"),
-            ("severe_burden_pct",       "% Severely rent-burdened","{:.0%}",   "Reds"),
-        ]
-
-        for col, label, fmt, palette in metrics:
-            if col not in tracts.columns:
-                continue
-            sub = tracts.dropna(subset=[col]).copy()
-            if sub.empty:
-                continue
-            sub["label"] = sub[col].apply(lambda x: fmt.format(x))
-            sub = sub.sort_values(col, ascending=True)
-
-            st.subheader(label)
-            fig = px.bar(
-                sub, y="NAMELSAD", x=col, orientation="h",
-                text="label", color=col, color_continuous_scale=palette,
+        if not has_acs:
+            st.info(
+                "Tract-level ACS data (median income, foreign-born, education, language) "
+                "is not yet bundled into `lynn_tracts.geojson`. Run "
+                "`scripts/10_download_census_acs.py` (requires `CENSUS_API_KEY`) followed "
+                "by `scripts/11_build_lynn_geo.py` to populate these overlays. "
+                "Environmental-justice and CDC PLACES health metrics below are unaffected."
             )
-            fig.update_traces(textposition="outside")
-            fig.update_layout(
-                **DEFAULT_LAYOUT,
-                xaxis_title=label,
-                yaxis_title="",
-                coloraxis_showscale=False,
-                height=480,
-            )
-            if "_pct" in col:
-                fig.update_layout(xaxis_tickformat=".0%")
-            elif col == "median_household_income":
-                fig.update_layout(xaxis_tickformat="$,.0f")
-            st.plotly_chart(fig, use_container_width=True)
+        else:
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                if "median_household_income" in tracts.columns:
+                    med_inc = tracts["median_household_income"].median()
+                    st.metric("Median household income (Lynn median tract)", f"${med_inc:,.0f}")
+            with c2:
+                if "foreign_born_pct" in tracts.columns:
+                    fb = tracts["foreign_born_pct"].mean()
+                    st.metric("Avg % Foreign-born", f"{fb:.0%}")
+            with c3:
+                if "bachelors_or_higher_pct" in tracts.columns:
+                    ba = tracts["bachelors_or_higher_pct"].mean()
+                    st.metric("Avg % Bachelor's or higher (age 25+)", f"{ba:.0%}")
+            with c4:
+                if "non_english_pct" in tracts.columns:
+                    nm = tracts["non_english_pct"].mean()
+                    st.metric("Avg % non-English at home", f"{nm:.0%}")
 
-        # -------------------------------------------------------------------
-        # Languages spoken at home — the linguistic landscape
-        # -------------------------------------------------------------------
-        st.header("Linguistic Landscape")
-        st.caption(
-            "Census ACS at tract level publishes the COLLAPSED language table (13 groups). "
-            "Across all 22 Lynn tracts, Spanish is the dominant non-English language. "
-            "Granular breakouts (Khmer/Cambodian, Portuguese, Arabic) are suppressed by "
-            "Census at tract resolution but are available at the city level (see the "
-            "*Citywide* tab above)."
-        )
-
-        if "non_english_pct" in tracts.columns:
-            lang_share = pd.DataFrame({
-                "Group": ["English only", "Non-English"],
-                "Total speakers (age 5+)": [
-                    tracts["lang_total"].fillna(0).sum() * (1 - tracts["non_english_pct"].mean()),
-                    tracts["lang_total"].fillna(0).sum() * tracts["non_english_pct"].mean(),
-                ],
-            })
-            fig = px.pie(
-                lang_share, names="Group", values="Total speakers (age 5+)",
-                color="Group",
-                color_discrete_map={"English only": LEHS_NAVY, "Non-English": LEHS_GOLD},
-                hole=0.55,
+            st.caption(
+                "**Massachusetts state averages for comparison**: median household income "
+                "~$96,500 · foreign-born ~17% · bachelor's+ ~46% · non-English at home ~26%. "
+                "Lynn's tracts skew significantly lower-income and more foreign-born, with "
+                "substantially higher non-English-at-home share."
             )
-            fig.update_traces(textinfo="percent+label", textfont_size=12)
-            fig.update_layout(**DEFAULT_LAYOUT, height=380)
-            st.plotly_chart(fig, use_container_width=True)
+
+            # -------------------------------------------------------------------
+            # Distribution of each variable across the 22 tracts
+            # -------------------------------------------------------------------
+            st.header("Variation Across Lynn's Census Tracts")
+            st.caption("Each row is one census tract. Bars show how much spread there is across the city.")
+
+            metrics = [
+                ("median_household_income", "Median household income", "${:,.0f}", "Greens"),
+                ("foreign_born_pct",        "% Foreign-born",          "{:.0%}",   "Purples"),
+                ("non_english_pct",         "% Non-English at home",   "{:.0%}",   "Greens"),
+                ("bachelors_or_higher_pct", "% Bachelor's or higher",  "{:.0%}",   "Blues"),
+                ("severe_burden_pct",       "% Severely rent-burdened","{:.0%}",   "Reds"),
+            ]
+
+            for col, label, fmt, palette in metrics:
+                if col not in tracts.columns:
+                    continue
+                sub = tracts.dropna(subset=[col]).copy()
+                if sub.empty:
+                    continue
+                sub["label"] = sub[col].apply(lambda x: fmt.format(x))
+                sub = sub.sort_values(col, ascending=True)
+
+                st.subheader(label)
+                fig = px.bar(
+                    sub, y="NAMELSAD", x=col, orientation="h",
+                    text="label", color=col, color_continuous_scale=palette,
+                )
+                fig.update_traces(textposition="outside")
+                fig.update_layout(
+                    **DEFAULT_LAYOUT,
+                    xaxis_title=label,
+                    yaxis_title="",
+                    coloraxis_showscale=False,
+                    height=480,
+                )
+                if "_pct" in col:
+                    fig.update_layout(xaxis_tickformat=".0%")
+                elif col == "median_household_income":
+                    fig.update_layout(xaxis_tickformat="$,.0f")
+                st.plotly_chart(fig, use_container_width=True)
+
+            # -------------------------------------------------------------------
+            # Languages spoken at home — the linguistic landscape
+            # -------------------------------------------------------------------
+            if "non_english_pct" in tracts.columns:
+                st.header("Linguistic Landscape")
+                st.caption(
+                    "Census ACS at tract level publishes the COLLAPSED language table (13 groups). "
+                    "Across all 22 Lynn tracts, Spanish is the dominant non-English language. "
+                    "Granular breakouts (Khmer/Cambodian, Portuguese, Arabic) are suppressed by "
+                    "Census at tract resolution but are available at the city level (see the "
+                    "*Citywide* tab above)."
+                )
+                lang_share = pd.DataFrame({
+                    "Group": ["English only", "Non-English"],
+                    "Total speakers (age 5+)": [
+                        tracts["lang_total"].fillna(0).sum() * (1 - tracts["non_english_pct"].mean()),
+                        tracts["lang_total"].fillna(0).sum() * tracts["non_english_pct"].mean(),
+                    ],
+                })
+                fig = px.pie(
+                    lang_share, names="Group", values="Total speakers (age 5+)",
+                    color="Group",
+                    color_discrete_map={"English only": LEHS_NAVY, "Non-English": LEHS_GOLD},
+                    hole=0.55,
+                )
+                fig.update_traces(textinfo="percent+label", textfont_size=12)
+                fig.update_layout(**DEFAULT_LAYOUT, height=380)
+                st.plotly_chart(fig, use_container_width=True)
 
         # -------------------------------------------------------------------
         # Map link
