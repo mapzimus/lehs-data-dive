@@ -76,6 +76,11 @@ TARGETS = [
     ("sat_performance",                 "SAT Performance",              "wihy-jkek"),
     ("student_mobility",                "Student Mobility Rate",        "5jqj-jcbt"),
     ("advanced_course_completion",      "Advanced Course Completion",   "ujwr-ux9i"),
+
+    # Phase B (2026-05-27) — Chapter 70 funding. District-level only.
+    # Columns: SY, DIST_CODE/NAME, FDN_BDGT_AMT, REQ_NSS_AMT, ACTL_NSS_AMT,
+    # OVR_UND_REQ_AMT, ACTL_NSS_PCT_OF_REQ_NSS, ACTL_NSS_PCT_OF_FDN_BUDG.
+    ("chapter70_aid",                   "Chapter 70 Foundation Budget and Net School Spending (NSS)", "5izv-jyrd"),
 ]
 
 USER_AGENT = "lehs-data-dive/0.1 (https://github.com/mapzimus/lehs-data-dive)"

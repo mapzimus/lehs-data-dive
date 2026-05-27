@@ -275,6 +275,166 @@ if not dist_exp.empty:
 
 st.divider()
 
+# ---------------------------------------------------------------------------
+# Chapter 70 — state aid + required spending. District-level only (Chapter 70
+# is a district funding formula, not a school-level allocation).
+# ---------------------------------------------------------------------------
+
+st.header("Chapter 70 — State Aid & Required Spending")
+st.markdown(
+    "**Chapter 70** is Massachusetts's main K–12 funding formula. The "
+    "**foundation budget** is the state-determined *minimum* a district must "
+    "spend, computed from enrollment, grade levels, and student demographics "
+    "(low-income, ELL, special ed). **Required Net School Spending (NSS)** is "
+    "what the district is legally obligated to contribute toward that floor. "
+    "**Actual NSS** is what the district actually spent. Spending *above* the "
+    "required minimum means the city is investing beyond the state floor; "
+    "spending *below* triggers state intervention."
+)
+
+ch70 = load_dataset("chapter70_aid")
+if ch70.empty:
+    st.info(
+        "Chapter 70 data not yet processed — run `python scripts/01_download_e2c.py`."
+    )
+else:
+    ch70["SY"] = pd.to_numeric(ch70["SY"], errors="coerce").astype("Int64")
+    for col in ["REQ_NSS_AMT", "ACTL_NSS_AMT", "OVR_UND_REQ_AMT", "FDN_BDGT_AMT",
+                "ACTL_NSS_PCT_OF_REQ_NSS", "ACTL_NSS_PCT_OF_FDN_BUDG"]:
+        if col in ch70.columns:
+            ch70[col] = pd.to_numeric(ch70[col], errors="coerce")
+
+    lynn_ch70 = ch70[ch70["DIST_CODE"] == LYNN_DISTRICT_CODE].sort_values("SY")
+
+    if lynn_ch70.empty:
+        st.info("No Chapter 70 rows found for Lynn — check DIST_CODE filter.")
+    else:
+        latest_year = int(lynn_ch70["SY"].max())
+        latest = lynn_ch70[lynn_ch70["SY"] == latest_year].iloc[0]
+        prior = lynn_ch70[lynn_ch70["SY"] == latest_year - 1]
+        prior = prior.iloc[0] if not prior.empty else None
+
+        # Hero metrics
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.metric(
+                f"Foundation Budget (SY {sy_label(latest_year)})",
+                f"${latest['FDN_BDGT_AMT']/1e6:.1f}M" if pd.notna(latest["FDN_BDGT_AMT"]) else "—",
+                help="State-set minimum spending floor for Lynn, given the city's student population.",
+            )
+        with c2:
+            st.metric(
+                "Required NSS",
+                f"${latest['REQ_NSS_AMT']/1e6:.1f}M" if pd.notna(latest["REQ_NSS_AMT"]) else "—",
+                help="What Lynn is legally required to spend on schools this year.",
+            )
+        with c3:
+            st.metric(
+                "Actual NSS",
+                f"${latest['ACTL_NSS_AMT']/1e6:.1f}M" if pd.notna(latest["ACTL_NSS_AMT"]) else "—",
+                help="What Lynn actually spent on schools.",
+            )
+        with c4:
+            ovr_und = latest["OVR_UND_REQ_AMT"]
+            if pd.notna(ovr_und):
+                label = "Over required" if ovr_und >= 0 else "Under required"
+                delta_str = None
+                if prior is not None and pd.notna(prior["OVR_UND_REQ_AMT"]):
+                    diff = (ovr_und - prior["OVR_UND_REQ_AMT"]) / 1e6
+                    delta_str = f"{diff:+.1f}M vs SY {sy_label(latest_year - 1)}"
+                st.metric(
+                    label,
+                    f"${abs(ovr_und)/1e6:.1f}M",
+                    delta_str,
+                    help="Actual NSS minus Required NSS. Positive = Lynn invested above the state-required floor.",
+                )
+
+        # Trend — foundation budget vs required NSS vs actual NSS, Lynn over time
+        st.markdown(f"**Lynn's foundation budget vs. required vs. actual spending (SY 2008 – {sy_label(latest_year)})**")
+        trend_long = lynn_ch70.melt(
+            id_vars=["SY"],
+            value_vars=["FDN_BDGT_AMT", "REQ_NSS_AMT", "ACTL_NSS_AMT"],
+            var_name="Series", value_name="Amount",
+        ).dropna(subset=["Amount"])
+        SERIES_LABELS = {
+            "FDN_BDGT_AMT": "Foundation Budget",
+            "REQ_NSS_AMT":  "Required NSS",
+            "ACTL_NSS_AMT": "Actual NSS",
+        }
+        SERIES_COLORS = {
+            "Foundation Budget": "#90A4AE",  # gray — the floor
+            "Required NSS":      LEHS_NAVY,
+            "Actual NSS":        LEHS_GOLD,
+        }
+        trend_long["Series"] = trend_long["Series"].map(SERIES_LABELS)
+        fig = px.line(
+            trend_long, x="SY", y="Amount", color="Series", markers=True,
+            color_discrete_map=SERIES_COLORS,
+        )
+        fig.update_layout(
+            **DEFAULT_LAYOUT,
+            yaxis_title="Dollars",
+            yaxis_tickprefix="$", yaxis_tickformat=".2s",
+            xaxis_title="School Year",
+            legend_title="",
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        st.caption(
+            "The Student Opportunity Act of 2019 substantially increased the "
+            "foundation budget formula's weight for low-income and ELL students "
+            "— Gateway Cities like Lynn benefited disproportionately."
+        )
+
+        # Gateway-city peer comparison — actual NSS vs required, latest year
+        peers_ch70 = ch70[
+            (ch70["SY"] == latest_year)
+            & (ch70["DIST_CODE"] != "00000000")  # exclude state totals
+        ].dropna(subset=["OVR_UND_REQ_AMT"]).copy()
+        if not peers_ch70.empty:
+            peers_ch70["pct_of_req"] = peers_ch70["ACTL_NSS_PCT_OF_REQ_NSS"]
+            peers_ch70 = peers_ch70.sort_values("pct_of_req", ascending=True)
+            peers_ch70["is_lynn"] = peers_ch70["DIST_CODE"] == LYNN_DISTRICT_CODE
+            peers_ch70["label"] = peers_ch70.apply(
+                lambda r: f"{r['pct_of_req']*100:.0f}%", axis=1
+            )
+
+            st.markdown(f"**Gateway-City peers — Actual NSS as % of Required (SY {sy_label(latest_year)})**")
+            fig = px.bar(
+                peers_ch70, x="pct_of_req", y="DIST_NAME", orientation="h", text="label",
+                color="is_lynn",
+                color_discrete_map={True: LEHS_GOLD, False: LEHS_NAVY},
+            )
+            fig.update_traces(textposition="outside", cliponaxis=False)
+            fig.add_vline(
+                x=1.0, line_dash="dash", line_color="#455A64",
+                annotation_text="Required minimum (100%)",
+                annotation_position="top",
+            )
+            fig.update_layout(
+                **DEFAULT_LAYOUT,
+                xaxis_tickformat=".0%",
+                xaxis_title="Actual NSS as % of Required NSS",
+                yaxis_title="",
+                showlegend=False,
+                height=max(420, 22 * len(peers_ch70)),
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            st.caption(
+                "Every Gateway City spends at least the required minimum (everyone "
+                "is at or above 100%) — districts under 100% face state intervention. "
+                "How *far* above the floor each city goes reflects local fiscal "
+                "capacity and political will."
+            )
+
+        st.caption(
+            f"Source: DESE Chapter 70 Foundation Budget & Net School Spending. "
+            f"Data lags by ~2 years; latest available is SY {sy_label(latest_year)}. "
+            "District-level only — Chapter 70 is a district funding formula, "
+            "not a school-level allocation."
+        )
+
+st.divider()
+
 st.header("Spending vs. Outcomes — Gateway-City Districts")
 st.markdown(
     "**Does more money buy better outcomes?** The two charts below pair each "
