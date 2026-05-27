@@ -191,6 +191,10 @@ with c2:
         yaxis_tickformat=".0%",
         yaxis_title="Win %",
         xaxis_title="Season",
+        # Force categorical x-axis — labels like "2024-25" otherwise get
+        # parsed as YYYY-MM dates (May 2024) and Plotly truncates the
+        # axis around 2011-12 because "2012-13" is an invalid month.
+        xaxis_type="category",
         coloraxis_showscale=False,
         yaxis_range=[0, 1.05],
         title=f"{selected_team} — win percentage by season",
@@ -243,6 +247,8 @@ fig.update_layout(
     **{k: v for k, v in DEFAULT_LAYOUT.items() if k != "height"},
     height=max(380, 28 * len(heat)),
     xaxis_title="Season", yaxis_title="",
+    # Force categorical x-axis (see per-team chart above for rationale).
+    xaxis_type="category",
 )
 st.plotly_chart(fig, use_container_width=True)
 
