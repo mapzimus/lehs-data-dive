@@ -270,6 +270,29 @@ if _history_path.exists():
 else:
     history = {}
 
+# School history — short prose anchor before the structured lists
+school_hist = history.get("school_history")
+if school_hist:
+    st.subheader("The school, briefly")
+    st.markdown(school_hist)
+
+# Rivalry — its own callout. The Thanksgiving game is the single most
+# institutional sports thing about Lynn English.
+riv = history.get("rivalry") or {}
+if riv:
+    st.subheader(f"The {riv.get('tradition', '')} Rivalry — Bulldogs vs {riv.get('opponent', '')}".strip())
+    rc1, rc2, rc3 = st.columns(3)
+    with rc1:
+        st.metric("Series began", f"{riv.get('started', '—')}")
+    with rc2:
+        st.metric("All-time series", f"{riv.get('all_time_series', '—')}")
+    with rc3:
+        st.metric("Sport", f"{riv.get('sport', '—')}")
+    if riv.get("venue"):
+        st.markdown(f"**Venue.** {riv['venue']}")
+    if riv.get("notes"):
+        st.caption(riv["notes"])
+
 # Championships
 champs = history.get("championships") or []
 if champs:

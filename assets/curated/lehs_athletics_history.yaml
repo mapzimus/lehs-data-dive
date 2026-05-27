@@ -1,44 +1,161 @@
-# LEHS Athletics — pre-MaxPreps historical record.
-#
-# MaxPreps coverage of Lynn English begins in 2007-08. Anything older
-# (state titles, league titles, undefeated seasons, hall-of-fame teams,
-# coaching legacies, etc.) needs to be hand-curated from school yearbooks,
-# the Daily Item archive, banners in the gym, AD records, and alumni
-# memory. Add entries here over time — the Athletics page renders
-# whatever is present.
+# LEHS Athletics — hand-curated history that complements the MaxPreps
+# season records (which begin in the mid-2000s).
 #
 # Schema is loose on purpose — fill in what you know, leave what you don't.
+# Sources for the seed entries below:
+#   - en.wikipedia.org/wiki/Lynn_English_High_School
+#   - baseball-reference.com/bullpen/Lynn_English_High_School
+#   - boston.com/uncategorized/noprimarytagmatch/2013/11/28/a-rivalry-for-the-ages/
 
 # ---------------------------------------------------------------------------
-# State / sectional championships and conference titles (pre-2007).
-# Listed newest-first; add entries as they're confirmed.
+# Brief school-history sidebar — non-athletic but anchoring context.
 # ---------------------------------------------------------------------------
-championships: []
-  # - year: 1992
-  #   sport: Football
-  #   level: "Division 2 State Champion"
-  #   coach: "Joe Public"
-  #   record: "11-1"
-  #   notes: |
-  #     Defeated North Andover in the Super Bowl at Sullivan Stadium.
+school_history: |
+  Lynn English opened in **1892** on Essex Street. The original building
+  was destroyed by fire on **March 29, 1924**, killing one firefighter.
+  The current building on Goodridge Street opened in **1931** at a cost
+  of $1.8M — a Classical Revival design with the Lincoln Foyer (statue
+  donated by the class of 1934) at its main entrance. In the late
+  20th century, alumni rallied 2,000+ strong in a parade to defeat a
+  proposal to rename the school *Eastern Senior High* — the LEHS name
+  survives.
 
 # ---------------------------------------------------------------------------
-# Hall-of-fame / undefeated / notable individual seasons.
-# Use freely — these are the "you had to be there" memories.
+# The Lynn English / Lynn Classical Thanksgiving rivalry.
+# A century-old institution that deserves its own section.
+# ---------------------------------------------------------------------------
+rivalry:
+  opponent: "Lynn Classical Rams"
+  sport: "Football"
+  tradition: "Thanksgiving Day"
+  started: 1911
+  all_time_series: "Lynn Classical leads 53-37-9"   # as of 2013 reporting
+  venue: |
+    Originally played at *The Bowl* (capacity ~20,000). Now hosted at
+    Manning Field. The game shares a single home field — "there is no
+    away team."
+  notes: |
+    Originally East-Lynn vs West-Lynn, geographic district boundaries
+    split the city down Washington Street. Since 1990s school choice,
+    the rivalry is more about identity than catchment.
+
+# ---------------------------------------------------------------------------
+# State / sectional / conference championships.
+# ---------------------------------------------------------------------------
+championships:
+  - year: 2020
+    sport: "Boys Basketball"
+    level: "Massachusetts Division 1 State Champions"
+    notes: "Back-to-back state titles (2019, 2020) — a Bulldogs program peak."
+  - year: 2019
+    sport: "Boys Basketball"
+    level: "Massachusetts Division 1 State Champions"
+    notes: "First of back-to-back D1 titles."
+  - year: 2017
+    sport: "Marine Corps JROTC Drill Team"
+    level: "National Champions"
+    notes: |
+      Repeatedly voted the #1 JROTC program in its region — three times
+      since 2000 as of fall 2019. Drill team competition, not MIAA, but
+      a championship the school carries with pride.
+
+# ---------------------------------------------------------------------------
+# Notable individual seasons — undefeated runs, deep tourney runs, etc.
+# Add as confirmed.
 # ---------------------------------------------------------------------------
 notable_seasons: []
-  # - year: 1968
-  #   sport: Boys Basketball
-  #   coach: "Coach Name"
-  #   record: "22-2"
-  #   league: "NEC champions"
-  #   notes: "Reached state semifinals; lost to Cambridge Rindge."
 
 # ---------------------------------------------------------------------------
 # Coaches with long tenures or significant impact.
 # ---------------------------------------------------------------------------
-legacy_coaches: []
-  # - name: "Coach Name"
-  #   sport: Football
-  #   years: "1965–1998"
-  #   highlights: "200+ career wins, 3 state titles, MIAA Hall of Fame."
+legacy_coaches:
+  - name: "Peter Holey"
+    sport: "Football"
+    years: "current"
+    highlights: |
+      Bulldogs head football coach during the recent Thanksgiving rivalry
+      games against Lynn Classical (Coach Tim Phelps).
+
+# ---------------------------------------------------------------------------
+# Notable alumni — primarily athletic but a few cultural / civic
+# figures included where they've shaped the school's identity.
+# Sort by graduation year (oldest first) or by category.
+# ---------------------------------------------------------------------------
+notable_alumni:
+  # Major League Baseball — most documented LEHS pro-athlete pipeline.
+  - name: "Bump Hadley"
+    grad_year: "1920s"
+    sport: "Baseball (MLB)"
+    bio: |
+      Right-handed pitcher; 16 MLB seasons (1926–1941). Won three World
+      Series with the New York Yankees in the 1930s. One of the era's
+      most well-traveled hurlers — Senators, White Sox, Browns, Yankees,
+      Giants, Athletics.
+  - name: "Jim Hegan"
+    grad_year: "1938"
+    sport: "Baseball (MLB)"
+    bio: |
+      Catcher; 17 MLB seasons (1941–1960), mostly with the Cleveland
+      Indians. Five-time All-Star, member of the 1948 World Series
+      champion Indians. Considered one of the best defensive catchers
+      of his era; later a long-tenured Yankees coach.
+  - name: "Les Burke"
+    sport: "Baseball (MLB)"
+    bio: |
+      Infielder; played for the Detroit Tigers in the 1920s.
+  - name: "Tom Whelan"
+    sport: "Baseball (MLB) + Football"
+    bio: |
+      Infielder for the Boston Braves (1920). One of the country's first
+      two-sport professional athletes — played on the World-Championship
+      Canton Bulldogs alongside Jim Thorpe in 1919 and 1920. Later
+      returned to LEHS as a teacher, baseball coach, and eventually
+      headmaster.
+  - name: "Mike Pazik"
+    sport: "Baseball (MLB)"
+    bio: |
+      Pitcher; appeared for the Minnesota Twins in the mid-1970s.
+  - name: "Ben Bowden"
+    grad_year: "2013"
+    sport: "Baseball (MLB)"
+    bio: |
+      Left-handed pitcher; reached the majors with the Colorado Rockies
+      in 2021 after a standout career at Vanderbilt.
+
+  # Music
+  - name: "Sib Hashian"
+    sport: "Music"
+    bio: |
+      Drummer for the rock band *Boston* — performed on the band's
+      self-titled 1976 debut, one of the best-selling debut albums of
+      all time. Lynn-born, LEHS-educated.
+
+  # Acting
+  - name: "Jack Noseworthy"
+    grad_year: "1982"
+    sport: "Acting"
+    bio: |
+      Film and TV actor — *Event Horizon*, *S.W.A.T.*, *Killing Kennedy*,
+      Broadway and off-Broadway credits.
+
+  # Academia + civic
+  - name: "John A. Curry"
+    grad_year: "1951"
+    sport: "Higher Education"
+    bio: |
+      Served as president of Northeastern University.
+  - name: "John J. Donovan"
+    grad_year: "1959"
+    sport: "Academia / Tech"
+    bio: |
+      MIT professor and entrepreneur; founder of multiple software
+      companies in the Cambridge tech ecosystem.
+
+  # Controversial / political — included for completeness
+  - name: "Lyndon LaRouche"
+    grad_year: "1940"
+    sport: "Politics / Economics"
+    bio: |
+      Political activist and perennial U.S. presidential candidate
+      (eight runs, 1976–2004). Founder of the LaRouche movement.
+      Polarizing figure — listed here as a matter of historical record.
