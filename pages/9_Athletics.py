@@ -68,9 +68,30 @@ latest_label = (
 )
 latest = ath[ath["_year_num"] == LATEST_NUM].copy()
 
-# Sport+gender uniqueness — Soccer Boys vs Soccer Girls are separate teams.
-ath["team"] = ath["sport"] + " (" + ath["gender"] + ")"
-latest["team"] = latest["sport"] + " (" + latest["gender"] + ")"
+# Team key — sport + gender, plus season *only when it disambiguates*.
+# Most sports have one season; Soccer fielded a COVID-era Fall II "spring"
+# variant in 20-21/21-22, so without season in the key those rows pile up
+# on top of the fall bars in the chart. Detect the multi-season pairs
+# from the full dataset (not the per-year slice) so the rule is stable.
+_multi_season_pairs = {
+    pair for pair, grp in ath.groupby(["sport", "gender"])
+    if grp["season"].nunique() > 1
+}
+
+def _team_key(frame: pd.DataFrame) -> pd.Series:
+    needs_season = frame.set_index(["sport", "gender"]).index.isin(_multi_season_pairs)
+    base = frame["sport"].values + " (" + frame["gender"].values + ")"
+    with_season = (
+        frame["sport"].values + " (" + frame["gender"].values
+        + ", " + frame["season"].values + ")"
+    )
+    return pd.Series(
+        [w if needs else b for b, w, needs in zip(base, with_season, needs_season)],
+        index=frame.index,
+    )
+
+ath["team"] = _team_key(ath)
+latest["team"] = _team_key(latest)
 
 # ---------------------------------------------------------------------------
 # Hero — current season at a glance
@@ -227,7 +248,12 @@ st.divider()
 st.header("Every Team, Every Year — Win % Heatmap")
 st.caption(
     "One cell per (team, season) — color is win percentage. Empty cells mean "
-    "the team didn't field that year, or didn't report data to MaxPreps."
+    "the team didn't field that year, or didn't report data to MaxPreps. "
+    "**Not shown:** Field Hockey, Tennis, and Wrestling — MaxPreps lists "
+    "page-shells for those programs at LEHS but no games are reported. "
+    "Wrestling competes as the **Lynn co-op** (English + Classical + Tech + "
+    "St. Mary's) so stats live with The Item's coverage rather than a "
+    "school-specific MaxPreps page."
 )
 
 heat = (

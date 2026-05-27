@@ -63,13 +63,26 @@ def _wlt_split(s: str | None) -> tuple[int | None, int | None, int | None]:
 
 
 def _row_from_standings(ref: dict, std: dict) -> dict | None:
-    """Build one record from a single year's standingsData."""
+    """Build one record from a single year's standingsData.
+
+    Returns None for "placeholder" pages — MaxPreps creates a page-shell
+    for every sport-season-year a school might field, but many have no
+    actual games played (W=L=T=0, no PF/PA). Those rows muddy the
+    heatmap and bar charts, so we drop them at the source.
+    """
     overall = std.get("overallStanding") or {}
     league = std.get("leagueStanding") or {}
     w, l, t = _wlt_split(overall.get("overallWinLossTies"))
     cw, cl, ct = _wlt_split(league.get("conferenceWinLossTies"))
     if w is None and overall.get("winningPercentage") is None:
         return None  # nothing usable
+    # Drop placeholder rows where MaxPreps reports zero games AND no
+    # scoring on either side. A real winless season has points-against;
+    # a placeholder season has nothing.
+    no_games = (w or 0) + (l or 0) + (t or 0) == 0
+    no_scoring = not overall.get("points") and not overall.get("pointsAgainst")
+    if no_games and no_scoring:
+        return None
     return {
         "sport": ref.get("sport"),
         "gender": ref.get("gender"),
