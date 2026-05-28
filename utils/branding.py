@@ -107,28 +107,33 @@ section.main > div.block-container {
 """
 
 
-# Streamlit's dict-based st.navigation renders each section header as a
-# clickable <header data-testid="stNavSectionHeader"> that defaults to
-# expanded. With 10 pages in "The School (LEHS)", that pushes
-# Lynn/Comparison/About below the fold. There's also a global "View 8
-# more" truncation that hides sections beyond the first ~8 items.
+# Global UI fixes injected on every page via a Streamlit components
+# iframe. Same-origin with the parent, so window.parent.document reaches
+# the real app DOM. Two jobs:
 #
-# This snippet runs in a Streamlit components iframe (same-origin with
-# the parent, so window.parent.document reaches the real sidebar DOM):
+#   (1) NAV COLLAPSE — Streamlit's dict-based st.navigation renders each
+#       section header as a clickable <header> that defaults to expanded.
+#       With 10 pages in "The School (LEHS)" that pushes other sections
+#       below the fold. We click the "View N more" truncation toggle so
+#       every section is mounted, then collapse all sections except the
+#       one containing the active page.
 #
-#   1. If "View 8 more" is showing, click it so every section is mounted.
-#   2. Collapse every section EXCEPT the one containing the active page.
-#   3. Mark sections that the user has toggled themselves so reruns
-#      don't fight them.
+#   (2) STRIP target="_blank" — Streamlit's markdown renderer hard-codes
+#       target="_blank" on every <a>. That makes every internal link in
+#       a markdown list pop a new browser tab, which is especially bad
+#       inside an iframe (visitors lose the embedding context). We strip
+#       target on any <a href="/..."> so internal nav stays in-tab.
 #
-# Idempotent — runs once on first render via a MutationObserver that
-# disconnects after the nav has settled.
+# Idempotent — runs once on first paint and again on each Streamlit
+# mutation via a MutationObserver that disconnects after the page has
+# settled.
 _NAV_COLLAPSE_JS = """
 <script>
 (function () {
   const PARENT = window.parent.document;
   let didCollapse = false;
-  let obs = null;
+
+  // ----- (1) Sidebar nav-section collapse -----------------------------
 
   // Section "collapsed" state can't be read from the icon (it always
   // says "expand_more"); the only reliable check is whether the section
@@ -147,11 +152,8 @@ _NAV_COLLAPSE_JS = """
     if (target) target.click();
   };
 
-  const apply = () => {
-    if (didCollapse) {
-      if (obs) obs.disconnect();
-      return;
-    }
+  const applyNavCollapse = () => {
+    if (didCollapse) return;  // one-shot — don't fight user toggles
 
     const nav = PARENT.querySelector('[data-testid="stSidebarNav"]');
     if (!nav) return;
@@ -179,14 +181,46 @@ _NAV_COLLAPSE_JS = """
     });
 
     didCollapse = true;
-    if (obs) obs.disconnect();
+    // Note: don't disconnect the shared observer here — link stripping
+    // (below) still wants tick() calls on later Streamlit re-renders.
+    // The single hard-cap timeout at the bottom handles cleanup.
   };
 
-  apply();
-  obs = new MutationObserver(apply);
+  // ----- (2) Strip target="_blank" from internal links ---------------
+  //
+  // Streamlit's markdown renderer hardcodes target="_blank" on every
+  // <a>. For internal multipage routes (href starts with "/") we want
+  // navigation to stay in the current tab/iframe.
+  //
+  // Marker attribute (data-stripped) prevents re-processing the same
+  // anchor on every mutation tick.
+
+  const stripBlankTargets = () => {
+    const links = PARENT.querySelectorAll(
+      '[data-testid="stMarkdown"] a[href^="/"][target="_blank"]:not([data-stripped])'
+    );
+    links.forEach((a) => {
+      a.removeAttribute('target');
+      a.removeAttribute('rel');
+      a.setAttribute('data-stripped', '1');
+    });
+  };
+
+  // ----- Run + observe -----------------------------------------------
+
+  const tick = () => {
+    applyNavCollapse();
+    stripBlankTargets();
+  };
+
+  tick();
+  const obs = new MutationObserver(tick);
   obs.observe(PARENT.body, { childList: true, subtree: true });
-  // Hard cap — bail out after a few seconds even if something stalls.
-  setTimeout(() => { if (obs) obs.disconnect(); }, 5000);
+  // Stop observing after a generous window — by then nav collapse and
+  // the initial link sweep are both done, and any markdown that
+  // appears later (a re-run that re-renders a markdown block) will
+  // re-trigger this whole script on the next full page load.
+  setTimeout(() => obs.disconnect(), 10000);
 })();
 </script>
 """
