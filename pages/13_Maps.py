@@ -154,6 +154,15 @@ with c_lynn:
         link_url="https://maxwellhowegis.com/Lynn-data-dive/maps/",
     )
 
+    # Launch button sits directly under the preview so the image + CTA
+    # read as a single unit. Detail copy follows below.
+    st.link_button(
+        "Open Lynn Maps  ↗",
+        "https://maxwellhowegis.com/Lynn-data-dive/maps/",
+        type="primary",
+        use_container_width=True,
+    )
+
     st.markdown(
         """
 **What's in it**
@@ -179,13 +188,6 @@ with c_lynn:
 """
     )
 
-    st.link_button(
-        "Open Lynn Maps  ↗",
-        "https://maxwellhowegis.com/Lynn-data-dive/maps/",
-        type="primary",
-        use_container_width=True,
-    )
-
 # --- MA Atlas ----------------------------------------------------------------
 with c_atlas:
     st.subheader("🏛️ MA Education Atlas")
@@ -198,6 +200,15 @@ with c_atlas:
         "ma-atlas-preview.png",
         "MA Education Atlas preview",
         link_url="https://maxwellhowegis.com/ma-atlas/",
+    )
+
+    # Launch button sits directly under the preview so the image + CTA
+    # read as a single unit. Detail copy follows below.
+    st.link_button(
+        "Open MA Atlas  ↗",
+        "https://maxwellhowegis.com/ma-atlas/",
+        type="primary",
+        use_container_width=True,
     )
 
     st.markdown(
@@ -228,13 +239,6 @@ with c_atlas:
 - Build a side-by-side comparison (e.g., Lynn vs. Lawrence) with
   synced pan/zoom
 """
-    )
-
-    st.link_button(
-        "Open MA Atlas  ↗",
-        "https://maxwellhowegis.com/ma-atlas/",
-        type="primary",
-        use_container_width=True,
     )
 
 st.divider()
