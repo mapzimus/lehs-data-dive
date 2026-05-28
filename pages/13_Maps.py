@@ -143,9 +143,8 @@ c_lynn, c_atlas = st.columns(2, gap="large")
 with c_lynn:
     st.subheader("🏙️ Lynn Maps")
     st.caption(
-        "Hyper-focused on the city. Census-tract demographics, every Lynn "
-        "school pinned, plus surrounding towns (Saugus, Swampscott, "
-        "Marblehead, Nahant) for context."
+        "Lynn-focused launch of the same engine that powers the MA Atlas, "
+        "centered on the city and its census tracts."
     )
 
     _preview_or_placeholder(
@@ -166,25 +165,30 @@ with c_lynn:
     st.markdown(
         """
 **What's in it**
-- All 22 Lynn census tracts as togglable polygons
-- Every LPS school pinned (color-coded by level: elementary,
-  middle, high, alternative)
-- ACS 5-year demographic layers: median income, % low-income,
-  % foreign-born, % under 18
-- EJScreen environmental layers (air quality, lead paint risk,
-  proximity to hazardous sites)
-- CDC PLACES community-health layers (asthma, chronic disease)
-- Surrounding-town outlines for spatial context
+- All **22 Lynn census tracts** as togglable polygons
+- Every Lynn public school pinned — LEHS highlighted in gold,
+  dot size scaled by enrollment
+- **5 tract-level ACS layers**: median household income,
+  % non-English at home, % foreign-born, % bachelor's-or-higher,
+  % severely rent-burdened
+- The same **35+ district / municipality choropleths** the MA Atlas
+  carries (MCAS, graduation, demographics, finance, workforce), so
+  you can compare Lynn to its neighbors and to other Gateway cities
+- Surrounding MA municipalities for spatial context
+- Year slider 2017–2026 · student-group filter · multiple color
+  palettes · Jenks / quantile / equal-interval / continuous breaks
 """
     )
 
     st.markdown(
         """
 **Use this map when you want to:**
-- See how poverty or language varies **block-by-block** across Lynn
-- Sketch out the LEHS catchment area visually
+- See how income, language, or rent burden varies
+  **tract-by-tract** across Lynn
+- Compare Lynn's stats against its immediate neighbors (Saugus,
+  Swampscott, Marblehead, Nahant) or against the rest of MA
 - Show neighborhood-scale inequality to a school committee or board
-- Pair a Lynn statistic with the environmental layer behind it
+- Pin LEHS in context with every other Lynn school
 """
     )
 
@@ -216,17 +220,19 @@ with c_atlas:
 **What's in it**
 - All **351 MA municipalities** as polygons
 - **274 academic school districts** (dissolved town polygons)
-- **78 charter schools**, **26 regional vocational** overlays
-- **1,700 MA public schools** as togglable points
+- **82 charter schools**, **26 regional vocational** overlays
+- **1,817 MA public schools** as togglable points
 - Sticky right-side detail panel on every click
 - **40+ joined metrics**: MCAS, graduation, AP, college plans,
   per-pupil spending, teacher workforce, retention, demographics
-- Year slider 2017–2026 with slideshow playback
-- Student-group filter (Hispanic, Black, ELL, Low Income, …)
-- 12 color palettes (color-blind-safe group at top)
+- Year slider 2017–2026 with animation playback
+- Student-group filter (9 groups: Hispanic, Black, Asian, White,
+  ELL, Former ELL, Low Income, SWD, High Needs)
+- Multiple color palettes including a **bivariate** mode (two
+  metrics shaded on one map)
 - Jenks natural breaks · quantile · equal-interval · continuous
-- Compare mode with split-screen + synced pan/zoom
-- PNG export · shareable URL state
+- **PNG export** with scope options (current view, whole state,
+  selected feature, or by name)
 """
     )
 
@@ -236,8 +242,8 @@ with c_atlas:
 - Benchmark LEHS against **the 26 MA Gateway cities** by any metric
 - See how the state's school spending stratifies geographically
 - Track one metric across all 351 towns over the past decade
-- Build a side-by-side comparison (e.g., Lynn vs. Lawrence) with
-  synced pan/zoom
+- Pair two metrics on the same map (bivariate mode) to see how
+  they cluster — e.g., per-pupil spending against MCAS
 """
     )
 

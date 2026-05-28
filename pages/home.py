@@ -388,7 +388,7 @@ with maps_col:
     st.caption(
         "Interactive MapLibre experiences — Lynn-focused (school pins + "
         "tract demographics) and statewide MA Education Atlas. "
-        "**1,700+ MA schools · 351 municipalities · 22 Lynn census tracts.**"
+        "**1,800+ MA schools · 351 municipalities · 22 Lynn census tracts.**"
     )
     st.page_link(
         "pages/13_Maps.py",
