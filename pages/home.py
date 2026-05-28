@@ -254,7 +254,31 @@ with s_col:
     if lehs_row is not None:
         st.metric("Total Enrollment", f"{int(lehs_row['TOTAL_CNT']):,}")
         st.metric("% English Learners", f"{lehs_row['EL_PCT']:.0%}")
-        st.metric("% Low Income", f"{lehs_row['LI_PCT']:.0%}")
+    # % Chronic Absence — students missing 10%+ of school days. Pairs
+    # with the Grad Rate below to tell the engagement-vs-completion
+    # story. Pull the latest end-of-year value (mid-year "March"
+    # interim rows are noisier).
+    att_df = load_dataset("student_attendance")
+    if not att_df.empty:
+        lehs_att = att_df[
+            (att_df["ORG_CODE"] == LEHS_SCHOOL_CODE)
+            & (att_df["ORG_TYPE"] == "School")
+            & (att_df["STU_GRP"] == "All Students")
+            & (att_df["ATTEND_PERIOD"] == "End of Year")
+        ].sort_values("SY")
+        if not lehs_att.empty:
+            chronic = lehs_att.iloc[-1]
+            chronic_pct = pd.to_numeric(chronic["PCT_CHRON_ABS_10"], errors="coerce")
+            if pd.notna(chronic_pct):
+                st.metric(
+                    "% Chronic Absence",
+                    f"{float(chronic_pct):.0%}",
+                    help=(
+                        f"Share of students who missed 10%+ of school days "
+                        f"in SY {sy_label(int(chronic['SY']))} — see "
+                        f"Discipline & Climate for the full breakdown."
+                    ),
+                )
     if lehs_grad_row is not None:
         st.metric(
             "4-yr Graduation Rate",
