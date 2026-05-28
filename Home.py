@@ -44,6 +44,11 @@ nav = {
         st.Page("pages/8_Discipline_and_Climate.py", title="Discipline & Climate", url_path="Discipline_and_Climate"),
         st.Page("pages/9_Athletics.py", title="Athletics", url_path="Athletics"),
         st.Page("pages/16_Where_Students_Live.py", title="Where Students Live", url_path="Where_Students_Live"),
+        # Narrative page — sits at the end of "The School (LEHS)" group
+        # since it's still LEHS-specific, just historical rather than
+        # analytical. Moved out of School Profile so the Profile can be
+        # data-only.
+        st.Page("pages/15_LEHS_History.py", title="LEHS History", url_path="LEHS_History"),
         # Federal CRDC removed from the sidebar until the data pipeline ships.
         # Page file remains in pages/17_Federal_CRDC.py for when the ingest is
         # done; re-add the st.Page line below to bring it back.

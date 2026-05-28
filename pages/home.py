@@ -602,6 +602,7 @@ with c1:
 - **[Discipline & Climate](/Discipline_and_Climate)** — suspensions, attendance
 - **[Athletics](/Athletics)** — Bulldogs season records, rivalry, hall of fame
 - **[Where Students Live](/Where_Students_Live)** — residential pattern (private SIS, aggregated)
+- **[LEHS History](/LEHS_History)** — 130+ years of the school's story (origins, 1924 fire, current campus, notable alumni)
 """
     )
 
