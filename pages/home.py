@@ -178,7 +178,18 @@ st.markdown(
 
 s_col, d_col, c_col = st.columns(3, gap="medium")
 
+# Each card opens with a fixed-height logo banner so the three columns
+# line up vertically even though the logo files have different aspect
+# ratios. Logos sit centered above the markdown header.
+
+def _card_logo(path, alt_text):
+    logo_l, logo_c, logo_r = st.columns([1, 2, 1])
+    with logo_c:
+        st.image(str(path), width=110)
+
+
 with s_col:
+    _card_logo(IMAGES_DIR / "lehs-bulldog.png", "LEHS Bulldogs")
     st.markdown("#### 🎓 The School")
     st.caption(
         f"Lynn English High · SY {sy_label(lehs_sy)}" if lehs_sy else "Lynn English High"
@@ -199,6 +210,7 @@ with s_col:
     )
 
 with d_col:
+    _card_logo(IMAGES_DIR / "lps-logo.png", "Lynn Public Schools")
     st.markdown("#### 🏛️ The District")
     sy_dist = int(district_row["SY"]) if district_row is not None else None
     # Caption surfaces the two facts that frame the district's scale:
@@ -209,6 +221,7 @@ with d_col:
     )
     if district_row is not None:
         st.metric("District Enrollment", f"{int(district_row['TOTAL_CNT']):,}")
+        st.metric("% English Learners", f"{district_row['EL_PCT']:.0%}")
     if district_grad_row is not None:
         st.metric(
             "4-yr Graduation Rate",
@@ -225,6 +238,7 @@ with d_col:
     )
 
 with c_col:
+    _card_logo(IMAGES_DIR / "lynn-city-seal.jpg", "City of Lynn seal")
     st.markdown("#### 🏙️ The City")
     st.caption("Lynn, MA · coastal Gateway city · ACS 5-yr 2019–2023")
     pop = _city_num("pop_total")
