@@ -6,6 +6,9 @@ Page configuration (title, icon, layout) is set by the entry script — this
 file just provides the body.
 """
 
+import base64
+from pathlib import Path
+
 import pandas as pd
 import streamlit as st
 
@@ -56,13 +59,12 @@ st.markdown(
 # Header
 # ---------------------------------------------------------------------------
 
-col_logo, col_title, col_author = st.columns([1, 3, 1.2])
-with col_logo:
-    # LEHS Bulldogs logo — visual anchor for the dashboard, signals school identity.
-    st.image(str(IMAGES_DIR / "lehs-bulldog.png"), width=110)
+# The LEHS Bulldog logo lives on the School card below, so the top
+# header is text-only to avoid duplicating it.
+col_title, col_author = st.columns([4, 1.2])
 with col_title:
     st.title("Lynn English High School")
-    st.subheader("Data Dive · *Home of the Bulldogs*")
+    st.subheader("Data Dive")
 with col_author:
     st.markdown(
         f"""
@@ -180,12 +182,38 @@ s_col, d_col, c_col = st.columns(3, gap="medium")
 
 # Each card opens with a fixed-height logo banner so the three columns
 # line up vertically even though the logo files have different aspect
-# ratios. Logos sit centered above the markdown header.
+# ratios (LEHS bulldog 1.00, LPS 0.80, Lynn seal 1.55). The image is
+# centered in a fixed-height flexbox and scaled with object-fit: contain
+# so the title rows below the logos all sit at the same y-position.
 
-def _card_logo(path, alt_text):
-    logo_l, logo_c, logo_r = st.columns([1, 2, 1])
-    with logo_c:
-        st.image(str(path), width=110)
+_CARD_LOGO_HEIGHT_PX = 130
+
+
+def _b64(path: Path) -> str:
+    return base64.b64encode(path.read_bytes()).decode("ascii")
+
+
+_MIME_BY_EXT = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
+
+
+def _card_logo(path: Path, alt_text: str) -> None:
+    mime = _MIME_BY_EXT.get(path.suffix.lower(), "image/png")
+    st.markdown(
+        f"""
+        <div style="
+            height: {_CARD_LOGO_HEIGHT_PX}px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.25rem;
+        ">
+          <img src="data:{mime};base64,{_b64(path)}"
+               alt="{alt_text}"
+               style="max-height: 100%; max-width: 100%; object-fit: contain;" />
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 with s_col:
