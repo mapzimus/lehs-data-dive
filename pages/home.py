@@ -584,6 +584,7 @@ with c2:
 - **[Cross-Topic Explorer](/Correlation_Lab)** — cross-domain analysis
 
 **About**
+- **[Data 101](/Data_101)** — beginner's guide to reading the charts (built for students)
 - **[Methodology](/Methodology)** — sources and caveats
 """
     )
