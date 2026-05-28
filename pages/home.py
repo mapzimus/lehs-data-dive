@@ -422,8 +422,8 @@ with p_col:
 *Choosing a school, understanding outcomes, comparing to siblings.*
 
 - **[School Profile](/School_Profile)** — who attends LEHS today
+- **[Academic Performance](/Academic_Performance)** — MCAS scores, growth, subject-by-subject gaps
 - **[Success After HS](/Success_After_HS)** — does the school's promise hold up through college?
-- **[College & Career](/College_and_Career)** — AP, MassCore, FAFSA, postsecondary plans
 - **[Lynn Schools](/Lynn_Schools)** — LEHS vs. Classical, Tech, Frederick Douglass, Harold Durgin
         """
     )
