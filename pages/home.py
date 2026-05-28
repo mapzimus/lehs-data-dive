@@ -242,10 +242,17 @@ with d_col:
     st.markdown("#### 🏛️ The District")
     sy_dist = int(district_row["SY"]) if district_row is not None else None
     # Caption surfaces the two facts that frame the district's scale:
-    # how many schools it runs and how multilingual the families are.
+    # how many schools it runs and how racially/ethnically diverse the
+    # student body is. The "students of color" line is 100% minus the
+    # White-non-Hispanic share (~9%) — that complements the City card's
+    # "12+ home languages" without echoing it.
+    pct_color = None
+    if district_row is not None and pd.notna(district_row.get("WH_PCT")):
+        pct_color = 1.0 - float(district_row["WH_PCT"])
+    color_frag = f" · {pct_color:.0%} students of color" if pct_color is not None else ""
     st.caption(
-        f"Lynn Public Schools · 26 schools · 12+ home languages · SY {sy_label(sy_dist)}"
-        if sy_dist else "Lynn Public Schools · 26 schools · 12+ home languages"
+        f"Lynn Public Schools · 26 schools{color_frag} · SY {sy_label(sy_dist)}"
+        if sy_dist else f"Lynn Public Schools · 26 schools{color_frag}"
     )
     if district_row is not None:
         st.metric("District Enrollment", f"{int(district_row['TOTAL_CNT']):,}")
@@ -268,7 +275,13 @@ with d_col:
 with c_col:
     _card_logo(IMAGES_DIR / "lynn-city-seal.jpg", "City of Lynn seal")
     st.markdown("#### 🏙️ The City")
-    st.caption("Lynn, MA · coastal Gateway city · ACS 5-yr 2019–2023")
+    # Caption advertises the two-tab structure on the destination page —
+    # Citywide rolls everything up; Neighborhoods drops to Lynn's 22
+    # census tracts (ACS + EJScreen + CDC PLACES).
+    st.caption(
+        "Lynn, MA · coastal Gateway city · "
+        "**Citywide + Neighborhoods (22 census tracts)** tabs"
+    )
     pop = _city_num("pop_total")
     mhi = _city_num("median_household_income")
     fb = _city_num("foreign_born_total")
