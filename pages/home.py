@@ -237,8 +237,19 @@ with s_col:
                 num = raw.split("to")[0].strip().split(".")[0]
                 stu_tchr = f"{num}:1"
     ratio_frag = f" · {stu_tchr} student–teacher ratio" if stu_tchr else ""
+    # FLNE (First Language Not English) tracks the actual story for Lynn:
+    # waves of immigration, not racial categories. A US-born student
+    # whose home language is English isn't counted; a recent immigrant
+    # family is. Pairs with the % English Learners metric tile (current
+    # EL services) by capturing the broader linguistic-heritage pool.
+    flne = (
+        float(lehs_row["FLNE_PCT"])
+        if lehs_row is not None and pd.notna(lehs_row.get("FLNE_PCT"))
+        else None
+    )
+    flne_frag = f" · {flne:.0%} non-English home language" if flne is not None else ""
     st.caption(
-        f"Lynn English High · Grades 9–12{ratio_frag}"
+        f"Lynn English High · Grades 9–12{ratio_frag}{flne_frag}"
     )
     if lehs_row is not None:
         st.metric("Total Enrollment", f"{int(lehs_row['TOTAL_CNT']):,}")
@@ -259,18 +270,21 @@ with d_col:
     _card_logo(IMAGES_DIR / "lps-logo.png", "Lynn Public Schools")
     st.markdown("#### 🏛️ The District")
     sy_dist = int(district_row["SY"]) if district_row is not None else None
-    # Caption surfaces the two facts that frame the district's scale:
-    # how many schools it runs and how racially/ethnically diverse the
-    # student body is. The "students of color" line is 100% minus the
-    # White-non-Hispanic share (~9%) — that complements the City card's
-    # "12+ home languages" without echoing it.
-    pct_color = None
-    if district_row is not None and pd.notna(district_row.get("WH_PCT")):
-        pct_color = 1.0 - float(district_row["WH_PCT"])
-    color_frag = f" · {pct_color:.0%} students of color" if pct_color is not None else ""
+    # Caption frames the district's scale and immigration story. FLNE
+    # (First Language Not English) indexes the share of students whose
+    # families bring a non-English home language — the actual driver of
+    # Lynn's diversity, not race coding.
+    flne_d = (
+        float(district_row["FLNE_PCT"])
+        if district_row is not None and pd.notna(district_row.get("FLNE_PCT"))
+        else None
+    )
+    flne_d_frag = (
+        f" · {flne_d:.0%} non-English home language" if flne_d is not None else ""
+    )
     st.caption(
-        f"Lynn Public Schools · 26 schools{color_frag} · SY {sy_label(sy_dist)}"
-        if sy_dist else f"Lynn Public Schools · 26 schools{color_frag}"
+        f"Lynn Public Schools · 26 schools{flne_d_frag} · SY {sy_label(sy_dist)}"
+        if sy_dist else f"Lynn Public Schools · 26 schools{flne_d_frag}"
     )
     if district_row is not None:
         st.metric("District Enrollment", f"{int(district_row['TOTAL_CNT']):,}")
@@ -349,99 +363,15 @@ with m_btn:
 st.divider()
 
 # ---------------------------------------------------------------------------
-# What is this?
+# Start here — audience-specific landing routes.
+# Promoted above the explainer copy so the strongest call-to-action
+# (persona-tailored paths) sits right under the hero.
 # ---------------------------------------------------------------------------
 
-st.header("What is this dashboard?")
-
+st.header("Start here — pick the view that fits you")
 st.markdown(
-    """
-**The LEHS Data Dive pulls together every publicly available dataset relevant
-to Lynn English High School and renders it as a single navigable analysis.**
-It's designed for the people who actually need to *understand* the school —
-families choosing schools, educators planning supports, journalists looking
-for context, researchers studying urban education, and the Lynn community
-itself.
-
-It exists because the official sources are fragmented: MCAS scores live in
-one DESE Power BI dashboard, enrollment in another, finance in a third,
-educator data in a fourth, federal civil-rights data in a fifth, Census
-community context in a sixth. **Pulling them together at the school level
-is the difference between a stack of separate facts and a coherent picture
-of one school.**
-"""
-)
-
-# ---------------------------------------------------------------------------
-# Scope box
-# ---------------------------------------------------------------------------
-
-c1, c2 = st.columns(2)
-
-with c1:
-    st.markdown(
-        """
-**Data scope**
-- **22 datasets** from MA DESE's E2C Hub (MCAS, graduation, AP, attendance,
-  finance, staffing, plans of graduates, pathways, postsecondary outcomes)
-- **Original research**: Maxwell Howe's catchment + absenteeism geospatial
-  study using Lynn Public Schools student records (aggregated for privacy)
-- **Federal data**: US Census ACS 5-year for Lynn tracts, MassGIS shapefiles
-- **Historical depth**: enrollment back to **1992–93**, MCAS back to 2017,
-  graduation cohorts back to 2005
-- ~3 MB processed Parquet files; 1.7 GB raw downloads
-"""
-    )
-
-with c2:
-    st.markdown(
-        """
-**Three peer cohorts** compared simultaneously:
-- **Lynn sibling high schools** — LEHS vs. Lynn Classical, Lynn Tech,
-  Frederick Douglass, Harold Durgin *(same district → isolates
-  school-level effects)*
-- **Lynn Public Schools as a whole** — district context including all
-  26 schools and elementary feeders
-- **MA Gateway City main high schools** — Brockton, Lawrence, Chelsea,
-  Lowell, Holyoke, Springfield, and 19 others
-"""
-    )
-
-st.divider()
-
-# ---------------------------------------------------------------------------
-# What questions can you answer here?
-# ---------------------------------------------------------------------------
-
-st.header("Questions you can answer here")
-
-st.markdown(
-    """
-- **How is LEHS doing?** — Headline metrics, trends, comparison to peers.
-- **What does LEHS's English Learner pipeline actually look like?** — From
-  WIDA proficiency through MCAS, graduation, and into former-EL years.
-- **Where does the budget go, and does it buy what we hope?** — Per-pupil
-  spending by category, plus cross-domain correlation analysis.
-- **Who works at LEHS, and how does the teacher body match the student body?**
-- **Where do LEHS students live, and does distance from school predict
-  absence?** *(Original Catchment Research — aggregated maps from private data.)*
-- **What can Lynn learn from Lawrence, Chelsea, Holyoke, and other peer
-  cities?** — Side-by-side scorecards for all 26 MA Gateway Cities.
-- **What patterns emerge when you cross-reference everything?** — A custom
-  Correlation Lab lets you pick any two metrics and see how they relate
-  across the 26 gateway-city high schools.
-"""
-)
-
-st.divider()
-
-# ---------------------------------------------------------------------------
-# Start-here / audience-specific landing routes
-# ---------------------------------------------------------------------------
-
-st.header("Start Here — Pick the View That Fits You")
-st.markdown(
-    "Use the sidebar to jump anywhere. Three suggested paths by who you are:"
+    "Three suggested paths by who you are. Open the sidebar sections on the "
+    "left for the full index."
 )
 
 p_col, t_col, sc_col = st.columns(3)
@@ -494,6 +424,99 @@ st.caption(
 st.divider()
 
 # ---------------------------------------------------------------------------
+# What is this?
+# ---------------------------------------------------------------------------
+
+st.header("What is this dashboard?")
+
+st.markdown(
+    """
+**The LEHS Data Dive pulls together every publicly available dataset relevant
+to Lynn English High School and renders it as a single navigable analysis.**
+It's designed for the people who actually need to *understand* the school —
+families choosing schools, educators planning supports, journalists looking
+for context, researchers studying urban education, and the Lynn community
+itself.
+
+It exists because the official sources are fragmented: MCAS scores live in
+one DESE Power BI dashboard, enrollment in another, finance in a third,
+educator data in a fourth, federal civil-rights data in a fifth, Census
+community context in a sixth. **Pulling them together at the school level
+is the difference between a stack of separate facts and a coherent picture
+of one school.**
+"""
+)
+
+# ---------------------------------------------------------------------------
+# Scope box
+# ---------------------------------------------------------------------------
+
+c1, c2 = st.columns(2)
+
+with c1:
+    st.markdown(
+        """
+**Data scope**
+- **22 datasets** from MA DESE's E2C Hub (MCAS, graduation, AP, attendance,
+  finance, staffing, plans of graduates, pathways, postsecondary outcomes)
+- **Original research**: Maxwell Howe's catchment + absenteeism geospatial
+  study using Lynn Public Schools student records (aggregated for privacy)
+- **Federal data**: US Census ACS 5-year for Lynn tracts, MassGIS shapefiles
+- **Historical depth**: enrollment back to **1992–93**, MCAS back to 2017,
+  graduation cohorts back to 2005
+"""
+    )
+
+with c2:
+    st.markdown(
+        """
+**Three peer cohorts** compared simultaneously:
+- **Lynn sibling high schools** — LEHS vs. Lynn Classical, Lynn Tech,
+  Frederick Douglass, Harold Durgin *(same district → isolates
+  school-level effects)*
+- **Lynn Public Schools as a whole** — district context including all
+  26 schools and elementary feeders
+- **MA Gateway City main high schools** — Brockton, Lawrence, Chelsea,
+  Lowell, Holyoke, Springfield, and 19 others
+"""
+    )
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# What questions can you answer here?
+# ---------------------------------------------------------------------------
+
+st.header("Questions you can answer here")
+
+st.markdown(
+    """
+- **How is LEHS doing?** — Headline metrics, trends, and peer comparison
+  on the **[School Profile](/School_Profile)** and
+  **[Academic Performance](/Academic_Performance)** pages.
+- **What does LEHS's English Learner pipeline actually look like?** —
+  From WIDA proficiency through MCAS, graduation, and into former-EL
+  years on the **[English Learners](/ELL_Pipeline)** page.
+- **Where does the budget go, and does it buy what we hope?** —
+  Per-pupil spending by category on **[Finance](/Finance)**, plus
+  cross-domain analysis on **[Cross-Topic Explorer](/Correlation_Lab)**.
+- **Who works at LEHS, and how does the teacher body match the student
+  body?** — **[Teachers & Workforce](/Teachers_and_Workforce)**.
+- **Where do LEHS students live, and does distance from school predict
+  absence?** — **[Where Students Live](/Where_Students_Live)**
+  *(aggregated maps from private SIS data).*
+- **What can Lynn learn from Lawrence, Chelsea, Holyoke, and other peer
+  cities?** — Side-by-side scorecards on
+  **[Gateway Cities](/Gateway_Peer_Comparison)**.
+- **What patterns emerge when you cross-reference everything?** —
+  **[Cross-Topic Explorer](/Correlation_Lab)** lets you pick any two
+  metrics and see how they relate across the 26 gateway-city high schools.
+"""
+)
+
+st.divider()
+
+# ---------------------------------------------------------------------------
 # Section list
 # ---------------------------------------------------------------------------
 
@@ -510,20 +533,20 @@ with c1:
     st.markdown(
         """
 **Top of sidebar**
-- **Home** — this page
-- **Maps** — Lynn-focused map + statewide MA Education Atlas
+- **[Home](/)** — this page
+- **[Maps](/Maps)** — Lynn-focused map + statewide MA Education Atlas
 
 **The School (LEHS)**
-- **School Profile** — demographics, enrollment trends
-- **Academic Performance** — MCAS, growth, gaps
-- **English Learners** *(central narrative)*
-- **College & Career** — AP, MassCore, FAFSA, plans
-- **Success After HS** — full pipeline (9th grade → grad → college → persistence → degrees → earnings)
-- **Teachers & Workforce** — diversity, staffing
-- **Finance** — per-pupil spending breakdowns
-- **Discipline & Climate** — suspensions, attendance
-- **Athletics** — Bulldogs season records, rivalry, hall of fame
-- **Where Students Live** — residential pattern (private SIS, aggregated)
+- **[School Profile](/School_Profile)** — demographics, enrollment trends
+- **[Academic Performance](/Academic_Performance)** — MCAS, growth, gaps
+- **[English Learners](/ELL_Pipeline)** *(central narrative)*
+- **[College & Career](/College_and_Career)** — AP, MassCore, FAFSA, plans
+- **[Success After HS](/Success_After_HS)** — full pipeline (9th grade → grad → college → persistence → degrees → earnings)
+- **[Teachers & Workforce](/Teachers_and_Workforce)** — diversity, staffing
+- **[Finance](/Finance)** — per-pupil spending breakdowns
+- **[Discipline & Climate](/Discipline_and_Climate)** — suspensions, attendance
+- **[Athletics](/Athletics)** — Bulldogs season records, rivalry, hall of fame
+- **[Where Students Live](/Where_Students_Live)** — residential pattern (private SIS, aggregated)
 """
     )
 
@@ -531,16 +554,16 @@ with c2:
     st.markdown(
         """
 **Lynn**
-- **District** — Snapshot of LPS as a whole · All Lynn Schools (filter/sort 22 schools). Two tabs in one page.
-- **City** — Citywide demographics, economy, history · Neighborhoods (tract-level ACS, EJScreen, CDC PLACES). Two tabs in one page.
+- **[District](/Lynn_District)** — Snapshot of LPS as a whole · All Lynn Schools (filter/sort 26 schools). Two tabs in one page.
+- **[City](/Lynn_City)** — Citywide demographics, economy, history · Neighborhoods (tract-level ACS, EJScreen, CDC PLACES). Two tabs in one page.
 
 **Comparison**
-- **Lynn Schools** — LEHS vs. Classical, Tech, Frederick Douglass, Harold Durgin (*closest peer view*)
-- **Gateway Cities** — 26-city scorecard with LEHS, Classical, Tech, and LPS-district as four separate dots
-- **Cross-Topic Explorer** — cross-domain analysis
+- **[Lynn Schools](/Lynn_Schools)** — LEHS vs. Classical, Tech, Frederick Douglass, Harold Durgin (*closest peer view*)
+- **[Gateway Cities](/Gateway_Peer_Comparison)** — 26-city scorecard with LEHS, Classical, Tech, and LPS-district as four separate dots
+- **[Cross-Topic Explorer](/Correlation_Lab)** — cross-domain analysis
 
 **About**
-- **Methodology** — sources and caveats
+- **[Methodology](/Methodology)** — sources and caveats
 """
     )
 
