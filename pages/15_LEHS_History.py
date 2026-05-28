@@ -76,12 +76,14 @@ st.divider()
     _tab_fire,
     _tab_today,
     _tab_alumni,
+    _tab_leadership,
     _tab_civic,
 ) = st.tabs([
     "Origins (1892–1923)",
     "The 1924 fire & rebuild",
     "Today's campus (1931–present)",
     "Notable alumni & faculty",
+    "Leadership",
     "Lynn as a school city",
 ])
 
@@ -342,7 +344,33 @@ and remains active.
         "history file the names above are sourced from."
     )
 
-# --- Tab 5: Lynn as a school city ------------------------------------------
+# --- Tab 5: Leadership ------------------------------------------------------
+with _tab_leadership:
+    st.subheader("Current principal")
+    _p_l, _p_r = st.columns([1, 4], gap="medium")
+    with _p_l:
+        st.image(str(IMAGES_DIR / "principal-rardy-pena.jpg"), width=140)
+    with _p_r:
+        st.markdown(
+            "**Dr. Rardy Peña** is the principal of Lynn English High School. "
+            "The data on the rest of this dashboard tells a story about "
+            "students, demographics, and outcomes — the people leading the "
+            "school's response to that story matter just as much."
+        )
+
+    st.subheader("Historical leadership note")
+    st.markdown(
+        "The most historically significant LEHS leader was **Tom Whelan**, "
+        "who served as teacher, baseball coach, athletic director, and "
+        "eventually principal through the **1940s–50s** — the same Tom "
+        "Whelan who'd played MLB for the Boston Braves in 1920 and "
+        "professional football alongside Jim Thorpe on the Canton Bulldogs "
+        "in 1919–20. The **Whelan Family Scholarship** at LEHS is named "
+        "for him and remains active. See the **Notable alumni & faculty** "
+        "tab for the full Whelan write-up."
+    )
+
+# --- Tab 6: Lynn as a school city ------------------------------------------
 with _tab_civic:
     st.subheader("The district around LEHS")
     st.markdown(

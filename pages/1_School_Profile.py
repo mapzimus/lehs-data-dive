@@ -30,32 +30,17 @@ st.markdown(
 )
 
 # ---------------------------------------------------------------------------
-# Visual identity row — small building photo on the left, principal
-# block on the right. Previously the building photo was full-width and
-# the Rardy block sat in its own row below; that pushed everything
-# else far down the page. One compact row reads as "here's the place,
-# here's who runs it" without dominating the viewport.
+# Building photo — single compact image at the top. (Principal bio
+# moved out; see the Leadership section on pages/15_LEHS_History.py.)
 # ---------------------------------------------------------------------------
 
-_id_l, _id_r = st.columns([1, 2], gap="medium")
-with _id_l:
+_b_l, _b_c, _b_r = st.columns([1, 2, 1])
+with _b_c:
     st.image(
         str(IMAGES_DIR / "lehs-building.jpg"),
         use_container_width=True,
         caption="Main entrance, O'Callaghan Way",
     )
-with _id_r:
-    _p_l, _p_r = st.columns([1, 3], gap="small")
-    with _p_l:
-        st.image(str(IMAGES_DIR / "principal-rardy-pena.jpg"), width=120)
-    with _p_r:
-        st.markdown(
-            "### Principal: Rardy Peña  \n"
-            "Lynn English High School is led by **Principal Rardy Peña**. "
-            "The data below tells a story about students, demographics, "
-            "and outcomes — the people leading the school's response to "
-            "that story matter just as much."
-        )
 
 # DESE ESSA accountability classification was previously rendered at
 # the top of the page; that framed every visitor's first impression of
