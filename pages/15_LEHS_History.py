@@ -337,6 +337,52 @@ and remains active.
         """
     )
 
+    st.subheader("👩 Women who made LEHS history")
+    st.markdown(
+        """
+- **Ashley Aldred** — Named LEHS Athletic Director in **July 2025**,
+  making her **the first female AD in the City of Lynn**. Arlington
+  native; played college softball at **Salem State**. Joined LEHS
+  as varsity softball head coach in 2019 and was named *The Lynn
+  Item*'s **Coach of the Year in 2023** after leading the Bulldogs
+  softball team to its first postseason appearance since 1999.
+
+- **Michelle Fabian Ennis** (class of **1984**) — Multi-sport athlete
+  in soccer, basketball, and softball; **LEHS Hall of Fame class of
+  2024**. The 2024 induction class was unusually deep in women from
+  the class of 1984 — **Alisa Fila** and **Martha Jamieson** were
+  both inducted the same night, alongside **Deidre (Jackson) Roper**
+  (class of 1995) and **Kara (Lunden) Migliozzi** (also class of
+  1995).
+
+- **The Conlon family** — **LEHS Hall of Fame class of 2013**, a
+  collective induction recognizing six members across soccer and
+  swimming. Four of the six honored were women: **Diane Conlon**,
+  **Marianne (Conlon) Duncan**, **Melissa (Conlon) McElaney**, and
+  (posthumously) **Michelle Conlon**. The all-time deepest single-
+  family contribution to LEHS girls' athletics.
+
+- **Christine Pierce** (class of **1978**) — Hall of Fame class of
+  **2019**. Inducted alongside **Joyce Knappe** the same year.
+
+- **Dr. Miriam Morse · Carol Ruggiero · Francie Sudak** — Three of
+  the women named in the **Hall of Fame class of 2013** alongside
+  the Conlon family — one of the largest single induction classes
+  in LEHS history.
+
+- **Dina Wavezwa** (class of **1992**) — Current **head coach of
+  LEHS boys basketball** (since April 2025). Grew up in the Meadows
+  neighborhood across the street from the school. Was an assistant
+  under **Antonio Anderson** on the 2019–2020 back-to-back MA
+  Division 1 state-championship staffs.
+
+- **Stephanie Vasquez** — Current **head coach of LEHS girls
+  basketball** (2026–). Coaching path through St. Mary's Middle
+  School, KIPP Academy, a prior stint as a LEHS assistant under
+  **Rachael Bradley** in 2014, Essex Tech, and Salem State.
+        """
+    )
+
     st.caption(
         "Listed here as the institutional short list, not a complete index. "
         "The **[Athletics](/Athletics)** page carries the full Hall of "
@@ -357,6 +403,19 @@ with _tab_leadership:
             "students, demographics, and outcomes — the people leading the "
             "school's response to that story matter just as much."
         )
+
+    st.subheader("Recent principals — short list")
+    st.markdown(
+        """
+- **Dr. Rardy Peña** — current principal (see above).
+- **Tessie Mower** — interim principal beginning **July 1, 2020**.
+  An **LEHS alumna** who served as a longtime English Department
+  head at the school before stepping into the principalship; came
+  to the interim role from the vice principal seat at Lynn Classical.
+  Mower started her LPS teaching career in **1994**, making her one
+  of the longest-tenured Lynn Public Schools educators to lead LEHS.
+        """
+    )
 
     st.subheader("Historical leadership note")
     st.markdown(
