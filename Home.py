@@ -63,6 +63,9 @@ nav = {
         st.Page("pages/12_Correlation_Lab.py", title="Cross-Topic Explorer", url_path="Correlation_Lab"),
     ],
     "About": [
+        # Data 101 sits in About because it's an explainer/reference,
+        # not analytical content — same family as Methodology.
+        st.Page("pages/14_Data_Literacy.py", title="Data 101", url_path="Data_101"),
         st.Page("pages/99_Methodology.py", title="Methodology", url_path="Methodology"),
     ],
 }

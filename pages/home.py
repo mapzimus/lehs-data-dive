@@ -344,20 +344,38 @@ with c_col:
         type="primary", use_container_width=True,
     )
 
-# --- Maps row (hard-linked beneath the three scopes) ---
-m_text, m_btn = st.columns([4, 1.2], gap="medium")
-with m_text:
+# Visual break between the three scope cards (data-heavy) and the
+# utility row below (supporting tools).
+st.divider()
+
+# --- Utility row: Maps + Data 101 side-by-side. Both are reference
+# destinations rather than analytical pages, so they sit together as
+# a separate band below the scope hero.
+maps_col, learn_col = st.columns(2, gap="medium")
+
+with maps_col:
     st.markdown("#### 🗺️ Maps")
     st.caption(
         "Interactive MapLibre experiences — Lynn-focused (school pins + "
         "tract demographics) and statewide MA Education Atlas. "
         "**1,700+ MA schools · 351 municipalities · 22 Lynn census tracts.**"
     )
-with m_btn:
-    # Vertical breathing room so the button sits next to the caption.
-    st.write("")
     st.link_button(
         "Open Maps →", "/Maps", type="primary", use_container_width=True,
+    )
+
+with learn_col:
+    st.markdown("#### 📊 Data 101")
+    st.caption(
+        "New to dashboards? **Start here.** A beginner-friendly guide to "
+        "what a dataset is, how to read each chart type (bar, line, "
+        "histogram, scatter, choropleth, heatmap), what percentages "
+        "actually mean, and the most common ways charts mislead. "
+        "Built for LEHS students and anyone who's never opened a "
+        "dashboard before."
+    )
+    st.link_button(
+        "Open Data 101 →", "/Data_101", type="primary", use_container_width=True,
     )
 
 st.divider()
