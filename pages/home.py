@@ -368,10 +368,11 @@ st.divider()
 # (persona-tailored paths) sits right under the hero.
 # ---------------------------------------------------------------------------
 
-st.header("Start here — pick the view that fits you")
+st.header("Or pick by role")
 st.markdown(
-    "Three suggested paths by who you are. Open the sidebar sections on the "
-    "left for the full index."
+    "The scopes above answer *what* you want to see. These three paths "
+    "answer *who you are* — tailored entry points for families, teachers, "
+    "and the school committee."
 )
 
 p_col, t_col, sc_col = st.columns(3)
@@ -470,14 +471,16 @@ with c1:
 with c2:
     st.markdown(
         """
-**Three peer cohorts** compared simultaneously:
-- **Lynn sibling high schools** — LEHS vs. Lynn Classical, Lynn Tech,
-  Frederick Douglass, Harold Durgin *(same district → isolates
-  school-level effects)*
-- **Lynn Public Schools as a whole** — district context including all
-  26 schools and elementary feeders
-- **MA Gateway City main high schools** — Brockton, Lawrence, Chelsea,
-  Lowell, Holyoke, Springfield, and 19 others
+**Three peer cohorts** for comparing LEHS:
+- **Same district** *(closest comparison)* — LEHS vs. its sibling
+  Lynn high schools. Same city, same policies → school-level effects
+  show through. See **[Lynn Schools](/Lynn_Schools)**.
+- **Same system** — LEHS within LPS as a whole, including all 26
+  schools and elementary feeders. See **[Lynn District](/Lynn_District)**.
+- **Same role, different city** — LEHS vs. the main public high
+  school in each of MA's 26 Gateway cities (Brockton, Lawrence,
+  Chelsea, Lowell, Holyoke, Springfield, +19). See
+  **[Gateway Cities](/Gateway_Peer_Comparison)**.
 """
     )
 
