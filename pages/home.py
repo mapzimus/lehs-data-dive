@@ -219,8 +219,26 @@ def _card_logo(path: Path, alt_text: str) -> None:
 with s_col:
     _card_logo(IMAGES_DIR / "lehs-bulldog.png", "LEHS Bulldogs")
     st.markdown("#### 🎓 The School")
+    # Pull the latest student-teacher ratio from teacher_data for the
+    # "All Teachers" rollup row — it's already a pre-formatted "X.X to 1"
+    # string, so we strip the unit to render compactly.
+    stu_tchr = None
+    teacher_df = load_dataset("teacher_data")
+    if not teacher_df.empty:
+        lehs_t = teacher_df[
+            (teacher_df["ORG_CODE"] == LEHS_SCHOOL_CODE)
+            & (teacher_df["ORG_TYPE"] == "School")
+            & (teacher_df["SUBJECT"] == "All Teachers")
+        ].sort_values("SY")
+        if not lehs_t.empty:
+            raw = str(lehs_t.iloc[-1]["STU_TCHR_RATIO"])
+            # "13.2 to 1" → "13:1"
+            if "to" in raw:
+                num = raw.split("to")[0].strip().split(".")[0]
+                stu_tchr = f"{num}:1"
+    ratio_frag = f" · {stu_tchr} student–teacher ratio" if stu_tchr else ""
     st.caption(
-        f"Lynn English High · SY {sy_label(lehs_sy)}" if lehs_sy else "Lynn English High"
+        f"Lynn English High · Grades 9–12{ratio_frag}"
     )
     if lehs_row is not None:
         st.metric("Total Enrollment", f"{int(lehs_row['TOTAL_CNT']):,}")
