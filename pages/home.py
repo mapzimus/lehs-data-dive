@@ -285,9 +285,13 @@ with s_col:
             f"{float(lehs_grad_row['GRAD_PCT']):.0%}",
             help=f"Most recent cohort: SY {sy_label(int(lehs_grad_row['SY']))}",
         )
-    st.link_button(
-        "Open School Profile →", "/School_Profile",
-        type="primary", use_container_width=True,
+    # st.page_link navigates within the multipage app (no new tab),
+    # whereas st.link_button always opens externally. For internal
+    # routes we want to keep visitors in the same tab/iframe.
+    st.page_link(
+        "pages/1_School_Profile.py",
+        label="Open School Profile →",
+        use_container_width=True,
     )
 
 with d_col:
@@ -323,9 +327,10 @@ with d_col:
             f"Per-pupil expenditure (FY {int(district_ppe_row['SY'])})",
             f"${district_ppe_row['IND_VALUE']:,.0f}",
         )
-    st.link_button(
-        "Open District →", "/Lynn_District",
-        type="primary", use_container_width=True,
+    st.page_link(
+        "pages/Lynn_District.py",
+        label="Open District →",
+        use_container_width=True,
     )
 
 with c_col:
@@ -363,9 +368,10 @@ with c_col:
             "Pacific Island' buckets that fold in many more."
         ),
     )
-    st.link_button(
-        "Open Lynn City →", "/Lynn_City",
-        type="primary", use_container_width=True,
+    st.page_link(
+        "pages/Lynn_City.py",
+        label="Open Lynn City →",
+        use_container_width=True,
     )
 
 # Visual break between the three scope cards (data-heavy) and the
@@ -384,8 +390,10 @@ with maps_col:
         "tract demographics) and statewide MA Education Atlas. "
         "**1,700+ MA schools · 351 municipalities · 22 Lynn census tracts.**"
     )
-    st.link_button(
-        "Open Maps →", "/Maps", type="primary", use_container_width=True,
+    st.page_link(
+        "pages/13_Maps.py",
+        label="Open Maps →",
+        use_container_width=True,
     )
 
 with learn_col:
@@ -398,8 +406,10 @@ with learn_col:
         "Built for LEHS students and anyone who's never opened a "
         "dashboard before."
     )
-    st.link_button(
-        "Open Data 101 →", "/Data_101", type="primary", use_container_width=True,
+    st.page_link(
+        "pages/14_Data_Literacy.py",
+        label="Open Data 101 →",
+        use_container_width=True,
     )
 
 st.divider()
