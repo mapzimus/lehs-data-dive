@@ -1,5 +1,5 @@
 ﻿"""
-Section 3 — ELL Pipeline.
+Section 3 — English Learners.
 
 The central narrative thread: tracking English Learner outcomes from initial
 proficiency through MCAS and into the years after reclassification.
@@ -14,13 +14,13 @@ import streamlit as st
 
 from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
-from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE, PROCESSED_DIR
+from utils.constants import LEHS_SCHOOL_CODE, PROCESSED_DIR
 from utils.data_loader import load_dataset
 
 st.set_page_config(page_title="ELL Pipeline | LEHS", page_icon="🌐", layout="wide")
 sidebar_attribution()
 
-st.title("ELL Pipeline")
+st.title("English Learners")
 st.markdown(
     "Lynn serves one of the highest concentrations of English Learners in "
     "Massachusetts. This section follows EL students from initial ACCESS "
@@ -71,7 +71,7 @@ st.caption(
     "The EL share at LEHS has more than doubled since the early 2000s — a "
     "dramatic shift in who the school serves and what supports are required. "
     "For cross-school comparison, see "
-    "[Lynn District](/Lynn_District) (LEHS vs Siblings tab)."
+    "[Lynn Schools](/Lynn_Schools) (Compare group)."
 )
 
 st.divider()

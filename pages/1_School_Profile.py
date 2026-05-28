@@ -9,7 +9,6 @@ from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
 from utils.constants import (
     IMAGES_DIR,
-    LCHS_SCHOOL_CODE,
     LEHS_SCHOOL_CODE,
     LYNN_DISTRICT_CODE,
     PROCESSED_DIR,
@@ -398,7 +397,7 @@ st.caption(
     "How LEHS's student body compares to the Lynn Public Schools district "
     "average (across all 22 schools, PK-12). For school-to-school "
     "comparison against other Lynn high schools, see "
-    "[Lynn District](/Lynn_District) (LEHS vs Siblings tab)."
+    "[Lynn Schools](/Lynn_Schools) (Compare group)."
 )
 
 if not district.empty:

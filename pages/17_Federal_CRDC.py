@@ -1,11 +1,8 @@
 """Section 17 — Federal CRDC (Civil Rights Data Collection)."""
 
-import pandas as pd
-import plotly.express as px
 import streamlit as st
 
 from utils.branding import sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY
 from utils.data_loader import load_dataset
 
 st.set_page_config(page_title="Federal CRDC | LEHS", page_icon="📊", layout="wide")

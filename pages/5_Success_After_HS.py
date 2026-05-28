@@ -45,6 +45,8 @@ DEGREE_INDICATOR = "Student progression from high school through postsecondary d
 
 cohort_n = grad_n = enr_n = pers_n = None
 latest_cohort = None
+lehs_prog = pd.DataFrame()
+lehs_y2_all = pd.DataFrame()
 
 if not prog.empty:
     prog["DIST_CODE"] = prog["DIST_CODE"].astype(str).str.zfill(8)
@@ -391,7 +393,7 @@ st.divider()
 # Multi-cohort trend (from cohort tracking) — long view of the pipeline
 # ---------------------------------------------------------------------------
 
-if not prog.empty and 'lehs_y2_all' in dir() and not lehs_y2_all.empty:
+if not lehs_y2_all.empty:
     st.header("Pipeline Trend — Multiple 9th-grade Cohorts")
     st.caption(
         "Each line is a stage of the pipeline as it has moved over time. "

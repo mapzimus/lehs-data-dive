@@ -7,7 +7,7 @@ import streamlit as st
 
 from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
-from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
+from utils.constants import LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
 from utils.data_loader import get_dart_indicator, load_dataset
 from utils.interpret import sat_methodology_note, sy_label
 
@@ -498,7 +498,7 @@ st.divider()
 # (AP "LEHS vs LCHS" section moved out: Lynn Tech and the alternative
 # academies don't run comparable AP programs, so a Lynn-HS comparison was
 # always going to be lopsided. AP equity belongs in school-to-school
-# context — see Lynn District > LEHS vs Siblings for the scorecard view.)
+# context — see Compare > Lynn Schools for the scorecard view.)
 
 # ---------------------------------------------------------------------------
 # Pathway program participation

@@ -6,10 +6,11 @@ Page configuration (title, icon, layout) is set by the entry script — this
 file just provides the body.
 """
 
+import pandas as pd
 import streamlit as st
 
 from utils.branding import AUTHOR_NAME, AUTHOR_SITE, sidebar_attribution
-from utils.constants import IMAGES_DIR, LEHS_SCHOOL_CODE
+from utils.constants import IMAGES_DIR, LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
 from utils.data_loader import load_dataset
 from utils.interpret import sy_label
 
@@ -82,8 +83,12 @@ st.markdown(
 st.divider()
 
 # ---------------------------------------------------------------------------
-# Hero stats from real LEHS data
+# Three-scope launch: School · District · City
 # ---------------------------------------------------------------------------
+# Each card is a hard link into the dedicated section, with the few
+# metrics most likely to tell a visitor "yes, that's the scope I want."
+# Numbers pull from the same parquet sources the destination pages use,
+# so the card and the page always agree.
 
 enrollment = load_dataset("enrollment_demographics")
 
@@ -95,21 +100,178 @@ if enrollment.empty:
     )
     st.stop()
 
-lehs = enrollment[enrollment["ORG_CODE"] == LEHS_SCHOOL_CODE].sort_values("SY")
-current = lehs.iloc[-1]
-current_sy = int(current["SY"])
 
-st.caption(f"All metrics below are for school year {sy_label(current_sy)} (most recent available).")
+def _latest_row(df: pd.DataFrame, sort_col: str = "SY") -> pd.Series | None:
+    if df.empty:
+        return None
+    return df.sort_values(sort_col).iloc[-1]
 
-c1, c2, c3, c4 = st.columns(4)
-with c1:
-    st.metric("Total Enrollment", f"{int(current['TOTAL_CNT']):,}")
-with c2:
-    st.metric("% English Learners", f"{current['EL_PCT']:.0%}")
-with c3:
-    st.metric("% Low Income", f"{current['LI_PCT']:.0%}")
-with c4:
-    st.metric("% High Needs", f"{current['HN_PCT']:.0%}")
+
+# --- School (LEHS) ---
+lehs_row = _latest_row(enrollment[enrollment["ORG_CODE"] == LEHS_SCHOOL_CODE])
+# --- District (Lynn Public Schools) ---
+district_row = _latest_row(
+    enrollment[
+        (enrollment["DIST_CODE"] == LYNN_DISTRICT_CODE)
+        & (enrollment["ORG_TYPE"] == "District")
+    ]
+)
+# --- Graduation rates: pull LEHS and LPS-district 4-yr cohort rates ---
+grad = load_dataset("graduation_rates")
+lehs_grad_row = None
+district_grad_row = None
+if not grad.empty:
+    grad_4yr = grad[
+        (grad["STU_GRP"] == "All Students")
+        & (grad["GRAD_RATE_TYPE"] == "4-Year Adjusted Cohort Graduation Rate")
+    ]
+    lehs_grad_row = _latest_row(
+        grad_4yr[
+            (grad_4yr["ORG_CODE"] == LEHS_SCHOOL_CODE)
+            & (grad_4yr["ORG_TYPE"] == "School")
+        ]
+    )
+    district_grad_row = _latest_row(
+        grad_4yr[
+            (grad_4yr["DIST_CODE"] == LYNN_DISTRICT_CODE)
+            & (grad_4yr["ORG_TYPE"] == "District")
+        ]
+    )
+# --- District per-pupil expenditure ---
+dist_exp = load_dataset("district_expenditures")
+district_ppe_row = None
+if not dist_exp.empty:
+    pp = dist_exp[
+        (dist_exp["DIST_CODE"] == LYNN_DISTRICT_CODE)
+        & (dist_exp["IND_CAT"].astype(str).str.contains("Per Pupil", case=False, na=False))
+        & (dist_exp["IND_SUBCAT"].astype(str).str.contains("Total Expenditures", case=False, na=False))
+    ].copy()
+    if not pp.empty:
+        pp["IND_VALUE"] = pd.to_numeric(pp["IND_VALUE"], errors="coerce")
+        district_ppe_row = _latest_row(pp.dropna(subset=["IND_VALUE"]))
+# --- City (Lynn, MA) ACS profile ---
+city_df = load_dataset("lynn_city_stats")
+city_row = city_df.iloc[0] if not city_df.empty else None
+
+
+def _city_num(col):
+    if city_row is None:
+        return None
+    v = city_row.get(col)
+    if v is None or pd.isna(v):
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+lehs_sy = int(lehs_row["SY"]) if lehs_row is not None else None
+
+st.header("Where do you want to start?")
+st.markdown(
+    "Three nested views of the same place — **Lynn English** the school, "
+    "**Lynn Public Schools** the district, and **Lynn** the city around them. "
+    "Open whichever one you're curious about; jumping between them is always "
+    "one click away in the sidebar."
+)
+
+s_col, d_col, c_col = st.columns(3, gap="medium")
+
+with s_col:
+    st.markdown("#### 🎓 The School")
+    st.caption(
+        f"Lynn English High · SY {sy_label(lehs_sy)}" if lehs_sy else "Lynn English High"
+    )
+    if lehs_row is not None:
+        st.metric("Total Enrollment", f"{int(lehs_row['TOTAL_CNT']):,}")
+        st.metric("% English Learners", f"{lehs_row['EL_PCT']:.0%}")
+        st.metric("% Low Income", f"{lehs_row['LI_PCT']:.0%}")
+    if lehs_grad_row is not None:
+        st.metric(
+            "4-yr Graduation Rate",
+            f"{float(lehs_grad_row['GRAD_PCT']):.0%}",
+            help=f"Most recent cohort: SY {sy_label(int(lehs_grad_row['SY']))}",
+        )
+    st.link_button(
+        "Open School Profile →", "/School_Profile",
+        type="primary", use_container_width=True,
+    )
+
+with d_col:
+    st.markdown("#### 🏛️ The District")
+    sy_dist = int(district_row["SY"]) if district_row is not None else None
+    # Caption surfaces the two facts that frame the district's scale:
+    # how many schools it runs and how multilingual the families are.
+    st.caption(
+        f"Lynn Public Schools · 26 schools · 12+ home languages · SY {sy_label(sy_dist)}"
+        if sy_dist else "Lynn Public Schools · 26 schools · 12+ home languages"
+    )
+    if district_row is not None:
+        st.metric("District Enrollment", f"{int(district_row['TOTAL_CNT']):,}")
+    if district_grad_row is not None:
+        st.metric(
+            "4-yr Graduation Rate",
+            f"{float(district_grad_row['GRAD_PCT']):.0%}",
+        )
+    if district_ppe_row is not None:
+        st.metric(
+            f"Per-pupil expenditure (FY {int(district_ppe_row['SY'])})",
+            f"${district_ppe_row['IND_VALUE']:,.0f}",
+        )
+    st.link_button(
+        "Open District →", "/Lynn_District",
+        type="primary", use_container_width=True,
+    )
+
+with c_col:
+    st.markdown("#### 🏙️ The City")
+    st.caption("Lynn, MA · coastal Gateway city · ACS 5-yr 2019–2023")
+    pop = _city_num("pop_total")
+    mhi = _city_num("median_household_income")
+    fb = _city_num("foreign_born_total")
+    if pop is not None:
+        st.metric("Total Population", f"{int(pop):,}")
+    if mhi is not None:
+        st.metric("Median HH Income", f"${mhi:,.0f}")
+    if fb is not None and pop:
+        st.metric(
+            "Foreign-born",
+            f"{fb / pop:.0%}",
+            help=f"{int(fb):,} of {int(pop):,} residents",
+        )
+    # Home-language count comes from ACS C16001's 12 non-English buckets;
+    # two of those are catch-all "Other" groups, so the true distinct
+    # count is higher — hence the "+".
+    st.metric(
+        "Home languages spoken",
+        "12+",
+        help=(
+            "ACS C16001 tracks 12 non-English language groups in Lynn; "
+            "two are catch-all 'Other Indo-European' and 'Other Asian or "
+            "Pacific Island' buckets that fold in many more."
+        ),
+    )
+    st.link_button(
+        "Open Lynn City →", "/Lynn_City",
+        type="primary", use_container_width=True,
+    )
+
+# --- Maps row (hard-linked beneath the three scopes) ---
+m_text, m_btn = st.columns([4, 1.2], gap="medium")
+with m_text:
+    st.markdown("#### 🗺️ Maps")
+    st.caption(
+        "Interactive MapLibre experiences — Lynn-focused (school pins + "
+        "tract demographics) and statewide MA Education Atlas. "
+        "**1,700+ MA schools · 351 municipalities · 22 Lynn census tracts.**"
+    )
+with m_btn:
+    # Vertical breathing room so the button sits next to the caption.
+    st.write("")
+    st.link_button(
+        "Open Maps →", "/Maps", type="primary", use_container_width=True,
+    )
 
 st.divider()
 
@@ -165,8 +327,8 @@ with c2:
 - **Lynn sibling high schools** — LEHS vs. Lynn Classical, Lynn Tech,
   Frederick Douglass, Harold Durgin *(same district → isolates
   school-level effects)*
-- **Lynn Public Schools as a whole** — district context including the
-  ~22 schools and elementary feeders
+- **Lynn Public Schools as a whole** — district context including all
+  26 schools and elementary feeders
 - **MA Gateway City main high schools** — Brockton, Lawrence, Chelsea,
   Lowell, Holyoke, Springfield, and 19 others
 """
@@ -220,7 +382,7 @@ with p_col:
 - **[School Profile](/School_Profile)** — who attends LEHS today
 - **[Success After HS](/Success_After_HS)** — does the school's promise hold up through college?
 - **[College & Career](/College_and_Career)** — AP, MassCore, FAFSA, postsecondary plans
-- **[Lynn District](/Lynn_District)** — LEHS vs. Classical, Tech, others (*LEHS vs Siblings* tab)
+- **[Lynn Schools](/Lynn_Schools)** — LEHS vs. Classical, Tech, Frederick Douglass, Harold Durgin
         """
     )
 
@@ -245,6 +407,7 @@ with sc_col:
 
 - **[Lynn District](/Lynn_District)** — LPS as a whole (*Snapshot* tab)
 - **[Finance](/Finance)** — per-pupil spending by category
+- **[Lynn Schools](/Lynn_Schools)** — LEHS vs. its same-district siblings
 - **[Gateway Cities](/Gateway_Peer_Comparison)** — 26-city scorecard
 - **[Cross-Topic Explorer](/Correlation_Lab)** — what moves with what
         """
@@ -279,14 +442,14 @@ with c1:
 
 **The School (LEHS)**
 - **School Profile** — demographics, enrollment trends
-- **Success After HS** — full pipeline (9th grade → grad → college → persistence → degrees → earnings)
 - **Academic Performance** — MCAS, growth, gaps
 - **English Learners** *(central narrative)*
 - **College & Career** — AP, MassCore, FAFSA, plans
-- **Success After HS** — graduation, college persistence
+- **Success After HS** — full pipeline (9th grade → grad → college → persistence → degrees → earnings)
 - **Teachers & Workforce** — diversity, staffing
 - **Finance** — per-pupil spending breakdowns
 - **Discipline & Climate** — suspensions, attendance
+- **Athletics** — Bulldogs season records, rivalry, hall of fame
 - **Where Students Live** — residential pattern (private SIS, aggregated)
 """
     )
@@ -295,11 +458,12 @@ with c2:
     st.markdown(
         """
 **Lynn**
-- **District** — Snapshot of LPS as a whole · All Lynn Schools (filter/sort 22 schools) · LEHS vs Siblings (*closest comparison*). Three tabs in one page.
+- **District** — Snapshot of LPS as a whole · All Lynn Schools (filter/sort 22 schools). Two tabs in one page.
 - **City** — Citywide demographics, economy, history · Neighborhoods (tract-level ACS, EJScreen, CDC PLACES). Two tabs in one page.
 
 **Comparison**
-- **Gateway Cities** — 26-city scorecard
+- **Lynn Schools** — LEHS vs. Classical, Tech, Frederick Douglass, Harold Durgin (*closest peer view*)
+- **Gateway Cities** — 26-city scorecard with LEHS, Classical, Tech, and LPS-district as four separate dots
 - **Cross-Topic Explorer** — cross-domain analysis
 
 **About**

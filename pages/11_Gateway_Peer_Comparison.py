@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -10,7 +11,12 @@ import streamlit as st
 
 from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, GATEWAY_PEER_COLOR, LEHS_GOLD, LEHS_NAVY
-from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE, PROCESSED_DIR
+from utils.constants import (
+    LCHS_SCHOOL_CODE,
+    LEHS_SCHOOL_CODE,
+    LYNN_DISTRICT_CODE,
+    PROCESSED_DIR,
+)
 from utils.data_loader import load_dataset
 
 st.set_page_config(
@@ -22,9 +28,11 @@ st.title("Gateway Peer Comparison")
 st.markdown(
     "LEHS benchmarked against the main comprehensive high school in each of "
     "the other 25 Massachusetts Gateway Cities — similar urban contexts and "
-    "demographic profiles. For school-to-school comparison within Lynn (LEHS "
-    "vs. Classical, Tech, and the alternative academies), see "
-    "[Lynn District](/Lynn_District) (LEHS vs Siblings tab)."
+    "demographic profiles. The two scatters below also break Lynn out into "
+    "four separate points — **LEHS**, **Lynn Classical**, **Lynn Tech**, and "
+    "**Lynn Public Schools as a district** — so you can see how the school "
+    "compares to its same-city siblings and to the district aggregate, not "
+    "only to the other 25 cities."
 )
 
 # Load the peer-schools manifest
@@ -42,17 +50,29 @@ city_to_school = {
 school_to_city = {v: k for k, v in city_to_school.items()}
 gateway_codes = list(city_to_school.values())
 
-# Friendly label for LEHS in the per-city scorecard (every other city's row
-# uses its district name, e.g. "Lawrence"; for Lynn we say "Lynn — LEHS" so
-# the row is unambiguously the school, not the whole 22-school district).
+# Same-district siblings shown as their own dots so the reader can see how
+# LEHS stacks against Lynn Classical and Lynn Tech inside the gateway peer
+# cloud, not only against the 25 other cities' main HS. LVTI doesn't have a
+# named constant in utils/constants yet — defined inline.
+LVTI_SCHOOL_CODE = "01630605"
+EXTRA_LYNN_HS = [LCHS_SCHOOL_CODE, LVTI_SCHOOL_CODE]
+scorecard_codes = list(dict.fromkeys(gateway_codes + EXTRA_LYNN_HS))
+
+# Labels used in the scorecard + scatter — disambiguate the four Lynn rows
+# from each other and from "Lynn" the district name DESE reports under.
 LYNN_SCHOOL_LABELS = {
     LEHS_SCHOOL_CODE: "Lynn — LEHS",
+    LCHS_SCHOOL_CODE: "Lynn — Classical",
+    LVTI_SCHOOL_CODE: "Lynn — Tech",
 }
+LPS_DISTRICT_ROW_KEY = "01630000_DIST"   # synthetic ORG_CODE used in scorecard only
+LPS_DISTRICT_LABEL   = "Lynn — LPS district"
 
 enrollment = load_dataset("enrollment_demographics")
 dart = load_dataset("dart_success_after_hs")
 grad = load_dataset("graduation_rates")
 school_exp = load_dataset("school_expenditures")
+dist_exp = load_dataset("district_expenditures")
 
 if enrollment.empty:
     st.info("Data is temporarily unavailable. Please check back later.")
@@ -68,7 +88,7 @@ latest_enr_year = int(enrollment["SY"].max())
 
 # Enrollment + demographics
 enr = enrollment[
-    (enrollment["ORG_CODE"].isin(gateway_codes)) & (enrollment["SY"] == latest_enr_year)
+    (enrollment["ORG_CODE"].isin(scorecard_codes)) & (enrollment["SY"] == latest_enr_year)
 ].copy()
 scorecard = enr[[
     "ORG_CODE", "ORG_NAME", "DIST_NAME",
@@ -94,7 +114,7 @@ scorecard["City"] = scorecard.apply(
 # indicators; if a non-percent indicator is added later, add a flag.
 def pivot_dart(indicator: str, label: str) -> pd.DataFrame:
     sub = dart[
-        (dart["ORG_CODE"].isin(gateway_codes))
+        (dart["ORG_CODE"].isin(scorecard_codes))
         & (dart["INDICATOR"] == indicator)
         & (dart["STU_GRP"] == "All Students")
     ].copy()
@@ -119,7 +139,7 @@ for d in [grad_4yr, immediate, fafsa, chronic, ap_3plus]:
 # Per-pupil spending (latest)
 if not school_exp.empty:
     sp = school_exp[
-        (school_exp["ORG_CODE"].isin(gateway_codes))
+        (school_exp["ORG_CODE"].isin(scorecard_codes))
         & (school_exp["IND_CAT"] == "Total A+B+C")
         & (school_exp["IND_SUBCAT"] == "Total Expenditures")
     ].copy()
@@ -127,6 +147,93 @@ if not school_exp.empty:
     sp_latest = sp.sort_values("SY").groupby("ORG_CODE").tail(1)[["ORG_CODE", "IND_VALUE"]]
     sp_latest = sp_latest.rename(columns={"IND_VALUE": "$ Per Pupil"})
     scorecard = scorecard.merge(sp_latest, on="ORG_CODE", how="left")
+
+# ---------------------------------------------------------------------------
+# LPS-district synthetic row — same column shape as the school rows above
+# but built from district-level datasets so the gateway scatters can show
+# Lynn-as-district alongside Lynn-as-LEHS / LCHS / LVTI.
+# ---------------------------------------------------------------------------
+
+def _build_lps_district_row() -> pd.DataFrame | None:
+    """Return a 1-row DataFrame matching scorecard's column set for LPS."""
+    dist_enr = enrollment[
+        (enrollment["DIST_CODE"] == LYNN_DISTRICT_CODE)
+        & (enrollment["ORG_TYPE"] == "District")
+        & (enrollment["SY"] == latest_enr_year)
+    ]
+    if dist_enr.empty:
+        return None
+    d = dist_enr.iloc[0]
+    row: dict = {
+        "ORG_CODE":          LPS_DISTRICT_ROW_KEY,
+        "ORG_NAME":          "Lynn Public Schools",
+        "DIST_NAME":         "Lynn",
+        "City":              LPS_DISTRICT_LABEL,
+        "Enrollment":        d.get("TOTAL_CNT"),
+        "% ELL":             d.get("EL_PCT"),
+        "% Low Income":      d.get("LI_PCT"),
+        "% SPED":            d.get("SWD_PCT"),
+        "% High Needs":      d.get("HN_PCT"),
+        "% Hispanic/Latino": d.get("HL_PCT"),
+    }
+
+    def _dist_dart(indicator: str) -> float | None:
+        sub = dart[
+            (dart["DIST_CODE"] == LYNN_DISTRICT_CODE)
+            & (dart["ORG_TYPE"] == "District")
+            & (dart["INDICATOR"] == indicator)
+            & (dart["STU_GRP"] == "All Students")
+        ].copy()
+        if sub.empty:
+            return None
+        sub["VALUE"] = pd.to_numeric(sub["VALUE"], errors="coerce") / 100.0
+        latest = sub.sort_values("SY").tail(1)
+        return float(latest["VALUE"].iloc[0]) if not latest.empty else None
+
+    row["4yr Grad Rate"]     = _dist_dart("4-year cohort graduation rate")
+    row["Immediate College"] = _dist_dart(
+        "Students enrolled in postsecondary education in the immediate fall after high school graduation"
+    )
+    row["% FAFSA"]           = _dist_dart("Grade 12 students who completed FAFSA")
+    row["% Chronic Absence"] = _dist_dart(
+        "Chronically absent rate (% of students absent 10% or more each year)"
+    )
+    row["% AP 3+"]           = _dist_dart("Jr/Sr AP test takers scoring 3 or above")
+
+    # District per-pupil spending — district_expenditures table has its own
+    # "Per Pupil" / "Total Expenditures" rows.
+    if not dist_exp.empty:
+        pp = dist_exp[
+            (dist_exp["DIST_CODE"] == LYNN_DISTRICT_CODE)
+            & (dist_exp["IND_CAT"].astype(str).str.contains("Per Pupil", case=False, na=False))
+            & (dist_exp["IND_SUBCAT"].astype(str).str.contains("Total Expenditures", case=False, na=False))
+        ].copy()
+        if not pp.empty:
+            pp["IND_VALUE"] = pd.to_numeric(pp["IND_VALUE"], errors="coerce")
+            latest_pp = pp.sort_values("SY").tail(1)
+            row["$ Per Pupil"] = float(latest_pp["IND_VALUE"].iloc[0]) if not latest_pp.empty else None
+
+    return pd.DataFrame([row])
+
+
+lps_row = _build_lps_district_row()
+if lps_row is not None and not lps_row.empty:
+    scorecard = pd.concat([scorecard, lps_row], ignore_index=True)
+
+# Categorical role used by the scatter color logic + the highlight helper.
+def _lynn_role(org_code: str) -> str:
+    if org_code == LEHS_SCHOOL_CODE:
+        return "LEHS"
+    if org_code == LCHS_SCHOOL_CODE:
+        return "Lynn Classical"
+    if org_code == LVTI_SCHOOL_CODE:
+        return "Lynn Tech"
+    if org_code == LPS_DISTRICT_ROW_KEY:
+        return "LPS district"
+    return "Other Gateway HS"
+
+
+scorecard["lynn_role"] = scorecard["ORG_CODE"].apply(_lynn_role)
 
 scorecard = scorecard.sort_values("Enrollment", ascending=False)
 display_cols = [
@@ -143,15 +250,25 @@ for col in ["% ELL", "% Low Income", "% High Needs", "% Hispanic/Latino",
 display["Enrollment"] = display["Enrollment"].apply(lambda x: f"{int(x):,}" if pd.notna(x) else "—")
 display["$ Per Pupil"] = display["$ Per Pupil"].apply(lambda x: f"${x:,.0f}" if pd.notna(x) else "—")
 
-# Highlight the LEHS row
+# Highlight Lynn rows. LEHS gets the strongest tint, the same-district
+# siblings + the LPS-district row get a lighter shade so the eye still
+# groups them as "Lynn" without confusing them with LEHS itself.
 def highlight_lehs_row(row):
-    if str(row["City"]) == "Lynn — LEHS":
-        return ["background-color: #FFF4D6"] * len(row)
+    city = str(row["City"])
+    if city == "Lynn — LEHS":
+        return ["background-color: #FFF4D6"] * len(row)   # gold-cream
+    if city in ("Lynn — Classical", "Lynn — Tech", LPS_DISTRICT_LABEL):
+        return ["background-color: #F2F6FA"] * len(row)   # very pale navy
     return [""] * len(row)
 
 st.dataframe(display.style.apply(highlight_lehs_row, axis=1),
              use_container_width=True, hide_index=True)
-st.caption(f"School year {latest_enr_year}. LEHS row highlighted in gold.")
+st.caption(
+    f"School year {latest_enr_year}. LEHS row highlighted in gold; Lynn "
+    "Classical, Lynn Tech, and the LPS-district aggregate are tinted "
+    "pale-navy so all four Lynn rows are easy to find among the 25 "
+    "other gateway-city rows."
+)
 
 st.divider()
 
@@ -161,47 +278,97 @@ st.divider()
 
 st.header("Where does LEHS fall? Per-Pupil Spending vs. Outcomes")
 
-st.subheader("Per-pupil spending vs. 4-year graduation rate")
+# Color + marker per role. LEHS = gold star (biggest), LCHS = gold-outlined
+# navy circle, LVTI = teal diamond, LPS-district = navy square; the 25 other
+# gateway main-HS share the pale-grey cloud.
+ROLE_STYLE = {
+    "LEHS":             dict(color=LEHS_GOLD, symbol="star",          size=20, line_color=LEHS_NAVY, line_width=2),
+    "Lynn Classical":   dict(color=LEHS_NAVY, symbol="circle",        size=14, line_color=LEHS_GOLD, line_width=2),
+    "Lynn Tech":        dict(color="#26A69A", symbol="diamond",       size=14, line_color=LEHS_NAVY, line_width=1),
+    "LPS district":     dict(color=LEHS_NAVY, symbol="square",        size=14, line_color="#FFFFFF", line_width=1),
+    "Other Gateway HS": dict(color=GATEWAY_PEER_COLOR, symbol="circle", size=9, line_color="#FFFFFF", line_width=0),
+}
+ROLE_ORDER = ["Other Gateway HS", "LPS district", "Lynn Tech", "Lynn Classical", "LEHS"]
 
-scatter_df = scorecard.dropna(subset=["$ Per Pupil", "4yr Grad Rate"]).copy()
-if not scatter_df.empty:
-    scatter_df["highlight"] = scatter_df["City"].apply(
-        lambda x: "LEHS" if x == "Lynn — LEHS" else "Other Gateway HS"
-    )
-    fig = px.scatter(
-        scatter_df, x="$ Per Pupil", y="4yr Grad Rate",
-        text="City", color="highlight",
-        color_discrete_map={"LEHS": LEHS_GOLD, "Other Gateway HS": GATEWAY_PEER_COLOR},
-        trendline="ols",
-    )
-    fig.update_traces(textposition="top center", textfont_size=10)
+
+def _lynn_scatter(df: pd.DataFrame, x_col: str, y_col: str,
+                  x_title: str, y_title: str,
+                  x_tickformat: str, y_tickformat: str) -> go.Figure:
+    """Scatter with one trace per lynn_role so each Lynn dot can have its own
+    marker shape/size, plus an OLS trendline fit to ALL points."""
+    fig = go.Figure()
+    # Plot Other first so Lynn dots paint on top
+    for role in ROLE_ORDER:
+        sub = df[df["lynn_role"] == role]
+        if sub.empty:
+            continue
+        style = ROLE_STYLE[role]
+        # Show city labels for the four Lynn points; suppress for the 25
+        # other cities (they declutter into the trendline).
+        is_lynn = role != "Other Gateway HS"
+        fig.add_trace(go.Scatter(
+            x=sub[x_col], y=sub[y_col],
+            mode="markers+text" if is_lynn else "markers",
+            name=role,
+            marker=dict(
+                color=style["color"], symbol=style["symbol"], size=style["size"],
+                line=dict(color=style["line_color"], width=style["line_width"]),
+            ),
+            text=sub["City"] if is_lynn else None,
+            textposition="top center", textfont=dict(size=10, color=LEHS_NAVY),
+            hovertemplate=(
+                "<b>%{text}</b><br>" + x_title + ": %{x}<br>" + y_title + ": %{y}<extra></extra>"
+                if is_lynn else
+                "<b>%{customdata}</b><br>" + x_title + ": %{x}<br>" + y_title + ": %{y}<extra></extra>"
+            ),
+            customdata=sub["City"] if not is_lynn else None,
+        ))
+    # Trendline fit to ALL points
+    try:
+        valid = df.dropna(subset=[x_col, y_col])
+        if len(valid) >= 3:
+            xs = pd.to_numeric(valid[x_col], errors="coerce")
+            ys = pd.to_numeric(valid[y_col], errors="coerce")
+            m, b = np.polyfit(xs, ys, 1)
+            x_fit = pd.Series([xs.min(), xs.max()])
+            fig.add_trace(go.Scatter(
+                x=x_fit, y=m * x_fit + b,
+                mode="lines", name="OLS fit",
+                line=dict(color="#90A4AE", width=2, dash="dash"),
+                showlegend=False, hoverinfo="skip",
+            ))
+    except (TypeError, ValueError):
+        pass
     fig.update_layout(
         **DEFAULT_LAYOUT,
-        xaxis_tickformat="$,.0f",
-        yaxis_tickformat=".0%",
-        xaxis_title="$ per pupil",
-        yaxis_title="4-year graduation rate",
+        xaxis_tickformat=x_tickformat,
+        yaxis_tickformat=y_tickformat,
+        xaxis_title=x_title,
+        yaxis_title=y_title,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    return fig
+
+
+st.subheader("Per-pupil spending vs. 4-year graduation rate")
+scatter_df = scorecard.dropna(subset=["$ Per Pupil", "4yr Grad Rate"]).copy()
+if not scatter_df.empty:
+    st.plotly_chart(
+        _lynn_scatter(scatter_df, "$ Per Pupil", "4yr Grad Rate",
+                       "$ per pupil", "4-year graduation rate",
+                       "$,.0f", ".0%"),
+        use_container_width=True,
+    )
 
 st.subheader("ELL share vs. 4-year graduation rate")
 scatter_df2 = scorecard.dropna(subset=["% ELL", "4yr Grad Rate"]).copy()
 if not scatter_df2.empty:
-    scatter_df2["highlight"] = scatter_df2["City"].apply(
-        lambda x: "LEHS" if x == "Lynn — LEHS" else "Other Gateway HS"
+    st.plotly_chart(
+        _lynn_scatter(scatter_df2, "% ELL", "4yr Grad Rate",
+                       "% English Learners", "4-year graduation rate",
+                       ".0%", ".0%"),
+        use_container_width=True,
     )
-    fig = px.scatter(
-        scatter_df2, x="% ELL", y="4yr Grad Rate",
-        text="City", color="highlight",
-        color_discrete_map={"LEHS": LEHS_GOLD, "Other Gateway HS": GATEWAY_PEER_COLOR},
-        trendline="ols",
-    )
-    fig.update_traces(textposition="top center", textfont_size=10)
-    fig.update_layout(
-        **DEFAULT_LAYOUT, xaxis_tickformat=".0%", yaxis_tickformat=".0%",
-        xaxis_title="% English Learners", yaxis_title="4-year graduation rate",
-    )
-    st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
@@ -209,21 +376,26 @@ st.divider()
 # Algorithmically-similar peer subset
 # ---------------------------------------------------------------------------
 
-st.header("Algorithmically-Similar Peers")
+st.header("Demographically-Similar Peers")
 st.caption(
     "Rather than a hand-picked peer list, find the schools whose **demographic "
     "profile** is closest to LEHS in normalized feature space. Distance is "
     "Euclidean across the five demographic dimensions below, each z-score "
-    "normalized so no single feature dominates."
+    "normalized so no single feature dominates. Note: similarity is computed "
+    "against the 25 other gateway-city main HS (one school per city) — Lynn "
+    "Classical, Lynn Tech, and the LPS-district aggregate are excluded here "
+    "even though they appear as their own dots in the scatters above."
 )
-
-import numpy as np  # noqa: E402
 
 similarity_features = ["% ELL", "% Low Income", "% High Needs",
                         "% Hispanic/Latino", "Enrollment"]
 
-# Build a clean numeric matrix
-sim_df = scorecard[["ORG_CODE", "City", "ORG_NAME"] + similarity_features].copy()
+# Build a clean numeric matrix — restricted to the gateway main-HS set
+# (one school per city), so we don't pick LEHS's same-district siblings or
+# the LPS-district synthetic row as "similar peers".
+sim_df = scorecard[scorecard["ORG_CODE"].isin(gateway_codes)][
+    ["ORG_CODE", "City", "ORG_NAME"] + similarity_features
+].copy()
 sim_df = sim_df.dropna(subset=similarity_features)
 
 if (
@@ -265,7 +437,7 @@ if (
         if col in show.columns:
             show[col] = show[col].apply(lambda x: f"{x:.0%}" if pd.notna(x) else "—")
     show["Enrollment"] = show["Enrollment"].apply(lambda x: f"{int(x):,}" if pd.notna(x) else "—")
-    st.dataframe(show.style.apply(highlight_lynn_schools, axis=1),
+    st.dataframe(show.style.apply(highlight_lehs_row, axis=1),
                  use_container_width=True, hide_index=True)
 
     # Plain-language explanation of who landed in the top-5

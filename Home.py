@@ -54,6 +54,10 @@ nav = {
         st.Page("pages/Lynn_City.py", title="City", url_path="Lynn_City"),
     ],
     "Comparison": [
+        # Lifted out of the Lynn District page (formerly its "LEHS vs Siblings"
+        # tab) so all peer-comparison views — same-district siblings, gateway
+        # cities, cross-topic correlations — share one section of the sidebar.
+        st.Page("pages/Lynn_Schools.py", title="Lynn Schools", url_path="Lynn_Schools"),
         st.Page("pages/11_Gateway_Peer_Comparison.py", title="Gateway Cities", url_path="Gateway_Peer_Comparison"),
         # Renamed for the public audience — "Correlation Lab" reads as jargon.
         st.Page("pages/12_Correlation_Lab.py", title="Cross-Topic Explorer", url_path="Correlation_Lab"),

@@ -12,7 +12,7 @@ from utils.data_loader import load_dataset
 
 # Per Max's editorial direction: this page is LEHS-focused. School-to-school
 # teacher comparison (LEHS vs Classical vs Tech) lives in
-# pages/Lynn_District.py LEHS-vs-Siblings tab, where it can be done properly
+# pages/Lynn_Schools.py (Compare group), where it can be done properly
 # across all 5 Lynn high schools.
 
 st.set_page_config(page_title="Teachers & Workforce | LEHS", page_icon="👩‍🏫", layout="wide")

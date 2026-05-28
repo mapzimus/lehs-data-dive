@@ -1,6 +1,7 @@
 """Shared branding/attribution helpers — call from every page."""
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 
 AUTHOR_NAME = "Maxwell Howe"
@@ -106,6 +107,91 @@ section.main > div.block-container {
 """
 
 
+# Streamlit's dict-based st.navigation renders each section header as a
+# clickable <header data-testid="stNavSectionHeader"> that defaults to
+# expanded. With 10 pages in "The School (LEHS)", that pushes
+# Lynn/Comparison/About below the fold. There's also a global "View 8
+# more" truncation that hides sections beyond the first ~8 items.
+#
+# This snippet runs in a Streamlit components iframe (same-origin with
+# the parent, so window.parent.document reaches the real sidebar DOM):
+#
+#   1. If "View 8 more" is showing, click it so every section is mounted.
+#   2. Collapse every section EXCEPT the one containing the active page.
+#   3. Mark sections that the user has toggled themselves so reruns
+#      don't fight them.
+#
+# Idempotent — runs once on first render via a MutationObserver that
+# disconnects after the nav has settled.
+_NAV_COLLAPSE_JS = """
+<script>
+(function () {
+  const PARENT = window.parent.document;
+  let didCollapse = false;
+  let obs = null;
+
+  // Section "collapsed" state can't be read from the icon (it always
+  // says "expand_more"); the only reliable check is whether the section
+  // wrapper contains <li> children — expanded sections have them,
+  // collapsed sections don't.
+  const sectionLiCount = (header) => {
+    const sec = header.closest('[data-testid="stSidebarNavItems"] > div');
+    return sec ? sec.querySelectorAll('li').length : 0;
+  };
+
+  const collapseSection = (header) => {
+    if (sectionLiCount(header) === 0) return;  // already collapsed
+    // Clicking the <header> would navigate to its first link; the
+    // expand/collapse hit-target is the <span> wrapping the icon.
+    const target = header.querySelector('[data-testid="stIconMaterial"]')?.parentElement;
+    if (target) target.click();
+  };
+
+  const apply = () => {
+    if (didCollapse) {
+      if (obs) obs.disconnect();
+      return;
+    }
+
+    const nav = PARENT.querySelector('[data-testid="stSidebarNav"]');
+    if (!nav) return;
+
+    // Expand the "View N more" truncation so every section header is
+    // mounted in the DOM before we try to collapse them.
+    const viewBtn = nav.querySelector('[data-testid="stSidebarNavViewButton"]');
+    if (viewBtn && /view\\s+\\d+\\s+more/i.test(viewBtn.textContent)) {
+      viewBtn.click();
+      return;  // Wait for the next mutation tick.
+    }
+
+    const headers = nav.querySelectorAll('[data-testid="stNavSectionHeader"]');
+    if (!headers.length) return;
+
+    const activeLink = nav.querySelector('a[aria-current="page"]');
+    const activeSection = activeLink
+      ? activeLink.closest('[data-testid="stSidebarNavItems"] > div')
+      : null;
+
+    headers.forEach((h) => {
+      const section = h.closest('[data-testid="stSidebarNavItems"] > div');
+      if (section === activeSection) return;  // keep current page's section open
+      collapseSection(h);
+    });
+
+    didCollapse = true;
+    if (obs) obs.disconnect();
+  };
+
+  apply();
+  obs = new MutationObserver(apply);
+  obs.observe(PARENT.body, { childList: true, subtree: true });
+  // Hard cap — bail out after a few seconds even if something stalls.
+  setTimeout(() => { if (obs) obs.disconnect(); }, 5000);
+})();
+</script>
+"""
+
+
 def sidebar_attribution() -> None:
     """Render the author attribution + inject global mobile-responsive CSS.
 
@@ -114,6 +200,10 @@ def sidebar_attribution() -> None:
     # Inject the mobile CSS once per page (Streamlit re-renders on each
     # interaction, but the style tag idempotently overrides).
     st.markdown(_MOBILE_CSS, unsafe_allow_html=True)
+
+    # Collapse non-active sidebar nav sections on first load. height=0
+    # keeps the helper iframe invisible.
+    components.html(_NAV_COLLAPSE_JS, height=0)
 
     st.sidebar.markdown(
         f"""

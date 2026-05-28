@@ -1,5 +1,5 @@
 ﻿"""
-Section 12 — Cross-Reference Lab: correlation discovery across domains.
+Section 12 — Cross-Topic Explorer: correlation discovery across domains.
 
 The novel analytical layer no DESE tool provides.
 """
@@ -18,10 +18,10 @@ from utils.constants import PROCESSED_DIR
 from utils.correlations import interpret_r, pearson, regression_line
 from utils.data_loader import load_dataset
 
-st.set_page_config(page_title="Correlation Lab | LEHS", page_icon="🔬", layout="wide")
+st.set_page_config(page_title="Cross-Topic Explorer | LEHS", page_icon="🔬", layout="wide")
 sidebar_attribution()
 
-st.title("Cross-Reference Lab")
+st.title("Cross-Topic Explorer")
 st.markdown(
     "Because every dataset lives in the same data model joined on (school, year), "
     "we can ask questions DESE's siloed tools can't. Pick any two metrics "

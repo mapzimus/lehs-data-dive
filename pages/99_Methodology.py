@@ -91,12 +91,12 @@ home so the rest of the pages can stay LEHS-focused:
 
 1. **Lynn sibling high schools** (LEHS vs. Lynn Classical, Lynn Tech,
    Frederick Douglass, Harold Durgin) — the same-district, same-policies
-   comparison. Lives on the **[Lynn District](/Lynn_District)** page,
-   *LEHS vs Siblings* tab. Differences here isolate school-level
-   practices (curriculum, discipline policy, ELL programming) from
-   city-wide demographics. Where surviving chart contrasts on other
-   pages (Finance, Discipline) include Classical alongside LEHS, Lynn
-   Tech is included too.
+   comparison. Lives on the **[Lynn Schools](/Lynn_Schools)** page under
+   the Compare group. Differences here isolate school-level practices
+   (curriculum, discipline policy, ELL programming) from city-wide
+   demographics. Where surviving chart contrasts on other pages (Finance,
+   Discipline) include Classical alongside LEHS, Lynn Tech is included
+   too.
 2. **Lynn Public Schools as a whole** — district context, 22 schools.
    Shown on the **[Lynn District](/Lynn_District)** *Snapshot* tab and
    referenced on other pages where the district benchmark adds context.
@@ -108,9 +108,10 @@ home so the rest of the pages can stay LEHS-focused:
 
 LEHS-focused pages (School Profile, Academic Performance, English
 Learners, College & Career, Success After HS, Teachers & Workforce,
-Finance, Discipline & Climate, Where Students Live, After Graduation)
-lead with LEHS's own story. School-to-school comparison lives in the
-dedicated Siblings tab; cross-city comparison lives in Gateway Cities.
+Finance, Discipline & Climate, Where Students Live)
+lead with LEHS's own story. School-to-school comparison lives on the
+Compare → Lynn Schools page; cross-city comparison lives on Compare →
+Gateway Cities.
 """
 )
 
