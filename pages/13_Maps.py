@@ -22,6 +22,7 @@ Layout mirrors the user audit:
     choropleth-curious newcomers
 """
 
+import base64
 from pathlib import Path
 
 import streamlit as st
@@ -54,10 +55,60 @@ st.divider()
 # ---------------------------------------------------------------------------
 
 
-def _preview_or_placeholder(filename: str, alt_text: str) -> None:
+_MIME_BY_SUFFIX = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
+
+
+@st.cache_data(show_spinner=False)
+def _image_data_uri(path_str: str) -> str:
+    """Read an image off disk once per session and return a data: URI.
+
+    Cached so the ~600 KB base64 string isn't re-encoded on every
+    Streamlit rerun — only paid once per visitor.
+    """
+    path = Path(path_str)
+    mime = _MIME_BY_SUFFIX.get(path.suffix.lower(), "image/png")
+    return f"data:{mime};base64,{base64.b64encode(path.read_bytes()).decode('ascii')}"
+
+
+def _preview_or_placeholder(
+    filename: str, alt_text: str, link_url: str | None = None
+) -> None:
+    """Render the map preview image (with optional click-through link)
+    or a dashed-line placeholder if the file isn't there yet.
+
+    When `link_url` is provided, the image is wrapped in an <a> with
+    target="_blank" so a click pops out to the standalone map app.
+    The image is inlined as a base64 data URI so Streamlit's image
+    server URL doesn't have to be reverse-engineered.
+    """
     path = IMAGES_DIR / filename
     if path.exists():
-        st.image(str(path), use_container_width=True)
+        if link_url:
+            data_uri = _image_data_uri(str(path))
+            # Subtle hover hint: drop opacity slightly + outline so the
+            # image reads as clickable. Border-radius matches the
+            # rest of the dashboard's image styling.
+            st.markdown(
+                f"""
+                <a href="{link_url}" target="_blank" rel="noopener noreferrer"
+                   style="display:block; line-height:0; text-decoration:none;">
+                  <img src="{data_uri}" alt="{alt_text}"
+                       title="{alt_text} — opens in a new tab"
+                       style="
+                         width: 100%;
+                         border-radius: 6px;
+                         border: 1px solid #E0E5EB;
+                         cursor: pointer;
+                         transition: opacity 0.15s, box-shadow 0.15s;
+                       "
+                       onmouseover="this.style.opacity='0.85'; this.style.boxShadow='0 4px 14px rgba(10,31,68,0.15)';"
+                       onmouseout="this.style.opacity='1'; this.style.boxShadow='none';" />
+                </a>
+                """,
+                unsafe_allow_html=True,
+            )
+        else:
+            st.image(str(path), use_container_width=True)
     else:
         st.markdown(
             f"""
@@ -97,7 +148,11 @@ with c_lynn:
         "Marblehead, Nahant) for context."
     )
 
-    _preview_or_placeholder("lynn-maps-preview.png", "Lynn Maps preview")
+    _preview_or_placeholder(
+        "lynn-maps-preview.png",
+        "Lynn Maps preview",
+        link_url="https://maxwellhowegis.com/Lynn-data-dive/maps/",
+    )
 
     st.markdown(
         """
@@ -139,7 +194,11 @@ with c_atlas:
         "every Gateway city — all on one map with 40+ metrics."
     )
 
-    _preview_or_placeholder("ma-atlas-preview.png", "MA Education Atlas preview")
+    _preview_or_placeholder(
+        "ma-atlas-preview.png",
+        "MA Education Atlas preview",
+        link_url="https://maxwellhowegis.com/ma-atlas/",
+    )
 
     st.markdown(
         """
