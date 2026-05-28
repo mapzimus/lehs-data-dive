@@ -57,80 +57,12 @@ with _id_r:
             "that story matter just as much."
         )
 
-# ---------------------------------------------------------------------------
-# Phase E — DESE ESSA accountability classification. This is the single
-# highest-stakes status indicator the state publishes about LEHS; it
-# determines whether the school is subject to federal/state intervention
-# requirements. Show it up top before any demographic context.
-# ---------------------------------------------------------------------------
-
-_acc = load_dataset("accountability")
-if not _acc.empty:
-    _lehs_acc = _acc[(_acc["ORG_CODE"] == LEHS_SCHOOL_CODE) & (_acc["ORG_TYPE"] == "School")]
-    _dist_acc = _acc[(_acc["ORG_CODE"] == LYNN_DISTRICT_CODE) & (_acc["ORG_TYPE"] == "District")]
-    if not _lehs_acc.empty:
-        _row = _lehs_acc.iloc[0]
-        _sy = _row["SY"]
-        _classif = _row["CLASSIFICATION"]
-        _reason = _row["REASON"]
-        _pct = _row["PERCENTILE"]
-        _progress = _row["PROGRESS_PCT"]
-
-        # Color the callout by classification severity. DESE has 4 buckets;
-        # everything starting with "Requiring" is in the intervention tier.
-        if isinstance(_classif, str) and _classif.lower().startswith("requiring"):
-            _alert = st.error
-            _icon = "⚠️"
-        elif isinstance(_classif, str) and _classif.lower().startswith("not requiring"):
-            _alert = st.success
-            _icon = "✓"
-        else:
-            _alert = st.info
-            _icon = "ℹ️"
-
-        _district_blurb = ""
-        if not _dist_acc.empty:
-            _drow = _dist_acc.iloc[0]
-            _district_blurb = (
-                f"  \n_Lynn district overall:_ **{_drow['CLASSIFICATION']}** "
-                f"({_drow['REASON'].lower()})."
-            )
-
-        _alert(
-            f"{_icon} **DESE Accountability ({_sy}): {_classif}** — {_reason}." + _district_blurb
-        )
-
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            st.metric(
-                "Statewide Accountability Percentile",
-                f"{int(_pct)}" if pd.notna(_pct) else "—",
-                help=(
-                    "DESE ranks every MA school 1-99 on a composite of MCAS achievement, "
-                    "growth, English-learner progress, chronic absenteeism, dropout, and "
-                    "graduation. Higher is better. LEHS at 1 means it scores at or near "
-                    "the bottom of the statewide distribution on the composite — though "
-                    "the underlying inputs each tell different stories (see Academic "
-                    "Performance, Discipline & Climate, and Success After HS)."
-                ),
-            )
-        with c2:
-            st.metric(
-                "Cumulative progress toward targets",
-                f"{int(_progress)}%" if pd.notna(_progress) else "—",
-                help=(
-                    "% of LEHS's improvement-target indicators where the school has met "
-                    "or exceeded its annual target."
-                ),
-            )
-        with c3:
-            st.markdown(
-                "<small>Source: DESE statereport accountability report. "
-                "Classifications: *Schools of Recognition* &gt; *Not requiring "
-                "assistance* &gt; *Requiring assistance or intervention* &gt; *Underperforming* "
-                "&gt; *Chronically Underperforming*.</small>",
-                unsafe_allow_html=True,
-            )
+# DESE ESSA accountability classification was previously rendered at
+# the top of the page; that framed every visitor's first impression of
+# LEHS as the worst news the state publishes about it. Block moved to
+# near the bottom of the page (right before the history cross-link),
+# preserved verbatim but no longer dominating the hero. See the
+# render-block below the data charts.
 
 enrollment = load_dataset("enrollment_demographics")
 if enrollment.empty:
@@ -188,7 +120,78 @@ with c5:
         "% High Needs",
         f"{current['HN_PCT']:.0%}",
         yoy_delta(current["HN_PCT"] * 100, prior["HN_PCT"] * 100, "pts") if prior is not None else "",
+        help=(
+            "DESE's 'High Needs' flag fires when a student is in at least ONE "
+            "of: English Learner, Economically Disadvantaged, or Students with "
+            "Disabilities. It's a UNION, not an intersection — so it's higher "
+            "than any single subgroup % but says nothing about how much those "
+            "subgroups overlap. (The dashboard works from district-level "
+            "aggregates, so a true EL-AND-LI cross-tab isn't available here.)"
+        ),
     )
+
+# ---------------------------------------------------------------------------
+# Headline academic outcome — Gap #6: the Profile previously showed
+# zero academic stats, forcing visitors to know to click out to
+# Academic Performance. One outcome tile + a link closes the loop
+# without duplicating the deep-dive page.
+# ---------------------------------------------------------------------------
+
+_grad = load_dataset("graduation_rates")
+_g_row = None
+if not _grad.empty:
+    _g_lehs = _grad[
+        (_grad["ORG_CODE"] == LEHS_SCHOOL_CODE)
+        & (_grad["ORG_TYPE"] == "School")
+        & (_grad["STU_GRP"] == "All Students")
+        & (_grad["GRAD_RATE_TYPE"] == "4-Year Adjusted Cohort Graduation Rate")
+    ].sort_values("SY")
+    if not _g_lehs.empty:
+        _g_row = _g_lehs.iloc[-1]
+
+_mcas = load_dataset("mcas_achievement")
+_m_ela_row = None
+_m_math_row = None
+if not _mcas.empty:
+    _g10 = _mcas[
+        (_mcas["ORG_CODE"] == LEHS_SCHOOL_CODE)
+        & (_mcas["ORG_TYPE"] == "School")
+        & (_mcas["STU_GRP"] == "All Students")
+        & (_mcas["TEST_GRADE"] == "10")
+    ]
+    _ela = _g10[_g10["SUBJECT_CODE"] == "ELA"].sort_values("SY")
+    _math = _g10[_g10["SUBJECT_CODE"] == "MATH"].sort_values("SY")
+    if not _ela.empty:
+        _m_ela_row = _ela.iloc[-1]
+    if not _math.empty:
+        _m_math_row = _math.iloc[-1]
+
+if _g_row is not None or _m_ela_row is not None or _m_math_row is not None:
+    st.caption(
+        "Quick academic snapshot — see **[Academic Performance](/Academic_Performance)** "
+        "for the full subject-by-subject MCAS breakdown with confidence intervals."
+    )
+    ac1, ac2, ac3, _ac4 = st.columns([1, 1, 1, 1])
+    with ac1:
+        if _g_row is not None:
+            st.metric(
+                f"4-yr Graduation Rate (cohort {int(_g_row['SY'])})",
+                f"{float(_g_row['GRAD_PCT']):.0%}",
+            )
+    with ac2:
+        if _m_ela_row is not None:
+            st.metric(
+                f"MCAS Gr10 ELA — % M+E (SY {sy_label(int(_m_ela_row['SY']))})",
+                f"{float(_m_ela_row['M_PLUS_E_PCT']):.0%}",
+                help="% of Grade 10 LEHS students Meeting + Exceeding expectations on ELA.",
+            )
+    with ac3:
+        if _m_math_row is not None:
+            st.metric(
+                f"MCAS Gr10 Math — % M+E (SY {sy_label(int(_m_math_row['SY']))})",
+                f"{float(_m_math_row['M_PLUS_E_PCT']):.0%}",
+                help="% of Grade 10 LEHS students Meeting + Exceeding expectations on Math.",
+            )
 
 # ---------------------------------------------------------------------------
 # Long-term transformation
@@ -269,6 +272,60 @@ st.caption(
     f"SY {sy_label(peak_year['SY'])} and reached its lowest at "
     f"**{int(trough_year['TOTAL_CNT']):,}** in SY {sy_label(trough_year['SY'])}."
 )
+
+# ---------------------------------------------------------------------------
+# Student-teacher ratio over time — Gap #1: the first question families
+# ask. Pairs naturally with the enrollment trend above; if enrollment
+# went up but staffing didn't, the ratio climbs (bad). If both moved
+# together, the ratio's flat (neutral).
+# ---------------------------------------------------------------------------
+
+st.subheader("Student–teacher ratio over time")
+st.caption(
+    "DESE's reported student-to-teacher ratio for LEHS, computed from the "
+    "'All Teachers' FTE total. Lower is better (smaller classes)."
+)
+
+_td = load_dataset("teacher_data")
+if not _td.empty:
+    _tr = _td[
+        (_td["ORG_CODE"] == LEHS_SCHOOL_CODE)
+        & (_td["ORG_TYPE"] == "School")
+        & (_td["SUBJECT"] == "All Teachers")
+    ].sort_values("SY").copy()
+    # STU_TCHR_RATIO ships as "13.2 to 1" — parse out the float.
+    _tr["ratio_num"] = pd.to_numeric(
+        _tr["STU_TCHR_RATIO"].astype(str).str.split("to").str[0].str.strip(),
+        errors="coerce",
+    )
+    _tr = _tr.dropna(subset=["ratio_num"])
+    if not _tr.empty:
+        fig_r = px.line(_tr, x="SY", y="ratio_num", markers=True)
+        fig_r.update_traces(
+            line=dict(color=LEHS_GOLD, width=3),
+            marker=dict(size=8, color=LEHS_NAVY),
+            text=_tr["ratio_num"].apply(lambda v: f"{v:.1f}:1"),
+            textposition="top center",
+            mode="lines+markers+text",
+            textfont=dict(size=10, color=LEHS_NAVY),
+        )
+        fig_r.update_layout(
+            **DEFAULT_LAYOUT,
+            yaxis_title="Students per teacher",
+            xaxis_title="School Year",
+            title="Lynn English High School — student-to-teacher ratio",
+        )
+        st.plotly_chart(fig_r, use_container_width=True)
+        _latest_r = _tr.iloc[-1]
+        _earliest_r = _tr.iloc[0]
+        st.caption(
+            f"Latest available: **{_latest_r['ratio_num']:.1f} students per teacher** "
+            f"in SY {sy_label(int(_latest_r['SY']))}. Earliest reported in this "
+            f"dataset: {_earliest_r['ratio_num']:.1f}:1 in SY "
+            f"{sy_label(int(_earliest_r['SY']))}."
+        )
+    else:
+        st.caption("Student-teacher ratio data isn't loaded for LEHS yet.")
 
 # ---------------------------------------------------------------------------
 # LEHS vs Lynn district — same-year comparison
@@ -421,22 +478,31 @@ st.plotly_chart(fig, use_container_width=True)
 
 st.subheader("Selected Populations Over Time")
 st.caption(
-    "Five key student-group classifications that drive resource allocation, "
-    "accountability calculations, and federal/state programmatic support."
+    "Six key student-group classifications that drive resource allocation, "
+    "accountability calculations, and federal/state programmatic support. "
+    "**Economically Disadvantaged (ECD)** is DESE's current direct-certification "
+    "measure (SNAP, TANF, foster, homeless); **Low Income (LI)** is the "
+    "older Title-I-style flag — they capture nearly the same population but "
+    "differ by definition, so both are shown."
 )
 
+# Gap #3: add Economically Disadvantaged (ECD_PCT) alongside Low Income
+# so the FRPL/direct-cert vs Title-I distinction is visible.
+_pop_cols = ["EL_PCT", "LI_PCT", "ECD_PCT", "SWD_PCT", "HN_PCT", "FLNE_PCT"]
+_pop_cols = [c for c in _pop_cols if c in lehs.columns]
 pop_long = lehs.melt(
     id_vars=["SY"],
-    value_vars=["EL_PCT", "LI_PCT", "SWD_PCT", "HN_PCT", "FLNE_PCT"],
+    value_vars=_pop_cols,
     var_name="Group",
     value_name="Pct",
 )
 pop_labels = {
-    "EL_PCT":  "English Learner",
-    "LI_PCT":  "Low Income",
-    "SWD_PCT": "Students w/ Disabilities",
-    "HN_PCT":  "High Needs",
-    "FLNE_PCT":"First Lang Not English",
+    "EL_PCT":   "English Learner",
+    "LI_PCT":   "Low Income",
+    "ECD_PCT":  "Economically Disadvantaged",
+    "SWD_PCT":  "Students w/ Disabilities",
+    "HN_PCT":   "High Needs",
+    "FLNE_PCT": "First Lang Not English",
 }
 pop_long["Group"] = pop_long["Group"].map(pop_labels)
 pop_long = pop_long.dropna(subset=["Pct"])
@@ -444,11 +510,12 @@ pop_long = pop_long.dropna(subset=["Pct"])
 fig = px.line(
     pop_long, x="SY", y="Pct", color="Group", markers=True,
     color_discrete_map={
-        "English Learner":          SUBGROUP_PALETTE["English Learner"],
-        "Low Income":               SUBGROUP_PALETTE["Low Income"],
-        "Students w/ Disabilities": SUBGROUP_PALETTE["Students w/ Disabilities"],
-        "High Needs":               SUBGROUP_PALETTE["High Needs"],
-        "First Lang Not English":   "#0277BD",
+        "English Learner":            SUBGROUP_PALETTE["English Learner"],
+        "Low Income":                 SUBGROUP_PALETTE["Low Income"],
+        "Economically Disadvantaged": "#8B4513",
+        "Students w/ Disabilities":   SUBGROUP_PALETTE["Students w/ Disabilities"],
+        "High Needs":                 SUBGROUP_PALETTE["High Needs"],
+        "First Lang Not English":     "#0277BD",
     },
 )
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share of Students",
@@ -539,6 +606,117 @@ fig = go.Figure(go.Bar(
 fig.update_layout(**DEFAULT_LAYOUT, xaxis_title="Students", yaxis_title="",
                    xaxis_range=[0, pop_counts["Count"].max() * 1.25])
 st.plotly_chart(fig, use_container_width=True)
+
+# ---------------------------------------------------------------------------
+# Where LEHS students live — Gap #4: tie the demographic story to a
+# place. A kernel-density thumbnail from the original catchment
+# research, with a hand-off to Where Students Live for the full
+# investigation.
+# ---------------------------------------------------------------------------
+
+_catchment_thumb = PROCESSED_DIR / "lehs_research" / "kde_heatmap.png"
+if _catchment_thumb.exists():
+    st.subheader("Where LEHS students live")
+    _cm_l, _cm_r = st.columns([2, 3], gap="medium")
+    with _cm_l:
+        st.image(
+            str(_catchment_thumb),
+            use_container_width=True,
+            caption="Kernel-density estimate of LEHS student residences (aggregated for privacy).",
+        )
+    with _cm_r:
+        st.markdown(
+            "LEHS's demographic story has a geographic shape. Roughly **75%** "
+            "of the school's students live within a tight cluster of "
+            "neighborhoods in central and south Lynn, with smaller pockets "
+            "further out. The catchment overlaps with the city's denser "
+            "rental stock, lower-income tracts, and the corridor where "
+            "Lynn's foreign-born population concentrates."
+        )
+        st.page_link(
+            "pages/16_Where_Students_Live.py",
+            label="Open Where Students Live →",
+            use_container_width=True,
+        )
+        st.caption(
+            "Built from private student records (Lynn Public Schools SIS); "
+            "spatially aggregated to prevent individual identification."
+        )
+
+# ---------------------------------------------------------------------------
+# Student mobility — Gap #2: how stable is the LEHS student body
+# during a given school year? Schools with high churn have a very
+# different operational reality than schools with low churn even at
+# the same headcount.
+# ---------------------------------------------------------------------------
+
+_mob = load_dataset("student_mobility")
+if not _mob.empty:
+    _mob_lehs = _mob[
+        (_mob["ORG_CODE"] == LEHS_SCHOOL_CODE)
+        & (_mob["ORG_TYPE"] == "School")
+        & (_mob["STU_GRP"] == "All Students")
+    ].sort_values("SY").copy()
+    if not _mob_lehs.empty:
+        st.subheader("Student mobility")
+        st.caption(
+            "How much of LEHS's student body turns over during a school year. "
+            "**Stability** = % enrolled the whole year. **Churn** = % who "
+            "moved in or out mid-year. **Intake** = % new during the year. "
+            "Lower churn means a more predictable instructional environment."
+        )
+
+        _latest_m = _mob_lehs.iloc[-1]
+        m1, m2, m3, m4 = st.columns(4)
+        with m1:
+            st.metric(
+                "Stability rate",
+                f"{float(_latest_m['STAB_PCT']):.0%}",
+                help="% of LEHS students who stayed enrolled the entire school year.",
+            )
+        with m2:
+            st.metric(
+                "Churn rate",
+                f"{float(_latest_m['CHURN_PCT']):.0%}",
+                help="% of the school year's enrollment that moved in or out mid-year.",
+            )
+        with m3:
+            st.metric(
+                "Mid-year intake",
+                f"{float(_latest_m['INTAKE_PCT']):.0%}",
+                help="% of students who started at LEHS partway through the school year.",
+            )
+        with m4:
+            st.metric("School year", sy_label(int(_latest_m["SY"])))
+
+        _mob_long = _mob_lehs.melt(
+            id_vars=["SY"],
+            value_vars=["STAB_PCT", "CHURN_PCT", "INTAKE_PCT"],
+            var_name="Metric", value_name="Pct",
+        )
+        _mob_label = {
+            "STAB_PCT": "Stability",
+            "CHURN_PCT": "Churn",
+            "INTAKE_PCT": "Mid-year intake",
+        }
+        _mob_long["Metric"] = _mob_long["Metric"].map(_mob_label)
+        _mob_long = _mob_long.dropna(subset=["Pct"])
+        fig_m = px.line(
+            _mob_long, x="SY", y="Pct", color="Metric", markers=True,
+            color_discrete_map={
+                "Stability": LEHS_NAVY,
+                "Churn": "#D32F2F",
+                "Mid-year intake": "#F57C00",
+            },
+        )
+        fig_m.update_layout(
+            **DEFAULT_LAYOUT,
+            yaxis_tickformat=".0%",
+            yaxis_title="Share of students",
+            xaxis_title="School Year",
+            title="LEHS student mobility over time",
+        )
+        st.plotly_chart(fig_m, use_container_width=True)
 
 # ---------------------------------------------------------------------------
 # Attendance & Chronic Absenteeism
@@ -672,6 +850,87 @@ if not attendance.empty:
                 )
 
         st.caption(chronic_absenteeism_methodology_note())
+
+# ---------------------------------------------------------------------------
+# DESE ESSA accountability — moved here from the top of the page. Still
+# important context, but placing it at the bottom lets the data above
+# speak for itself before a visitor sees the state's intervention label.
+# ---------------------------------------------------------------------------
+
+st.divider()
+st.subheader("State accountability status")
+st.caption(
+    "DESE's official ESSA-era classification for LEHS — what the state "
+    "publishes about the school's overall improvement standing."
+)
+
+_acc = load_dataset("accountability")
+if not _acc.empty:
+    _lehs_acc = _acc[(_acc["ORG_CODE"] == LEHS_SCHOOL_CODE) & (_acc["ORG_TYPE"] == "School")]
+    _dist_acc = _acc[(_acc["ORG_CODE"] == LYNN_DISTRICT_CODE) & (_acc["ORG_TYPE"] == "District")]
+    if not _lehs_acc.empty:
+        _row = _lehs_acc.iloc[0]
+        _sy = _row["SY"]
+        _classif = _row["CLASSIFICATION"]
+        _reason = _row["REASON"]
+        _pct = _row["PERCENTILE"]
+        _progress = _row["PROGRESS_PCT"]
+
+        # Color the callout by classification severity. DESE has 4 buckets;
+        # everything starting with "Requiring" is in the intervention tier.
+        if isinstance(_classif, str) and _classif.lower().startswith("requiring"):
+            _alert = st.error
+            _icon = "⚠️"
+        elif isinstance(_classif, str) and _classif.lower().startswith("not requiring"):
+            _alert = st.success
+            _icon = "✓"
+        else:
+            _alert = st.info
+            _icon = "ℹ️"
+
+        _district_blurb = ""
+        if not _dist_acc.empty:
+            _drow = _dist_acc.iloc[0]
+            _district_blurb = (
+                f"  \n_Lynn district overall:_ **{_drow['CLASSIFICATION']}** "
+                f"({_drow['REASON'].lower()})."
+            )
+
+        _alert(
+            f"{_icon} **DESE Accountability ({_sy}): {_classif}** — {_reason}." + _district_blurb
+        )
+
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.metric(
+                "Statewide Accountability Percentile",
+                f"{int(_pct)}" if pd.notna(_pct) else "—",
+                help=(
+                    "DESE ranks every MA school 1-99 on a composite of MCAS achievement, "
+                    "growth, English-learner progress, chronic absenteeism, dropout, and "
+                    "graduation. Higher is better. LEHS at 1 means it scores at or near "
+                    "the bottom of the statewide distribution on the composite — though "
+                    "the underlying inputs each tell different stories (see Academic "
+                    "Performance, Discipline & Climate, and Success After HS)."
+                ),
+            )
+        with c2:
+            st.metric(
+                "Cumulative progress toward targets",
+                f"{int(_progress)}%" if pd.notna(_progress) else "—",
+                help=(
+                    "% of LEHS's improvement-target indicators where the school has met "
+                    "or exceeded its annual target."
+                ),
+            )
+        with c3:
+            st.markdown(
+                "<small>Source: DESE statereport accountability report. "
+                "Classifications: *Schools of Recognition* &gt; *Not requiring "
+                "assistance* &gt; *Requiring assistance or intervention* &gt; *Underperforming* "
+                "&gt; *Chronically Underperforming*.</small>",
+                unsafe_allow_html=True,
+            )
 
 # ---------------------------------------------------------------------------
 # Cross-link out to the narrative history page. The Profile is "just the
