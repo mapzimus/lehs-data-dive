@@ -270,7 +270,7 @@ much bigger number than it actually is. Polygon shading keeps the
 geography honest.
 
 **New to reading maps and charts?** Start at
-**[Data 101](/Data_101)** — it covers the choropleth pattern plus the
+**[Data 101](/Data_101?embed=true)** — it covers the choropleth pattern plus the
 other chart types this dashboard uses, with live examples.
 """
 )

@@ -330,7 +330,7 @@ if bench_rows:
         "Massachusetts statewide average. Error bars are 95% Wilson confidence "
         "intervals — narrower for the larger denominators. For school-to-school "
         "MCAS comparison with Lynn Classical, Tech, and the alternative academies, "
-        "see [Lynn Schools](/Lynn_Schools) (Compare group)."
+        "see [Lynn Schools](/Lynn_Schools?embed=true) (Compare group)."
     )
 
 # ---------------------------------------------------------------------------

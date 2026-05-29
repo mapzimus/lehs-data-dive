@@ -91,19 +91,19 @@ home so the rest of the pages can stay LEHS-focused:
 
 1. **Lynn sibling high schools** (LEHS vs. Lynn Classical, Lynn Tech,
    Frederick Douglass, Harold Durgin) — the same-district, same-policies
-   comparison. Lives on the **[Lynn Schools](/Lynn_Schools)** page under
+   comparison. Lives on the **[Lynn Schools](/Lynn_Schools?embed=true)** page under
    the Compare group. Differences here isolate school-level practices
    (curriculum, discipline policy, ELL programming) from city-wide
    demographics. Where surviving chart contrasts on other pages (Finance,
    Discipline) include Classical alongside LEHS, Lynn Tech is included
    too.
 2. **Lynn Public Schools as a whole** — district context, 22 schools.
-   Shown on the **[Lynn District](/Lynn_District)** *Snapshot* tab and
+   Shown on the **[Lynn District](/Lynn_District?embed=true)** *Snapshot* tab and
    referenced on other pages where the district benchmark adds context.
 3. **26 Massachusetts Gateway Cities** — main comprehensive HS of each
-   peer city. Shown on the **[Gateway Cities](/Gateway_Peer_Comparison)**
+   peer city. Shown on the **[Gateway Cities](/Gateway_Peer_Comparison?embed=true)**
    page and as a scatter cloud on the
-   **[Cross-Topic Explorer](/Correlation_Lab)**. This is the
+   **[Cross-Topic Explorer](/Correlation_Lab?embed=true)**. This is the
    across-cities benchmark.
 
 LEHS-focused pages (School Profile, Academic Performance, English

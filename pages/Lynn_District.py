@@ -49,7 +49,7 @@ with _hdr_r:
         "**Snapshot** shows district-level trends. **All Schools** lets you "
         "filter every school in the district. For school-to-school comparison "
         "(LEHS vs. Classical, Tech, Frederick Douglass, Harold Durgin) see "
-        "[Lynn Schools](/Lynn_Schools) under the Compare group."
+        "[Lynn Schools](/Lynn_Schools?embed=true) under the Compare group."
     )
 
 # ---------------------------------------------------------------------------

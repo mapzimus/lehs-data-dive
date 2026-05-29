@@ -435,10 +435,10 @@ with p_col:
 ### For families
 *Choosing a school, understanding outcomes, comparing to siblings.*
 
-- **[School Profile](/School_Profile)** — who attends LEHS today
-- **[Academic Performance](/Academic_Performance)** — MCAS scores, growth, subject-by-subject gaps
-- **[Success After HS](/Success_After_HS)** — does the school's promise hold up through college?
-- **[Lynn Schools](/Lynn_Schools)** — LEHS vs. Classical, Tech, Frederick Douglass, Harold Durgin
+- **[School Profile](/School_Profile?embed=true)** — who attends LEHS today
+- **[Academic Performance](/Academic_Performance?embed=true)** — MCAS scores, growth, subject-by-subject gaps
+- **[Success After HS](/Success_After_HS?embed=true)** — does the school's promise hold up through college?
+- **[Lynn Schools](/Lynn_Schools?embed=true)** — LEHS vs. Classical, Tech, Frederick Douglass, Harold Durgin
         """
     )
 
@@ -448,10 +448,10 @@ with t_col:
 ### For teachers
 *Instructional planning, student insight, subgroup gaps.*
 
-- **[Academic Performance](/Academic_Performance)** — MCAS by subject, growth, gaps (with CIs)
-- **[English Learners](/ELL_Pipeline)** — LEHS's central narrative
-- **[Discipline & Climate](/Discipline_and_Climate)** — chronic absence by neighborhood + subgroup
-- **[Teachers & Workforce](/Teachers_and_Workforce)** — who's in the building
+- **[Academic Performance](/Academic_Performance?embed=true)** — MCAS by subject, growth, gaps (with CIs)
+- **[English Learners](/ELL_Pipeline?embed=true)** — LEHS's central narrative
+- **[Discipline & Climate](/Discipline_and_Climate?embed=true)** — chronic absence by neighborhood + subgroup
+- **[Teachers & Workforce](/Teachers_and_Workforce?embed=true)** — who's in the building
         """
     )
 
@@ -461,11 +461,11 @@ with sc_col:
 ### For school committee
 *Accountability, peer comparison, dollar-for-outcome leverage.*
 
-- **[Lynn District](/Lynn_District)** — LPS as a whole (*Snapshot* tab)
-- **[Finance](/Finance)** — per-pupil spending by category
-- **[Lynn Schools](/Lynn_Schools)** — LEHS vs. its same-district siblings
-- **[Gateway Cities](/Gateway_Peer_Comparison)** — 26-city scorecard
-- **[Cross-Topic Explorer](/Correlation_Lab)** — what moves with what
+- **[Lynn District](/Lynn_District?embed=true)** — LPS as a whole (*Snapshot* tab)
+- **[Finance](/Finance?embed=true)** — per-pupil spending by category
+- **[Lynn Schools](/Lynn_Schools?embed=true)** — LEHS vs. its same-district siblings
+- **[Gateway Cities](/Gateway_Peer_Comparison?embed=true)** — 26-city scorecard
+- **[Cross-Topic Explorer](/Correlation_Lab?embed=true)** — what moves with what
         """
     )
 
@@ -513,7 +513,7 @@ with c1:
 - **22 datasets** from MA DESE's E2C Hub (MCAS, graduation, AP, attendance,
   finance, staffing, plans of graduates, pathways, postsecondary outcomes)
 - **Original research**: Maxwell Howe's catchment + absenteeism geospatial
-  study using Lynn Public Schools student records (aggregated for privacy)
+  study using aggregated Lynn Public Schools enrollment data
 - **Federal data**: US Census ACS 5-year for Lynn tracts, MassGIS shapefiles
 - **Historical depth**: enrollment back to **1992–93**, MCAS back to 2017,
   graduation cohorts back to 2005
@@ -526,13 +526,13 @@ with c2:
 **Three peer cohorts** for comparing LEHS:
 - **Same district** *(closest comparison)* — LEHS vs. its sibling
   Lynn high schools. Same city, same policies → school-level effects
-  show through. See **[Lynn Schools](/Lynn_Schools)**.
+  show through. See **[Lynn Schools](/Lynn_Schools?embed=true)**.
 - **Same system** — LEHS within LPS as a whole, including all 26
-  schools and elementary feeders. See **[Lynn District](/Lynn_District)**.
+  schools and elementary feeders. See **[Lynn District](/Lynn_District?embed=true)**.
 - **Same role, different city** — LEHS vs. the main public high
   school in each of MA's 26 Gateway cities (Brockton, Lawrence,
   Chelsea, Lowell, Holyoke, Springfield, +19). See
-  **[Gateway Cities](/Gateway_Peer_Comparison)**.
+  **[Gateway Cities](/Gateway_Peer_Comparison?embed=true)**.
 """
     )
 
@@ -547,24 +547,24 @@ st.header("Questions you can answer here")
 st.markdown(
     """
 - **How is LEHS doing?** — Headline metrics, trends, and peer comparison
-  on the **[School Profile](/School_Profile)** and
-  **[Academic Performance](/Academic_Performance)** pages.
+  on the **[School Profile](/School_Profile?embed=true)** and
+  **[Academic Performance](/Academic_Performance?embed=true)** pages.
 - **What does LEHS's English Learner pipeline actually look like?** —
   From WIDA proficiency through MCAS, graduation, and into former-EL
-  years on the **[English Learners](/ELL_Pipeline)** page.
+  years on the **[English Learners](/ELL_Pipeline?embed=true)** page.
 - **Where does the budget go, and does it buy what we hope?** —
-  Per-pupil spending by category on **[Finance](/Finance)**, plus
-  cross-domain analysis on **[Cross-Topic Explorer](/Correlation_Lab)**.
+  Per-pupil spending by category on **[Finance](/Finance?embed=true)**, plus
+  cross-domain analysis on **[Cross-Topic Explorer](/Correlation_Lab?embed=true)**.
 - **Who works at LEHS, and how does the teacher body match the student
-  body?** — **[Teachers & Workforce](/Teachers_and_Workforce)**.
+  body?** — **[Teachers & Workforce](/Teachers_and_Workforce?embed=true)**.
 - **Where do LEHS students live, and does distance from school predict
-  absence?** — **[Where Students Live](/Where_Students_Live)**
+  absence?** — **[Where Students Live](/Where_Students_Live?embed=true)**
   *(aggregated maps from private SIS data).*
 - **What can Lynn learn from Lawrence, Chelsea, Holyoke, and other peer
   cities?** — Side-by-side scorecards on
-  **[Gateway Cities](/Gateway_Peer_Comparison)**.
+  **[Gateway Cities](/Gateway_Peer_Comparison?embed=true)**.
 - **What patterns emerge when you cross-reference everything?** —
-  **[Cross-Topic Explorer](/Correlation_Lab)** lets you pick any two
+  **[Cross-Topic Explorer](/Correlation_Lab?embed=true)** lets you pick any two
   metrics and see how they relate across the 26 gateway-city high schools.
 """
 )
@@ -588,21 +588,21 @@ with c1:
     st.markdown(
         """
 **Top of sidebar**
-- **[Home](/)** — this page
-- **[Maps](/Maps)** — Lynn-focused map + statewide MA Education Atlas
+- **[Home](/?embed=true)** — this page
+- **[Maps](/Maps?embed=true)** — Lynn-focused map + statewide MA Education Atlas
 
 **The School (LEHS)**
-- **[School Profile](/School_Profile)** — demographics, enrollment trends
-- **[Academic Performance](/Academic_Performance)** — MCAS, growth, gaps
-- **[English Learners](/ELL_Pipeline)** *(central narrative)*
-- **[College & Career](/College_and_Career)** — AP, MassCore, FAFSA, plans
-- **[Success After HS](/Success_After_HS)** — full pipeline (9th grade → grad → college → persistence → degrees → earnings)
-- **[Teachers & Workforce](/Teachers_and_Workforce)** — diversity, staffing
-- **[Finance](/Finance)** — per-pupil spending breakdowns
-- **[Discipline & Climate](/Discipline_and_Climate)** — suspensions, attendance
-- **[Athletics](/Athletics)** — Bulldogs season records, rivalry, hall of fame
-- **[Where Students Live](/Where_Students_Live)** — residential pattern (private SIS, aggregated)
-- **[LEHS History](/LEHS_History)** — 130+ years of the school's story (origins, 1924 fire, current campus, notable alumni)
+- **[School Profile](/School_Profile?embed=true)** — demographics, enrollment trends
+- **[Academic Performance](/Academic_Performance?embed=true)** — MCAS, growth, gaps
+- **[English Learners](/ELL_Pipeline?embed=true)** *(central narrative)*
+- **[College & Career](/College_and_Career?embed=true)** — AP, MassCore, FAFSA, plans
+- **[Success After HS](/Success_After_HS?embed=true)** — full pipeline (9th grade → grad → college → persistence → degrees → earnings)
+- **[Teachers & Workforce](/Teachers_and_Workforce?embed=true)** — diversity, staffing
+- **[Finance](/Finance?embed=true)** — per-pupil spending breakdowns
+- **[Discipline & Climate](/Discipline_and_Climate?embed=true)** — suspensions, attendance
+- **[Athletics](/Athletics?embed=true)** — Bulldogs season records, rivalry, hall of fame
+- **[Where Students Live](/Where_Students_Live?embed=true)** — residential pattern (private SIS, aggregated)
+- **[LEHS History](/LEHS_History?embed=true)** — 130+ years of the school's story (origins, 1924 fire, current campus, notable alumni)
 """
     )
 
@@ -610,17 +610,17 @@ with c2:
     st.markdown(
         """
 **Lynn**
-- **[District](/Lynn_District)** — Snapshot of LPS as a whole · All Lynn Schools (filter/sort 26 schools). Two tabs in one page.
-- **[City](/Lynn_City)** — Citywide demographics, economy, history · Neighborhoods (tract-level ACS, EJScreen, CDC PLACES). Two tabs in one page.
+- **[District](/Lynn_District?embed=true)** — Snapshot of LPS as a whole · All Lynn Schools (filter/sort 26 schools). Two tabs in one page.
+- **[City](/Lynn_City?embed=true)** — Citywide demographics, economy, history · Neighborhoods (tract-level ACS, EJScreen, CDC PLACES). Two tabs in one page.
 
 **Comparison**
-- **[Lynn Schools](/Lynn_Schools)** — LEHS vs. Classical, Tech, Frederick Douglass, Harold Durgin (*closest peer view*)
-- **[Gateway Cities](/Gateway_Peer_Comparison)** — 26-city scorecard with LEHS, Classical, Tech, and LPS-district as four separate dots
-- **[Cross-Topic Explorer](/Correlation_Lab)** — cross-domain analysis
+- **[Lynn Schools](/Lynn_Schools?embed=true)** — LEHS vs. Classical, Tech, Frederick Douglass, Harold Durgin (*closest peer view*)
+- **[Gateway Cities](/Gateway_Peer_Comparison?embed=true)** — 26-city scorecard with LEHS, Classical, Tech, and LPS-district as four separate dots
+- **[Cross-Topic Explorer](/Correlation_Lab?embed=true)** — cross-domain analysis
 
 **About**
-- **[Data 101](/Data_101)** — beginner's guide to reading the charts (built for students)
-- **[Methodology](/Methodology)** — sources and caveats
+- **[Data 101](/Data_101?embed=true)** — beginner's guide to reading the charts (built for students)
+- **[Methodology](/Methodology?embed=true)** — sources and caveats
 """
     )
 

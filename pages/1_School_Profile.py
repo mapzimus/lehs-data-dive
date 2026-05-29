@@ -153,7 +153,7 @@ if not _mcas.empty:
 
 if _g_row is not None or _m_ela_row is not None or _m_math_row is not None:
     st.caption(
-        "Quick academic snapshot — see **[Academic Performance](/Academic_Performance)** "
+        "Quick academic snapshot — see **[Academic Performance](/Academic_Performance?embed=true)** "
         "for the full subject-by-subject MCAS breakdown with confidence intervals."
     )
     ac1, ac2, ac3, _ac4 = st.columns([1, 1, 1, 1])
@@ -321,7 +321,7 @@ st.caption(
     "How LEHS's student body compares to the Lynn Public Schools district "
     "average (across all 22 schools, PK-12). For school-to-school "
     "comparison against other Lynn high schools, see "
-    "[Lynn Schools](/Lynn_Schools) (Compare group)."
+    "[Lynn Schools](/Lynn_Schools?embed=true) (Compare group)."
 )
 
 if not district.empty:
@@ -607,7 +607,7 @@ if _catchment_thumb.exists():
         st.image(
             str(_catchment_thumb),
             use_container_width=True,
-            caption="Kernel-density estimate of LEHS student residences (aggregated for privacy).",
+            caption="Kernel-density estimate of where LEHS students live, aggregated across Lynn.",
         )
     with _cm_r:
         st.markdown(
@@ -624,8 +624,8 @@ if _catchment_thumb.exists():
             use_container_width=True,
         )
         st.caption(
-            "Built from private student records (Lynn Public Schools SIS); "
-            "spatially aggregated to prevent individual identification."
+            "Source: Lynn Public Schools enrollment records, provided via a "
+            "data request and aggregated to neighborhood-level density."
         )
 
 # ---------------------------------------------------------------------------

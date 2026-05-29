@@ -255,13 +255,12 @@ st.markdown(
     "strongly does distance from school predict whether a student shows up?*"
 )
 
-st.info(
-    "**Privacy note.** Individual student addresses are never shown. All "
-    "maps below are aggregated — KDE density surfaces, 100m/150m grid "
-    "cells, hexbins, or statistical distributions. Cells with fewer than "
-    "the minimum count are filtered out. The full identifying analysis is "
-    "held privately and is not part of the public dashboard. See *Where "
-    "Our Students Live* (sidebar) for the residential-pattern view."
+st.caption(
+    "Source: LEHS student addresses (Lynn Public Schools, provided via a data "
+    "request) combined with daily attendance records. All maps below are "
+    "aggregated — KDE density surfaces, 100m/150m grid cells, hexbins, or "
+    "statistical distributions — not individual locations. See *Where Our "
+    "Students Live* (sidebar) for the residential-pattern view."
 )
 
 _RESEARCH_IMG_DIR = PROCESSED_DIR / "lehs_research"
@@ -337,7 +336,7 @@ st.markdown(
     "**Implication.** Aggregate absence rates can mask sharply concentrated "
     "geographic patterns. Schools targeting outreach to the highest-absence "
     "neighborhoods get more leverage per dollar than uniform interventions. "
-    "When read against the [Lynn page](/Lynn_City) (Neighborhoods tab — "
+    "When read against the [Lynn page](/Lynn_City?embed=true) (Neighborhoods tab — "
     "Census ACS demographics by tract), this also separates *distance "
     "effects* from *neighborhood demographic effects*."
 )

@@ -39,8 +39,8 @@ st.markdown(
     "the same district, same policies, and draw from the same student pool. "
     "Differences between them isolate school-level practices rather than "
     "city-level factors. For the district-wide picture (LPS as a system), "
-    "see [Lynn District](/Lynn_District). For comparison against the other "
-    "25 MA Gateway Cities, see [Gateway Cities](/Gateway_Peer_Comparison)."
+    "see [Lynn District](/Lynn_District?embed=true). For comparison against the other "
+    "25 MA Gateway Cities, see [Gateway Cities](/Gateway_Peer_Comparison?embed=true)."
 )
 
 # ---------------------------------------------------------------------------
@@ -284,7 +284,7 @@ st.markdown(
 different about the schools' outcomes?**
 
 The Lynn HS sibling comparison isolates school-level practices from city-level
-demographic factors. Use the [English Learners](/ELL_Pipeline) page to drill
+demographic factors. Use the [English Learners](/ELL_Pipeline?embed=true) page to drill
 into how each Lynn HS serves English Learners specifically — Lynn Tech, the
 alternative academies, and the two comprehensive HS may all show different
 patterns despite operating under the same district leadership.

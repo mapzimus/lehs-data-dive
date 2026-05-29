@@ -600,14 +600,14 @@ with tab_city:
         st.header("Where to go next")
         st.markdown(
             """
-- **[School Profile](/School_Profile)** — LEHS-specific student demographics
+- **[School Profile](/School_Profile?embed=true)** — LEHS-specific student demographics
   and the school as a snapshot of Lynn.
 - **Neighborhoods tab** (above) — tract-level Census ACS + EJScreen + CDC PLACES
   for Lynn's 22 census tracts.
-- **[Lynn District page](/Lynn_District)** — *All Schools* tab lists every
+- **[Lynn District page](/Lynn_District?embed=true)** — *All Schools* tab lists every
   K-12 school in LPS, filterable and sortable; *Snapshot* tab shows Lynn vs.
   Gateway median vs. State median on accountability indicators.
-- **[Where Students Live](/Where_Students_Live)** — Maxwell's original
+- **[Where Students Live](/Where_Students_Live?embed=true)** — Maxwell's original
   geospatial work on student address + absenteeism patterns.
 """
         )
@@ -786,7 +786,7 @@ with tab_nbhds:
         st.subheader("See the same data geographically")
         st.markdown(
             """
-The **[Maps section](/Maps)** of this dashboard opens the Lynn map, where
+The **[Maps section](/Maps?embed=true)** of this dashboard opens the Lynn map, where
 each tract is rendered as a polygon colored by any of these indicators.
 Click any tract for the full detail panel.
 

@@ -35,9 +35,9 @@ st.markdown(
     "This page focuses on the **residence pattern itself**. Two follow-on "
     "questions live on neighboring pages: *how does distance from school "
     "predict attendance?* is now part of "
-    "[Discipline & Climate](/Discipline_and_Climate), and *what is the "
+    "[Discipline & Climate](/Discipline_and_Climate?embed=true), and *what is the "
     "community context around those addresses?* lives on the "
-    "[Lynn page](/Lynn_City) (Neighborhoods tab)."
+    "[Lynn page](/Lynn_City?embed=true) (Neighborhoods tab)."
 )
 
 # ---------------------------------------------------------------------------
@@ -45,12 +45,9 @@ st.markdown(
 # ---------------------------------------------------------------------------
 
 st.caption(
-    "**Data privacy notice.** These visualizations are generated from secure "
-    "Lynn Public Schools student information system data. **Individual "
-    "student addresses are not publicly shared.** All maps on this page "
-    "show aggregated densities (KDE surfaces, 100m and 150m grid cells) "
-    "— never individual locations. The full identifying analysis is held "
-    "privately by Maxwell Howe and is not part of the public dashboard."
+    "Source: Lynn Public Schools student information system, provided via a "
+    "data request to the district. All maps show aggregated densities (KDE "
+    "surfaces, 100m and 150m grid cells), not individual locations."
 )
 
 st.divider()
@@ -72,8 +69,7 @@ def _show(slug: str, caption: str = "") -> None:
 
 st.header("Residential Density of LEHS Students")
 st.markdown(
-    "Aggregated density of student residences across Lynn. Only the "
-    "underlying spatial pattern is shown — individual addresses are not."
+    "Aggregated density of student residences across Lynn."
 )
 
 c1, c2 = st.columns(2)
@@ -199,7 +195,7 @@ if _TRACTS_PATH.exists():
         "the city's lower-income, more-foreign-born, higher-health-burden "
         "neighborhoods. That's a structural finding: school-level interventions "
         "happen *inside* a community that already has community-level needs. "
-        "See the [Lynn page](/Lynn_City) (Neighborhoods tab) for the full "
+        "See the [Lynn page](/Lynn_City?embed=true) (Neighborhoods tab) for the full "
         "statewide-comparison view of these same indicators."
     )
 
@@ -228,23 +224,21 @@ with st.expander("Methodology & data sources"):
         """
 **Author:** Maxwell Howe (maxwellhowegis.com).
 
-**Source data (private):**
-- LEHS student address records from the Lynn Public Schools student information system.
+**Source data:**
+- LEHS student address records from the Lynn Public Schools student information system (provided via a data request to the district).
 
 **Tools:**
 - Geocoding: Stadia Maps via R `ggmap`.
 - Spatial aggregation: KDE (kernel density estimation), 100m and 150m
   hexagonal/square grid binning.
 
-**Privacy protections applied to this public page:**
-- Only aggregated densities (KDE, grid cells) shown.
-- No individual address-level points.
-- Cells with fewer than the minimum count threshold are filtered out.
-- The full report including identifying point-level maps is held privately.
+**Aggregation:**
+- Maps show aggregated densities (KDE, grid cells), not address-level points.
+- Grid cells below a minimum count threshold are dropped.
 
 **Where the rest of this research lives:**
 - *Distance from school × attendance* and *geographic absenteeism hotspots*
-  are now on [Discipline & Climate](/Discipline_and_Climate) since chronic
+  are now on [Discipline & Climate](/Discipline_and_Climate?embed=true) since chronic
   absence is the outcome they describe.
 """
     )

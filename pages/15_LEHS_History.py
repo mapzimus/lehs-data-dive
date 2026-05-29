@@ -39,7 +39,7 @@ st.markdown(
     "**130+ years** of physical buildings, fires, rebuilds, parades, "
     "world-champion alumni, and civic memory behind it. This page is "
     "the narrative side. The data side lives on "
-    "**[School Profile](/School_Profile)** and every page beyond it."
+    "**[School Profile](/School_Profile?embed=true)** and every page beyond it."
 )
 
 _hero_l, _hero_r = st.columns([2, 1], gap="medium")
@@ -139,7 +139,7 @@ educate the children of a manufacturing city at the peak of its
 manufacturing era. That history shows up later in this dashboard
 indirectly — in the city demographics, in the wave of immigration
 that follows in the 20th and 21st centuries, and in the dynamics
-the **[English Learners](/ELL_Pipeline)** page is built around.
+the **[English Learners](/ELL_Pipeline?embed=true)** page is built around.
         """
     )
 
@@ -238,7 +238,7 @@ The parade is the kind of small civic event that ends up in a
 school's institutional self-image for generations. It's also a
 clean window into how Lynn English alumni networks operate — the
 same kind of energy that, decades later, would build out the Hall
-of Fame and Whelan Family Scholarship the **[Athletics](/Athletics)**
+of Fame and Whelan Family Scholarship the **[Athletics](/Athletics?embed=true)**
 page documents.
         """
     )
@@ -252,7 +252,7 @@ enrollment — about 1,700 students per the latest school year. The
 still serving as the ceremonial entrance, the parade story still
 in institutional memory, and the rivalry game with Lynn Classical
 still played every Thanksgiving on **Manning Bowl** — see the
-**[Athletics](/Athletics)** page for that thread.
+**[Athletics](/Athletics?embed=true)** page for that thread.
         """
     )
 
@@ -261,7 +261,7 @@ with _tab_alumni:
     st.markdown(
         "A few of the people LEHS has graduated or employed over the past "
         "130 years. The full Hall of Fame and the season-by-season athletics "
-        "history live on **[Athletics](/Athletics)** — this is the short list "
+        "history live on **[Athletics](/Athletics?embed=true)** — this is the short list "
         "that doubles as institutional history."
     )
 
@@ -385,7 +385,7 @@ and remains active.
 
     st.caption(
         "Listed here as the institutional short list, not a complete index. "
-        "The **[Athletics](/Athletics)** page carries the full Hall of "
+        "The **[Athletics](/Athletics?embed=true)** page carries the full Hall of "
         "Fame, season records, championship history, and the curated "
         "history file the names above are sourced from."
     )
@@ -446,9 +446,9 @@ five LPS public high schools, in order of size:
 - **Fecteau-Leary Junior/Senior High School** (7–12)
 
 For the comparative view across these five schools, see the
-**[Lynn Schools](/Lynn_Schools)** page; for the full district context
+**[Lynn Schools](/Lynn_Schools?embed=true)** page; for the full district context
 (including all 22 elementary and middle feeders), see
-**[Lynn District](/Lynn_District)**.
+**[Lynn District](/Lynn_District?embed=true)**.
         """
     )
 
@@ -460,7 +460,7 @@ For the comparative view across these five schools, see the
   sharply increasing the district's English Learner population.
   LEHS, as the largest LPS high school, absorbed the bulk of that
   increase at the secondary level. The
-  **[English Learners](/ELL_Pipeline)** page is built around the
+  **[English Learners](/ELL_Pipeline?embed=true)** page is built around the
   long arc of that demographic shift at LEHS specifically.
 - **2017 — the middle-school ballot.** Lynn voters rejected a
   ballot proposal to fund two new middle schools. The decision
@@ -482,8 +482,8 @@ demographic and outcome numbers move with the district's overall
 fortunes, but it's still one building with one principal — so
 school-level effects are visible. Lynn Classical is the closest
 direct comparison; the 26 other Gateway-city high schools are the
-broader peer group. The **[Lynn Schools](/Lynn_Schools)** and
-**[Gateway Cities](/Gateway_Peer_Comparison)** pages are where
+broader peer group. The **[Lynn Schools](/Lynn_Schools?embed=true)** and
+**[Gateway Cities](/Gateway_Peer_Comparison?embed=true)** pages are where
 those comparisons live.
         """
     )

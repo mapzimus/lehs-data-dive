@@ -78,7 +78,7 @@ st.markdown(
     """
 - Three **rows**, one per school year.
 - Five **columns**, each measuring something different.
-- The actual dataset behind the [School Profile](/School_Profile) page
+- The actual dataset behind the [School Profile](/School_Profile?embed=true) page
   has thousands of rows like these going back to 1992 — but the
   shape is the same.
 
@@ -231,7 +231,7 @@ st.markdown(
   **trend line** — it summarizes the average pattern.
 - **Warning:** correlation is not causation (Section 4). Two things
   can move together without one *causing* the other.
-- **In this dashboard:** the [Cross-Topic Explorer](/Correlation_Lab)
+- **In this dashboard:** the [Cross-Topic Explorer](/Correlation_Lab?embed=true)
   is built entirely around scatter plots — pick any two metrics across
   MA's 26 Gateway cities and see if they move together.
 """
@@ -249,8 +249,8 @@ means less. It answers *"where is this happening?"* questions.
 You'll see two flavors on this dashboard:
 - **City-scale:** Lynn's 22 census tracts shaded by % Low Income,
   language at home, or chronic absence — on the
-  [City → Neighborhoods tab](/Lynn_City) and on the
-  [Maps page](/Maps).
+  [City → Neighborhoods tab](/Lynn_City?embed=true) and on the
+  [Maps page](/Maps?embed=true).
 - **State-scale:** all 351 MA municipalities shaded by school
   performance, demographics, or finance — on the standalone
   [MA Education Atlas](https://maxwellhowegis.com/ma-atlas/).
@@ -386,7 +386,7 @@ correlation just means two things move together — it doesn't say
 which causes which, or whether something *else* (housing, healthcare,
 family time, instructional minutes) is causing both.
 
-The [Cross-Topic Explorer](/Correlation_Lab) is for *spotting*
+The [Cross-Topic Explorer](/Correlation_Lab?embed=true) is for *spotting*
 correlations across MA's 26 gateway cities. Use it to ask questions,
 not to declare causes.
 """
@@ -433,14 +433,14 @@ st.markdown(
 Now you know how to read everything on this site. A few suggested
 places to practice:
 
-- **[School Profile](/School_Profile)** — bar charts and trend lines
+- **[School Profile](/School_Profile?embed=true)** — bar charts and trend lines
   showing who attends LEHS. Compare year-over-year.
-- **[Academic Performance](/Academic_Performance)** — MCAS line
+- **[Academic Performance](/Academic_Performance?embed=true)** — MCAS line
   charts with confidence intervals. Look for trend vs. noise.
-- **[Cross-Topic Explorer](/Correlation_Lab)** — scatter plots across
+- **[Cross-Topic Explorer](/Correlation_Lab?embed=true)** — scatter plots across
   26 MA gateway cities. Pick any two metrics and look for
   correlation. Remember: correlation ≠ causation.
-- **[Maps](/Maps)** — choropleths at the city and statewide scale.
+- **[Maps](/Maps?embed=true)** — choropleths at the city and statewide scale.
 
 If anything on the dashboard is confusing, the explanation is
 probably back on this page. Bookmark it and come back."""

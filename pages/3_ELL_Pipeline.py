@@ -71,7 +71,7 @@ st.caption(
     "The EL share at LEHS has more than doubled since the early 2000s — a "
     "dramatic shift in who the school serves and what supports are required. "
     "For cross-school comparison, see "
-    "[Lynn Schools](/Lynn_Schools) (Compare group)."
+    "[Lynn Schools](/Lynn_Schools?embed=true) (Compare group)."
 )
 
 st.divider()
