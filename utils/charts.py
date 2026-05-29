@@ -201,6 +201,87 @@ def small_multiples(
     return fig
 
 
+MCAS_YEARS = (2019, 2020, 2021, 2022, 2023, 2024, 2025)
+
+
+def with_year_gaps(
+    df: pd.DataFrame,
+    value_col: str,
+    group_col: str | None = None,
+    year_col: str = "SY",
+    years: tuple[int, ...] = MCAS_YEARS,
+) -> pd.DataFrame:
+    """Reindex so every series has a row for every year (missing → NaN).
+
+    Plotly line charts draw a straight segment across a skipped year unless the
+    skipped year is present with a NaN value. MCAS has no 2020 (COVID) and some
+    series skip 2021 — feed the result of this through px.line with
+    ``connectgaps=False`` so the line BREAKS at the gap instead of implying a
+    smooth trend across it.
+    """
+    if df.empty:
+        return df
+    full = list(years)
+    if group_col:
+        frames = []
+        for key, g in df.groupby(group_col):
+            g = g.drop_duplicates(subset=[year_col]).set_index(year_col).reindex(full)
+            g[group_col] = key
+            g[year_col] = full
+            frames.append(g.reset_index(drop=True))
+        return pd.concat(frames, ignore_index=True)
+    g = df.drop_duplicates(subset=[year_col]).set_index(year_col).reindex(full)
+    g[year_col] = full
+    return g.reset_index(drop=True)
+
+
+def year_heatmap(
+    pivot: pd.DataFrame,
+    *,
+    colorscale,
+    zmid: float | None = None,
+    zmin: float | None = None,
+    zmax: float | None = None,
+    value_fmt: str = "{:.0f}",
+    colorbar_title: str = "",
+    height: int | None = None,
+) -> go.Figure:
+    """Heatmap from a (rows × year-columns) pivot, with the value printed in each cell.
+
+    Missing cells (NaN) render blank — use this for a 2020 COVID gap column or
+    small-n suppression (mask those cells to NaN before calling).
+    """
+    z = pivot.astype(float).values
+    text = [
+        ["" if pd.isna(v) else value_fmt.format(v) for v in row]
+        for row in z
+    ]
+    fig = go.Figure(
+        go.Heatmap(
+            z=z,
+            x=[str(c) for c in pivot.columns],
+            y=[str(i) for i in pivot.index],
+            text=text,
+            texttemplate="%{text}",
+            textfont=dict(size=11),
+            colorscale=colorscale,
+            zmid=zmid,
+            zmin=zmin,
+            zmax=zmax,
+            hoverongaps=False,
+            xgap=2,
+            ygap=2,
+            colorbar=dict(title=colorbar_title, thickness=12),
+        )
+    )
+    layout = {**DEFAULT_LAYOUT}
+    if height is not None:
+        layout["height"] = height
+    fig.update_layout(**layout)
+    fig.update_yaxes(autorange="reversed")
+    return fig
+
+
 def peer_scorecard(df: pd.DataFrame, highlight: str | None = None) -> pd.DataFrame.style:
     """Pandas Styler for a peer-comparison scorecard table."""
     styled = df.style.format(precision=1, na_rep="—")

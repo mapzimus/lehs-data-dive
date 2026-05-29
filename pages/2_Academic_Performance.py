@@ -11,7 +11,15 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.branding import sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
+from utils.charts import (
+    DEFAULT_LAYOUT,
+    LEHS_GOLD,
+    LEHS_NAVY,
+    MCAS_YEARS,
+    SUBGROUP_PALETTE,
+    with_year_gaps,
+    year_heatmap,
+)
 from utils.constants import (
     GATEWAY_PEER_COLOR,
     GENDER_PALETTE,
@@ -31,6 +39,27 @@ st.markdown(
     "headline rates, the full achievement-level distribution, multi-year subgroup "
     "gaps, growth percentiles, and benchmarks vs. Lynn district and Massachusetts."
 )
+
+st.divider()
+st.header("📊 MCAS Results — Grade 10")
+st.markdown(
+    "MCAS is the state's annual test. Every Grade-10 student is sorted into one of "
+    "four levels — **Exceeding, Meeting, Partially Meeting,** or **Not Meeting** "
+    "grade-level expectations — in English, Math, and Science. Read this section in "
+    "two halves: **achievement** (where students *land*) and **growth** (how fast "
+    "they're *improving*). They tell different — and equally important — stories."
+)
+with st.expander("📖 What the MCAS terms mean"):
+    st.markdown(
+        "- **Achievement level** — every student lands in one of four bands: "
+        "Exceeding, Meeting, Partially Meeting, or Not Meeting grade-level expectations.\n"
+        "- **% M+E** — the share **M**eeting *or* **E**xceeding (the top two levels). The headline number.\n"
+        "- **Scaled score** — a 440–560 score where **500 = Meeting**. Compare a subject to its own 500 line, not across subjects.\n"
+        "- **Achievement percentile** — LEHS's *rank* against every MA school (1–99). A rank, not a score; 50 = the statewide median.\n"
+        "- **SGP (Student Growth Percentile)** — how fast students grew vs. peers who started at the same place. **50 = a typical year.** See the Growth section.\n"
+        "- **Participation** — the share of enrolled students who actually tested (% M+E counts non-testers against the school).\n"
+        "- **The 2020 gap** — MCAS was waived in spring 2020, so there is no 2020 data point anywhere on this page."
+    )
 
 mcas = load_dataset("mcas_achievement")
 if mcas.empty:
@@ -65,11 +94,10 @@ if lehs.empty:
     st.error("No LEHS Grade 10 MCAS data found.")
     st.stop()
 
-# Detect single-year vs multi-year data. The mcas_achievement parquet
-# currently ships only the latest SY for school-level rows (an ingest
-# pipeline issue upstream from this page). Trend charts that expect
-# multiple years collapse to single dots — so we gate every trend
-# section behind HAS_HISTORY and show single-year fallbacks otherwise.
+# LEHS has Grade-10 MCAS for 2019 and 2021-2025 (no 2020 — MCAS was waived
+# that spring). HAS_HISTORY stays as a cheap defensive contract for the trend
+# sections; the single-year fallbacks remain in case a future filter ever
+# narrows the data again.
 N_YEARS = lehs["SY"].nunique()
 HAS_HISTORY = N_YEARS >= 3
 
@@ -82,16 +110,6 @@ ACH_LEVEL_COLORS = {
     "Partially Meeting": "#F6C177",  # pastel amber
     "Not Meeting":       "#E08E8E",  # pastel coral
 }
-
-if not HAS_HISTORY:
-    st.info(
-        f"**Showing latest year only** (SY {sy_label(int(lehs['SY'].max()))}). "
-        f"The MCAS Achievement parquet currently includes only the most recent "
-        f"school year for LEHS — multi-year trend charts are hidden until the "
-        f"data pipeline is refreshed. The single-year sections below "
-        f"(distribution, district & state benchmarks, subgroup breakdown, "
-        f"SGP-vs-peers, statistical gaps) all render correctly."
-    )
 
 # ===========================================================================
 # 1. HERO — most recent year, all subjects, growth percentile
@@ -240,14 +258,9 @@ fig = px.bar(
     dist_df, y="Subject", x="Pct", color="Level", orientation="h",
     text="label",
     category_orders={"Level": ["Not Meeting", "Partially Meeting", "Meeting", "Exceeding"]},
-    color_discrete_map={
-        "Exceeding":         "#1B5E20",
-        "Meeting":           "#388E3C",
-        "Partially Meeting": "#F57C00",
-        "Not Meeting":       "#D32F2F",
-    },
+    color_discrete_map=ACH_LEVEL_COLORS,
 )
-fig.update_traces(textposition="inside", textfont=dict(color="white", size=11))
+fig.update_traces(textposition="inside", textfont=dict(color="#1f2a44", size=11))
 fig.update_layout(**DEFAULT_LAYOUT, xaxis_tickformat=".0%", xaxis_title="Share of test-takers",
                    yaxis_title="", barmode="stack")
 st.plotly_chart(fig, use_container_width=True)
@@ -359,9 +372,11 @@ if bench_rows:
         "Massachusetts statewide average. **The thin lines are a 95% confidence "
         "range — the band the true rate likely sits in. LEHS's is wider because "
         "it rests on far fewer students, so a small gap vs. the state may not be "
-        "meaningful.** For school-to-school comparison with Lynn Classical, Tech, "
-        "and the alternative academies, see [Lynn Schools](/Lynn_Schools?embed=true) "
-        "(Compare group)."
+        "meaningful.**"
+    )
+    st.page_link(
+        "pages/Lynn_Schools.py",
+        label="Compare LEHS to Classical, Tech & the academies → Lynn Schools",
     )
 
 # ---------------------------------------------------------------------------
@@ -554,9 +569,9 @@ st.caption(
     "**Red = this group scores meaningfully below the school-wide rate; green = "
     "meaningfully above; gray = the difference is small enough it could be chance.** "
     "Stars show how confident we are (`*` p<0.05, `**` p<0.01, `***` p<0.001, from a "
-    "two-proportion z-test vs. the school-wide rate). New to this? See "
-    "[Data 101](/Data_101?embed=true)."
+    "two-proportion z-test vs. the school-wide rate)."
 )
+st.page_link("pages/14_Data_Literacy.py", label="New to statistical significance? → Data 101")
 
 from utils.stats import compare_proportions  # noqa: E402
 
@@ -648,9 +663,9 @@ if not latest_year_sub.empty:
 
 st.caption(
     "For the full English-Learner journey — proficiency growth, "
-    "reclassification, and former-EL outcomes — see "
-    "**[English Learners](/ELL_Pipeline?embed=true)**."
+    "reclassification, and former-EL outcomes:"
 )
+st.page_link("pages/3_ELL_Pipeline.py", label="English Learners pipeline →")
 
 st.divider()
 
@@ -658,52 +673,100 @@ st.divider()
 # 6. GROWTH — SGP by subject and (where available) by subgroup
 # ===========================================================================
 
-st.subheader("Student Growth Percentile (SGP)")
+st.subheader("🌱 Growth — Student Growth Percentile (SGP)")
+st.info(
+    "**SGP answers a different question than the scores above.** Achievement is "
+    "*where* students are now; growth is *how fast* they're improving. SGP takes "
+    "students who scored like this one last year and ranks this student's gain "
+    "against them — **50 = a typical year, 70 = faster than 70% of similar "
+    "students**. A school can be low on achievement yet near-typical on growth: "
+    "students arrived behind but are learning at a normal pace. Watch for that here."
+)
+
+sgp_subj = st.radio(
+    "Subject",
+    options=["ELA", "MATH"],
+    format_func=lambda c: SUBJECT_MAP[c],
+    horizontal=True,
+    key="sgp_subj",
+)
 st.caption(
-    "SGP measures how much a LEHS student grew academically year-over-year, "
-    "compared to other MA students with similar prior MCAS scores. "
-    "**50 = statewide median.** A subject consistently above 50 = the school "
-    "moves students faster than peers; below 50 = slower."
+    "Grade-10 Science has no growth score in the state's data, so SGP covers "
+    "English and Math only."
 )
 
 sgp = lehs[(lehs["STU_GRP"] == "All Students") & (lehs["AVG_SGP"].notna())].sort_values("SY").copy()
 sgp["label"] = sgp["AVG_SGP"].apply(lambda x: f"{x:.0f}")
 
 if not sgp.empty:
-    if HAS_HISTORY:
+    # --- 3-way SGP trend: LEHS vs Lynn district vs Massachusetts (all 6 years) ---
+    def _sgp_series(frame, scope):
+        s = frame[(frame["SUBJECT_CODE"] == sgp_subj) & (frame["AVG_SGP"].notna())][["SY", "AVG_SGP"]]
+        s = with_year_gaps(s, "AVG_SGP")
+        s["Scope"] = scope
+        return s
+
+    sgp3 = pd.concat([
+        _sgp_series(lehs[lehs["STU_GRP"] == "All Students"], "LEHS"),
+        _sgp_series(district, "Lynn district"),
+        _sgp_series(state, "Massachusetts"),
+    ], ignore_index=True)
+
+    if sgp3["AVG_SGP"].notna().any():
+        st.markdown(f"**Growth Over Time — {SUBJECT_MAP[sgp_subj]}: LEHS vs. Lynn vs. Massachusetts**")
         fig = px.line(
-            sgp, x="SY", y="AVG_SGP", color="SUBJECT_CODE",
-            color_discrete_map=SUBJECT_COLOR, markers=True, text="label",
+            sgp3, x="SY", y="AVG_SGP", color="Scope", markers=True,
+            color_discrete_map={"LEHS": LEHS_GOLD, "Lynn district": LEHS_NAVY, "Massachusetts": STATE_COLOR},
         )
-        fig.update_traces(textposition="top center", textfont=dict(size=10))
+        fig.update_traces(connectgaps=False, line=dict(width=3), marker=dict(size=8))
         fig.add_hline(y=50, line_dash="dash", line_color="gray",
-                       annotation_text="Statewide median (50)", annotation_position="right")
-        fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Average SGP — All Students",
-                           xaxis_title="School Year", yaxis_range=[0, 100])
+                      annotation_text="Typical growth (50)", annotation_position="right")
+        fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Average SGP",
+                          xaxis_title="School Year", yaxis_range=[0, 100])
         st.plotly_chart(fig, use_container_width=True)
-    else:
-        latest_sgp = sgp[sgp["SY"] == sgp["SY"].max()].copy()
-        latest_sgp["Subject"] = latest_sgp["SUBJECT_CODE"].map(SUBJECT_MAP)
-        fig = px.bar(
-            latest_sgp.sort_values("Subject"),
-            x="Subject", y="AVG_SGP",
-            color="SUBJECT_CODE", color_discrete_map=SUBJECT_COLOR,
-            text="AVG_SGP",
+        st.caption(
+            "**By definition the typical student grows at 50, so the Massachusetts "
+            "line sits near 50 every year.** LEHS (gold) and the Lynn district (navy) "
+            "in the 40s means students here grow a little slower than similar "
+            "students statewide — but nowhere near as far back as the achievement "
+            "gap implies. The lines break at 2020 (MCAS waived); 2021 used a "
+            "COVID-era baseline, so read that point as directional."
         )
-        fig.update_traces(textposition="outside", cliponaxis=False, showlegend=False, texttemplate="%{text:.0f}")
-        fig.add_hline(y=50, line_dash="dash", line_color="gray",
-                      annotation_text="Statewide median (50)", annotation_position="right")
-        fig.update_layout(
-            **DEFAULT_LAYOUT,
-            xaxis_title="", yaxis_title=f"Avg SGP (SY {sy_label(int(sgp['SY'].max()))})",
-            yaxis_range=[0, 100], showlegend=False,
+
+    # --- SGP by student group, year by year (heatmap) ---
+    _heat_groups = [
+        "All Students", "High Needs", "Low Income", "English Learners",
+        "Hispanic or Latino", "Female", "Male", "Students with Disabilities",
+        "Black or African American", "Asian",
+    ]
+    _hsub = lehs[
+        (lehs["SUBJECT_CODE"] == sgp_subj)
+        & (lehs["STU_GRP"].isin(_heat_groups))
+        & (lehs["AVG_SGP"].notna())
+    ]
+    if not _hsub.empty:
+        _pivot = _hsub.pivot_table(index="STU_GRP", columns="SY", values="AVG_SGP", aggfunc="mean")
+        _pivot = _pivot.reindex(columns=list(MCAS_YEARS))
+        _last = _pivot.apply(lambda r: r.dropna().iloc[-1] if r.notna().any() else float("nan"), axis=1)
+        _pivot = _pivot.loc[_last.sort_values(ascending=False).index]
+        st.markdown(f"**Growth by Student Group, Year by Year — {SUBJECT_MAP[sgp_subj]}**")
+        fig = year_heatmap(
+            _pivot,
+            colorscale=[[0.0, "#E89B9B"], [0.5, "#F2F2F2"], [1.0, "#9CCFC4"]],
+            zmid=50, zmin=20, zmax=70, value_fmt="{:.0f}", colorbar_title="SGP",
+            height=max(320, 36 * len(_pivot)),
         )
         st.plotly_chart(fig, use_container_width=True)
+        st.caption(
+            "Read **down a column** to compare groups within a year, **across a "
+            "row** for a group's path. Coral = below typical growth (50), teal = "
+            "above; 2020 is blank (no MCAS). Small groups (Asian, Black ~40 "
+            "students) swing on a few kids — read those rows as rough."
+        )
 
     # ---------------------------------------------------------------------------
     # SGP vs. peers — where does LEHS sit in the Gateway HS distribution?
-    # Most school-level SGP coverage in this dataset is SY 2024+, so the
-    # peer-comparison view is anchored to the latest year.
+    # Peers report all six years; anchored to the latest year for a clean snapshot.
     # ---------------------------------------------------------------------------
     peer_sgp = mcas[
         (mcas["TEST_GRADE"] == "10")
@@ -731,7 +794,7 @@ if not sgp.empty:
             hover_data={"ORG_NAME": True, "AVG_SGP": True, "STU_CNT": True, "is_lehs": False, "Subject": False},
             stripmode="overlay",
         )
-        fig.update_traces(marker=dict(size=11, line=dict(width=1, color="#455A64")), jitter=0.25)
+        fig.update_traces(marker=dict(size=11, line=dict(width=1, color=LEHS_NAVY)), jitter=0.25)
         # overlay the LEHS dot a second time at larger size so it isn't lost in the swarm
         lehs_dots = peer_sgp[peer_sgp["is_lehs"]]
         if not lehs_dots.empty:
@@ -748,6 +811,10 @@ if not sgp.empty:
         fig.update_layout(**DEFAULT_LAYOUT, xaxis_title="Average SGP",
                           yaxis_title="", xaxis_range=[0, 100], showlegend=False)
         st.plotly_chart(fig, use_container_width=True)
+        st.page_link(
+            "pages/11_Gateway_Peer_Comparison.py",
+            label="See the full Gateway-city peer ranking →",
+        )
 
     # SGP by subgroup — latest year, ELA + Math only (SCI SGP often sparse)
     sgp_sub = lehs[
