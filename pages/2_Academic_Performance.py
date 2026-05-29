@@ -12,7 +12,13 @@ import streamlit as st
 
 from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
-from utils.constants import GENDER_PALETTE, LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE, STATE_COLOR
+from utils.constants import (
+    GATEWAY_PEER_COLOR,
+    GENDER_PALETTE,
+    LEHS_SCHOOL_CODE,
+    LYNN_DISTRICT_CODE,
+    STATE_COLOR,
+)
 from utils.data_loader import load_dataset
 from utils.interpret import sgp_methodology_note, sy_label
 
@@ -68,7 +74,14 @@ N_YEARS = lehs["SY"].nunique()
 HAS_HISTORY = N_YEARS >= 3
 
 SUBJECT_MAP = {"ELA": "English Language Arts", "MATH": "Mathematics", "SCI": "Science"}
-SUBJECT_COLOR = {"ELA": "#1976D2", "MATH": "#D32F2F", "SCI": "#388E3C"}
+SUBJECT_COLOR = {"ELA": "#6BAED6", "MATH": "#E08E8E", "SCI": "#74C476"}
+# Achievement-level palette — defined once, reused by both distribution charts.
+ACH_LEVEL_COLORS = {
+    "Exceeding":         "#4CA66B",  # medium green
+    "Meeting":           "#A8D5BA",  # light green
+    "Partially Meeting": "#F6C177",  # pastel amber
+    "Not Meeting":       "#E08E8E",  # pastel coral
+}
 
 if not HAS_HISTORY:
     st.info(
@@ -87,7 +100,7 @@ if not HAS_HISTORY:
 all_students = lehs[lehs["STU_GRP"] == "All Students"].copy()
 latest_year = int(all_students["SY"].max())
 
-st.header(f"At a Glance — Grade 10, SY {sy_label(latest_year)}")
+st.subheader(f"At a Glance — Grade 10, SY {sy_label(latest_year)}")
 
 c1, c2, c3, c4 = st.columns(4)
 for col, code in zip([c1, c2, c3], ["ELA", "MATH", "SCI"]):
@@ -126,6 +139,24 @@ st.caption(
     "= LEHS moves students faster than peer schools."
 )
 
+# Plain-language verdict tying the hero tiles together for non-analysts.
+_v_ela = all_students[(all_students["SUBJECT_CODE"] == "ELA") & (all_students["SY"] == latest_year)]
+_v_state = state[(state["SUBJECT_CODE"] == "ELA") & (state["SY"] == latest_year)]
+if not _v_ela.empty and not _v_state.empty:
+    _vl = _v_ela.iloc[0]["M_PLUS_E_PCT"]
+    _vs = _v_state.iloc[0]["M_PLUS_E_PCT"]
+    _vach = _v_ela.iloc[0].get("ACH_PERCENTILE")
+    if pd.notna(_vl) and pd.notna(_vs):
+        _verdict = (
+            f"**In plain terms:** in SY {sy_label(latest_year)}, **{_vl:.0%}** of LEHS "
+            f"10th-graders met or exceeded expectations in ELA, "
+            f"{'below' if _vl < _vs else 'above'} the statewide **{_vs:.0%}**"
+        )
+        if pd.notna(_vach):
+            _verdict += f", placing LEHS near the **{int(_vach)}th percentile** of MA schools"
+        _verdict += ". Subject-by-subject detail is below."
+        st.caption(_verdict)
+
 st.divider()
 
 # ===========================================================================
@@ -133,7 +164,7 @@ st.divider()
 # ===========================================================================
 
 if HAS_HISTORY:
-    st.header("% Meeting or Exceeding — Trend by Subject")
+    st.subheader("% Meeting or Exceeding — Trend by Subject")
 
     trend = all_students.sort_values(["SUBJECT_CODE", "SY"]).copy()
     trend["label"] = trend["M_PLUS_E_PCT"].apply(lambda x: f"{x:.0%}" if pd.notna(x) else "")
@@ -152,7 +183,7 @@ if HAS_HISTORY:
         "show fewer data points and shouldn't be read as a real trend break."
     )
 
-    st.subheader("Average Scaled Score Trend")
+    st.markdown("**Average Scaled Score Trend**")
     st.caption(
         "Scaled scores run roughly **440–560**, with **500 = Meeting Expectations**. "
         "Useful for measuring fine-grained year-to-year change that gets compressed "
@@ -180,7 +211,7 @@ if HAS_HISTORY:
 # 3. FULL ACHIEVEMENT-LEVEL DISTRIBUTION — latest year + multi-year stacked
 # ===========================================================================
 
-st.header(f"Full Achievement-Level Distribution (SY {sy_label(latest_year)})")
+st.subheader(f"Full Achievement-Level Distribution (SY {sy_label(latest_year)})")
 st.caption(
     "MCAS classifies every student into one of four levels: **E**xceeding, "
     "**M**eeting, **P**artially **M**eeting, or **N**ot **M**eeting expectations. "
@@ -225,7 +256,7 @@ st.plotly_chart(fig, use_container_width=True)
 # Distribution evolution over time — per subject
 # ---------------------------------------------------------------------------
 
-st.subheader("How the Distribution Has Shifted Over Time")
+st.markdown("**How the Distribution Has Shifted Over Time**")
 st.caption(
     "Same four levels, plotted year by year per subject. Watch the **Not "
     "Meeting** band — shrinking it is the school's hardest-and-most-meaningful "
@@ -256,12 +287,7 @@ if not dist_yearly.empty:
     fig = px.bar(
         dist_long, x="SY", y="Pct", color="Level",
         category_orders={"Level": ["Not Meeting", "Partially Meeting", "Meeting", "Exceeding"]},
-        color_discrete_map={
-            "Exceeding":         "#1B5E20",
-            "Meeting":           "#388E3C",
-            "Partially Meeting": "#F57C00",
-            "Not Meeting":       "#D32F2F",
-        },
+        color_discrete_map=ACH_LEVEL_COLORS,
         barmode="stack",
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
@@ -274,7 +300,7 @@ st.divider()
 # 4. BENCHMARKS — LEHS vs Lynn district vs Massachusetts (latest year)
 # ===========================================================================
 
-st.header(f"LEHS vs. Lynn district vs. Massachusetts — SY {sy_label(latest_year)}")
+st.subheader(f"LEHS vs. Lynn district vs. Massachusetts — SY {sy_label(latest_year)}")
 
 from utils.stats import wilson_ci_from_pct  # noqa: E402
 
@@ -330,10 +356,12 @@ if bench_rows:
     st.plotly_chart(fig, use_container_width=True)
     st.caption(
         "Three natural benchmarks: LEHS, the Lynn district aggregate, and the "
-        "Massachusetts statewide average. Error bars are 95% Wilson confidence "
-        "intervals — narrower for the larger denominators. For school-to-school "
-        "MCAS comparison with Lynn Classical, Tech, and the alternative academies, "
-        "see [Lynn Schools](/Lynn_Schools?embed=true) (Compare group)."
+        "Massachusetts statewide average. **The thin lines are a 95% confidence "
+        "range — the band the true rate likely sits in. LEHS's is wider because "
+        "it rests on far fewer students, so a small gap vs. the state may not be "
+        "meaningful.** For school-to-school comparison with Lynn Classical, Tech, "
+        "and the alternative academies, see [Lynn Schools](/Lynn_Schools?embed=true) "
+        "(Compare group)."
     )
 
 # ---------------------------------------------------------------------------
@@ -341,7 +369,7 @@ if bench_rows:
 # ---------------------------------------------------------------------------
 
 if HAS_HISTORY:
-    st.subheader("LEHS Gap to Massachusetts — Over Time")
+    st.markdown("**LEHS Gap to Massachusetts — Over Time**")
     st.caption(
         "How far LEHS has been from the statewide average each year."
     )
@@ -381,7 +409,7 @@ st.divider()
 # 5. SUBGROUP BREAKDOWN — toggleable + multi-year + gap evolution
 # ===========================================================================
 
-st.header("Subgroup Performance")
+st.subheader("Subgroup Performance")
 st.caption(
     "Where the headline number hides everything: how each student group is "
     "doing, how the gaps to school-wide have moved, and where the disparities "
@@ -438,7 +466,7 @@ sub.loc[latest_sub_idx, "label"] = sub.loc[latest_sub_idx, "M_PLUS_E_PCT"].apply
 )
 
 if HAS_HISTORY:
-    st.subheader(f"% M+E Trend — {SUBJECT_MAP[subject_choice]}, by Student Group")
+    st.markdown(f"**% M+E Trend — {SUBJECT_MAP[subject_choice]}, by Student Group**")
     fig = px.line(
         sub, x="SY", y="M_PLUS_E_PCT", color="STU_GRP", markers=True,
         color_discrete_map=color_map, text="label",
@@ -455,9 +483,9 @@ else:
     # Single-year fallback: horizontal bar of every subgroup's M+E.
     latest_year_sub = sub[sub["SY"] == sub["SY"].max()].copy()
     if not latest_year_sub.empty:
-        st.subheader(
-            f"% M+E by Student Group — {SUBJECT_MAP[subject_choice]}, "
-            f"SY {sy_label(int(latest_year_sub['SY'].max()))}"
+        st.markdown(
+            f"**% M+E by Student Group — {SUBJECT_MAP[subject_choice]}, "
+            f"SY {sy_label(int(latest_year_sub['SY'].max()))}**"
         )
         bar = latest_year_sub.dropna(subset=["M_PLUS_E_PCT"]).sort_values("M_PLUS_E_PCT").copy()
         bar["label"] = bar["M_PLUS_E_PCT"].apply(lambda x: f"{x:.0%}")
@@ -483,7 +511,7 @@ else:
 # ---------------------------------------------------------------------------
 
 if HAS_HISTORY:
-    st.subheader(f"Gap to School-Wide Average — Over Time, {SUBJECT_MAP[subject_choice]}")
+    st.markdown(f"**Gap to School-Wide Average — Over Time, {SUBJECT_MAP[subject_choice]}**")
     st.caption(
         "Each line = one subgroup's gap to the LEHS school-wide rate, "
         "plotted year by year."
@@ -521,11 +549,13 @@ if HAS_HISTORY:
 # Latest-year achievement gap with statistical significance markers
 # ---------------------------------------------------------------------------
 
-st.subheader(f"Latest-Year Achievement Gap — SY {sy_label(latest_year)}, {SUBJECT_MAP[subject_choice]}")
+st.markdown(f"**Latest-Year Achievement Gap — SY {sy_label(latest_year)}, {SUBJECT_MAP[subject_choice]}**")
 st.caption(
-    "Bars are marked with statistical-significance flags (`*` p<0.05, `**` p<0.01, "
-    "`***` p<0.001) from a two-proportion z-test against the school-wide rate. "
-    "Gray bars = gap not distinguishable from noise."
+    "**Red = this group scores meaningfully below the school-wide rate; green = "
+    "meaningfully above; gray = the difference is small enough it could be chance.** "
+    "Stars show how confident we are (`*` p<0.05, `**` p<0.01, `***` p<0.001, from a "
+    "two-proportion z-test vs. the school-wide rate). New to this? See "
+    "[Data 101](/Data_101?embed=true)."
 )
 
 from utils.stats import compare_proportions  # noqa: E402
@@ -565,8 +595,8 @@ if not latest_sub.empty and "All Students" in latest_sub["STU_GRP"].values:
 
     def _bar_color(row):
         if not row["significant"]:
-            return "#B0BEC5"
-        return "#D32F2F" if row["Gap"] < 0 else "#388E3C"
+            return "#C2CCD9"
+        return "#E08E8E" if row["Gap"] < 0 else "#74C476"
 
     colors = gap_data.apply(_bar_color, axis=1).tolist()
     fig = go.Figure(go.Bar(
@@ -596,7 +626,7 @@ if not latest_sub.empty and "All Students" in latest_sub["STU_GRP"].values:
 
 latest_year_sub = sub[sub["SY"] == sub["SY"].max()].copy()
 if not latest_year_sub.empty:
-    st.subheader(f"Subgroup Detail Table — SY {sy_label(latest_year_sub['SY'].max())}, {SUBJECT_MAP[subject_choice]}")
+    st.markdown(f"**Subgroup Detail Table — SY {sy_label(latest_year_sub['SY'].max())}, {SUBJECT_MAP[subject_choice]}**")
     table = latest_year_sub[[
         "STU_GRP", "STU_CNT", "M_PLUS_E_PCT", "E_PCT", "M_PCT", "PM_PCT", "NM_PCT", "AVG_SCALED_SCORE"
     ]].copy()
@@ -611,6 +641,10 @@ if not latest_year_sub.empty:
         table[c] = table[c].apply(lambda x: f"{x:.0%}" if pd.notna(x) else "—")
     table["Avg score"] = table["Avg score"].apply(lambda x: f"{x:.0f}" if pd.notna(x) else "—")
     st.dataframe(table.sort_values("Student group"), use_container_width=True, hide_index=True)
+    st.caption(
+        "Groups with a small **Tested** count swing widely from year to year — "
+        "read those rows with caution. DESE suppresses any group under 10 students."
+    )
 
 st.caption(
     "For the full English-Learner journey — proficiency growth, "
@@ -624,7 +658,7 @@ st.divider()
 # 6. GROWTH — SGP by subject and (where available) by subgroup
 # ===========================================================================
 
-st.header("Student Growth Percentile (SGP)")
+st.subheader("Student Growth Percentile (SGP)")
 st.caption(
     "SGP measures how much a LEHS student grew academically year-over-year, "
     "compared to other MA students with similar prior MCAS scores. "
@@ -681,7 +715,7 @@ if not sgp.empty:
     ].copy()
     if not peer_sgp.empty:
         peer_year = int(peer_sgp["SY"].max())
-        st.subheader(f"LEHS vs. Gateway-Peer High Schools — SY {sy_label(peer_year)}")
+        st.markdown(f"**LEHS vs. Gateway-Peer High Schools — SY {sy_label(peer_year)}**")
         st.caption(
             "Each dot is one comprehensive high school in a Massachusetts "
             "Gateway city. LEHS is highlighted in gold; the dashed line "
@@ -693,7 +727,7 @@ if not sgp.empty:
         fig = px.strip(
             peer_sgp.sort_values("Subject"),
             x="AVG_SGP", y="Subject", color="is_lehs",
-            color_discrete_map={True: LEHS_GOLD, False: "#B0BEC5"},
+            color_discrete_map={True: LEHS_GOLD, False: GATEWAY_PEER_COLOR},
             hover_data={"ORG_NAME": True, "AVG_SGP": True, "STU_CNT": True, "is_lehs": False, "Subject": False},
             stripmode="overlay",
         )
@@ -723,7 +757,7 @@ if not sgp.empty:
         & (lehs["SY"] == lehs["SY"].max())
     ].copy()
     if not sgp_sub.empty:
-        st.subheader(f"SGP by Student Group — SY {sy_label(int(sgp_sub['SY'].max()))}")
+        st.markdown(f"**SGP by Student Group — SY {sy_label(int(sgp_sub['SY'].max()))}**")
         st.caption(
             "Growth percentile broken out by subgroup. **All Students** is the "
             "reference; bars at 50 indicate that subgroup grew at the same rate "
@@ -759,12 +793,12 @@ st.divider()
 # 7. HEALTH METRICS — participation, cohort size, achievement-percentile trend
 # ===========================================================================
 
-st.header("Test Health Metrics")
+st.subheader("Reading These Results — Participation, Cohort Size & Ranking")
 
 # Achievement percentile — trend if HAS_HISTORY, bar tiles otherwise
 ach_trend = all_students.dropna(subset=["ACH_PERCENTILE"]).copy()
 if not ach_trend.empty:
-    st.subheader("LEHS Achievement Percentile — Rank vs. All MA Schools")
+    st.markdown("**LEHS Achievement Percentile — Rank vs. All MA Schools**")
     st.caption(
         "Percentile rank of LEHS against every MA public school on MCAS. "
         "50 = at the statewide median."
@@ -803,7 +837,7 @@ if not ach_trend.empty:
         st.plotly_chart(fig, use_container_width=True)
 
 # Participation rate
-st.subheader("Participation Rate — Who actually takes the test?")
+st.markdown("**Participation Rate — Who actually takes the test?**")
 st.caption("DESE requires 95%+ participation for full accountability credit.")
 
 part = all_students.dropna(subset=["STU_PART_PCT"]).sort_values(["SUBJECT_CODE", "SY"]).copy()
@@ -832,7 +866,7 @@ else:
                           delta_color="inverse" if v < 0.95 else "normal")
 
 # Cohort size
-st.subheader("Grade-10 Cohort Size Tested per Year")
+st.markdown("**Grade-10 Cohort Size Tested per Year**")
 st.caption(
     "Drives how much subgroup detail you can actually see — DESE suppresses "
     "any subgroup cell with fewer than 10 students."
