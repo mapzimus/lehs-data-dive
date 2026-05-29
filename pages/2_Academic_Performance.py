@@ -12,7 +12,7 @@ import streamlit as st
 
 from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
-from utils.constants import LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
+from utils.constants import GENDER_PALETTE, LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE, STATE_COLOR
 from utils.data_loader import load_dataset
 from utils.interpret import sgp_methodology_note, sy_label
 
@@ -103,6 +103,7 @@ for col, code in zip([c1, c2, c3], ["ELA", "MATH", "SCI"]):
             f"{SUBJECT_MAP[code]} — % M+E",
             f"{me_pct:.0%}" if pd.notna(me_pct) else "—",
             f"Avg scaled: {scaled:.0f}  ·  n = {students:,}" if pd.notna(scaled) else f"n = {students:,}",
+            delta_color="off",
         )
 
 with c4:
@@ -113,14 +114,16 @@ with c4:
         st.metric(
             "Achievement Percentile (ELA)",
             f"{int(ach)}" if pd.notna(ach) else "—",
-            f"SGP (growth): {sgp:.0f}" if pd.notna(sgp) else "",
+            f"SGP (growth): {sgp:.0f}" if pd.notna(sgp) else None,
+            delta_color="off",
         )
 
 st.caption(
-    "**Achievement percentile** is LEHS's rank vs. all MA schools — 50 = "
-    "statewide median, lower = below most schools. **SGP** is growth vs. "
-    "academic peers — 50 = average annual growth, higher = LEHS moves "
-    "students faster than peer schools."
+    "**% M+E** = the share of students Meeting or Exceeding expectations — the "
+    "top two of MCAS's four levels. **Achievement percentile** is LEHS's rank "
+    "vs. all MA schools — 50 = statewide median, lower = below most schools. "
+    "**SGP** is growth vs. academic peers — 50 = average annual growth, higher "
+    "= LEHS moves students faster than peer schools."
 )
 
 st.divider()
@@ -309,7 +312,7 @@ if bench_rows:
         color_discrete_map={
             "LEHS":          LEHS_GOLD,
             "Lynn district": LEHS_NAVY,
-            "Massachusetts": "#455A64",
+            "Massachusetts": STATE_COLOR,
         },
         error_y="err_plus",
         error_y_minus="err_minus",
@@ -395,6 +398,8 @@ subject_choice = st.radio(
 
 groups_of_interest = [
     "All Students",
+    "Female",
+    "Male",
     "English Learners",
     "Former English Learners",
     "Hispanic or Latino",
@@ -412,6 +417,8 @@ sub = lehs[
 
 color_map = {
     "All Students":               LEHS_NAVY,
+    "Female":                     GENDER_PALETTE["Female"],
+    "Male":                       GENDER_PALETTE["Male"],
     "English Learners":           SUBGROUP_PALETTE["English Learner"],
     "Former English Learners":    SUBGROUP_PALETTE["Former English Learner"],
     "Hispanic or Latino":         SUBGROUP_PALETTE["Hispanic/Latino"],
@@ -605,6 +612,12 @@ if not latest_year_sub.empty:
     table["Avg score"] = table["Avg score"].apply(lambda x: f"{x:.0f}" if pd.notna(x) else "—")
     st.dataframe(table.sort_values("Student group"), use_container_width=True, hide_index=True)
 
+st.caption(
+    "For the full English-Learner journey — proficiency growth, "
+    "reclassification, and former-EL outcomes — see "
+    "**[English Learners](/ELL_Pipeline?embed=true)**."
+)
+
 st.divider()
 
 # ===========================================================================
@@ -641,9 +654,9 @@ if not sgp.empty:
             latest_sgp.sort_values("Subject"),
             x="Subject", y="AVG_SGP",
             color="SUBJECT_CODE", color_discrete_map=SUBJECT_COLOR,
-            text=latest_sgp["AVG_SGP"].round(0).astype(int).astype(str),
+            text="AVG_SGP",
         )
-        fig.update_traces(textposition="outside", cliponaxis=False, showlegend=False)
+        fig.update_traces(textposition="outside", cliponaxis=False, showlegend=False, texttemplate="%{text:.0f}")
         fig.add_hline(y=50, line_dash="dash", line_color="gray",
                       annotation_text="Statewide median (50)", annotation_position="right")
         fig.update_layout(
@@ -722,9 +735,9 @@ if not sgp.empty:
             x="AVG_SGP", y="STU_GRP", color="Subject",
             orientation="h", barmode="group",
             color_discrete_map={"ELA": SUBJECT_COLOR["ELA"], "Math": SUBJECT_COLOR["MATH"]},
-            text=sgp_sub["AVG_SGP"].round(0).astype(int).astype(str),
+            text="AVG_SGP",
         )
-        fig.update_traces(textposition="outside", cliponaxis=False)
+        fig.update_traces(textposition="outside", cliponaxis=False, texttemplate="%{text:.0f}")
         fig.add_vline(x=50, line_dash="dash", line_color="gray",
                       annotation_text="Statewide median",
                       annotation_position="top right")
@@ -776,9 +789,9 @@ if not ach_trend.empty:
             latest_ach.sort_values("Subject"),
             x="Subject", y="ACH_PERCENTILE",
             color="SUBJECT_CODE", color_discrete_map=SUBJECT_COLOR,
-            text=latest_ach["ACH_PERCENTILE"].round(0).astype(int).astype(str),
+            text="ACH_PERCENTILE",
         )
-        fig.update_traces(textposition="outside", cliponaxis=False, showlegend=False)
+        fig.update_traces(textposition="outside", cliponaxis=False, showlegend=False, texttemplate="%{text:.0f}")
         fig.add_hline(y=50, line_dash="dash", line_color="gray",
                       annotation_text="Statewide median", annotation_position="right")
         fig.update_layout(
@@ -850,7 +863,9 @@ else:
 try:
     from utils.charts import data_downloads_panel as _dl
     _dl({
-        'MCAS achievement': mcas,
+        'LEHS Grade-10 MCAS': lehs,
+        'Lynn district Grade-10 MCAS': district,
+        'Massachusetts Grade-10 MCAS': state,
     })
 except NameError:
     pass
