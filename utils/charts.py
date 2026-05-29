@@ -45,8 +45,7 @@ def data_downloads_panel(datasets: dict[str, pd.DataFrame],
         return
     with st.expander(f"📁 {title}"):
         st.caption(
-            "Every visualization on this page is built from one of the datasets "
-            "below. Download as CSV to do your own analysis."
+            "Key datasets behind this page. Download as CSV to do your own analysis."
         )
         for label, df in non_empty.items():
             slug = label.lower().replace(" ", "_").replace("/", "-")

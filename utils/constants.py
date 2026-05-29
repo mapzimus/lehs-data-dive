@@ -172,4 +172,19 @@ SUBGROUP_PALETTE = {
     "Students w/ Disabilities":        "#C2A99E",  # dusty taupe
     "Low Income":                      "#E8A8C2",  # pastel rose
     "High Needs":                      "#BDAFD9",  # pastel lavender
+    "Economically Disadvantaged":      "#D6B89C",  # pastel tan
+    "First Lang Not English":          "#AAB4E8",  # pastel periwinkle
+}
+
+# Gender + student-mobility series palettes — pastel, brand-adjacent, so the
+# School Profile charts stop reaching for ad-hoc saturated hex values.
+GENDER_PALETTE = {
+    "Female":     "#E8A8C2",  # pastel rose
+    "Male":       "#A6C8E8",  # pastel sky
+    "Non-binary": "#F4D88A",  # cream gold
+}
+MOBILITY_PALETTE = {
+    "Stability":       LEHS_NAVY,
+    "Churn":           "#E89B9B",  # pastel coral — muted "negative"
+    "Mid-year intake": "#F5C28B",  # pastel orange
 }
