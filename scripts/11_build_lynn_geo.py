@@ -739,6 +739,27 @@ def load_ma_districts_with_metrics() -> gpd.GeoDataFrame:
     return dist.merge(metrics, on="ORG8CODE", how="left")
 
 
+# Regional *secondary* (7-12 / 9-12) districts share every member town with
+# that town's own K-8 district, which always operates more schools. The
+# dominant-district town-dissolve below therefore assigns them no town and drops
+# them entirely — even though they are real, operating districts with full DESE
+# metrics. (K-12 regionals like Nashoba survive because their member towns have
+# no separate elementary district, so the regional *is* dominant.) We add the
+# secondary regionals back explicitly as the union of their member-town polygons
+# — which is exactly how a regional district's footprint is defined. Member
+# towns verified against DESE t8td-gens enrollment + district directories; see
+# ma-education-atlas/scripts/analysis/regional_hs_gap.md. Add new ones here if a
+# secondary regional district would otherwise be missed by the dissolve.
+REGIONAL_SECONDARY_MEMBERS: dict[str, list[str]] = {
+    "06400000": ["CONCORD", "CARLISLE"],                          # Concord-Carlisle
+    "06950000": ["LINCOLN", "SUDBURY"],                           # Lincoln-Sudbury
+    "06600000": ["BREWSTER", "EASTHAM", "ORLEANS", "WELLFLEET"],  # Nauset
+    "06900000": ["NORFOLK", "WRENTHAM", "PLAINVILLE"],            # King Philip
+    "07050000": ["BOXFORD", "TOPSFIELD", "MIDDLETON"],            # Masconomet
+    "07300000": ["NORTHBOROUGH", "SOUTHBOROUGH"],                 # Northboro-Southboro (Algonquin)
+}
+
+
 def build_ma_academic_districts() -> gpd.GeoDataFrame:
     """
     Build polygons for the regular town/regional academic school districts.
@@ -754,6 +775,8 @@ def build_ma_academic_districts() -> gpd.GeoDataFrame:
          Charter, Voc/Tech, Special Ed)
       2. For each town, find the dominant DIST_CODE across its public schools
       3. Dissolve the town polygons by that DIST_CODE → ~250 academic districts
+      3b. Add regional *secondary* districts the dominant-dissolve can't capture
+          (REGIONAL_SECONDARY_MEMBERS), as the union of their member towns
       4. Join the full district metrics table (40+ indicators)
 
     Result: ma_academic_districts.geojson — the polygon file no one else has.
@@ -786,14 +809,41 @@ def build_ma_academic_districts() -> gpd.GeoDataFrame:
     # Dissolve town polygons by DIST_CODE
     academic = towns_with_dist[["DIST_CODE", "geometry"]].dissolve(by="DIST_CODE").reset_index()
 
+    # Add regional secondary districts the dominant-dissolve drops (see
+    # REGIONAL_SECONDARY_MEMBERS). Each is the union of its member-town polygons,
+    # so it overlaps its towns' K-8 districts — geographically correct, since a
+    # 7-12 regional and its members' elementary districts cover the same ground.
+    have = set(academic["DIST_CODE"])
+    towns_u = towns.assign(TOWN_U=towns["TOWN"].str.upper())
+    extra = []
+    for code, members in REGIONAL_SECONDARY_MEMBERS.items():
+        if code in have:
+            continue
+        sub = towns_u[towns_u["TOWN_U"].isin([m.upper() for m in members])]
+        if sub.empty:
+            print(f"  [!] {code}: no member towns matched, skipping")
+            continue
+        extra.append({"DIST_CODE": code, "geometry": sub.geometry.union_all()})
+    if extra:
+        academic = pd.concat(
+            [academic, gpd.GeoDataFrame(extra, geometry="geometry", crs=academic.crs)],
+            ignore_index=True,
+        )
+
     # Join district metrics
     metrics = _build_district_metrics_table()
     metrics["DIST_CODE"] = metrics["DIST_CODE"].astype(str).str.zfill(8)
     academic = academic.merge(metrics, on="DIST_CODE", how="left")
 
-    # Title-case the district name for display
+    # Display name for the map label + search index. Defaults to the DESE
+    # DIST_NAME; a few regionals get a friendlier alias so their common name is
+    # searchable (e.g. Northboro-Southboro is known as Algonquin Regional).
+    DISPLAY_OVERRIDES = {"07300000": "Northboro-Southboro (Algonquin)"}
     if "DIST_NAME" in academic.columns:
-        academic["dist_display"] = academic["DIST_NAME"]
+        academic["dist_display"] = [
+            DISPLAY_OVERRIDES.get(c, n)
+            for c, n in zip(academic["DIST_CODE"], academic["DIST_NAME"])
+        ]
 
     # Flag Lynn
     academic["is_lynn"] = academic["DIST_CODE"] == "01630000"
