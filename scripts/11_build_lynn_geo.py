@@ -767,12 +767,14 @@ REGIONAL_SECONDARY_MEMBERS: dict[str, list[str]] = {
 #
 # Resolved authoritatively via the US Census Geocoder (coordinates ->
 # Unified/Secondary/Elementary School District layers, preferring the layer that
-# matches an existing district), each verified geographically contiguous with its
-# district's group polygon. To regenerate/extend: geocode the town centroid and
-# take the matching district. Monroe is intentionally omitted — the Census places
-# it only in North Adams' non-contiguous 9-12 secondary district, so it correctly
-# stays a labeled "no operating district" hole.
+# matches an existing district AND is contiguous), each verified geographically
+# contiguous with its district's group polygon. To regenerate/extend: geocode the
+# town centroid and take the matching district. For split towns, use whichever of
+# the elementary/secondary districts is contiguous — e.g. Monroe's HS district
+# (North Adams) is non-contiguous, so it's assigned to its K-8 elementary district
+# (Florida) instead. With Monroe assigned, every MA town now maps to a district.
 ORPHAN_TOWN_DISTRICT: dict[str, str] = {
+    "MONROE": "00980000",                                            # Florida (K-8; Monroe HS tuitions to North Adams)
     "TYRINGHAM": "01500000",                                         # Lee
     "STOCKBRIDGE": "06180000", "WEST STOCKBRIDGE": "06180000",       # Berkshire Hills
     "GOSHEN": "06320000",                                            # Chesterfield-Goshen
