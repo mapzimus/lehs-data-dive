@@ -759,6 +759,40 @@ REGIONAL_SECONDARY_MEMBERS: dict[str, list[str]] = {
     "07300000": ["NORTHBOROUGH", "SOUTHBOROUGH"],                 # Northboro-Southboro (Algonquin)
 }
 
+# Orphan towns: tiny rural towns with NO public school of their own, so the
+# dominant-school dissolve (step 2) assigns them no district and drops them ->
+# a see-through hole on the map. They DO belong to a real (usually regional)
+# district that already wins its seat town; assign each one here so it joins that
+# district's dissolve. TOWN (upper) -> DIST_CODE.
+#
+# Resolved authoritatively via the US Census Geocoder (coordinates ->
+# Unified/Secondary/Elementary School District layers, preferring the layer that
+# matches an existing district), each verified geographically contiguous with its
+# district's group polygon. To regenerate/extend: geocode the town centroid and
+# take the matching district. Monroe is intentionally omitted — the Census places
+# it only in North Adams' non-contiguous 9-12 secondary district, so it correctly
+# stays a labeled "no operating district" hole.
+ORPHAN_TOWN_DISTRICT: dict[str, str] = {
+    "TYRINGHAM": "01500000",                                         # Lee
+    "STOCKBRIDGE": "06180000", "WEST STOCKBRIDGE": "06180000",       # Berkshire Hills
+    "GOSHEN": "06320000",                                            # Chesterfield-Goshen
+    "CUMMINGTON": "06350000", "PERU": "06350000",                    # Central Berkshire
+    "WASHINGTON": "06350000", "WINDSOR": "06350000",                 # Central Berkshire
+    "SANDISFIELD": "06620000",                                       # Farmington River Reg
+    "BLANDFORD": "06720000", "MIDDLEFIELD": "06720000",              # Gateway
+    "MONTGOMERY": "06720000", "RUSSELL": "06720000",                 # Gateway
+    "NEW ASHFORD": "07150000",                                       # Mount Greylock
+    "HAWLEY": "07170000", "HEATH": "07170000", "PLAINFIELD": "07170000",  # Mohawk Trail
+    "PHILLIPSTON": "07200000",                                       # Narragansett
+    "WENDELL": "07280000",                                           # New Salem-Wendell
+    "ASHBY": "07350000",                                             # North Middlesex
+    "LEYDEN": "07500000",                                            # Pioneer Valley
+    "ALFORD": "07650000", "MONTEREY": "07650000",                    # Southern Berkshire
+    "MOUNT WASHINGTON": "07650000",                                  # Southern Berkshire
+    "GRANVILLE": "07660000", "TOLLAND": "07660000",                  # Southwick-Tolland-Granville
+    "AQUINNAH": "07740000",                                          # Up-Island Regional
+}
+
 
 def build_ma_academic_districts() -> gpd.GeoDataFrame:
     """
@@ -774,6 +808,8 @@ def build_ma_academic_districts() -> gpd.GeoDataFrame:
       1. From SCHOOLS_PT, filter to regular public schools (drop Private,
          Charter, Voc/Tech, Special Ed)
       2. For each town, find the dominant DIST_CODE across its public schools
+      2b. Assign "orphan" towns (no school of their own) to their real district
+          via ORPHAN_TOWN_DISTRICT, so they aren't dropped to a map hole
       3. Dissolve the town polygons by that DIST_CODE → ~250 academic districts
       3b. Add regional *secondary* districts the dominant-dissolve can't capture
           (REGIONAL_SECONDARY_MEMBERS), as the union of their member towns
@@ -800,10 +836,19 @@ def build_ma_academic_districts() -> gpd.GeoDataFrame:
 
     # Join the dominant district code onto the towns shapefile (towns w/o
     # public schools in this file will get NaN — typically tiny rural towns
-    # that send students to regional districts; they'll be picked up below).
+    # that send students to regional districts; they're assigned below).
     towns_with_dist = towns.merge(dom[["TOWN", "DIST_CODE"]], on="TOWN", how="left")
 
-    # Drop towns we couldn't map (no schools of the right type)
+    # Orphan towns: no school of their own -> NaN above, but they belong to a real
+    # district (it wins its seat town separately). Fill from the Census-verified
+    # crosswalk so they join that district's dissolve instead of becoming a hole.
+    orphan = towns_with_dist["DIST_CODE"].isna()
+    towns_with_dist.loc[orphan, "DIST_CODE"] = (
+        towns_with_dist.loc[orphan, "TOWN"].str.upper().map(ORPHAN_TOWN_DISTRICT)
+    )
+
+    # Drop towns we still couldn't map (no schools + not a known orphan, e.g.
+    # Monroe — sends to a non-contiguous district; stays a labeled hole downstream)
     towns_with_dist = towns_with_dist.dropna(subset=["DIST_CODE"])
 
     # Dissolve town polygons by DIST_CODE
