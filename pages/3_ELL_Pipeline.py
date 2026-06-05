@@ -14,7 +14,7 @@ import streamlit as st
 
 from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
-from utils.constants import LEHS_SCHOOL_CODE, PROCESSED_DIR
+from utils.constants import LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE, PROCESSED_DIR
 from utils.data_loader import load_dataset
 
 st.set_page_config(page_title="ELL Pipeline | LEHS", page_icon="🌐", layout="wide")
@@ -83,9 +83,8 @@ st.divider()
 st.header("WIDA ACCESS — Statewide Context (2025)")
 st.caption(
     "ACCESS for ELLs is the annual English language proficiency assessment. "
-    "School-level ACCESS data must be pulled from the DESE Profiles bulk "
-    "downloads (not on the E2C Hub). Statewide aggregates from MA DESE's "
-    "WIDA report are shown below."
+    "Statewide aggregates from MA DESE's WIDA report are shown below; "
+    "school- and district-level outcomes for Lynn and LEHS follow in the next section."
 )
 
 wida_path = PROCESSED_DIR / "wida_state_summary.json"
@@ -129,6 +128,74 @@ if wida_path.exists():
         annotation_font=dict(size=11, color="gray"),
     )
     st.plotly_chart(fig, use_container_width=True)
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# ACCESS outcomes — Lynn & LEHS (DESE E2C reporting elements, puw9-zucz)
+# ---------------------------------------------------------------------------
+
+st.header("ACCESS for ELLs — Lynn & LEHS outcomes")
+st.caption(
+    "The three Title III reporting elements DESE publishes each year: the share "
+    "of ELs **making progress** toward English proficiency (RE1), the share who "
+    "**attained proficiency** (RE2), and the share who **exited** EL status (RE3). "
+    "School- and district-level values, pulled from the DESE E2C hub (puw9-zucz)."
+)
+
+el = load_dataset("el_access")
+if el.empty:
+    st.info("ACCESS reporting-element data is temporarily unavailable.")
+else:
+    el = el[el["GRADE"] == "ALL"].dropna(subset=["SY"]).copy()
+    el["SY"] = el["SY"].astype(int)
+    lehs_el = el[el["ORG_CODE"] == LEHS_SCHOOL_CODE].sort_values("SY")
+    lynn_el = el[(el["DIST_CODE"] == LYNN_DISTRICT_CODE)
+                 & (el["ORG_TYPE"] == "District")].sort_values("SY")
+    state_el = el[el["ORG_TYPE"] == "State"].sort_values("SY")
+
+    if not lehs_el.empty:
+        cur = lehs_el.iloc[-1]
+        sy_lbl = f"{int(cur['SY']) - 1}-{str(int(cur['SY']))[-2:]}"
+        st.markdown(f"**Lynn English High — SY {sy_lbl}**")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("ELs assessed", f"{int(cur['ENROLLED_CNT']):,}")
+        c2.metric("Making progress (RE1)", f"{cur['RE1_PCT']:.0%}")
+        c3.metric("Attained proficiency (RE2)", f"{cur['RE2_PCT']:.0%}")
+        c4.metric("Exited EL status (RE3)", f"{cur['RE3_PCT']:.0%}")
+
+    # RE1 (making progress) trend — LEHS vs Lynn district vs Massachusetts.
+    color_map = {
+        "Lynn English": SUBGROUP_PALETTE["English Learner"],
+        "Lynn district": LEHS_NAVY,
+        "Massachusetts": "#A8B5BD",
+    }
+    frames = []
+    for d, name in [(lehs_el, "Lynn English"),
+                    (lynn_el, "Lynn district"),
+                    (state_el, "Massachusetts")]:
+        if not d.empty:
+            t = d[["SY", "RE1_PCT"]].copy()
+            t["Series"] = name
+            frames.append(t)
+    if frames:
+        tdf = pd.concat(frames, ignore_index=True).dropna(subset=["RE1_PCT"])
+        fig = px.line(tdf, x="SY", y="RE1_PCT", color="Series", markers=True,
+                      color_discrete_map=color_map)
+        fig.update_layout(
+            **DEFAULT_LAYOUT,
+            title="ELs making progress toward English proficiency (ACCESS RE1)",
+            yaxis_tickformat=".0%",
+            yaxis_title="% making progress",
+            xaxis_title="School Year",
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    st.caption(
+        "RE1 (making progress) is the workhorse Title III accountability metric. "
+        "RE3 (exiting) runs high because most ELs who clear the overall ACCESS "
+        "threshold are reclassified that same year."
+    )
 
 st.divider()
 
@@ -287,6 +354,7 @@ try:
     _dl({
         'Enrollment & demographics': enrollment,
         'MCAS achievement': mcas,
+        'ACCESS (ELL reporting elements)': load_dataset("el_access"),
     })
 except NameError:
     # one of the dataset variables wasn't defined on this run
