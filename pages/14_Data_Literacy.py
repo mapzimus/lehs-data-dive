@@ -83,10 +83,10 @@ st.markdown(
   shape is the same.
 
 **A database** is the bigger thing: a *collection of related datasets*
-all kept together. This dashboard sits on top of ~55 datasets pulled
-from MA DESE, the US Census, federal civil-rights data, and original
-LPS research. Each chart you'll see is a way of *looking at* one or
-more of those tables.
+all kept together. This dashboard sits on top of **50+ datasets across
+~10 public sources** — MA DESE, the US Census, federal civil-rights
+data, athletics records, and original LPS research. Each chart you'll
+see is a way of *looking at* one or more of those tables.
 """
 )
 

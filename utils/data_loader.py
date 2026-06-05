@@ -48,30 +48,6 @@ def _load(path: Path) -> pd.DataFrame:
     return _read_parquet_cached(str(path), _parquet_sig(path))
 
 
-def load_lehs_master() -> pd.DataFrame:
-    """LEHS-only panel: one row per year, all metrics joined."""
-    return _load(PROCESSED_DIR / "lehs_master.parquet")
-
-
-def load_gateway_hs_panel() -> pd.DataFrame:
-    """Panel of all gateway-city main HS x year x metric."""
-    return _load(PROCESSED_DIR / "gateway_hs_panel.parquet")
-
-
-def load_lynn_schools_panel() -> pd.DataFrame:
-    """Panel of all Lynn district schools (including LEHS, Classical, Tech)."""
-    return _load(PROCESSED_DIR / "lynn_schools_panel.parquet")
-
-
-def load_lynn_sibling_hs() -> pd.DataFrame:
-    """Lynn high schools only: LEHS, Classical, Tech, Fecteau-Leary, Frederick Douglass."""
-    df = load_lynn_schools_panel()
-    if df.empty:
-        return df
-    # filter by grade range or by school name list — implementation depends on schema
-    return df
-
-
 def load_dataset(name: str) -> pd.DataFrame:
     """Load any processed Parquet file by stem name."""
     return _load(PROCESSED_DIR / f"{name}.parquet")

@@ -37,16 +37,20 @@ if ap.empty:
 st.header("Headline Metrics")
 
 cols = st.columns(4)
+
+# DART-sourced tiles (per-student rates, stored 0–100). The AP "scoring 3+"
+# tile is intentionally NOT here — it's sourced from ap_performance below as the
+# % of AP *exams* scoring 3+, so the headline matches the by-group AP chart
+# further down the page (which already uses PCT_3_5). Keeping a per-student DART
+# AP figure up here next to an exam-weighted chart below was the ambiguity.
 for col, ind, label in zip(
-    cols,
+    [cols[0], cols[2], cols[3]],
     [
         "Jr/Sr enrolled in one or more AP / IB courses",
-        "Jr/Sr AP test takers scoring 3 or above",
         "High school graduates who completed MassCore",
         "Grade 12 students who completed FAFSA",
     ],
-    ["% Juniors/Seniors in AP/IB", "% AP test-takers scoring 3+",
-     "% Completed MassCore", "% Completed FAFSA"],
+    ["% Juniors/Seniors in AP/IB", "% Completed MassCore", "% Completed FAFSA"],
 ):
     sub = get_dart_indicator(LEHS_SCHOOL_CODE, ind)
     if not sub.empty:
@@ -56,6 +60,21 @@ for col, ind, label in zip(
             # as a literal percentage (e.g. 16.0 -> "16%"). The labels above all
             # say "%", so the value must carry the sign too.
             st.metric(label, f"{v:.0f}%")
+
+# AP "scoring 3+" tile — canonical % of AP EXAMS scoring 3+ (exam-weighted, All
+# Subjects), from ap_performance PCT_3_5 (already 0-1). This is the same metric
+# and definition as the "AP pass rate by student group" chart below, so the
+# headline number and that chart's All-Students bar now agree.
+ap_all = ap[
+    (ap["ORG_CODE"] == LEHS_SCHOOL_CODE)
+    & (ap["SUBJ"] == "All Subjects")
+    & (ap["STU_GRP"] == "All Students")
+].copy()
+ap_all["PCT_3_5"] = pd.to_numeric(ap_all["PCT_3_5"], errors="coerce")
+ap_all = ap_all.dropna(subset=["PCT_3_5"]).sort_values("SY")
+if not ap_all.empty:
+    with cols[1]:
+        st.metric("% of AP exams scoring 3+", f"{ap_all.iloc[-1]['PCT_3_5']:.0%}")
 
 st.divider()
 

@@ -88,6 +88,7 @@ LPS_DISTRICT_LABEL   = "Lynn — LPS district"
 enrollment = load_dataset("enrollment_demographics")
 dart = load_dataset("dart_success_after_hs")
 grad = load_dataset("graduation_rates")
+ap_perf = load_dataset("ap_performance")
 school_exp = load_dataset("school_expenditures")
 dist_exp = load_dataset("district_expenditures")
 
@@ -112,7 +113,7 @@ scorecard = enr[[
     "TOTAL_CNT", "EL_PCT", "LI_PCT", "SWD_PCT", "HN_PCT", "HL_PCT",
 ]].rename(columns={
     "TOTAL_CNT": "Enrollment",
-    "EL_PCT": "% ELL",
+    "EL_PCT": "% English Learner(s)",
     "LI_PCT": "% Low Income",
     "SWD_PCT": "% SPED",
     "HN_PCT": "% High Needs",
@@ -139,7 +140,50 @@ def pivot_dart(indicator: str, label: str) -> pd.DataFrame:
     latest = sub.sort_values("SY").groupby("ORG_CODE").tail(1)
     return latest[["ORG_CODE", "VALUE"]].rename(columns={"VALUE": label})
 
-grad_4yr = pivot_dart("4-year cohort graduation rate", "4yr Grad Rate")
+
+# 4-year graduation rate — canonical source is graduation_rates (the OFFICIAL
+# 4-Year ADJUSTED COHORT rate DESE publishes), NOT DART's "4-year cohort
+# graduation rate" (which tracks the un-adjusted "4-Year Graduation Rate"
+# lineage and runs ~3-4 pts higher/lower year to year). graduation_rates has a
+# per-school row for every gateway main HS (ORG_TYPE == "School"), so every
+# city + LEHS shares the same official definition. This also matches the LPS
+# district synthetic row below, which already reads graduation_rates.
+def grad_4yr_official() -> pd.DataFrame:
+    """Latest 4-Year Adjusted Cohort grad rate per scorecard school (0-1)."""
+    if grad.empty:
+        return pd.DataFrame(columns=["ORG_CODE", "4yr Grad Rate"])
+    sub = grad[
+        (grad["ORG_CODE"].isin(scorecard_codes))
+        & (grad["ORG_TYPE"] == "School")
+        & (grad["STU_GRP"] == "All Students")
+        & (grad["GRAD_RATE_TYPE"] == "4-Year Adjusted Cohort Graduation Rate")
+    ].copy()
+    sub["GRAD_PCT"] = pd.to_numeric(sub["GRAD_PCT"], errors="coerce")
+    latest = sub.dropna(subset=["GRAD_PCT"]).sort_values("SY").groupby("ORG_CODE").tail(1)
+    return latest[["ORG_CODE", "GRAD_PCT"]].rename(columns={"GRAD_PCT": "4yr Grad Rate"})
+
+
+# AP "scoring 3+" — canonical source is ap_performance PCT_3_5 (the share of AP
+# EXAMS scoring 3+, exam-weighted, All Subjects), NOT DART's "Jr/Sr AP test
+# takers scoring 3 or above" (a per-STUDENT rate). The two answer different
+# questions and differ by ~5-15 pts; the exam-weighted figure is what the
+# College & Career page's by-group AP chart already uses, so sourcing it here
+# keeps the whole app on one AP definition. PCT_3_5 is already 0-1.
+def ap_exams_3plus() -> pd.DataFrame:
+    """Latest % of AP exams scoring 3+ per scorecard school (0-1)."""
+    if ap_perf.empty:
+        return pd.DataFrame(columns=["ORG_CODE", "% AP exams 3+"])
+    sub = ap_perf[
+        (ap_perf["ORG_CODE"].isin(scorecard_codes))
+        & (ap_perf["SUBJ"] == "All Subjects")
+        & (ap_perf["STU_GRP"] == "All Students")
+    ].copy()
+    sub["PCT_3_5"] = pd.to_numeric(sub["PCT_3_5"], errors="coerce")
+    latest = sub.dropna(subset=["PCT_3_5"]).sort_values("SY").groupby("ORG_CODE").tail(1)
+    return latest[["ORG_CODE", "PCT_3_5"]].rename(columns={"PCT_3_5": "% AP exams 3+"})
+
+
+grad_4yr = grad_4yr_official()
 immediate = pivot_dart(
     "Students enrolled in postsecondary education in the immediate fall after high school graduation",
     "Immediate College",
@@ -148,7 +192,7 @@ fafsa = pivot_dart("Grade 12 students who completed FAFSA", "% FAFSA")
 chronic = pivot_dart(
     "Chronically absent rate (% of students absent 10% or more each year)", "% Chronic Absence",
 )
-ap_3plus = pivot_dart("Jr/Sr AP test takers scoring 3 or above", "% AP 3+")
+ap_3plus = ap_exams_3plus()
 
 for d in [grad_4yr, immediate, fafsa, chronic, ap_3plus]:
     scorecard = scorecard.merge(d, on="ORG_CODE", how="left")
@@ -187,7 +231,7 @@ def _build_lps_district_row() -> pd.DataFrame | None:
         "DIST_NAME":         "Lynn",
         "City":              LPS_DISTRICT_LABEL,
         "Enrollment":        d.get("TOTAL_CNT"),
-        "% ELL":             d.get("EL_PCT"),
+        "% English Learner(s)": d.get("EL_PCT"),
         "% Low Income":      d.get("LI_PCT"),
         "% SPED":            d.get("SWD_PCT"),
         "% High Needs":      d.get("HN_PCT"),
@@ -202,11 +246,15 @@ def _build_lps_district_row() -> pd.DataFrame | None:
     def _dist_grad_4yr() -> float | None:
         if grad.empty:
             return None
+        # Use the exact 4-Year ADJUSTED COHORT type — same official definition as
+        # the per-school rows above. A bare "4-Year" contains-match would also
+        # catch the un-adjusted "4-Year Graduation Rate" and silently pick
+        # whichever sorted last, mixing two definitions in one column.
         sub = grad[
             (grad["DIST_CODE"] == LYNN_DISTRICT_CODE)
             & (grad["ORG_TYPE"] == "District")
             & (grad["STU_GRP"] == "All Students")
-            & (grad["GRAD_RATE_TYPE"].astype(str).str.contains("4-Year", case=False, na=False))
+            & (grad["GRAD_RATE_TYPE"] == "4-Year Adjusted Cohort Graduation Rate")
         ].copy()
         if sub.empty:
             return None
@@ -217,10 +265,12 @@ def _build_lps_district_row() -> pd.DataFrame | None:
     row["4yr Grad Rate"]     = _dist_grad_4yr()
     # The remaining indicators are only published per-school in our DART extract,
     # so the district aggregate row leaves them blank rather than fabricating a value.
+    # (AP % of exams at district grain is intentionally left blank too — keeps the
+    # district row from mixing an exam-weighted school metric with a district one.)
     row["Immediate College"] = None
     row["% FAFSA"]           = None
     row["% Chronic Absence"] = None
-    row["% AP 3+"]           = None
+    row["% AP exams 3+"]     = None
 
     # District per-pupil spending — district_expenditures table has its own
     # "Per Pupil" / "Total Expenditures" rows.
@@ -259,15 +309,15 @@ scorecard["lynn_role"] = scorecard["ORG_CODE"].apply(_lynn_role)
 
 scorecard = scorecard.sort_values("Enrollment", ascending=False)
 display_cols = [
-    "City", "ORG_NAME", "Enrollment", "% ELL", "% Low Income", "% High Needs",
+    "City", "ORG_NAME", "Enrollment", "% English Learner(s)", "% Low Income", "% High Needs",
     "% Hispanic/Latino", "4yr Grad Rate", "Immediate College", "% FAFSA",
-    "% AP 3+", "% Chronic Absence", "$ Per Pupil",
+    "% AP exams 3+", "% Chronic Absence", "$ Per Pupil",
 ]
 display = scorecard[display_cols].rename(columns={"ORG_NAME": "School"}).copy()
 
 # Format
-for col in ["% ELL", "% Low Income", "% High Needs", "% Hispanic/Latino",
-            "4yr Grad Rate", "Immediate College", "% FAFSA", "% AP 3+", "% Chronic Absence"]:
+for col in ["% English Learner(s)", "% Low Income", "% High Needs", "% Hispanic/Latino",
+            "4yr Grad Rate", "Immediate College", "% FAFSA", "% AP exams 3+", "% Chronic Absence"]:
     display[col] = display[col].apply(lambda x: f"{x:.0%}" if pd.notna(x) else "—")
 display["Enrollment"] = display["Enrollment"].apply(lambda x: f"{int(x):,}" if pd.notna(x) else "—")
 display["$ Per Pupil"] = display["$ Per Pupil"].apply(lambda x: f"${x:,.0f}" if pd.notna(x) else "—")
@@ -290,6 +340,19 @@ st.caption(
     "Classical, Lynn Tech, and the LPS-district aggregate are tinted "
     "pale-navy so all four Lynn rows are easy to find among the 25 "
     "other gateway-city rows."
+)
+st.caption(
+    "**Metric definitions.** **4yr Grad Rate** is the official DESE 4-Year "
+    "*Adjusted Cohort* Graduation Rate (from the graduation-rates file), the "
+    "same definition for every school and the LPS district row. **% AP exams "
+    "3+** is the share of *AP exams* scoring 3 or higher (exam-weighted, all "
+    "subjects), not a per-student rate. **$ Per Pupil** mixes two DESE "
+    "accounting universes: the school high-school rows are *school-level* "
+    "per-pupil spending (school_expenditures), while the **LPS district** row "
+    "is *district-level*, all-in per-pupil spending (district_expenditures), "
+    "which is normally several thousand dollars higher because it carries "
+    "district-wide costs the school-level figure excludes — so compare school "
+    "rows to school rows, and read the LPS row as the district total."
 )
 
 # ---------------------------------------------------------------------------
@@ -428,11 +491,11 @@ if not scatter_df.empty:
         use_container_width=True,
     )
 
-st.subheader("ELL share vs. 4-year graduation rate")
-scatter_df2 = scorecard.dropna(subset=["% ELL", "4yr Grad Rate"]).copy()
+st.subheader("English-learner share vs. 4-year graduation rate")
+scatter_df2 = scorecard.dropna(subset=["% English Learner(s)", "4yr Grad Rate"]).copy()
 if not scatter_df2.empty:
     st.plotly_chart(
-        _lynn_scatter(scatter_df2, "% ELL", "4yr Grad Rate",
+        _lynn_scatter(scatter_df2, "% English Learner(s)", "4yr Grad Rate",
                        "% English Learners", "4-year graduation rate",
                        ".0%", ".0%"),
         use_container_width=True,
@@ -455,7 +518,7 @@ st.caption(
     "even though they appear as their own dots in the scatters above."
 )
 
-similarity_features = ["% ELL", "% Low Income", "% High Needs",
+similarity_features = ["% English Learner(s)", "% Low Income", "% High Needs",
                         "% Hispanic/Latino", "Enrollment"]
 
 # Build a clean numeric matrix — restricted to the gateway main-HS set
@@ -492,7 +555,7 @@ if (
     ).sort_values("_distance")
 
     show_cols = ["City", "ORG_NAME", "_distance"] + similarity_features + [
-        "4yr Grad Rate", "Immediate College", "% FAFSA", "% AP 3+", "% Chronic Absence",
+        "4yr Grad Rate", "Immediate College", "% FAFSA", "% AP exams 3+", "% Chronic Absence",
     ]
     show = closest_full[show_cols].rename(columns={
         "ORG_NAME": "School", "_distance": "Similarity (lower = more similar)",
@@ -500,8 +563,8 @@ if (
     show["Similarity (lower = more similar)"] = show["Similarity (lower = more similar)"].apply(
         lambda x: f"{x:.2f}" if pd.notna(x) else "—"
     )
-    for col in ["% ELL", "% Low Income", "% High Needs", "% Hispanic/Latino",
-                 "4yr Grad Rate", "Immediate College", "% FAFSA", "% AP 3+", "% Chronic Absence"]:
+    for col in ["% English Learner(s)", "% Low Income", "% High Needs", "% Hispanic/Latino",
+                 "4yr Grad Rate", "Immediate College", "% FAFSA", "% AP exams 3+", "% Chronic Absence"]:
         if col in show.columns:
             show[col] = show[col].apply(lambda x: f"{x:.0%}" if pd.notna(x) else "—")
     show["Enrollment"] = show["Enrollment"].apply(lambda x: f"{int(x):,}" if pd.notna(x) else "—")

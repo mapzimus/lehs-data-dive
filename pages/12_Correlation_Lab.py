@@ -77,8 +77,14 @@ def build_master_panel() -> pd.DataFrame:
     dart = dart[(dart["ORG_CODE"].isin(gateway_codes)) & (dart["STU_GRP"] == "All Students")].copy()
     dart["VALUE"] = pd.to_numeric(dart["VALUE"], errors="coerce")
 
+    # NOTE: "4-year cohort graduation rate" and "Jr/Sr AP test takers scoring 3
+    # or above" are deliberately NOT sourced from DART here. The canonical
+    # 4-year grad rate is DESE's 4-Year *Adjusted Cohort* rate (graduation_rates)
+    # and the canonical AP figure is the % of AP *exams* scoring 3+
+    # (ap_performance PCT_3_5). Both are merged in below from those files so this
+    # page matches the rest of the app's definitions. The 5-year cohort rate
+    # stays on DART (no re-sourcing requested for it).
     indicator_aliases = {
-        "4-year cohort graduation rate": "GradRate_4yr",
         "5-year cohort graduation rate": "GradRate_5yr",
         "9th to 10th grade promotion rate (first-time 9th graders only)": "Promotion_9to10",
         "Annual dropout rate": "Dropout",
@@ -90,7 +96,6 @@ def build_master_panel() -> pd.DataFrame:
         "Grade 10 students meeting or exceeding expectations in ELA": "MCAS_G10_ELA",
         "Grade 10 students meeting or exceeding expectations in mathematics": "MCAS_G10_Math",
         "Jr/Sr enrolled in one or more AP / IB courses": "AP_Enrolled",
-        "Jr/Sr AP test takers scoring 3 or above": "AP_3plus",
         "SAT average score - Mathematics": "SAT_Math",
         "SAT average score - Reading": "SAT_Reading",
         "Grade 12 students who completed FAFSA": "FAFSA",
@@ -114,9 +119,9 @@ def build_master_panel() -> pd.DataFrame:
     # scores) are NOT percentages and are left on their native scale. Pearson r
     # is scale-invariant, so this only affects readability, not the statistics.
     DART_PCT_ALIASES = [
-        "GradRate_4yr", "GradRate_5yr", "Promotion_9to10", "Dropout",
+        "GradRate_5yr", "Promotion_9to10", "Dropout",
         "ChronicAbsence", "AttendanceRate", "Suspension_pct",
-        "MCAS_G10_ELA", "MCAS_G10_Math", "AP_Enrolled", "AP_3plus",
+        "MCAS_G10_ELA", "MCAS_G10_Math", "AP_Enrolled",
         "FAFSA", "ImmediateCollege", "College_2yr", "College_4yr",
         "CollegePersist", "MassCore",
     ]
@@ -135,8 +140,43 @@ def build_master_panel() -> pd.DataFrame:
     t_ratio = sp[(sp["IND_CAT"] == "Teacher Salaries") & (sp["IND_SUBCAT"] == "Teachers per 100 FTE students")] \
             [["SY", "ORG_CODE", "IND_VALUE"]].rename(columns={"IND_VALUE": "TeachersPer100"})
 
+    # 4) Canonical 4-year graduation rate — DESE's official 4-Year ADJUSTED
+    # COHORT rate (per gateway main-HS school row), NOT DART's un-adjusted
+    # "4-year cohort graduation rate". Keyed on (SY, ORG_CODE) so it joins onto
+    # the panel per school-year. GRAD_PCT is already 0-1.
+    grad = load_dataset("graduation_rates")
+    if not grad.empty:
+        gr = grad[
+            (grad["ORG_CODE"].isin(gateway_codes))
+            & (grad["ORG_TYPE"] == "School")
+            & (grad["STU_GRP"] == "All Students")
+            & (grad["GRAD_RATE_TYPE"] == "4-Year Adjusted Cohort Graduation Rate")
+        ].copy()
+        gr["GradRate_4yr"] = pd.to_numeric(gr["GRAD_PCT"], errors="coerce")
+        grad_wide = gr[["SY", "ORG_CODE", "GradRate_4yr"]].dropna(subset=["GradRate_4yr"])
+    else:
+        grad_wide = pd.DataFrame(columns=["SY", "ORG_CODE", "GradRate_4yr"])
+
+    # 5) Canonical AP "scoring 3+" — % of AP EXAMS scoring 3+ (exam-weighted,
+    # All Subjects), from ap_performance PCT_3_5 (already 0-1), NOT DART's
+    # per-student "Jr/Sr AP test takers scoring 3 or above". Same definition the
+    # College & Career page's AP-by-group chart uses.
+    ap = load_dataset("ap_performance")
+    if not ap.empty:
+        apx = ap[
+            (ap["ORG_CODE"].isin(gateway_codes))
+            & (ap["SUBJ"] == "All Subjects")
+            & (ap["STU_GRP"] == "All Students")
+        ].copy()
+        apx["AP_exams_3plus"] = pd.to_numeric(apx["PCT_3_5"], errors="coerce")
+        ap_wide = apx[["SY", "ORG_CODE", "AP_exams_3plus"]].dropna(subset=["AP_exams_3plus"])
+    else:
+        ap_wide = pd.DataFrame(columns=["SY", "ORG_CODE", "AP_exams_3plus"])
+
     # Join everything
     panel = base.merge(dart_wide, on=["SY", "ORG_CODE"], how="outer")
+    panel = panel.merge(grad_wide, on=["SY", "ORG_CODE"], how="outer")
+    panel = panel.merge(ap_wide, on=["SY", "ORG_CODE"], how="outer")
     panel = panel.merge(pp, on=["SY", "ORG_CODE"], how="left")
     panel = panel.merge(sal, on=["SY", "ORG_CODE"], how="left")
     panel = panel.merge(t_ratio, on=["SY", "ORG_CODE"], how="left")
@@ -170,8 +210,10 @@ AXIS_LABELS = {
     "Asian_pct": "Asian students (%)",
     "White_pct": "White students (%)",
     "FirstLangNotEnglish_pct": "First language not English (%)",
-    # DART percent rates (normalized to 0-1)
-    "GradRate_4yr": "4-yr graduation rate (%)",
+    # Outcomes (0-1). Grad rate + AP 3+ are re-sourced from the official files
+    # (graduation_rates adjusted cohort / ap_performance exam-weighted); the
+    # rest are DART percent rates normalized to 0-1.
+    "GradRate_4yr": "4-yr graduation rate — adjusted cohort (%)",
     "GradRate_5yr": "5-yr graduation rate (%)",
     "Promotion_9to10": "9th-to-10th promotion rate (%)",
     "Dropout": "Annual dropout rate (%)",
@@ -181,7 +223,7 @@ AXIS_LABELS = {
     "MCAS_G10_ELA": "Grade-10 MCAS ELA meeting/exceeding (%)",
     "MCAS_G10_Math": "Grade-10 MCAS math meeting/exceeding (%)",
     "AP_Enrolled": "Juniors/seniors in AP or IB (%)",
-    "AP_3plus": "AP test-takers scoring 3+ (%)",
+    "AP_exams_3plus": "% of AP exams scoring 3+",
     "FAFSA": "Grade-12 FAFSA completion (%)",
     "ImmediateCollege": "Enrolled in college the next fall (%)",
     "College_2yr": "Graduates at a 2-yr college (%)",
@@ -205,7 +247,7 @@ _PCT_COLS = {
     "Black_pct", "Asian_pct", "White_pct", "FirstLangNotEnglish_pct",
     "GradRate_4yr", "GradRate_5yr", "Promotion_9to10", "Dropout",
     "ChronicAbsence", "AttendanceRate", "Suspension_pct", "MCAS_G10_ELA",
-    "MCAS_G10_Math", "AP_Enrolled", "AP_3plus", "FAFSA", "ImmediateCollege",
+    "MCAS_G10_Math", "AP_Enrolled", "AP_exams_3plus", "FAFSA", "ImmediateCollege",
     "College_2yr", "College_4yr", "CollegePersist", "MassCore",
 }
 _DOLLAR_COLS = {"PerPupil", "AvgTeacherSalary"}

@@ -13,7 +13,13 @@ import pandas as pd
 import streamlit as st
 
 from utils.branding import AUTHOR_NAME, AUTHOR_SITE, sidebar_attribution
-from utils.constants import IMAGES_DIR, LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
+from utils.constants import (
+    IMAGES_DIR,
+    LEHS_GOLD,
+    LEHS_NAVY,
+    LEHS_SCHOOL_CODE,
+    LYNN_DISTRICT_CODE,
+)
 from utils.data_loader import load_dataset
 from utils.interpret import sy_label
 
@@ -26,24 +32,26 @@ sidebar_attribution()
 # ---------------------------------------------------------------------------
 
 st.markdown(
-    """
+    f"""
     <style>
       /* Mobile-only hint banner. Global mobile CSS lives in
-         utils/branding.sidebar_attribution() so it applies everywhere. */
-      .mobile-section-hint { display: none; }
-      @media (max-width: 768px) {
-        .mobile-section-hint {
+         utils/branding.sidebar_attribution() so it applies everywhere.
+         Brand colors reference the constants tokens so the hint stays in
+         step with the (concurrently darkened) palette. */
+      .mobile-section-hint {{ display: none; }}
+      @media (max-width: 768px) {{
+        .mobile-section-hint {{
           display: block;
           background: linear-gradient(90deg, #FFF4D6 0%, #FFE9A6 100%);
-          border-left: 4px solid #FFB81C;
+          border-left: 4px solid {LEHS_GOLD};
           padding: 10px 14px;
           margin: 0 0 14px 0;
           border-radius: 6px;
           font-size: 13px;
-          color: #0A1F44;
+          color: {LEHS_NAVY};
           line-height: 1.5;
-        }
-      }
+        }}
+      }}
     </style>
     <div class="mobile-section-hint">
       <strong>On mobile?</strong> Tap the gold-outlined arrow button
@@ -69,9 +77,9 @@ with col_author:
     st.markdown(
         f"""
         <div style='text-align:right; margin-top:2rem;'>
-            <span style='color:#0A1F44; font-size:0.95rem;'>Built by</span><br>
-            <strong style='font-size:1.3rem; color:#0A1F44;'>{AUTHOR_NAME}</strong><br>
-            <a href='https://{AUTHOR_SITE}' style='color:#FFB81C;'>{AUTHOR_SITE}</a>
+            <span style='color:{LEHS_NAVY}; font-size:0.95rem;'>Built by</span><br>
+            <strong style='font-size:1.3rem; color:{LEHS_NAVY};'>{AUTHOR_NAME}</strong><br>
+            <a href='https://{AUTHOR_SITE}' style='color:{LEHS_GOLD};'>{AUTHOR_SITE}</a>
         </div>
         """,
         unsafe_allow_html=True,
@@ -495,8 +503,10 @@ with c1:
     st.markdown(
         """
 **Data scope**
-- **22 datasets** from MA DESE's E2C Hub (MCAS, graduation, AP, attendance,
-  finance, staffing, plans of graduates, pathways, postsecondary outcomes)
+- **50+ datasets across ~10 public sources** — the bulk from MA DESE's E2C
+  Hub (MCAS, graduation, AP, attendance, finance, staffing, plans of
+  graduates, pathways, postsecondary outcomes), plus federal civil-rights,
+  Census, and athletics data. See **Methodology** for the full source list.
 - **Original research**: Maxwell Howe's catchment + absenteeism geospatial
   study using aggregated Lynn Public Schools enrollment data
 - **Federal data**: US Census ACS 5-year for Lynn tracts, MassGIS shapefiles
@@ -563,8 +573,9 @@ st.divider()
 st.header("All sections")
 
 st.markdown(
-    "The sidebar is grouped into five clusters. Pick anything that's "
-    "relevant to what you're trying to figure out."
+    "The sidebar is organized into four groups — The School, Lynn, "
+    "Comparison, and About — plus Home and Maps pinned at the top. Pick "
+    "anything that's relevant to what you're trying to figure out."
 )
 
 c1, c2 = st.columns(2)
@@ -608,8 +619,8 @@ st.markdown(
     f"""
     <div style='text-align:center; margin-top:2rem; color:#455A64; font-size:0.9rem;'>
         Built by <strong>{AUTHOR_NAME}</strong> ·
-        <a href='https://{AUTHOR_SITE}' style='color:#FFB81C;'>{AUTHOR_SITE}</a> ·
-        <a href='https://github.com/mapzimus/lehs-data-dive' style='color:#FFB81C;'>source on GitHub</a>
+        <a href='https://{AUTHOR_SITE}' style='color:{LEHS_GOLD};'>{AUTHOR_SITE}</a> ·
+        <a href='https://github.com/mapzimus/lehs-data-dive' style='color:{LEHS_GOLD};'>source on GitHub</a>
     </div>
     """,
     unsafe_allow_html=True,

@@ -23,7 +23,9 @@ import streamlit as st
 import yaml
 
 from utils.branding import sidebar_attribution
-from utils.constants import ASSETS_DIR, IMAGES_DIR
+from utils.constants import ASSETS_DIR, IMAGES_DIR, LYNN_DISTRICT_CODE
+from utils.data_loader import load_dataset
+from utils.interpret import sy_label
 
 st.set_page_config(
     page_title="LEHS History | LEHS", page_icon="📜", layout="wide",
@@ -175,11 +177,16 @@ calendar year (1924)** so classes could resume on the same site
 without losing more than a few months.
 
 This second Essex Street English — the 1916 addition plus Cornet's
-1924 rebuild — served as Lynn English's home through **1932**, when
+1924 rebuild — served as Lynn English's home through **1931**, when
 the school relocated to its current Goodridge Street campus (next
 tab). The Essex Street building was then converted to a junior high
 school, then sat vacant (documented as such in 1985), and was
 eventually adapted into residential units.
+
+*(Sources differ slightly on the move year — some date the Goodridge
+Street opening to 1932. This page uses **1931** throughout, the year
+given by the school's own records and the cost figures from that
+construction.)*
         """
     )
 
@@ -272,10 +279,10 @@ with _tab_alumni:
     st.markdown(
         """
 The most LEHS-specific name on this list. **Tom Whelan** was an
-infielder for the **Boston Braves in 1920** — and, in the same
-year, played football for the **Canton Bulldogs** alongside Jim
-Thorpe. He was one of the country's earliest two-sport professional
-athletes.
+infielder for the **Boston Braves in 1920** — and in **1919 and
+1920** played football for the **Canton Bulldogs** alongside Jim
+Thorpe, on the 1919 Ohio League championship team. He was one of the
+country's earliest two-sport professional athletes.
 
 He then came home. Through the **1940s–50s** Whelan taught at LEHS,
 coached baseball, served as athletic director, and eventually as
@@ -547,7 +554,7 @@ with _tab_leadership:
         "eventually principal through the **1940s–50s** — the same Tom "
         "Whelan who'd played MLB for the Boston Braves in 1920 and "
         "professional football alongside Jim Thorpe on the Canton Bulldogs "
-        "in 1919–20. The **Whelan Family Scholarship** at LEHS is named "
+        "in 1919 and 1920. The **Whelan Family Scholarship** at LEHS is named "
         "for him and remains active. See the **Notable alumni & faculty** "
         "tab for the full Whelan write-up."
     )
@@ -555,11 +562,41 @@ with _tab_leadership:
 # --- Tab 7: Lynn as a school city ------------------------------------------
 with _tab_civic:
     st.subheader("The district around LEHS")
+
+    # Pull the district's scale straight from the enrollment file so this
+    # narrative never drifts from the data the rest of the dashboard shows.
+    # (The old hard-coded "17,447 students across 27 schools as of June 2024"
+    # disagreed with the source on both counts.)
+    _enr = load_dataset("enrollment_demographics")
+    _lps_enroll_txt = "16,000+"
+    _lps_school_txt = "two dozen"
+    _lps_sy_txt = "recent years"
+    _lps_feeder_txt = "elementary and middle"
+    if not _enr.empty:
+        _dist = _enr[
+            (_enr["DIST_CODE"] == LYNN_DISTRICT_CODE)
+            & (_enr["ORG_TYPE"] == "District")
+        ].sort_values("SY")
+        _sch = _enr[
+            (_enr["DIST_CODE"] == LYNN_DISTRICT_CODE)
+            & (_enr["ORG_TYPE"] == "School")
+        ]
+        if not _dist.empty:
+            _latest_sy = int(_dist.iloc[-1]["SY"])
+            _lps_sy_txt = f"SY {sy_label(_latest_sy)}"
+            _lps_enroll_txt = f"{int(_dist.iloc[-1]['TOTAL_CNT']):,}"
+            _n_schools = _sch[_sch["SY"] == _latest_sy]["ORG_CODE"].nunique()
+            if _n_schools:
+                _lps_school_txt = f"{_n_schools}"
+                # 5 LPS public high schools; the rest are K-8 feeders.
+                _lps_feeder_txt = f"{_n_schools - 5} elementary and middle"
+
     st.markdown(
-        """
-LEHS doesn't exist alone in Lynn. **Lynn Public Schools (LPS)** as
-of June 2024 enrolled **17,447 students across 27 schools**. The
-five LPS public high schools, in order of size:
+        f"""
+LEHS doesn't exist alone in Lynn. As of **{_lps_sy_txt}**, **Lynn
+Public Schools (LPS)** enrolled **{_lps_enroll_txt} students across
+{_lps_school_txt} schools**. The five LPS public high schools, in
+order of size:
 
 - **Lynn English** (9–12) — the focus of this dashboard. Largest.
 - **Lynn Vocational & Technical Institute (LVTI / Lynn Tech)** (8–12)
@@ -570,7 +607,7 @@ five LPS public high schools, in order of size:
 
 For the comparative view across these five schools, see the
 **[Lynn Schools](/Lynn_Schools?embed=true)** page; for the full district context
-(including all 22 elementary and middle feeders), see
+(including all {_lps_feeder_txt} feeders), see
 **[Lynn District](/Lynn_District?embed=true)**.
         """
     )

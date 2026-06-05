@@ -406,7 +406,7 @@ with tab_snapshot:
             ms_table = ms_table.rename(columns={
                 "ORG_NAME":  "School",
                 "TOTAL_CNT": "Enrollment",
-                "EL_PCT":    "% ELL",
+                "EL_PCT":    "% English Learner(s)",
                 "LI_PCT":    "% Low Income",
                 "HN_PCT":    "% High Needs",
                 "HL_PCT":    "% Hispanic/Latino",
@@ -415,7 +415,7 @@ with tab_snapshot:
             })
             ms_table = ms_table.drop(columns=["ORG_CODE"])
 
-            for col in ["% ELL", "% Low Income", "% High Needs", "% Hispanic/Latino",
+            for col in ["% English Learner(s)", "% Low Income", "% High Needs", "% Hispanic/Latino",
                          "G8 ELA % M+E", "G8 Math % M+E"]:
                 if col in ms_table.columns:
                     ms_table[col] = ms_table[col].apply(
@@ -796,7 +796,7 @@ with tab_all_schools:
         with c2:
             min_enrollment = st.slider("Minimum enrollment", 0, 2000, 0, step=50)
         with c3:
-            ell_range = st.slider("% ELL range", 0, 100, (0, 100), step=5)
+            ell_range = st.slider("% English Learner(s) range", 0, 100, (0, 100), step=5)
 
         filtered = latest.copy()
 
@@ -847,7 +847,7 @@ with tab_all_schools:
         ]].rename(columns={
             "ORG_NAME": "School",
             "TOTAL_CNT": "Enrollment",
-            "EL_PCT": "% ELL",
+            "EL_PCT": "% English Learner(s)",
             "LI_PCT": "% Low Income",
             "SWD_PCT": "% SPED",
             "HN_PCT": "% High Needs",
@@ -873,9 +873,9 @@ with tab_all_schools:
                      use_container_width=True, hide_index=True, height=500)
 
         # -------------------------------------------------------------------
-        # Scatter: enrollment vs % ELL
+        # Scatter: enrollment vs % English Learner(s)
         # -------------------------------------------------------------------
-        st.subheader("Lynn schools — Enrollment vs. % ELL")
+        st.subheader("Lynn schools — Enrollment vs. % English Learner(s)")
 
         scatter_df = filtered.dropna(subset=["TOTAL_CNT", "EL_PCT"]).copy()
         scatter_df["is_lehs"] = scatter_df["ORG_NAME"].str.contains("Lynn English", na=False)
@@ -891,7 +891,7 @@ with tab_all_schools:
         fig.update_traces(textposition="top center", textfont=dict(size=9))
         fig.update_layout(
             **DEFAULT_LAYOUT, yaxis_tickformat=".0%",
-            xaxis_title="Enrollment", yaxis_title="% ELL",
+            xaxis_title="Enrollment", yaxis_title="% English Learner(s)",
         )
         st.plotly_chart(fig, use_container_width=True)
 
@@ -962,7 +962,7 @@ with tab_all_schools:
         with c2:
             if total_enr > 0:
                 wtd_ell = (filtered["TOTAL_CNT"] * filtered["EL_PCT"]).sum() / total_enr
-                st.metric("Weighted % ELL", f"{wtd_ell:.0%}")
+                st.metric("Weighted % English Learner(s)", f"{wtd_ell:.0%}")
         with c3:
             if total_enr > 0:
                 wtd_li = (filtered["TOTAL_CNT"] * filtered["LI_PCT"]).sum() / total_enr
