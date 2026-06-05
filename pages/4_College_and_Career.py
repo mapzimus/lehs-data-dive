@@ -196,6 +196,43 @@ if not ap_groups.empty:
 st.divider()
 
 # ---------------------------------------------------------------------------
+# AP Participation (37cp-pad8) — how many students sit for AP, and how many
+# exams they take. Distinct from AP *performance* (score mix) shown above.
+# ---------------------------------------------------------------------------
+
+st.header("AP Participation")
+st.caption(
+    "Beyond how students *score*, how many sit for AP at all? DESE's AP "
+    "Participation file counts unique test-takers and total exams (all subjects)."
+)
+
+ap_part = load_dataset("ap_participation")
+if ap_part.empty:
+    st.info("AP-participation data is temporarily unavailable.")
+else:
+    lehs_ap = ap_part[(ap_part["ORG_CODE"] == LEHS_SCHOOL_CODE)
+                      & (ap_part["STU_GRP"] == "All Students")].sort_values("SY")
+    if not lehs_ap.empty:
+        cur = lehs_ap.iloc[-1]
+        c1, c2, c3 = st.columns(3)
+        c1.metric(f"LEHS AP test-takers (SY {int(cur['SY'])})", f"{int(cur['TEST_TAKERS_CNT']):,}")
+        c2.metric("AP exams taken", f"{int(cur['TESTS_TAKEN_CNT']):,}")
+        c3.metric("Exams per test-taker", f"{cur['EXAMS_PER_TAKER']:.2f}")
+
+        m = lehs_ap.melt(id_vars="SY", value_vars=["TEST_TAKERS_CNT", "TESTS_TAKEN_CNT"],
+                         var_name="Measure", value_name="Count")
+        m["Measure"] = m["Measure"].map({"TEST_TAKERS_CNT": "Test-takers",
+                                         "TESTS_TAKEN_CNT": "Exams taken"})
+        fig = px.line(m, x="SY", y="Count", color="Measure", markers=True,
+                      color_discrete_map={"Test-takers": LEHS_NAVY, "Exams taken": LEHS_GOLD})
+        fig.update_layout(**DEFAULT_LAYOUT,
+                          title="AP participation at Lynn English over time",
+                          yaxis_title="Students / exams", xaxis_title="School Year")
+        st.plotly_chart(fig, use_container_width=True)
+
+st.divider()
+
+# ---------------------------------------------------------------------------
 # Advanced Course Completion — DESE's measure of HS course rigor: % of 11th &
 # 12th graders who completed an advanced course (AP, IB, dual enrollment,
 # Project Lead The Way, etc.) in any subject. Broader than AP alone.
@@ -728,6 +765,7 @@ try:
     from utils.charts import data_downloads_panel as _dl
     _dl({
         'AP performance': ap,
+        'AP participation': load_dataset("ap_participation"),
         'MassCore completion': masscore,
         'Pathways enrollment': pathways,
         'Early College participation': ec_part,

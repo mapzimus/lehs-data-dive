@@ -960,6 +960,45 @@ else:
             with col:
                 st.metric(f"{SUBJECT_MAP[code]} tested", f"{n:,}")
 
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Grade retention (c8ur-ajfv) — share of students held back / repeating a grade
+# ---------------------------------------------------------------------------
+
+st.header("Grade Retention")
+st.caption(
+    "The share of students held back to repeat a grade — rare in Massachusetts, "
+    "but a meaningful signal of where students struggle to keep pace. LEHS vs "
+    "Lynn district vs the statewide rate, all students."
+)
+
+retention_g = load_dataset("grade_retention")
+if retention_g.empty:
+    st.info("Grade-retention data is temporarily unavailable.")
+else:
+    rg = retention_g[retention_g["STU_GRP"] == "All Students"].copy()
+    series = {
+        "Lynn English": rg[rg["ORG_CODE"] == LEHS_SCHOOL_CODE],
+        "Lynn district": rg[(rg["DIST_CODE"] == LYNN_DISTRICT_CODE) & (rg["ORG_TYPE"] == "District")],
+        "Massachusetts": rg[rg["ORG_TYPE"] == "State"],
+    }
+    frames = []
+    for name, d in series.items():
+        if not d.empty:
+            t = d[["SY", "RET_ALL_PCT"]].copy()
+            t["Series"] = name
+            frames.append(t)
+    if frames:
+        rdf = pd.concat(frames, ignore_index=True).dropna(subset=["RET_ALL_PCT"]).sort_values("SY")
+        fig = px.line(rdf, x="SY", y="RET_ALL_PCT", color="Series", markers=True,
+                      color_discrete_map={"Lynn English": LEHS_GOLD,
+                                          "Lynn district": LEHS_NAVY,
+                                          "Massachusetts": STATE_COLOR})
+        fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".1%",
+                          yaxis_title="% of students retained", xaxis_title="School Year")
+        st.plotly_chart(fig, use_container_width=True)
+
 # >>> auto: csv downloads <<<
 try:
     from utils.charts import data_downloads_panel as _dl
@@ -967,6 +1006,7 @@ try:
         'LEHS Grade-10 MCAS': lehs,
         'Lynn district Grade-10 MCAS': district,
         'Massachusetts Grade-10 MCAS': state,
+        'Grade retention': load_dataset("grade_retention"),
     })
 except NameError:
     pass
