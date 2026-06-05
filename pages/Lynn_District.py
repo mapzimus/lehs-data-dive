@@ -86,8 +86,61 @@ def _gateway_codes() -> set[str]:
     return set(by_name["DIST_CODE"].dropna().unique())
 
 
-def _small_multiple(df: pd.DataFrame, value_col: str, title: str, ytick: str = ".0%"):
-    """Three-line chart: Lynn, Gateway median, State median."""
+def _state_line(
+    state_df: pd.DataFrame,
+    value_col: str,
+    *,
+    extra_filters: dict | None = None,
+    period_col: str | None = None,
+    period: str | None = None,
+) -> pd.DataFrame | None:
+    """Pull DESE's *real* statewide row (ORG_TYPE == 'State') for one metric.
+
+    Returns a per-SY frame, or None when the dataset ships no usable State row
+    (e.g. graduation_rates has no State rows at all). This is what lets the
+    small multiples show a *true* statewide line instead of mislabelling a
+    median of districts as the "state".
+    """
+    if state_df is None or state_df.empty or "ORG_TYPE" not in state_df.columns:
+        return None
+    s = state_df[state_df["ORG_TYPE"] == "State"].copy()
+    if period_col and period is not None and period_col in s.columns:
+        s = s[s[period_col] == period]
+    for col, val in (extra_filters or {}).items():
+        if col in s.columns:
+            s = s[s[col].astype(str) == str(val)]
+    if s.empty or value_col not in s.columns:
+        return None
+    s[value_col] = pd.to_numeric(s[value_col], errors="coerce")
+    if s[value_col].max() and s[value_col].max() > 1.5:
+        s[value_col] = s[value_col] / 100.0
+    s = s.dropna(subset=[value_col, "SY"])
+    if s.empty:
+        return None
+    return s.groupby("SY")[value_col].mean().reset_index()
+
+
+def _small_multiple(
+    df: pd.DataFrame,
+    value_col: str,
+    title: str,
+    ytick: str = ".0%",
+    *,
+    state_df: pd.DataFrame | None = None,
+    state_filters: dict | None = None,
+    state_period_col: str | None = "ATTEND_PERIOD",
+    state_period: str | None = None,
+):
+    """Lynn vs. Gateway-districts median (+ a true statewide line where DESE
+    publishes one).
+
+    `df` is expected to already be district-level rows. The Gateway line is the
+    median across the Gateway *districts* only (explicitly re-filtered here so
+    the label is honest even if a caller forgets to pre-filter). The grey line
+    is DESE's real ORG_TYPE=='State' value, sourced from `state_df`; when the
+    dataset has no State row (e.g. graduation_rates) the line is simply omitted
+    rather than faking it from a district median.
+    """
     if df.empty:
         return None
     df = df.copy()
@@ -97,16 +150,25 @@ def _small_multiple(df: pd.DataFrame, value_col: str, title: str, ytick: str = "
         return None
 
     gw_codes = _gateway_codes()
-    lynn_line = df[df["DIST_CODE"] == LYNN_DISTRICT_CODE].groupby("SY")[value_col].mean().reset_index()
-    gw_line = df[df["DIST_CODE"].isin(gw_codes)].groupby("SY")[value_col].median().reset_index()
-    state_line = df.groupby("SY")[value_col].median().reset_index()
+    if "ORG_TYPE" in df.columns:
+        df_dist = df[df["ORG_TYPE"] == "District"]
+    else:
+        df_dist = df
+    lynn_line = df_dist[df_dist["DIST_CODE"] == LYNN_DISTRICT_CODE].groupby("SY")[value_col].mean().reset_index()
+    gw_line = df_dist[df_dist["DIST_CODE"].isin(gw_codes)].groupby("SY")[value_col].median().reset_index()
+    state_line = _state_line(
+        state_df, value_col,
+        extra_filters=state_filters,
+        period_col=state_period_col, period=state_period,
+    )
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=state_line["SY"], y=state_line[value_col],
-                              mode="lines", name="State median",
-                              line=dict(color="#9E9E9E", width=2, dash="dot")))
+    if state_line is not None and not state_line.empty:
+        fig.add_trace(go.Scatter(x=state_line["SY"], y=state_line[value_col],
+                                  mode="lines", name="Massachusetts (statewide)",
+                                  line=dict(color="#9E9E9E", width=2, dash="dot")))
     fig.add_trace(go.Scatter(x=gw_line["SY"], y=gw_line[value_col],
-                              mode="lines+markers", name="Gateway median",
+                              mode="lines+markers", name="Gateway districts (median)",
                               line=dict(color=LEHS_GOLD, width=2, dash="dash")))
     fig.add_trace(go.Scatter(x=lynn_line["SY"], y=lynn_line[value_col],
                               mode="lines+markers", name="Lynn district",
@@ -262,7 +324,7 @@ with tab_snapshot:
             (attendance["DIST_CODE"] == LYNN_DISTRICT_CODE)
             & (attendance["ORG_TYPE"] == "District")
             & (attendance["STU_GRP"] == "All Students")
-            & (attendance["ATTEND_PERIOD"] == "FY")
+            & (attendance["ATTEND_PERIOD"] == "End of Year")
         ].sort_values("SY")
 
         if not district_att.empty:
@@ -474,10 +536,13 @@ with tab_snapshot:
         # -------------------------------------------------------------------
         # Lynn vs. Gateway median vs. State median — small multiples
         # -------------------------------------------------------------------
-        st.header("Lynn vs. Gateway Cities median vs. State median")
+        st.header("Lynn vs. Gateway districts vs. Massachusetts")
         st.caption(
-            "Each panel: Lynn (navy line) compared to the median of the 26 MA Gateway "
-            "Cities (gold) and the state-wide median (grey). Latest 8 years."
+            "Each panel: Lynn (navy) compared to the median of the 26 MA Gateway "
+            "City districts (gold). The grey dotted line is the *real* statewide "
+            "figure DESE publishes, shown where available (graduation has no "
+            "published statewide cohort row in this dataset, so that panel shows "
+            "Lynn vs. Gateway only)."
         )
 
         col_a, col_b = st.columns(2)
@@ -489,7 +554,14 @@ with tab_snapshot:
             g4["GRAD_PCT"] = pd.to_numeric(g4["GRAD_PCT"], errors="coerce")
             if g4["GRAD_PCT"].max() and g4["GRAD_PCT"].max() > 1.5:
                 g4["GRAD_PCT"] = g4["GRAD_PCT"] / 100.0
-            fig = _small_multiple(g4, "GRAD_PCT", "4-yr graduation rate")
+            fig = _small_multiple(
+                g4, "GRAD_PCT", "4-yr graduation rate",
+                state_df=grad, state_period_col=None,
+                state_filters={
+                    "GRAD_RATE_TYPE": "4-Year Adjusted Cohort Graduation Rate",
+                    "STU_GRP": "All Students",
+                },
+            )
             if fig:
                 with col_a:
                     st.plotly_chart(fig, use_container_width=True)
@@ -497,8 +569,9 @@ with tab_snapshot:
         if not attendance.empty:
             a = attendance[(attendance["ORG_TYPE"] == "District")
                            & (attendance["STU_GRP"] == "All Students")
-                           & (attendance["ATTEND_PERIOD"] == "FY")][["SY", "DIST_CODE", "PCT_CHRON_ABS_10"]]
-            fig = _small_multiple(a, "PCT_CHRON_ABS_10", "Chronic absenteeism")
+                           & (attendance["ATTEND_PERIOD"] == "End of Year")][["SY", "DIST_CODE", "PCT_CHRON_ABS_10"]]
+            fig = _small_multiple(a, "PCT_CHRON_ABS_10", "Chronic absenteeism",
+                                  state_df=attendance, state_period="End of Year")
             if fig:
                 with col_b:
                     st.plotly_chart(fig, use_container_width=True)
@@ -512,7 +585,12 @@ with tab_snapshot:
             m_g10["M_PLUS_E_PCT"] = pd.to_numeric(m_g10["M_PLUS_E_PCT"], errors="coerce")
             if m_g10["M_PLUS_E_PCT"].max() and m_g10["M_PLUS_E_PCT"].max() > 1.5:
                 m_g10["M_PLUS_E_PCT"] = m_g10["M_PLUS_E_PCT"] / 100.0
-            fig = _small_multiple(m_g10, "M_PLUS_E_PCT", "MCAS Grade 10 ELA — % M+E")
+            fig = _small_multiple(
+                m_g10, "M_PLUS_E_PCT", "MCAS Grade 10 ELA — % M+E",
+                state_df=mcas, state_period_col=None,
+                state_filters={"TEST_GRADE": "10", "SUBJECT_CODE": "ELA",
+                               "STU_GRP": "All Students"},
+            )
             if fig:
                 with col_a:
                     st.plotly_chart(fig, use_container_width=True)
@@ -526,7 +604,12 @@ with tab_snapshot:
             m_g10m["M_PLUS_E_PCT"] = pd.to_numeric(m_g10m["M_PLUS_E_PCT"], errors="coerce")
             if m_g10m["M_PLUS_E_PCT"].max() and m_g10m["M_PLUS_E_PCT"].max() > 1.5:
                 m_g10m["M_PLUS_E_PCT"] = m_g10m["M_PLUS_E_PCT"] / 100.0
-            fig = _small_multiple(m_g10m, "M_PLUS_E_PCT", "MCAS Grade 10 Math — % M+E")
+            fig = _small_multiple(
+                m_g10m, "M_PLUS_E_PCT", "MCAS Grade 10 Math — % M+E",
+                state_df=mcas, state_period_col=None,
+                state_filters={"TEST_GRADE": "10", "SUBJECT_CODE": "MATH",
+                               "STU_GRP": "All Students"},
+            )
             if fig:
                 with col_b:
                     st.plotly_chart(fig, use_container_width=True)
@@ -569,6 +652,24 @@ with tab_snapshot:
                                   legend_title="Leaving via")
                 st.plotly_chart(fig, use_container_width=True)
 
+                # Plain-language callout: charter outflow has roughly doubled.
+                charter_ts = out[out["ENR_REASON"] == "Charter School"].copy()
+                charter_ts["PCT_OF_RESIDENTS"] = pd.to_numeric(
+                    charter_ts["PCT_OF_RESIDENTS"], errors="coerce"
+                )
+                charter_ts = charter_ts.dropna(subset=["PCT_OF_RESIDENTS"]).sort_values("SY")
+                if len(charter_ts) > 1:
+                    _c0, _c1 = charter_ts.iloc[0], charter_ts.iloc[-1]
+                    _yrs = int(_c1["SY"] - _c0["SY"])
+                    st.markdown(
+                        f"**Charter outflow has roughly doubled.** The share of "
+                        f"Lynn residents enrolling in charter schools rose from "
+                        f"**{_c0['PCT_OF_RESIDENTS']:.1%}** in SY{int(_c0['SY'])} to "
+                        f"**{_c1['PCT_OF_RESIDENTS']:.1%}** in SY{int(_c1['SY'])} — "
+                        f"about double over {_yrs} years — while inter-district "
+                        f"school choice stayed comparatively flat."
+                    )
+
     st.divider()
 
     # -------------------------------------------------------------------
@@ -598,6 +699,13 @@ with tab_snapshot:
 
             fdk = lynn_early.dropna(subset=["KGR_SUBGROUP_FUL_PCT"]).copy()
             fdk["FDK"] = fdk["KGR_SUBGROUP_FUL_PCT"].apply(lambda x: x / 100.0 if x > 1.5 else x)
+            # DESE ships two artifact years (SY2006 ≈ 1%, SY2021 ≈ 2%) where the
+            # full-day-K share collapses to near-zero while every neighbouring
+            # year sits at ~100% — a reporting gap, not a real swing. Dropping
+            # values < 50% keeps the long flat-at-full-day trend honest instead
+            # of drawing two phantom cliffs.
+            fdk_glitch = fdk[fdk["FDK"] <= 0.5]
+            fdk = fdk[fdk["FDK"] > 0.5]
             if len(fdk) > 1:
                 fig = px.line(fdk, x="SY", y="FDK", markers=True)
                 fig.update_traces(line=dict(color=LEHS_NAVY, width=3))
@@ -605,6 +713,14 @@ with tab_snapshot:
                                   yaxis_title="% kindergartners in full-day",
                                   xaxis_title="School Year")
                 st.plotly_chart(fig, use_container_width=True)
+                if not fdk_glitch.empty:
+                    _gy = ", ".join(f"SY{int(y)}" for y in sorted(fdk_glitch["SY"]))
+                    st.caption(
+                        f"Lynn has offered universal full-day kindergarten across "
+                        f"this period. {_gy} are omitted as DESE reporting "
+                        f"artifacts (near-zero values that don't reflect a real "
+                        f"change in access)."
+                    )
 
     st.divider()
 
@@ -791,7 +907,7 @@ with tab_all_schools:
             a = attendance.copy()
             a["PCT_CHRON_ABS_10"] = pd.to_numeric(a["PCT_CHRON_ABS_10"], errors="coerce")
             a["ATTEND_RATE"] = pd.to_numeric(a["ATTEND_RATE"], errors="coerce")
-            a = a[(a["STU_GRP"] == "All Students") & (a["ATTEND_PERIOD"] == "FY")]
+            a = a[(a["STU_GRP"] == "All Students") & (a["ATTEND_PERIOD"] == "End of Year")]
             a_latest = a.sort_values("SY").groupby("ORG_CODE").tail(1)[
                 ["ORG_CODE", "ATTEND_RATE", "PCT_CHRON_ABS_10"]
             ]

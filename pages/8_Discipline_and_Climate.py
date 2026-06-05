@@ -8,8 +8,9 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.branding import sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
+from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, STATE_COLOR, SUBGROUP_PALETTE
 from utils.constants import (
+    GENDER_PALETTE,
     LCHS_SCHOOL_CODE,
     LEHS_SCHOOL_CODE,
     LYNN_DISTRICT_CODE,
@@ -115,7 +116,9 @@ att["School"] = att["ORG_CODE"].map({
 })
 
 # Overall trend — LEHS vs LCHS vs Lynn Tech
-all_stu = att[(att["STU_GRP"] == "All Students") & (att["ATTEND_PERIOD"] == "FY")].sort_values("SY")
+# ATTEND_PERIOD only ever contains "March" / "End of Year" — use the
+# end-of-year (full-year) snapshot rather than the nonexistent "FY" literal.
+all_stu = att[(att["STU_GRP"] == "All Students") & (att["ATTEND_PERIOD"] == "End of Year")].sort_values("SY")
 if not all_stu.empty:
     fig = px.line(
         all_stu, x="SY", y="PCT_CHRON_ABS_10", color="School", markers=True,
@@ -138,7 +141,7 @@ priority = ["All Students", "English Learners", "Hispanic or Latino",
             "Black or African American", "Asian", "White", "Low Income",
             "Students with Disabilities", "High Needs"]
 lehs_att = att[att["ORG_CODE"] == LEHS_SCHOOL_CODE].copy()
-sub_g = lehs_att[(lehs_att["STU_GRP"].isin(priority)) & (lehs_att["ATTEND_PERIOD"] == "FY")].copy()
+sub_g = lehs_att[(lehs_att["STU_GRP"].isin(priority)) & (lehs_att["ATTEND_PERIOD"] == "End of Year")].copy()
 
 if not sub_g.empty:
     fig = px.line(
@@ -348,7 +351,7 @@ st.divider()
 # ---------------------------------------------------------------------------
 
 st.header("Attendance Rate")
-att_rate = att[(att["STU_GRP"] == "All Students") & (att["ATTEND_PERIOD"] == "FY")].copy()
+att_rate = att[(att["STU_GRP"] == "All Students") & (att["ATTEND_PERIOD"] == "End of Year")].copy()
 att_rate["ATTEND_RATE"] = pd.to_numeric(att_rate["ATTEND_RATE"], errors="coerce")
 if not att_rate.empty:
     fig = px.line(
@@ -486,6 +489,141 @@ if not mobility.empty:
 st.divider()
 
 # ---------------------------------------------------------------------------
+# Disaggregated suspension/expulsion (DESE statereport, by subgroup, 2013-2025)
+# ---------------------------------------------------------------------------
+
+st.header("Out-of-School Suspension — Trend and Who It Falls On")
+st.caption(
+    "DESE's disaggregated discipline file reports four rates — in-school "
+    "suspension, **out-of-school suspension (OSS)**, expulsion, and emergency "
+    "removal — every year since 2013, broken out by race, English-learner "
+    "status, disability, and gender. The charts below focus on OSS, the most "
+    "consequential of the four because it removes a student from the building."
+)
+
+disagg = load_dataset("discipline_disaggregated")
+if disagg.empty:
+    st.info("Disaggregated discipline data is temporarily unavailable.")
+else:
+    disagg = disagg.copy()
+    disagg["GROUP"] = disagg["GROUP"].astype(str).str.replace("\xa0", " ")
+    disagg["VALUE"] = pd.to_numeric(disagg["VALUE"], errors="coerce")
+    OSS = "Out-of-School Suspension Rate"
+    STATE_CODE = "00000000"
+
+    # (a) OSS trend — LEHS, with Lynn district + State reference lines.
+    oss_all = disagg[(disagg["INDICATOR"] == OSS) & (disagg["DIM"] == "all")].copy()
+    trend_frames = []
+    for code, name in [(LEHS_SCHOOL_CODE, "Lynn English"),
+                       (LYNN_DISTRICT_CODE, "Lynn district"),
+                       (STATE_CODE, "Massachusetts")]:
+        t = oss_all[oss_all["ORG_CODE"] == code][["SY", "VALUE"]].dropna().copy()
+        if not t.empty:
+            t["Series"] = name
+            trend_frames.append(t)
+
+    if trend_frames:
+        tdf = pd.concat(trend_frames, ignore_index=True).sort_values(["Series", "SY"])
+        fig = px.line(
+            tdf, x="SY", y="VALUE", color="Series", markers=True,
+            color_discrete_map={
+                "Lynn English": LEHS_NAVY,
+                "Lynn district": "#90A4AE",
+                "Massachusetts": STATE_COLOR,
+            },
+        )
+        fig.update_traces(selector=dict(name="Lynn English"), line=dict(width=3))
+        fig.update_traces(selector=dict(name="Lynn district"), line=dict(dash="dash", width=2))
+        fig.update_traces(selector=dict(name="Massachusetts"), line=dict(dash="dot", width=2))
+        fig.update_layout(
+            **DEFAULT_LAYOUT,
+            title="Out-of-school suspension rate — LEHS vs. Lynn district vs. state",
+            yaxis_tickformat=".0%",
+            yaxis_title="% suspended out-of-school",
+            xaxis_title="School Year",
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.caption(
+            "LEHS ran far above both its district and the state for years — "
+            "roughly **31% in 2013**, three to four times the state rate. A "
+            "sustained decline brought it down through the late 2010s, and the "
+            "**2021 floor (near 0%) reflects the COVID year**, when remote "
+            "learning made out-of-school suspension largely moot. The number has "
+            "since climbed back toward pre-pandemic territory (**about 9% in "
+            "2025**), so the recent rise is partly a return to normal operations "
+            "— but it is worth watching, because LEHS again sits above Lynn "
+            "district and the state."
+        )
+
+    # (b) Latest-year OSS by subgroup — grouped bar.
+    latest_disagg_year = int(disagg[disagg["INDICATOR"] == OSS]["SY"].max())
+    lehs_oss = disagg[
+        (disagg["ORG_CODE"] == LEHS_SCHOOL_CODE)
+        & (disagg["INDICATOR"] == OSS)
+        & (disagg["SY"] == latest_disagg_year)
+        & (disagg["DIM"] != "all")
+    ].dropna(subset=["VALUE"]).copy()
+
+    # Order subgroups race → ELL → SWD → gender, and color them from the
+    # shared subgroup/gender palettes so they read consistently page-to-page.
+    SUB_ORDER = [
+        "African American/Black", "Asian", "Hispanic/Latino",
+        "Multi-Race, Non-Hispanic/Latino", "White",
+        "English Learner", "Students w/ Disabilities",
+        "Female", "Male",
+    ]
+    SUB_COLORS = {**SUBGROUP_PALETTE, **GENDER_PALETTE}
+    if not lehs_oss.empty:
+        lehs_oss["_ord"] = lehs_oss["GROUP"].map(
+            {g: i for i, g in enumerate(SUB_ORDER)}
+        ).fillna(99)
+        lehs_oss = lehs_oss.sort_values("_ord")
+        lehs_oss["label"] = lehs_oss["VALUE"].map(lambda v: f"{v:.1%}")
+
+        # All-students reference for the dashed line.
+        all_row = disagg[
+            (disagg["ORG_CODE"] == LEHS_SCHOOL_CODE)
+            & (disagg["INDICATOR"] == OSS)
+            & (disagg["SY"] == latest_disagg_year)
+            & (disagg["DIM"] == "all")
+        ]
+        all_rate = float(all_row.iloc[0]["VALUE"]) if not all_row.empty else None
+
+        st.markdown(f"**LEHS out-of-school suspension by student group — SY {sy_label(latest_disagg_year)}**")
+        fig = px.bar(
+            lehs_oss, x="GROUP", y="VALUE", color="GROUP", text="label",
+            color_discrete_map=SUB_COLORS,
+        )
+        fig.update_traces(textposition="outside", cliponaxis=False, showlegend=False)
+        if all_rate is not None:
+            fig.add_hline(
+                y=all_rate, line_dash="dash", line_color=LEHS_GOLD,
+                annotation_text=f"All students ({all_rate:.1%})",
+                annotation_position="top left",
+            )
+        fig.update_layout(
+            **DEFAULT_LAYOUT,
+            yaxis_tickformat=".0%",
+            yaxis_title="% suspended out-of-school",
+            xaxis_title="",
+            showlegend=False,
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.caption(
+            "The school-wide rate hides large gaps. **Students with disabilities "
+            "are suspended at nearly double the all-students rate**, and **boys "
+            "are suspended more than twice as often as girls**. These patterns "
+            "mirror statewide disproportionality, but the size of the gap is the "
+            "local story — it points to where climate and support efforts would "
+            "do the most good. (Asian students are shown only where DESE reported "
+            "a value; small-count subgroups can be suppressed.)"
+        )
+
+st.divider()
+
+# ---------------------------------------------------------------------------
 # Disproportionality view (DESE statereport SSDR)
 # ---------------------------------------------------------------------------
 
@@ -498,18 +636,19 @@ st.caption(
 )
 
 disp = load_dataset("discipline_disproportionality")
-if disp.empty or disp["GROUP_RATE"].dropna().empty:
-    st.info(
-        "Disaggregated discipline data not yet populated — the ingest scaffold "
-        "is in place (scripts/03_download_dese_statereport.py) but the SSDR "
-        "HTML parser still needs year-specific tuning to extract per-group "
-        "values from the page tables. Risk ratios will populate once that lands."
-    )
+if disp.empty:
+    st.info("Disproportionality data is temporarily unavailable.")
 else:
     org_options = disp[["ORG_CODE", "ORG_NAME"]].drop_duplicates().to_dict("records")
+    # Default the picker to Lynn English rather than the first row (State).
+    default_org_idx = next(
+        (i for i, r in enumerate(org_options) if r["ORG_CODE"] == LEHS_SCHOOL_CODE),
+        0,
+    )
     org_pick = st.selectbox(
         "School / district",
         options=org_options,
+        index=default_org_idx,
         format_func=lambda r: r["ORG_NAME"],
         key="disp_org",
     )
@@ -536,28 +675,26 @@ st.divider()
 # Federal CRDC indicators
 # ---------------------------------------------------------------------------
 
-st.header("Federal CRDC indicators")
-st.caption(
-    "Biennial federal Civil Rights Data Collection. Captures what DESE doesn't: "
-    "school-based arrests, law-enforcement referrals, restraint/seclusion. "
-    "Most recent release at script-write time was SY 2017-18. See the new "
-    "Federal CRDC page (sidebar) for the full deep-dive once data is wired in."
-)
-
 crdc = load_dataset("crdc_discipline")
-if crdc.empty:
-    st.info(
-        "CRDC bulk archive downloaded to data/raw/crdc/ — per-school row "
-        "extraction is a follow-up. See scripts/04_download_crdc.py."
+if not crdc.empty:
+    st.header("Federal CRDC indicators")
+    st.caption(
+        "Biennial federal Civil Rights Data Collection. Captures what DESE doesn't: "
+        "school-based arrests, law-enforcement referrals, restraint/seclusion."
     )
-else:
     st.dataframe(crdc.head(50), use_container_width=True)
+else:
+    st.caption(
+        "_Federal CRDC school-level discipline data (arrests, law-enforcement "
+        "referrals, restraint/seclusion) isn't yet wired in._"
+    )
 
 # >>> auto: csv downloads <<<
 try:
     from utils.charts import data_downloads_panel as _dl
     _dl({
         'Student attendance': attendance,
+        'Discipline (disaggregated by subgroup)': disagg,
         'Discipline disproportionality': disp,
         'CRDC discipline': crdc,
     })

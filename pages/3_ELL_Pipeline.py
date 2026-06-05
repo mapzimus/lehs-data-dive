@@ -16,6 +16,7 @@ from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
 from utils.constants import LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE, PROCESSED_DIR
 from utils.data_loader import load_dataset
+from utils.interpret import sy_label
 
 st.set_page_config(page_title="ELL Pipeline | LEHS", page_icon="🌐", layout="wide")
 sidebar_attribution()
@@ -42,15 +43,25 @@ st.header("How big is the EL population at LEHS?")
 lehs_enroll = enrollment[enrollment["ORG_CODE"] == LEHS_SCHOOL_CODE].sort_values("SY").copy()
 current = lehs_enroll.iloc[-1]
 
+enroll_sy_lbl = sy_label(int(current["SY"]))
 c1, c2, c3, c4 = st.columns(4)
 with c1:
-    st.metric("LEHS Current ELL count", f"{int(current['EL_CNT']):,}")
+    st.metric(f"LEHS ELL count (enrolled, SY {enroll_sy_lbl})", f"{int(current['EL_CNT']):,}")
 with c2:
     st.metric("LEHS % English Learner", f"{current['EL_PCT']:.0%}")
 with c3:
     st.metric("% First Language Not English", f"{current['FLNE_PCT']:.0%}")
 with c4:
     st.metric("% Hispanic/Latino", f"{current['HL_PCT']:.0%}")
+
+st.caption(
+    f"Heads up on two EL counts on this page: this **enrolled** figure "
+    f"({int(current['EL_CNT']):,}, from the SY {enroll_sy_lbl} enrollment file) "
+    "is the number of students currently flagged English Learner. Further down, "
+    "the ACCESS section reports a larger **ELs-assessed** count from a different "
+    "year's testing file — a different denominator (everyone who sat the ACCESS "
+    "test that spring), so the two numbers are not meant to match."
+)
 
 fig = go.Figure()
 fig.add_trace(go.Scatter(
@@ -118,16 +129,25 @@ if wida_path.exists():
         yaxis=dict(title="Score (1-6)", range=[0, 6.5]),
     )
     # Widen right margin so the threshold-line annotation has room
-    fig.update_layout(margin=dict(l=40, r=200, t=50, b=40))
-    # Threshold line — keep the annotation BELOW the line so it doesn't
-    # collide with the "4.1" bar-value label sitting just above the Listening bar
+    fig.update_layout(margin=dict(l=40, r=220, t=50, b=40))
+    # Reference line — the 4.2 cutoff applies to a student's OVERALL composite
+    # ACCESS score, not to any single domain, so label it as such. Drawing it
+    # across the per-domain bars is for orientation only (apples-to-oranges
+    # otherwise). Keep the annotation BELOW the line so it doesn't collide with
+    # the "4.1" bar-value label sitting just above the Listening bar.
     fig.add_hline(
         y=4.2, line_dash="dash", line_color="gray",
-        annotation_text="Reclassification threshold (overall ≥ 4.2)",
+        annotation_text="Overall composite cutoff (4.2) — not a per-domain target",
         annotation_position="bottom right",
         annotation_font=dict(size=11, color="gray"),
     )
     st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        "Bars show the **average score in each domain**. The dashed line marks "
+        "the **4.2 overall-composite** cutoff DESE uses for reclassification — a "
+        "student is evaluated on their combined score, so a single domain "
+        "sitting above or below 4.2 doesn't by itself reclassify anyone."
+    )
 
 st.divider()
 
@@ -159,7 +179,7 @@ else:
         sy_lbl = f"{int(cur['SY']) - 1}-{str(int(cur['SY']))[-2:]}"
         st.markdown(f"**Lynn English High — SY {sy_lbl}**")
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("ELs assessed", f"{int(cur['ENROLLED_CNT']):,}")
+        c1.metric("ELs assessed (ACCESS)", f"{int(cur['ENROLLED_CNT']):,}")
         c2.metric("Making progress (RE1)", f"{cur['RE1_PCT']:.0%}")
         c3.metric("Attained proficiency (RE2)", f"{cur['RE2_PCT']:.0%}")
         c4.metric("Exited EL status (RE3)", f"{cur['RE3_PCT']:.0%}")
@@ -190,6 +210,62 @@ else:
             xaxis_title="School Year",
         )
         st.plotly_chart(fig, use_container_width=True)
+
+        # ----- Honest callout: LEHS RE1 sits far below district + state -----
+        # Pull the most recent year shared across all three series.
+        def _latest_pct(frame, col):
+            f = frame[["SY", col]].dropna()
+            return (int(f.iloc[-1]["SY"]), float(f.iloc[-1][col])) if not f.empty else (None, None)
+
+        lehs_yr, lehs_re1 = _latest_pct(lehs_el, "RE1_PCT")
+        _, lynn_re1 = _latest_pct(lynn_el, "RE1_PCT")
+        _, state_re1 = _latest_pct(state_el, "RE1_PCT")
+        if None not in (lehs_re1, lynn_re1, state_re1):
+            yr_lbl = sy_label(lehs_yr)
+            st.warning(
+                f"**LEHS's RE1 runs far below its district and the state, every "
+                f"year on record.** In SY {yr_lbl} only **{lehs_re1:.0%}** of "
+                f"LEHS English Learners were credited with making progress toward "
+                f"proficiency, against **{lynn_re1:.0%}** district-wide and "
+                f"**{state_re1:.0%}** statewide — a gap of roughly "
+                f"{round((state_re1 - lehs_re1) * 100)} percentage points below "
+                "the state. A gap this large and this persistent is worth taking "
+                "seriously as a real instructional concern. It can also be "
+                "inflated by cohort and reporting nuances at the high-school "
+                "level — RE1 is only defined for students who took ACCESS in two "
+                "consecutive years, so a school with heavy mid-year mobility or "
+                "many newly-arrived ELs has a smaller, choppier denominator. "
+                "Either way the pattern warrants a closer look, not a footnote."
+            )
+
+        # ----- Companion RE2 (attained proficiency) trend -----
+        re2_frames = []
+        for d, name in [(lehs_el, "Lynn English"),
+                        (lynn_el, "Lynn district"),
+                        (state_el, "Massachusetts")]:
+            if not d.empty:
+                t = d[["SY", "RE2_PCT"]].copy()
+                t["Series"] = name
+                re2_frames.append(t)
+        if re2_frames:
+            r2 = pd.concat(re2_frames, ignore_index=True).dropna(subset=["RE2_PCT"])
+            if not r2.empty:
+                fig2 = px.line(r2, x="SY", y="RE2_PCT", color="Series", markers=True,
+                               color_discrete_map=color_map)
+                fig2.update_layout(
+                    **DEFAULT_LAYOUT,
+                    title="ELs attaining English proficiency (ACCESS RE2)",
+                    yaxis_tickformat=".0%",
+                    yaxis_title="% attaining proficiency",
+                    xaxis_title="School Year",
+                )
+                st.plotly_chart(fig2, use_container_width=True)
+                st.caption(
+                    "RE2 — the share **attaining** proficiency outright — is a "
+                    "higher bar than RE1 and runs lower everywhere. LEHS trails "
+                    "its district and the state here too, consistent with the "
+                    "RE1 picture above."
+                )
 
     st.caption(
         "RE1 (making progress) is the workhorse Title III accountability metric. "
@@ -286,7 +362,9 @@ if fmr_path.exists():
         ].copy()
 
         if not target.empty:
-            for grade in ["g3-8", "g10"]:
+            # The CSV's Grade column holds "g3-8" and "10" (not "g10"); the
+            # grade-10 filter silently matched nothing until this was fixed.
+            for grade in ["g3-8", "10"]:
                 sub = target[target["Grade"] == grade].sort_values("Former EL year")
                 if sub.empty:
                     continue

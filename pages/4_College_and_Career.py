@@ -52,7 +52,10 @@ for col, ind, label in zip(
     if not sub.empty:
         v = sub.iloc[-1]["VALUE"]
         with col:
-            st.metric(label, f"{v:.0%}" if v <= 1 else f"{v:.1f}")
+            # DART indicator VALUEs are stored on a 0–100 scale, so render them
+            # as a literal percentage (e.g. 16.0 -> "16%"). The labels above all
+            # say "%", so the value must carry the sign too.
+            st.metric(label, f"{v:.0f}%")
 
 st.divider()
 
@@ -68,7 +71,17 @@ ap_lehs["STU_GRP"] = ap_lehs["STU_GRP"].astype(str)
 # Test counts by subject (latest year)
 if not ap_lehs.empty:
     latest_year = int(ap_lehs["SY"].max())
-    latest = ap_lehs[(ap_lehs["SY"] == latest_year) & (ap_lehs["SUBJ_CAT"] != "All AP Tests")].copy()
+    # Each subject category has BOTH a category-summary row (SUBJ == SUBJ_CAT)
+    # and its individual leaf-subject rows; there is also a grand-total
+    # "All Subjects" category. Keep only the per-category summary rows so the
+    # bar chart shows true category totals (not double-counted, and without a
+    # bogus grand-total bar). "All AP Tests" never appears in this file — the
+    # real aggregate label is "All Subjects".
+    latest = ap_lehs[
+        (ap_lehs["SY"] == latest_year)
+        & (ap_lehs["SUBJ_CAT"] != "All Subjects")
+        & (ap_lehs["SUBJ"] == ap_lehs["SUBJ_CAT"])
+    ].copy()
 
     st.subheader(f"AP tests taken by subject category — SY {latest_year}")
     cat = latest.groupby("SUBJ_CAT")["TESTS_TAKEN"].sum().reset_index().sort_values("TESTS_TAKEN", ascending=False)
@@ -89,11 +102,15 @@ if not ap_lehs.empty:
             var_name="Score", value_name="Count",
         )
         score_long["Score"] = score_long["Score"].str.replace("SCORE_", "")
+        # Sequential ramp: a higher AP score is simply better, so shade it
+        # light (low) -> dark (high) rather than a red/blue diverging scheme
+        # that wrongly implies the two ends are opposite-valenced.
         fig = px.bar(
             score_long, x="SY", y="Count", color="Score", barmode="stack",
+            category_orders={"Score": ["1", "2", "3", "4", "5"]},
             color_discrete_map={
-                "1": "#D32F2F", "2": "#F57C00", "3": "#FBC02D",
-                "4": "#388E3C", "5": "#1976D2",
+                "1": "#DEEBF7", "2": "#9ECAE1", "3": "#6BAED6",
+                "4": "#3182BD", "5": "#08519C",
             },
         )
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Tests")
@@ -377,6 +394,13 @@ if not mc_groups.empty:
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                        yaxis_title="MassCore Completion Rate")
     st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        "The near-zero dips in SY 2020-21 (0.2%) and SY 2022-23 (5.5%) reflect "
+        "pandemic-era disruption to MassCore course completion and reporting, "
+        "not a real collapse in college-prep coursework — completion returned "
+        "to its usual ~22-25% range in the surrounding years. Treat those two "
+        "years as not comparable."
+    )
 
 st.divider()
 
@@ -551,25 +575,96 @@ st.caption(
 if not pathways.empty:
     p = pathways[pathways["ORG_CODE"] == LEHS_SCHOOL_CODE].copy()
     if not p.empty:
-        pathway_cols = [c for c in p.columns if "TOTAL" in c.upper() and "PCT" not in c.upper()]
-        if pathway_cols:
-            display_p = p[["SY"] + pathway_cols[:8]].sort_values("SY")
-            # Drop columns that are entirely null for LEHS
-            display_p = display_p.dropna(axis=1, how="all")
-            st.dataframe(display_p, use_container_width=True, hide_index=True)
+        # The file lists, per pathway, both a pathway-summary row and its
+        # individual sub-program rows (and the labels drift year to year). The
+        # pathway-level total is always the largest count within each
+        # (SY, PATHWAY) group, so take the max to get one clean number per
+        # pathway per year without summing sub-programs.
+        p["PROGRAM_CNT"] = pd.to_numeric(p["PROGRAM_CNT"], errors="coerce")
+        PATHWAY_LABELS = {
+            "Early College": "Early College",
+            "Career Technical Education (Chapter 74 Programs)": "Career Tech Ed (Ch. 74)",
+            "After Dark": "After Dark (evening CTE)",
+        }
+        pw = p[p["PATHWAY"].isin(PATHWAY_LABELS)].copy()
+        pw["Pathway"] = pw["PATHWAY"].map(PATHWAY_LABELS)
+        pw_totals = (
+            pw.groupby(["SY", "Pathway"], as_index=False)["PROGRAM_CNT"].max()
+            .rename(columns={"PROGRAM_CNT": "Students"})
+            .dropna(subset=["Students"])
+        )
+        if not pw_totals.empty:
+            pw_totals["Students"] = pw_totals["Students"].astype(int)
+            st.subheader("LEHS students in designated pathways, by year")
+            fig = px.bar(
+                pw_totals.sort_values(["SY", "Pathway"]),
+                x="SY", y="Students", color="Pathway", barmode="group",
+                text="Students",
+                color_discrete_map={
+                    "Early College": LEHS_NAVY,
+                    "Career Tech Ed (Ch. 74)": LEHS_GOLD,
+                    "After Dark (evening CTE)": "#7B9E89",
+                },
+            )
+            fig.update_traces(textposition="outside", cliponaxis=False)
+            fig.update_layout(
+                **DEFAULT_LAYOUT, yaxis_title="Students enrolled",
+                xaxis_title="School Year", legend_title="Pathway",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            st.caption(
+                "Counts are students enrolled in each designated pathway. Early "
+                "College is by far the largest at LEHS and has roughly doubled "
+                "since SY 2021-22. The Chapter 74 career-tech programs are "
+                "delivered through the after-school \"After Dark\" model, so "
+                "those two bars count the same students."
+            )
     else:
         st.info("No LEHS pathways enrollment data (program may not be designated here).")
 
-# Early College specifically
+# Early College specifically — participants by partner college over time
 if not ec_part.empty:
-    ec_lehs = ec_part[ec_part["ORG_CODE"] == LEHS_SCHOOL_CODE].copy()
+    ec_lehs = ec_part[
+        (ec_part["ORG_CODE"] == LEHS_SCHOOL_CODE)
+        & (ec_part["STU_GRP"] == "All Students")
+    ].copy()
     if not ec_lehs.empty:
-        st.subheader("Early College participation")
-        drop_cols = ["CEEB_CODE", "DIST_CODE", "ORG_CODE", "ORG_TYPE"]
-        ec_display = ec_lehs.drop(columns=[c for c in drop_cols if c in ec_lehs.columns])
-        ec_display = ec_display.dropna(axis=1, how="all")
-        ec_display = ec_display.sort_values("SY", ascending=False) if "SY" in ec_display else ec_display
-        st.dataframe(ec_display, use_container_width=True, hide_index=True)
+        st.subheader("Early College participation — by partner college")
+        ec_lehs["ALL_CNT"] = pd.to_numeric(ec_lehs["ALL_CNT"], errors="coerce")
+        # Each student is reported in both a Fall and a Spring term; use the
+        # Fall snapshot (fall back to Spring when a year has no Fall row) so we
+        # count participants once rather than summing the two terms.
+        ec_lehs["_per_rank"] = ec_lehs["PERIOD"].map({"Fall": 0, "Spring": 1})
+        ec_snap = (
+            ec_lehs.sort_values("_per_rank")
+            .groupby(["SY", "CEEB_NAME"], as_index=False)
+            .first()
+        )
+        ec_snap["Partner"] = ec_snap["CEEB_NAME"].replace(
+            {"No Data": "Partner not reported"}
+        )
+        ec_snap = ec_snap.dropna(subset=["ALL_CNT"])
+        if not ec_snap.empty:
+            ec_snap["ALL_CNT"] = ec_snap["ALL_CNT"].astype(int)
+            fig = px.bar(
+                ec_snap.sort_values(["SY", "Partner"]),
+                x="SY", y="ALL_CNT", color="Partner", barmode="stack",
+                text="ALL_CNT",
+                color_discrete_sequence=[LEHS_NAVY, LEHS_GOLD, "#9AA7B8"],
+            )
+            fig.update_traces(textposition="inside", cliponaxis=False)
+            fig.update_layout(
+                **DEFAULT_LAYOUT, yaxis_title="Students participating",
+                xaxis_title="School Year", legend_title="Partner college",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            st.caption(
+                "Lynn English partners with North Shore Community College and "
+                "Salem State University so students can earn college credit "
+                "while still in high school. Participation has grown steadily, "
+                "from about 50 students in SY 2020-21 to more than 330 in "
+                "SY 2023-24. (The earliest year predates the named partnerships.)"
+            )
 
 st.divider()
 

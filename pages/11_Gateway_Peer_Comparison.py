@@ -18,6 +18,7 @@ from utils.constants import (
     PROCESSED_DIR,
 )
 from utils.data_loader import load_dataset
+from utils.interpret import percentile_phrase, vs_peer
 
 st.set_page_config(
     page_title="Gateway Peer Comparison | LEHS", page_icon="🏙️", layout="wide"
@@ -50,13 +51,29 @@ city_to_school = {
 school_to_city = {v: k for k, v in city_to_school.items()}
 gateway_codes = list(city_to_school.values())
 
-# Same-district siblings shown as their own dots so the reader can see how
-# LEHS stacks against Lynn Classical and Lynn Tech inside the gateway peer
-# cloud, not only against the 25 other cities' main HS. LVTI doesn't have a
-# named constant in utils/constants yet — defined inline.
+# The manifest picked Classical (01630505) as Lynn's "main HS" slot because it
+# edged out LEHS on cumulative enrollment — so `gateway_codes` (from the
+# manifest) contains Classical for Lynn, NOT LEHS. This page exists to
+# benchmark LEHS, so LEHS must be in the frame too. We keep Classical as the
+# manifest's Lynn slot (it's a real same-city sibling) and ADD LEHS + LVTI on
+# top, so Lynn is represented by LEHS as the focus plus Classical/Tech/district
+# as siblings. LVTI doesn't have a named constant in utils/constants yet —
+# defined inline.
 LVTI_SCHOOL_CODE = "01630605"
-EXTRA_LYNN_HS = [LCHS_SCHOOL_CODE, LVTI_SCHOOL_CODE]
+# Lynn's same-city siblings shown as their own dots so the reader can see how
+# LEHS stacks against Lynn Classical and Lynn Tech inside the gateway peer
+# cloud, not only against the 25 other cities' main HS.
+EXTRA_LYNN_HS = [LEHS_SCHOOL_CODE, LCHS_SCHOOL_CODE, LVTI_SCHOOL_CODE]
 scorecard_codes = list(dict.fromkeys(gateway_codes + EXTRA_LYNN_HS))
+
+# "One main HS per city" pool used by the Demographically-Similar Peers
+# section: the 25 OTHER gateway cities' main HS, plus LEHS standing in as
+# Lynn's representative (NOT Classical, which is only the manifest's enrollment-
+# weighted pick). Classical/Tech/the LPS-district aggregate are deliberately
+# excluded so we don't surface LEHS's own same-city siblings as "similar peers".
+similar_peer_codes = list(dict.fromkeys(
+    [c for c in gateway_codes if c != LCHS_SCHOOL_CODE] + [LEHS_SCHOOL_CODE]
+))
 
 # Labels used in the scorecard + scatter — disambiguate the four Lynn rows
 # from each other and from "Lynn" the district name DESE reports under.
@@ -177,28 +194,33 @@ def _build_lps_district_row() -> pd.DataFrame | None:
         "% Hispanic/Latino": d.get("HL_PCT"),
     }
 
-    def _dist_dart(indicator: str) -> float | None:
-        sub = dart[
-            (dart["DIST_CODE"] == LYNN_DISTRICT_CODE)
-            & (dart["ORG_TYPE"] == "District")
-            & (dart["INDICATOR"] == indicator)
-            & (dart["STU_GRP"] == "All Students")
+    # NOTE: dart_success_after_hs is SCHOOL-level only in our extract — it has no
+    # district aggregate row and no ORG_TYPE column — so most DART indicators have
+    # no district-grain value to show here. The one district metric we can source
+    # honestly is the 4-year grad rate, which graduation_rates publishes as a real
+    # district row (ORG_TYPE == "District").
+    def _dist_grad_4yr() -> float | None:
+        if grad.empty:
+            return None
+        sub = grad[
+            (grad["DIST_CODE"] == LYNN_DISTRICT_CODE)
+            & (grad["ORG_TYPE"] == "District")
+            & (grad["STU_GRP"] == "All Students")
+            & (grad["GRAD_RATE_TYPE"].astype(str).str.contains("4-Year", case=False, na=False))
         ].copy()
         if sub.empty:
             return None
-        sub["VALUE"] = pd.to_numeric(sub["VALUE"], errors="coerce") / 100.0
-        latest = sub.sort_values("SY").tail(1)
-        return float(latest["VALUE"].iloc[0]) if not latest.empty else None
+        sub["GRAD_PCT"] = pd.to_numeric(sub["GRAD_PCT"], errors="coerce")
+        latest = sub.dropna(subset=["GRAD_PCT"]).sort_values("SY").tail(1)
+        return float(latest["GRAD_PCT"].iloc[0]) if not latest.empty else None
 
-    row["4yr Grad Rate"]     = _dist_dart("4-year cohort graduation rate")
-    row["Immediate College"] = _dist_dart(
-        "Students enrolled in postsecondary education in the immediate fall after high school graduation"
-    )
-    row["% FAFSA"]           = _dist_dart("Grade 12 students who completed FAFSA")
-    row["% Chronic Absence"] = _dist_dart(
-        "Chronically absent rate (% of students absent 10% or more each year)"
-    )
-    row["% AP 3+"]           = _dist_dart("Jr/Sr AP test takers scoring 3 or above")
+    row["4yr Grad Rate"]     = _dist_grad_4yr()
+    # The remaining indicators are only published per-school in our DART extract,
+    # so the district aggregate row leaves them blank rather than fabricating a value.
+    row["Immediate College"] = None
+    row["% FAFSA"]           = None
+    row["% Chronic Absence"] = None
+    row["% AP 3+"]           = None
 
     # District per-pupil spending — district_expenditures table has its own
     # "Per Pupil" / "Total Expenditures" rows.
@@ -269,6 +291,52 @@ st.caption(
     "pale-navy so all four Lynn rows are easy to find among the 25 "
     "other gateway-city rows."
 )
+
+# ---------------------------------------------------------------------------
+# Plain-language callouts: where LEHS lands vs. the gateway-city median on a
+# couple of headline outcomes. Comparison is one-HS-per-city (the 25 other
+# cities' main HS + LEHS standing in for Lynn) so the median/rank is a true
+# city-to-city benchmark, not skewed by Lynn's Classical/Tech/district rows.
+# Scorecard metrics are stored as 0-1 fractions; ×100 puts them in "pts".
+# ---------------------------------------------------------------------------
+peer_pool = scorecard[scorecard["ORG_CODE"].isin(similar_peer_codes)].copy()
+
+
+def _lehs_callout(col: str, friendly: str, higher_is_better: bool = True) -> str | None:
+    """Return a one-sentence 'LEHS is N pts above/below the gateway median,
+    ranking k of N' phrase for a percent column, or None if data is missing."""
+    series = pd.to_numeric(peer_pool[col], errors="coerce").dropna()
+    lehs_vals = peer_pool.loc[peer_pool["ORG_CODE"] == LEHS_SCHOOL_CODE, col]
+    if series.empty or lehs_vals.empty or pd.isna(lehs_vals.iloc[0]):
+        return None
+    lehs_val = float(lehs_vals.iloc[0])
+    median = float(series.median())
+    # vs_peer expects same units; convert fractions → percentage points.
+    gap = vs_peer(lehs_val * 100, median * 100, unit="pts", peer_name="gateway-city median")
+    # Rank: 1 = best. For "higher is better" metrics, more is better.
+    ordered = series.sort_values(ascending=not higher_is_better)
+    rank = int((ordered.reset_index(drop=True).values == lehs_val).argmax()) + 1
+    rank_phrase = percentile_phrase(rank, len(series))
+    return (
+        f"On **{friendly}**, LEHS sits at **{lehs_val:.0%}** — {gap}, and "
+        f"{rank_phrase} gateway-city main high schools."
+    )
+
+
+callouts = [
+    _lehs_callout("4yr Grad Rate", "the 4-year graduation rate", higher_is_better=True),
+    _lehs_callout("Immediate College", "students heading straight to college", higher_is_better=True),
+]
+callouts = [c for c in callouts if c]
+if callouts:
+    st.markdown("#### How LEHS compares, in plain language")
+    for c in callouts:
+        st.markdown("- " + c)
+    st.caption(
+        "“Gateway-city median” = the middle value across the 26 gateway cities "
+        "(one main high school each, LEHS representing Lynn). Half the cities "
+        "land above it, half below."
+    )
 
 st.divider()
 
@@ -391,9 +459,9 @@ similarity_features = ["% ELL", "% Low Income", "% High Needs",
                         "% Hispanic/Latino", "Enrollment"]
 
 # Build a clean numeric matrix — restricted to the gateway main-HS set
-# (one school per city), so we don't pick LEHS's same-district siblings or
-# the LPS-district synthetic row as "similar peers".
-sim_df = scorecard[scorecard["ORG_CODE"].isin(gateway_codes)][
+# (one school per city, LEHS standing in for Lynn), so we don't pick LEHS's
+# same-district siblings or the LPS-district synthetic row as "similar peers".
+sim_df = scorecard[scorecard["ORG_CODE"].isin(similar_peer_codes)][
     ["ORG_CODE", "City", "ORG_NAME"] + similarity_features
 ].copy()
 sim_df = sim_df.dropna(subset=similarity_features)
