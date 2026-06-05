@@ -63,6 +63,12 @@ MEMBERS: dict[str, tuple[str, list[str]]] = {
     "06900000": ("King Philip",        ["NORFOLK", "WRENTHAM", "PLAINVILLE"]),
     "07050000": ("Masconomet",         ["BOXFORD", "TOPSFIELD", "MIDDLETON"]),
     "07300000": ("Northboro-Southboro", ["NORTHBOROUGH", "SOUTHBOROUGH"]),
+    # Added 2026-06-05: spliced into the geojson by PR #50 with only a partial
+    # property set (~41 props: demographics + grad_4yr + mcas_g10), missing
+    # per_pupil/dropout/grad_5yr/ap/masscore/staff/stu_tchr_ratio/postsec + all
+    # subgroup breakdowns. Re-running through the full pipeline backfills it to
+    # parity with the other regionals. Member towns: Somerset + Berkley (9-12).
+    "07630000": ("Somerset Berkley",   ["SOMERSET", "BERKLEY"]),
 }
 
 # Friendlier display/search alias for regionals whose DESE name isn't their
