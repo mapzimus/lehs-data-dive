@@ -20,9 +20,12 @@ Profile before is omitted entirely.
 """
 
 import streamlit as st
+import yaml
 
 from utils.branding import sidebar_attribution
-from utils.constants import IMAGES_DIR
+from utils.constants import ASSETS_DIR, IMAGES_DIR, LYNN_DISTRICT_CODE
+from utils.data_loader import load_dataset
+from utils.interpret import sy_label
 
 st.set_page_config(
     page_title="LEHS History | LEHS", page_icon="📜", layout="wide",
@@ -76,6 +79,7 @@ st.divider()
     _tab_fire,
     _tab_today,
     _tab_alumni,
+    _tab_athletics,
     _tab_leadership,
     _tab_civic,
 ) = st.tabs([
@@ -83,6 +87,7 @@ st.divider()
     "The 1924 fire & rebuild",
     "Today's campus (1931–present)",
     "Notable alumni & faculty",
+    "Athletics heritage",
     "Leadership",
     "Lynn as a school city",
 ])
@@ -172,11 +177,16 @@ calendar year (1924)** so classes could resume on the same site
 without losing more than a few months.
 
 This second Essex Street English — the 1916 addition plus Cornet's
-1924 rebuild — served as Lynn English's home through **1932**, when
+1924 rebuild — served as Lynn English's home through **1931**, when
 the school relocated to its current Goodridge Street campus (next
 tab). The Essex Street building was then converted to a junior high
 school, then sat vacant (documented as such in 1985), and was
 eventually adapted into residential units.
+
+*(Sources differ slightly on the move year — some date the Goodridge
+Street opening to 1932. This page uses **1931** throughout, the year
+given by the school's own records and the cost figures from that
+construction.)*
         """
     )
 
@@ -269,10 +279,10 @@ with _tab_alumni:
     st.markdown(
         """
 The most LEHS-specific name on this list. **Tom Whelan** was an
-infielder for the **Boston Braves in 1920** — and, in the same
-year, played football for the **Canton Bulldogs** alongside Jim
-Thorpe. He was one of the country's earliest two-sport professional
-athletes.
+infielder for the **Boston Braves in 1920** — and in **1919 and
+1920** played football for the **Canton Bulldogs** alongside Jim
+Thorpe, on the 1919 Ohio League championship team. He was one of the
+country's earliest two-sport professional athletes.
 
 He then came home. Through the **1940s–50s** Whelan taught at LEHS,
 coached baseball, served as athletic director, and eventually as
@@ -385,12 +395,132 @@ and remains active.
 
     st.caption(
         "Listed here as the institutional short list, not a complete index. "
-        "The **[Athletics](/Athletics?embed=true)** page carries the full Hall of "
-        "Fame, season records, championship history, and the curated "
-        "history file the names above are sourced from."
+        "The **[Athletics](/Athletics?embed=true)** page carries the live "
+        "season records, standings, and championship banners; the deeper "
+        "heritage (Hall of Fame, legacy coaches, the Manning Bowl story) is "
+        "in the next tab."
     )
 
-# --- Tab 5: Leadership ------------------------------------------------------
+# --- Tab 5: Athletics heritage ----------------------------------------------
+with _tab_athletics:
+    st.markdown(
+        "The **[Athletics](/Athletics?embed=true)** page covers the living "
+        "program — this season's standings, the Thanksgiving rivalry, the "
+        "banners, and season-by-season records. This tab is the *heritage*: "
+        "the Hall of Fame, the coaches who defined an era, the Manning Bowl "
+        "story, and the athlete-alumni who went pro. It's sourced from the "
+        "curated file `assets/curated/lehs_athletics_history.yaml`."
+    )
+
+    _ath_path = ASSETS_DIR / "curated" / "lehs_athletics_history.yaml"
+    _ath: dict = {}
+    if _ath_path.exists():
+        try:
+            _ath = yaml.safe_load(_ath_path.read_text(encoding="utf-8")) or {}
+        except yaml.YAMLError as e:
+            st.error(f"Couldn't parse `lehs_athletics_history.yaml`: {e}")
+
+    # --- Manning Bowl — the full venue history ---
+    venues = _ath.get("venues") or []
+    if venues:
+        st.subheader("🏟️ Manning Bowl — the venue that *is* Lynn HS football")
+        for v in venues:
+            st.markdown(f"#### {v.get('name', '—')}")
+            img_name = v.get("image")
+            if img_name and (IMAGES_DIR / img_name).exists():
+                st.image(
+                    str(IMAGES_DIR / img_name),
+                    caption=v.get("image_caption", ""),
+                    use_container_width=True,
+                )
+            facts = [(k, v.get(k)) for k in ("capacity_orig", "architect", "cost") if v.get(k)]
+            if facts:
+                cols = st.columns(len(facts))
+                labels = {"capacity_orig": "Original capacity",
+                          "architect": "Architect",
+                          "cost": "Construction cost"}
+                for (k, val), col in zip(facts, cols):
+                    with col:
+                        if k == "capacity_orig":
+                            st.metric(labels[k], f"{int(val):,}")
+                        else:
+                            # Streamlit's metric value treats `$` as LaTeX math
+                            # delimiters — escape so "$500K" renders as text.
+                            st.metric(labels[k], str(val).replace("$", r"\$"))
+            if v.get("history"):
+                st.markdown(v["history"])
+
+    # --- Hall of Fame — full class lists ---
+    hof = _ath.get("hall_of_fame") or []
+    if hof:
+        st.subheader("🏅 Athletics & Distinguished Alumni Hall of Fame")
+        st.caption(
+            "The LEHS Hall of Fame inducts classes periodically. Full class "
+            "lists below — names without notes mean the public record we've "
+            "gathered so far doesn't include their specifics yet."
+        )
+        for cls in sorted(hof, key=lambda x: x.get("year", 0), reverse=True):
+            ttl = f"**Class of {cls.get('year')}**"
+            if cls.get("ceremony_date"):
+                ttl += f"  ·  {cls['ceremony_date']}"
+            if cls.get("location"):
+                ttl += f"  ·  *{cls['location']}*"
+            with st.expander(ttl, expanded=False):
+                inductees = cls.get("inductees") or []
+                if not inductees:
+                    if cls.get("notes"):
+                        st.markdown(cls["notes"])
+                    else:
+                        st.info("No inductee detail captured yet.")
+                for ind in inductees:
+                    line = f"**{ind.get('name', '—')}**"
+                    if ind.get("grad_year"):
+                        line += f" (LEHS '{ind['grad_year']})"
+                    if ind.get("sport"):
+                        line += f" · *{ind['sport']}*"
+                    st.markdown(line)
+                    if ind.get("notes"):
+                        st.caption(ind["notes"])
+                if cls.get("notes") and inductees:
+                    st.caption(cls["notes"])
+
+    # --- Legacy coaches ---
+    legacy = _ath.get("legacy_coaches") or []
+    if legacy:
+        st.subheader("🧢 Legacy coaches — eras that defined the program")
+        for c in legacy:
+            st.markdown(
+                f"**{c.get('name', '—')}** · {c.get('sport', '')} · "
+                f"{c.get('years', '')}"
+            )
+            if c.get("highlights"):
+                st.caption(c["highlights"])
+
+    # --- Notable athlete-alumni (the ones who went pro / to the pros' game) ---
+    alumni = _ath.get("notable_alumni") or []
+    if alumni:
+        st.subheader("⭐ Notable athlete-alumni")
+        st.caption(
+            "Bulldogs who went on to professional and college athletics. "
+            "(Non-athletic notable alumni are on the *Notable alumni & "
+            "faculty* tab.)"
+        )
+        for a in alumni:
+            st.markdown(
+                f"**{a.get('name', '—')}** "
+                + (f"(LEHS '{a['grad_year']}) " if a.get("grad_year") else "")
+                + (f"· {a.get('sport', '')}" if a.get("sport") else "")
+            )
+            if a.get("bio"):
+                st.caption(a["bio"])
+
+    if not any([venues, hof, legacy, alumni]):
+        st.info(
+            "No curated athletics heritage yet. Add entries to "
+            "`assets/curated/lehs_athletics_history.yaml`."
+        )
+
+# --- Tab 6: Leadership ------------------------------------------------------
 with _tab_leadership:
     st.subheader("Current principal")
     _p_l, _p_r = st.columns([1, 4], gap="medium")
@@ -424,19 +554,49 @@ with _tab_leadership:
         "eventually principal through the **1940s–50s** — the same Tom "
         "Whelan who'd played MLB for the Boston Braves in 1920 and "
         "professional football alongside Jim Thorpe on the Canton Bulldogs "
-        "in 1919–20. The **Whelan Family Scholarship** at LEHS is named "
+        "in 1919 and 1920. The **Whelan Family Scholarship** at LEHS is named "
         "for him and remains active. See the **Notable alumni & faculty** "
         "tab for the full Whelan write-up."
     )
 
-# --- Tab 6: Lynn as a school city ------------------------------------------
+# --- Tab 7: Lynn as a school city ------------------------------------------
 with _tab_civic:
     st.subheader("The district around LEHS")
+
+    # Pull the district's scale straight from the enrollment file so this
+    # narrative never drifts from the data the rest of the dashboard shows.
+    # (The old hard-coded "17,447 students across 27 schools as of June 2024"
+    # disagreed with the source on both counts.)
+    _enr = load_dataset("enrollment_demographics")
+    _lps_enroll_txt = "16,000+"
+    _lps_school_txt = "two dozen"
+    _lps_sy_txt = "recent years"
+    _lps_feeder_txt = "elementary and middle"
+    if not _enr.empty:
+        _dist = _enr[
+            (_enr["DIST_CODE"] == LYNN_DISTRICT_CODE)
+            & (_enr["ORG_TYPE"] == "District")
+        ].sort_values("SY")
+        _sch = _enr[
+            (_enr["DIST_CODE"] == LYNN_DISTRICT_CODE)
+            & (_enr["ORG_TYPE"] == "School")
+        ]
+        if not _dist.empty:
+            _latest_sy = int(_dist.iloc[-1]["SY"])
+            _lps_sy_txt = f"SY {sy_label(_latest_sy)}"
+            _lps_enroll_txt = f"{int(_dist.iloc[-1]['TOTAL_CNT']):,}"
+            _n_schools = _sch[_sch["SY"] == _latest_sy]["ORG_CODE"].nunique()
+            if _n_schools:
+                _lps_school_txt = f"{_n_schools}"
+                # 5 LPS public high schools; the rest are K-8 feeders.
+                _lps_feeder_txt = f"{_n_schools - 5} elementary and middle"
+
     st.markdown(
-        """
-LEHS doesn't exist alone in Lynn. **Lynn Public Schools (LPS)** as
-of June 2024 enrolled **17,447 students across 27 schools**. The
-five LPS public high schools, in order of size:
+        f"""
+LEHS doesn't exist alone in Lynn. As of **{_lps_sy_txt}**, **Lynn
+Public Schools (LPS)** enrolled **{_lps_enroll_txt} students across
+{_lps_school_txt} schools**. The five LPS public high schools, in
+order of size:
 
 - **Lynn English** (9–12) — the focus of this dashboard. Largest.
 - **Lynn Vocational & Technical Institute (LVTI / Lynn Tech)** (8–12)
@@ -447,7 +607,7 @@ five LPS public high schools, in order of size:
 
 For the comparative view across these five schools, see the
 **[Lynn Schools](/Lynn_Schools?embed=true)** page; for the full district context
-(including all 22 elementary and middle feeders), see
+(including all {_lps_feeder_txt} feeders), see
 **[Lynn District](/Lynn_District?embed=true)**.
         """
     )

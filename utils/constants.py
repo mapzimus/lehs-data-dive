@@ -149,16 +149,26 @@ STUDENT_GROUPS = [
 # Chart colors — pastels.
 #
 # Per Max (2026-05-26): "lean towards lighter pastel colors". Brand cue is
-# still LEHS navy + gold, but muted/lifted ~50% so neighboring charts read
-# as calmer surface. Subgroup palette pastel-pivoted to match.
+# still LEHS navy + gold, but muted/lifted so neighboring charts read as a
+# calmer surface. Subgroup palette pastel-pivoted to match.
+#
+# CONTRAST NOTE (2026-06-05): the five tokens below are used mainly as chart
+# LINES / MARKERS / reference lines on a near-white plot bg (#FAFBFD/#FFFFFF).
+# The original pastels were so light they failed WCAG and were nearly invisible
+# as 1-2px lines, so they have been darkened to a muted-but-legible tone while
+# staying in the same hue family (gold / slate-blue). Each now clears ~3:1
+# against white (LEHS_NAVY clears ~4.5:1 for use as chart text), verified with
+# the standard WCAG relative-luminance formula. The pastel FILL palettes below
+# (SUBGROUP_PALETTE / GENDER_PALETTE / MOBILITY_PALETTE) are deliberately left
+# pastel — they're large bar fills, not thin lines, so they read fine.
 # Old values are preserved as comments in case we ever want to revert.
 # ---------------------------------------------------------------------------
 
-LEHS_NAVY = "#7A8FB8"           # was "#0A1F44" — dusty navy
-LEHS_GOLD = "#F4D88A"           # was "#FFB81C" — cream gold
-LYNN_SIBLING_COLOR = "#C2CCD9"  # was "#7B8FA1" — pastel slate
-GATEWAY_PEER_COLOR = "#DBE2E8"  # was "#B0BEC5" — near-neutral so LEHS pops
-STATE_COLOR = "#A8B5BD"         # was "#455A64" — mute the reference line
+LEHS_NAVY = "#5C74A6"           # 4.66:1 vs #FFF (text-grade) — was "#7A8FB8" (3.26:1), orig "#0A1F44" — dusty navy
+LEHS_GOLD = "#B68C1B"           # 3.11:1 vs #FFF — was "#F4D88A" (1.40:1), orig "#FFB81C" — muted antique gold
+LYNN_SIBLING_COLOR = "#8294AE"  # 3.09:1 vs #FFF — was "#C2CCD9" (1.62:1), orig "#7B8FA1" — mid pastel slate
+GATEWAY_PEER_COLOR = "#8595A6"  # 3.07:1 vs #FFF — was "#DBE2E8" (1.31:1), orig "#B0BEC5" — light neutral slate so LEHS pops
+STATE_COLOR = "#76869A"         # 3.72:1 vs #FFF — was "#A8B5BD" (2.10:1), orig "#455A64" — darker slate reference line
 
 SUBGROUP_PALETTE = {
     "All Students":                    "#7A8FB8",  # dusty navy

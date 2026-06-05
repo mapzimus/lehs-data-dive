@@ -9,9 +9,10 @@ sidebar_attribution()
 
 st.title("Methodology & Data Sources")
 st.markdown(
-    "Every number in this dashboard traces back to a public source. This page "
-    "lists every dataset, the field definitions, suppression rules, and important "
-    "caveats."
+    "Every number in this dashboard traces back to a public source. The "
+    "dashboard is built on **50+ processed datasets drawn from ~10 public "
+    "sources**. This page lists those sources, defines the common data "
+    "fields, and spells out the suppression rules and important caveats."
 )
 
 # Annual PDF download — built by scripts/13_build_annual_report.py
@@ -47,6 +48,8 @@ sources = [
      "Local adult health indicators"),
     ("MA Department of Higher Education", "mass.edu",
      "Public postsecondary enrollment, retention, awards"),
+    ("MaxPreps", "maxpreps.com",
+     "Season-by-season Athletics records (team results, standings) powering the Athletics page — complemented by a hand-curated history file (assets/curated/lehs_athletics_history.yaml: Hall of Fame, Manning Bowl, legacy coaches)"),
     ("DESE local files", "—",
      "reporting-element4.xlsx (former-EL MCAS), state.docx (WIDA ACCESS 2025)"),
 ]
@@ -68,7 +71,8 @@ consistently:
 - **LEHS** — Lynn English High School. The single school this dashboard is
   about (ORG_CODE `01630510`).
 - **Lynn district** / **LPS** — Lynn Public Schools, the K-12 district
-  that contains LEHS plus 21 other schools (DIST_CODE `01630000`).
+  that contains LEHS plus 25 other schools — 26 in all (DIST_CODE
+  `01630000`).
 - **Lynn** (alone) — the city/place of Lynn, Massachusetts. Used for
   Census, demographics, geography.
 - **Lynn Classical** / **Lynn Tech** / **Frederick Douglass** /
@@ -77,6 +81,35 @@ consistently:
 
 When a chart contrasts LEHS with another scope, the legend says which
 scope. "Lynn" alone never refers to LEHS.
+"""
+)
+
+st.divider()
+
+st.header("Field glossary — the columns you'll meet")
+
+st.markdown(
+    """
+The processed datasets share a small set of DESE field names. The ones
+worth knowing:
+
+- **`ORG_CODE`** — the 8-digit code for a single organization (school or
+  district). LEHS is `01630510`; the Lynn district is `01630000`. Every
+  row ties to one `ORG_CODE`.
+- **`ORG_TYPE`** — whether a row describes a `School`, a `District`, or
+  the `State`. The same metric is reported at all three levels, so this
+  is how a school number is told apart from its district rollup.
+- **`SY`** — the **school year**, stored as the spring/ending calendar
+  year. `SY = 2026` means the **2025–26** school year (the latest in the
+  data); `SY = 2024` means 2023–24, ending June 2024.
+- **`STU_GRP`** — the **student group** a row covers: `All Students`, or
+  a subgroup such as `English Learner`, `Low Income`, `Students w/
+  Disabilities`, or a race/ethnicity. Subgroup rows are what power the
+  gap charts — and what get suppressed below n=10 (see caveats).
+
+Other recurring fields (`DIST_CODE`, `TOTAL_CNT`, `*_PCT`, `*_CNT`) follow
+the same pattern: a district code, a count, or a percentage of the row's
+student group.
 """
 )
 
@@ -93,11 +126,11 @@ home so the rest of the pages can stay LEHS-focused:
    Frederick Douglass, Harold Durgin) — the same-district, same-policies
    comparison. Lives on the **[Lynn Schools](/Lynn_Schools?embed=true)** page under
    the Compare group. Differences here isolate school-level practices
-   (curriculum, discipline policy, ELL programming) from city-wide
+   (curriculum, discipline policy, English Learner programming) from city-wide
    demographics. Where surviving chart contrasts on other pages (Finance,
    Discipline) include Classical alongside LEHS, Lynn Tech is included
    too.
-2. **Lynn Public Schools as a whole** — district context, 22 schools.
+2. **Lynn Public Schools as a whole** — district context, 26 schools.
    Shown on the **[Lynn District](/Lynn_District?embed=true)** *Snapshot* tab and
    referenced on other pages where the district benchmark adds context.
 3. **26 Massachusetts Gateway Cities** — main comprehensive HS of each

@@ -172,11 +172,13 @@ if _TRACTS_PATH.exists():
 
     c1, c2 = st.columns(2)
     with c1:
-        st.subheader("% Low-income (ACS)")
-        st.caption("Households below the federal poverty threshold (5-year ACS).")
-        # No direct low_income tract col in the geojson — use foreign_born as
-        # a proxy demographic-stress indicator; if a low-income col exists in
-        # future, swap.
+        st.subheader("% Foreign-born (ACS)")
+        st.caption(
+            "Share of residents born outside the U.S. (5-year ACS). The tract "
+            "geojson ships no direct low-income column, so we report foreign-born "
+            "share — a published demographic indicator — rather than inventing a "
+            "poverty figure."
+        )
         _ranked_bar("foreign_born_pct", "% Foreign-born", "{:.0%}", "Purples")
     with c2:
         st.subheader("Median household income (ACS)")
@@ -193,20 +195,27 @@ if _TRACTS_PATH.exists():
     st.markdown(
         "**Implication.** The student-residence concentration above maps onto "
         "the city's lower-income, more-foreign-born, higher-health-burden "
-        "neighborhoods. That's a structural finding: school-level interventions "
-        "happen *inside* a community that already has community-level needs. "
-        "See the [Lynn page](/Lynn_City?embed=true) (Neighborhoods tab) for the full "
+        "neighborhoods (lower median household income, higher foreign-born share, "
+        "higher chronic-disease and housing-cost burden). That's a structural "
+        "finding: school-level interventions happen *inside* a community that "
+        "already has community-level needs. See the "
+        "[Lynn page](/Lynn_City?embed=true) (Neighborhoods tab) for the full "
         "statewide-comparison view of these same indicators."
     )
 
-    if "ENV_INDEX" not in _tracts_df.columns or _tracts_df["ENV_INDEX"].isna().all():
-        st.info(
-            "**EPA EJScreen pending.** The Harvard Dataverse mirror fix for "
-            "EJScreen has landed in the build script, but the join hasn't run "
-            "yet (or this is the first refresh post-fix). After the next "
-            "successful refresh, this section will gain an Environmental "
-            "Justice indicator panel alongside the ACS/PLACES ones above."
-        )
+    st.subheader("Housing-cost burden by tract")
+    st.caption(
+        "Share of households spending 30%+ of their income on housing "
+        "(5-year ACS, severe + moderate cost burden). A high burden squeezes "
+        "the same families whose children fill the residence-density maps "
+        "above — leaving less slack for everything from school supplies to "
+        "stable housing."
+    )
+    _ranked_bar(
+        "severe_burden_pct",
+        "% of households cost-burdened (30%+ of income on housing)",
+        "{:.0%}", "Oranges",
+    )
 else:
     st.info(
         "`data/processed/lynn_tracts.geojson` not found — community context "

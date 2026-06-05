@@ -9,6 +9,7 @@ from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
 from utils.constants import LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
 from utils.data_loader import load_dataset
+from utils.interpret import sy_label
 
 # Per Max's editorial direction: this page is LEHS-focused. School-to-school
 # teacher comparison (LEHS vs Classical vs Tech) lives in
@@ -66,7 +67,7 @@ def _pct_teachers_of_color(teachers_row_df: pd.DataFrame) -> float | None:
 c1, c2, c3, c4 = st.columns(4)
 with c1:
     total_fte = pd.to_numeric(all_staff["FTE_TOTAL"], errors="coerce").sum() if not all_staff.empty else 0
-    st.metric(f"LEHS Total Staff FTE ({latest_year})", f"{total_fte:,.0f}")
+    st.metric(f"LEHS Total Staff FTE (SY {sy_label(latest_year)})", f"{total_fte:,.0f}")
 with c2:
     teacher_fte = pd.to_numeric(teachers["FTE_TOTAL"], errors="coerce").sum() if not teachers.empty else 0
     st.metric("LEHS Teacher FTE", f"{teacher_fte:,.0f}")
@@ -97,18 +98,25 @@ st.caption(
 if not teachers.empty and not enr.empty:
     teach_row = teachers.iloc[0]
     stu = enr.iloc[0]
+    # Teacher shares are computed from the precise head counts (_CNT / FTE_TOTAL)
+    # rather than DESE's rounded 1-decimal _PCT columns — otherwise small groups
+    # collapse to 10%/0%/80% and the bars misrepresent the real mix. Student
+    # shares already carry precise _PCT values, so those stay as published.
+    teach_fte_total = pd.to_numeric(teach_row.get("FTE_TOTAL", 0), errors="coerce") or 0
     groups = [
-        ("Hispanic/Latino",          "HL_PCT",   "HL_PCT"),
-        ("African American/Black",   "BAA_PCT",  "BAA_PCT"),
-        ("Asian",                    "AS_PCT",   "AS_PCT"),
-        ("White",                    "WH_PCT",   "WH_PCT"),
-        ("Multi-Race",               "MNHL_PCT", "MNHL_PCT"),
+        ("Hispanic/Latino",          "HL_CNT",   "HL_PCT"),
+        ("African American/Black",   "BAA_CNT",  "BAA_PCT"),
+        ("Asian",                    "AS_CNT",   "AS_PCT"),
+        ("White",                    "WH_CNT",   "WH_PCT"),
+        ("Multi-Race",               "MNHL_CNT", "MNHL_PCT"),
     ]
     rows = []
-    for label, teach_col, stu_col in groups:
+    for label, teach_cnt_col, stu_col in groups:
+        teach_cnt = pd.to_numeric(teach_row.get(teach_cnt_col, 0), errors="coerce") or 0
+        teach_share = (teach_cnt / teach_fte_total) if teach_fte_total else 0
         rows.append({
             "Group": label,
-            "LEHS Teachers": pd.to_numeric(teach_row.get(teach_col, 0), errors="coerce") or 0,
+            "LEHS Teachers": teach_share,
             "LEHS Students": pd.to_numeric(stu.get(stu_col, 0), errors="coerce") or 0,
         })
     diversity_df = pd.DataFrame(rows)
@@ -209,30 +217,41 @@ st.divider()
 st.header("Teacher Retention Rate")
 st.caption(
     "Share of teachers in the Lynn district who returned the following year. "
-    "DESE publishes this at district level — school-by-school retention "
-    "is not separately released."
+    "DESE reports retention both district-wide and school-by-school; we show "
+    "the district-wide rate here so it covers every Lynn teacher, not just one "
+    "building."
 )
 
 retention = load_dataset("staff_retention")
 if not retention.empty:
+    # Filter to the District-level row. Without ORG_TYPE == "District" the
+    # contains("Teacher") + iloc[-1] selection lands on an individual school row
+    # (e.g. LEHS, ~90%) while still being labelled the Lynn district rate.
     lynn_ret = retention[
         (retention["DIST_CODE"] == "01630000")
+        & (retention["ORG_TYPE"] == "District")
         & (retention["STAFF_DESC"].astype(str).str.contains("Teacher", case=False, na=False))
     ].copy()
     lynn_ret["RETND_PCT"] = pd.to_numeric(lynn_ret["RETND_PCT"], errors="coerce")
+    lynn_ret["RETND_CNT"] = pd.to_numeric(lynn_ret["RETND_CNT"], errors="coerce")
+    lynn_ret["TOT_CNT"] = pd.to_numeric(lynn_ret["TOT_CNT"], errors="coerce")
     lynn_ret = lynn_ret.dropna(subset=["RETND_PCT"]).sort_values("SY")
+    # DESE's published RETND_PCT is rounded to a single decimal (0.8 / 0.9),
+    # which would make this a coarse two-step line. Compute the precise rate
+    # from the counts so the latest year reads 83% (1148/1377), not 80%.
+    lynn_ret["RETND_RATE"] = lynn_ret["RETND_CNT"] / lynn_ret["TOT_CNT"]
 
     if not lynn_ret.empty:
         latest_ret = lynn_ret.iloc[-1]
         c1, c2 = st.columns([1, 3])
         with c1:
             st.metric(
-                f"Lynn district teacher retention (SY {int(latest_ret['SY'])})",
-                f"{latest_ret['RETND_PCT']:.0%}",
+                f"Lynn district teacher retention (SY {sy_label(int(latest_ret['SY']))})",
+                f"{latest_ret['RETND_RATE']:.0%}",
                 f"{int(latest_ret['RETND_CNT'])} of {int(latest_ret['TOT_CNT'])} teachers",
             )
-        lynn_ret["label"] = lynn_ret["RETND_PCT"].apply(lambda x: f"{x:.0%}")
-        fig = px.line(lynn_ret, x="SY", y="RETND_PCT", markers=True, text="label")
+        lynn_ret["label"] = lynn_ret["RETND_RATE"].apply(lambda x: f"{x:.0%}")
+        fig = px.line(lynn_ret, x="SY", y="RETND_RATE", markers=True, text="label")
         fig.update_traces(line=dict(color=LEHS_NAVY, width=3), textposition="top center")
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                           yaxis_title="% teachers returning the next year")
@@ -335,6 +354,28 @@ if not teacher_data.empty:
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share")
         st.plotly_chart(fig, use_container_width=True)
 
+        # Plain-language callout: the experienced-teacher share has fallen sharply.
+        exp_series = td_lynn.dropna(subset=["EXP_TCHR_PCT"]).sort_values("SY")
+        if len(exp_series) >= 2:
+            exp_latest = exp_series.iloc[-1]
+            exp_latest_yr = int(exp_latest["SY"])
+            # Compare against the value ~4 years earlier (fall back to earliest available).
+            earlier = exp_series[exp_series["SY"] <= exp_latest_yr - 4]
+            exp_start = earlier.iloc[-1] if not earlier.empty else exp_series.iloc[0]
+            exp_start_yr = int(exp_start["SY"])
+            drop_pts = (exp_start["EXP_TCHR_PCT"] - exp_latest["EXP_TCHR_PCT"]) * 100
+            span_yrs = exp_latest_yr - exp_start_yr
+            if drop_pts >= 5 and span_yrs > 0:
+                st.warning(
+                    f"**Experience is eroding fast.** The share of Lynn teachers "
+                    f"with 3+ years of experience fell from "
+                    f"**{exp_start['EXP_TCHR_PCT']:.0%}** in SY {sy_label(exp_start_yr)} "
+                    f"to **{exp_latest['EXP_TCHR_PCT']:.0%}** in SY {sy_label(exp_latest_yr)} "
+                    f"— down about **{drop_pts:.0f} points in {span_yrs} years**. A wave of "
+                    f"newer teachers can signal heavy turnover and a thinner bench of "
+                    f"veteran mentors."
+                )
+
         # By race/ethnicity — uses the separate teacher_experience_infield
         # dataset, which disaggregates Experienced and In-Field rates by
         # teacher race rather than by subject.
@@ -381,18 +422,22 @@ if not teacher_data.empty:
                     fig.update_xaxes(range=[0, 110])
                     st.plotly_chart(fig, use_container_width=True)
 
-        # In-field by SUBJECT (LEHS-level if rows exist)
+        # In-field by SUBJECT (LEHS-level if rows exist). Pin to the latest year
+        # that actually has non-null subject rows — the global max SY often has
+        # the subject rows present but TCHR_INFLD_PCT blank, which would render
+        # an empty chart with no explanation.
         lehs_by_subj = teacher_data[
             (teacher_data["ORG_CODE"] == LEHS_SCHOOL_CODE)
             & (teacher_data["SUBJECT"].astype(str).str.lower() != "all teachers")
         ].copy()
         lehs_by_subj["TCHR_INFLD_PCT"] = pd.to_numeric(lehs_by_subj["TCHR_INFLD_PCT"], errors="coerce")
-        latest_subj_year = int(lehs_by_subj["SY"].max()) if not lehs_by_subj.empty else None
+        subj_with_data = lehs_by_subj.dropna(subset=["TCHR_INFLD_PCT"])
+        latest_subj_year = int(subj_with_data["SY"].max()) if not subj_with_data.empty else None
         if latest_subj_year:
             sub = lehs_by_subj[lehs_by_subj["SY"] == latest_subj_year].copy()
             sub = sub.dropna(subset=["TCHR_INFLD_PCT"]).sort_values("TCHR_INFLD_PCT")
             if not sub.empty:
-                st.subheader(f"% In-Field by subject at LEHS (SY {int(latest_subj_year)})")
+                st.subheader(f"% In-Field by subject at LEHS (SY {sy_label(latest_subj_year)})")
                 sub["label"] = sub["TCHR_INFLD_PCT"].apply(lambda x: f"{x:.0%}")
                 fig = px.bar(
                     sub, y="SUBJECT", x="TCHR_INFLD_PCT", orientation="h", text="label",
@@ -404,6 +449,13 @@ if not teacher_data.empty:
                                   xaxis_title="% teachers with subject licensure",
                                   yaxis_title="")
                 st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.caption(
+                "DESE does not publish a school-level in-field rate broken out by "
+                "subject for LEHS, so no by-subject chart is shown here. The "
+                "district-wide *% In-field for subject* line above reflects the "
+                "available figure."
+            )
 
 st.divider()
 

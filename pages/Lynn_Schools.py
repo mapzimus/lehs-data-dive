@@ -27,6 +27,7 @@ from utils.constants import (
     LYNN_SIBLING_HS,
 )
 from utils.data_loader import load_dataset
+from utils.interpret import sy_label
 
 st.set_page_config(
     page_title="Lynn Schools | LEHS", page_icon="🏫", layout="wide"
@@ -50,6 +51,9 @@ st.markdown(
 enrollment = load_dataset("enrollment_demographics")
 grad = load_dataset("graduation_rates")
 mcas = load_dataset("mcas_achievement")
+ap_part = load_dataset("ap_participation")
+retention = load_dataset("grade_retention")
+el_access = load_dataset("el_access")
 
 if enrollment.empty:
     st.info("Data is temporarily unavailable. Please check back later.")
@@ -73,6 +77,31 @@ NAME_OVERRIDES = {
     "01630575": "Frederick Douglass",
     "01630525": "Harold Durgin",
 }
+
+# The two alternative academies enroll only a few dozen to a few hundred
+# students, so any percentage built on a grade-cohort denominator (grad rate,
+# Grade 10 MCAS, retention) swings wildly year to year — a single student can
+# move the rate several points. Flag them so charts can mark them "small
+# cohort — interpret with caution" rather than reading them as equal peers of
+# the ~1,500-student comprehensive schools. Harold Durgin (~98 students; a
+# Grade 10 cohort of ~10–12) is the most extreme.
+SMALL_COHORT_CODES = {"01630575", "01630525"}  # Frederick Douglass, Harold Durgin
+
+
+def _mark_small(name: str, code: str) -> str:
+    """Append a small-cohort dagger to a school's display name."""
+    return f"{name} †" if code in SMALL_COHORT_CODES else name
+
+
+SMALL_COHORT_NOTE = (
+    "**†  Small cohort — interpret with caution.** Frederick Douglass and "
+    "Harold Durgin are alternative academies enrolling only a few dozen to a "
+    "few hundred students (Durgin ~100, with a Grade 10 cohort near 10–12). "
+    "On any rate built from a small denominator, one or two students can swing "
+    "the number several points, so these schools are not statistically "
+    "comparable to the ~1,500-student comprehensive high schools. They are "
+    "shown for completeness, not as equal peers."
+)
 
 # ---------------------------------------------------------------------------
 # Lynn high schools — side by side
@@ -235,6 +264,26 @@ grad_lynn = grad[
 ].copy()
 grad_lynn["School"] = grad_lynn["ORG_CODE"].map(NAME_OVERRIDES)
 
+# Honest disclosure: DESE publishes no 4-year adjusted-cohort graduation rows
+# for Frederick Douglass, so it silently drops out of the chart below. Name it
+# rather than letting readers wonder where one of the five schools went.
+_grad_schools = set(grad_lynn["School"].dropna())
+_missing_grad = [
+    NAME_OVERRIDES[c] for c in SIBLING_CODES
+    if NAME_OVERRIDES.get(c) not in _grad_schools
+]
+if _missing_grad:
+    st.caption(
+        "Note: **" + ", ".join(_missing_grad) + "** "
+        + ("does" if len(_missing_grad) == 1 else "do")
+        + " not appear below. DESE reports no 4-year adjusted-cohort "
+        "graduation rate for "
+        + ("it" if len(_missing_grad) == 1 else "them")
+        + " — Frederick Douglass is a small alternative academy whose "
+        "students are counted in their sending school's cohort rather than as "
+        "a separate graduating class."
+    )
+
 if grad_lynn.empty:
     st.info("No graduation data yet.")
 else:
@@ -274,6 +323,216 @@ else:
     st.plotly_chart(fig, use_container_width=True)
 
 # ---------------------------------------------------------------------------
+# Advanced Placement participation
+# ---------------------------------------------------------------------------
+
+st.header("Advanced Placement — Who Takes AP, and How Many Exams")
+
+ap_lynn = pd.DataFrame()
+if not ap_part.empty:
+    ap_lynn = ap_part[
+        (ap_part["ORG_CODE"].isin(SIBLING_CODES))
+        & (ap_part["STU_GRP"] == "All Students")
+    ].copy()
+    ap_lynn["School"] = ap_lynn["ORG_CODE"].map(NAME_OVERRIDES)
+
+if ap_lynn.empty:
+    st.info("No AP participation data for the Lynn high schools yet.")
+else:
+    ap_year = int(ap_lynn["SY"].max())
+    ap_cur = ap_lynn[ap_lynn["SY"] == ap_year].copy()
+    ap_cur["School_lbl"] = ap_cur.apply(
+        lambda r: _mark_small(r["School"], r["ORG_CODE"]), axis=1
+    )
+
+    # Only the comprehensive/vocational HS run an AP program; the alternative
+    # academies report no AP test-takers, so they simply don't appear here.
+    _ap_present = set(ap_cur["School"])
+    _ap_absent = [NAME_OVERRIDES[c] for c in SIBLING_CODES
+                  if NAME_OVERRIDES.get(c) not in _ap_present]
+
+    st.subheader(f"AP Test-Takers ({sy_label(ap_year)})")
+    fig = px.bar(
+        ap_cur.sort_values("TEST_TAKERS_CNT", ascending=False),
+        x="School_lbl", y="TEST_TAKERS_CNT", color="School",
+        color_discrete_map={NAME_OVERRIDES[code]: SIBLING_COLORS[code] for code in NAME_OVERRIDES},
+        text="TEST_TAKERS_CNT",
+    )
+    fig.update_traces(textposition="outside")
+    fig.update_layout(
+        **DEFAULT_LAYOUT, yaxis_title="Students taking ≥1 AP exam",
+        xaxis_title="", showlegend=False,
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.subheader(f"Exams Per Test-Taker ({sy_label(ap_year)})")
+    fig = px.bar(
+        ap_cur.sort_values("EXAMS_PER_TAKER", ascending=False),
+        x="School_lbl", y="EXAMS_PER_TAKER", color="School",
+        color_discrete_map={NAME_OVERRIDES[code]: SIBLING_COLORS[code] for code in NAME_OVERRIDES},
+        text="EXAMS_PER_TAKER",
+    )
+    fig.update_traces(texttemplate="%{text:.2f}", textposition="outside")
+    fig.update_layout(
+        **DEFAULT_LAYOUT, yaxis_title="AP exams per student",
+        xaxis_title="", showlegend=False,
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Plain-language read of the two charts.
+    _lehs_ap = ap_cur[ap_cur["ORG_CODE"] == "01630510"]
+    _ap_msg = ""
+    if not _lehs_ap.empty:
+        _t = int(_lehs_ap["TEST_TAKERS_CNT"].iloc[0])
+        _e = float(_lehs_ap["EXAMS_PER_TAKER"].iloc[0])
+        _is_depth_leader = _e >= ap_cur["EXAMS_PER_TAKER"].max() - 1e-9
+        _depth_clause = (
+            f"the **most exams per student ({_e:.2f})** of any Lynn high school"
+            if _is_depth_leader
+            else f"**{_e:.2f} exams per student**"
+        )
+        _ap_msg = (
+            f"Lynn English had **{_t} AP test-takers** and {_depth_clause} — "
+            "students who take AP at LEHS tend to sit for more than one exam. "
+        )
+    _absent_clause = ""
+    if _ap_absent:
+        _absent_clause = (
+            "**" + ", ".join(_ap_absent) + "** report no AP test-takers and "
+            "are omitted; the alternative academies do not run an AP program. "
+        )
+    st.caption(
+        _ap_msg + _absent_clause
+        + "“Exams per test-taker” shows how deeply AP-takers load up on exams; "
+        "it says nothing about scores — see the district AP page for the share "
+        "scoring 3+."
+    )
+
+# ---------------------------------------------------------------------------
+# Grade retention
+# ---------------------------------------------------------------------------
+
+st.header("Grade Retention — Students Held Back")
+
+ret_lynn = pd.DataFrame()
+if not retention.empty:
+    ret_lynn = retention[
+        (retention["ORG_CODE"].isin(SIBLING_CODES))
+        & (retention["STU_GRP"] == "All Students")
+    ].copy()
+    ret_lynn["School"] = ret_lynn["ORG_CODE"].map(NAME_OVERRIDES)
+
+if ret_lynn.empty:
+    st.info("No grade-retention data for the Lynn high schools yet.")
+else:
+    ret_year = int(ret_lynn["SY"].max())
+    ret_cur = ret_lynn[ret_lynn["SY"] == ret_year].copy()
+    ret_cur["School_lbl"] = ret_cur.apply(
+        lambda r: _mark_small(r["School"], r["ORG_CODE"]), axis=1
+    )
+
+    st.subheader(f"Share of Students Retained in Grade ({sy_label(ret_year)})")
+    fig = px.bar(
+        ret_cur.sort_values("RET_ALL_PCT", ascending=False),
+        x="School_lbl", y="RET_ALL_PCT", color="School",
+        color_discrete_map={NAME_OVERRIDES[code]: SIBLING_COLORS[code] for code in NAME_OVERRIDES},
+        text="RET_ALL_PCT",
+        custom_data=["RET_ALL_CNT", "ENROLL_ALL_CNT"],
+    )
+    fig.update_traces(
+        texttemplate="%{text:.1%}", textposition="outside",
+        hovertemplate="%{x}<br>Retained: %{y:.1%}"
+                      "<br>(%{customdata[0]:.0f} of %{customdata[1]:.0f} students)<extra></extra>",
+    )
+    fig.update_layout(
+        **DEFAULT_LAYOUT, yaxis_tickformat=".0%",
+        yaxis_title="% held back a grade", xaxis_title="", showlegend=False,
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.caption(
+        "Retention is rare at the high-school level, so these figures are "
+        "small and a single student moves the rate noticeably — Lynn Tech "
+        "shows essentially **0%**, while the highest bar still rests on only a "
+        "handful of students (see the hover counts). Read the differences "
+        "between schools as suggestive, not precise; the dagger (†) marks the "
+        "small alternative academies where this is most acute."
+    )
+
+# ---------------------------------------------------------------------------
+# English-learner ACCESS outcomes
+# ---------------------------------------------------------------------------
+
+st.header("English Learners — ACCESS Progress by School")
+
+ela_lynn = pd.DataFrame()
+if not el_access.empty:
+    ela_lynn = el_access[
+        (el_access["ORG_CODE"].isin(SIBLING_CODES))
+        & (el_access["GRADE"].astype(str) == "ALL")
+    ].copy()
+    ela_lynn["School"] = ela_lynn["ORG_CODE"].map(NAME_OVERRIDES)
+
+if ela_lynn.empty:
+    st.info("No EL ACCESS data for the Lynn high schools yet.")
+else:
+    ela_year = int(ela_lynn["SY"].max())
+    ela_cur = ela_lynn[ela_lynn["SY"] == ela_year].copy()
+    ela_cur["School_lbl"] = ela_cur.apply(
+        lambda r: _mark_small(r["School"], r["ORG_CODE"]), axis=1
+    )
+
+    st.subheader(f"% of English Learners Making Expected Progress ({sy_label(ela_year)})")
+    fig = px.bar(
+        ela_cur.sort_values("RE1_PCT", ascending=False),
+        x="School_lbl", y="RE1_PCT", color="School",
+        color_discrete_map={NAME_OVERRIDES[code]: SIBLING_COLORS[code] for code in NAME_OVERRIDES},
+        text="RE1_PCT",
+        custom_data=["ENROLLED_CNT"],
+    )
+    fig.update_traces(
+        texttemplate="%{text:.0%}", textposition="outside",
+        hovertemplate="%{x}<br>Making progress: %{y:.0%}"
+                      "<br>EL students: %{customdata[0]:.0f}<extra></extra>",
+    )
+    fig.update_layout(
+        **DEFAULT_LAYOUT, yaxis_tickformat=".0%",
+        yaxis_title="% making expected ACCESS progress (RE1)",
+        xaxis_title="", showlegend=False,
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    _lehs_el = ela_cur[ela_cur["ORG_CODE"] == "01630510"]
+    _el_msg = ""
+    if not _lehs_el.empty:
+        _re1 = float(_lehs_el["RE1_PCT"].iloc[0])
+        _n = int(_lehs_el["ENROLLED_CNT"].iloc[0])
+        # Rank among the comprehensive/vocational schools (exclude tiny academies).
+        _big = ela_cur[~ela_cur["ORG_CODE"].isin(SMALL_COHORT_CODES)]
+        _el_msg = (
+            f"Lynn English teaches by far the most English Learners "
+            f"(**{_n}** of any Lynn HS), yet only **{_re1:.0%}** met their "
+            "expected ACCESS growth target — the **lowest of the comprehensive "
+            "and vocational high schools** (Lynn Classical and Lynn Tech both "
+            "rank higher). "
+        )
+    st.caption(
+        _el_msg
+        + "ACCESS is the annual English-proficiency test; **RE1** is the share "
+        "of EL students who grew as much as the state expected for their "
+        "starting level. A low RE1 at the school carrying the largest EL "
+        "caseload is the heart of the English-learner story — drill into it on "
+        "the [English Learners](/ELL_Pipeline?embed=true) page."
+    )
+
+# ---------------------------------------------------------------------------
+# Small-cohort footnote (applies to the cohort-based charts above)
+# ---------------------------------------------------------------------------
+
+st.divider()
+st.caption(SMALL_COHORT_NOTE)
+
+# ---------------------------------------------------------------------------
 # Key analytical question
 # ---------------------------------------------------------------------------
 
@@ -295,4 +554,7 @@ data_downloads_panel({
     "Enrollment & demographics": enrollment,
     "Graduation rates": grad,
     "MCAS achievement": mcas,
+    "AP participation": ap_part,
+    "Grade retention": retention,
+    "EL ACCESS outcomes": el_access,
 })

@@ -25,7 +25,8 @@ st.title("Cross-Topic Explorer")
 st.markdown(
     "Because every dataset lives in the same data model joined on (school, year), "
     "we can ask questions DESE's siloed tools can't. Pick any two metrics "
-    "below to explore relationships across the 26 gateway-city high schools."
+    "below to explore relationships across the 26 gateway-city high schools "
+    "(one main high school per city, with Lynn English representing Lynn)."
 )
 
 st.caption(
@@ -46,9 +47,13 @@ def build_master_panel() -> pd.DataFrame:
         info["school_code"] for info in peers["gateway_main_hs"].values()
         if info.get("school_code")
     ]
-    # Include LEHS in the gateway pool so Lynn is represented in the
-    # cross-city scatter (one school per city — Lynn-the-district has
-    # 22 schools and isn't comparable to a single gateway-city HS).
+    # Represent Lynn with LEHS (one school per city). The manifest's "Lynn"
+    # slot is Classical (01630505) — it only edged out LEHS on cumulative
+    # enrollment — so swap it for LEHS here. Keeping both would double-count
+    # Lynn: every scatter would show a Classical dot AND a LEHS dot, and the
+    # "26 gateway-city HS" claim would actually be 27 points. Drop Classical,
+    # add LEHS, so Lynn contributes exactly one (correctly-labeled) point.
+    gateway_codes = [c for c in gateway_codes if c != LCHS_SCHOOL_CODE]
     if LEHS_SCHOOL_CODE not in gateway_codes:
         gateway_codes.append(LEHS_SCHOOL_CODE)
 
@@ -72,8 +77,14 @@ def build_master_panel() -> pd.DataFrame:
     dart = dart[(dart["ORG_CODE"].isin(gateway_codes)) & (dart["STU_GRP"] == "All Students")].copy()
     dart["VALUE"] = pd.to_numeric(dart["VALUE"], errors="coerce")
 
+    # NOTE: "4-year cohort graduation rate" and "Jr/Sr AP test takers scoring 3
+    # or above" are deliberately NOT sourced from DART here. The canonical
+    # 4-year grad rate is DESE's 4-Year *Adjusted Cohort* rate (graduation_rates)
+    # and the canonical AP figure is the % of AP *exams* scoring 3+
+    # (ap_performance PCT_3_5). Both are merged in below from those files so this
+    # page matches the rest of the app's definitions. The 5-year cohort rate
+    # stays on DART (no re-sourcing requested for it).
     indicator_aliases = {
-        "4-year cohort graduation rate": "GradRate_4yr",
         "5-year cohort graduation rate": "GradRate_5yr",
         "9th to 10th grade promotion rate (first-time 9th graders only)": "Promotion_9to10",
         "Annual dropout rate": "Dropout",
@@ -85,7 +96,6 @@ def build_master_panel() -> pd.DataFrame:
         "Grade 10 students meeting or exceeding expectations in ELA": "MCAS_G10_ELA",
         "Grade 10 students meeting or exceeding expectations in mathematics": "MCAS_G10_Math",
         "Jr/Sr enrolled in one or more AP / IB courses": "AP_Enrolled",
-        "Jr/Sr AP test takers scoring 3 or above": "AP_3plus",
         "SAT average score - Mathematics": "SAT_Math",
         "SAT average score - Reading": "SAT_Reading",
         "Grade 12 students who completed FAFSA": "FAFSA",
@@ -101,6 +111,24 @@ def build_master_panel() -> pd.DataFrame:
         index=["SY", "ORG_CODE"], columns="alias", values="VALUE", aggfunc="mean"
     ).reset_index()
 
+    # DART stores percent rates/shares as 0-100 (e.g. 84.6 for an 84.6% grad
+    # rate), but the demographic *_pct columns above are 0-1 fractions. Put the
+    # percent-type DART columns on the same 0-1 scale so a chart mixing, say,
+    # ELL share (0-1) and graduation rate doesn't plot one axis 0-1 and the
+    # other 0-100. SGP_* (a 0-100 growth percentile) and SAT_* (200-800 scaled
+    # scores) are NOT percentages and are left on their native scale. Pearson r
+    # is scale-invariant, so this only affects readability, not the statistics.
+    DART_PCT_ALIASES = [
+        "GradRate_5yr", "Promotion_9to10", "Dropout",
+        "ChronicAbsence", "AttendanceRate", "Suspension_pct",
+        "MCAS_G10_ELA", "MCAS_G10_Math", "AP_Enrolled",
+        "FAFSA", "ImmediateCollege", "College_2yr", "College_4yr",
+        "CollegePersist", "MassCore",
+    ]
+    for col in DART_PCT_ALIASES:
+        if col in dart_wide.columns:
+            dart_wide[col] = pd.to_numeric(dart_wide[col], errors="coerce") / 100.0
+
     # 3) Finance: per-pupil + teacher salary
     sp = load_dataset("school_expenditures")
     sp = sp[sp["ORG_CODE"].isin(gateway_codes)].copy()
@@ -112,8 +140,43 @@ def build_master_panel() -> pd.DataFrame:
     t_ratio = sp[(sp["IND_CAT"] == "Teacher Salaries") & (sp["IND_SUBCAT"] == "Teachers per 100 FTE students")] \
             [["SY", "ORG_CODE", "IND_VALUE"]].rename(columns={"IND_VALUE": "TeachersPer100"})
 
+    # 4) Canonical 4-year graduation rate — DESE's official 4-Year ADJUSTED
+    # COHORT rate (per gateway main-HS school row), NOT DART's un-adjusted
+    # "4-year cohort graduation rate". Keyed on (SY, ORG_CODE) so it joins onto
+    # the panel per school-year. GRAD_PCT is already 0-1.
+    grad = load_dataset("graduation_rates")
+    if not grad.empty:
+        gr = grad[
+            (grad["ORG_CODE"].isin(gateway_codes))
+            & (grad["ORG_TYPE"] == "School")
+            & (grad["STU_GRP"] == "All Students")
+            & (grad["GRAD_RATE_TYPE"] == "4-Year Adjusted Cohort Graduation Rate")
+        ].copy()
+        gr["GradRate_4yr"] = pd.to_numeric(gr["GRAD_PCT"], errors="coerce")
+        grad_wide = gr[["SY", "ORG_CODE", "GradRate_4yr"]].dropna(subset=["GradRate_4yr"])
+    else:
+        grad_wide = pd.DataFrame(columns=["SY", "ORG_CODE", "GradRate_4yr"])
+
+    # 5) Canonical AP "scoring 3+" — % of AP EXAMS scoring 3+ (exam-weighted,
+    # All Subjects), from ap_performance PCT_3_5 (already 0-1), NOT DART's
+    # per-student "Jr/Sr AP test takers scoring 3 or above". Same definition the
+    # College & Career page's AP-by-group chart uses.
+    ap = load_dataset("ap_performance")
+    if not ap.empty:
+        apx = ap[
+            (ap["ORG_CODE"].isin(gateway_codes))
+            & (ap["SUBJ"] == "All Subjects")
+            & (ap["STU_GRP"] == "All Students")
+        ].copy()
+        apx["AP_exams_3plus"] = pd.to_numeric(apx["PCT_3_5"], errors="coerce")
+        ap_wide = apx[["SY", "ORG_CODE", "AP_exams_3plus"]].dropna(subset=["AP_exams_3plus"])
+    else:
+        ap_wide = pd.DataFrame(columns=["SY", "ORG_CODE", "AP_exams_3plus"])
+
     # Join everything
     panel = base.merge(dart_wide, on=["SY", "ORG_CODE"], how="outer")
+    panel = panel.merge(grad_wide, on=["SY", "ORG_CODE"], how="outer")
+    panel = panel.merge(ap_wide, on=["SY", "ORG_CODE"], how="outer")
     panel = panel.merge(pp, on=["SY", "ORG_CODE"], how="left")
     panel = panel.merge(sal, on=["SY", "ORG_CODE"], how="left")
     panel = panel.merge(t_ratio, on=["SY", "ORG_CODE"], how="left")
@@ -126,6 +189,83 @@ if panel.empty:
     st.stop()
 
 NUMERIC_COLS = sorted([c for c in panel.columns if pd.api.types.is_numeric_dtype(panel[c]) and c != "SY"])
+
+# ---------------------------------------------------------------------------
+# Readable axis labels + tick formats. Raw column aliases like "GradRate_4yr"
+# or "PerPupil" are fine as keys but unfriendly on a chart axis. AXIS_LABELS
+# maps each alias to plain English with its unit; AXIS_TICKFMT gives the
+# matching Plotly d3 tick format. Percent-type columns are stored 0-1 (see the
+# DART normalization in build_master_panel + the demographic *_pct columns), so
+# ".0%" renders them as whole-number percents.
+# ---------------------------------------------------------------------------
+AXIS_LABELS = {
+    # Demographics (0-1 fractions)
+    "Enrollment": "Cumulative enrollment (students)",
+    "ELL_pct": "English learners (%)",
+    "LowIncome_pct": "Low-income students (%)",
+    "SPED_pct": "Students with disabilities (%)",
+    "HighNeeds_pct": "High-needs students (%)",
+    "Hispanic_pct": "Hispanic/Latino students (%)",
+    "Black_pct": "Black students (%)",
+    "Asian_pct": "Asian students (%)",
+    "White_pct": "White students (%)",
+    "FirstLangNotEnglish_pct": "First language not English (%)",
+    # Outcomes (0-1). Grad rate + AP 3+ are re-sourced from the official files
+    # (graduation_rates adjusted cohort / ap_performance exam-weighted); the
+    # rest are DART percent rates normalized to 0-1.
+    "GradRate_4yr": "4-yr graduation rate — adjusted cohort (%)",
+    "GradRate_5yr": "5-yr graduation rate (%)",
+    "Promotion_9to10": "9th-to-10th promotion rate (%)",
+    "Dropout": "Annual dropout rate (%)",
+    "ChronicAbsence": "Chronically absent (%)",
+    "AttendanceRate": "Attendance rate (%)",
+    "Suspension_pct": "Suspended at least once (%)",
+    "MCAS_G10_ELA": "Grade-10 MCAS ELA meeting/exceeding (%)",
+    "MCAS_G10_Math": "Grade-10 MCAS math meeting/exceeding (%)",
+    "AP_Enrolled": "Juniors/seniors in AP or IB (%)",
+    "AP_exams_3plus": "% of AP exams scoring 3+",
+    "FAFSA": "Grade-12 FAFSA completion (%)",
+    "ImmediateCollege": "Enrolled in college the next fall (%)",
+    "College_2yr": "Graduates at a 2-yr college (%)",
+    "College_4yr": "Graduates at a 4-yr college (%)",
+    "CollegePersist": "Persisted in college 2 years (%)",
+    "MassCore": "Completed MassCore (%)",
+    # Non-percent DART (native scale)
+    "SGP_ELA": "Student growth percentile — ELA",
+    "SGP_Math": "Student growth percentile — math",
+    "SAT_Math": "SAT math (200–800)",
+    "SAT_Reading": "SAT reading (200–800)",
+    # Finance ($)
+    "PerPupil": "Per-pupil spending ($)",
+    "AvgTeacherSalary": "Average teacher salary ($)",
+    "TeachersPer100": "Teachers per 100 students",
+}
+
+# Columns that are stored as 0-1 fractions and should render as percents.
+_PCT_COLS = {
+    "ELL_pct", "LowIncome_pct", "SPED_pct", "HighNeeds_pct", "Hispanic_pct",
+    "Black_pct", "Asian_pct", "White_pct", "FirstLangNotEnglish_pct",
+    "GradRate_4yr", "GradRate_5yr", "Promotion_9to10", "Dropout",
+    "ChronicAbsence", "AttendanceRate", "Suspension_pct", "MCAS_G10_ELA",
+    "MCAS_G10_Math", "AP_Enrolled", "AP_exams_3plus", "FAFSA", "ImmediateCollege",
+    "College_2yr", "College_4yr", "CollegePersist", "MassCore",
+}
+_DOLLAR_COLS = {"PerPupil", "AvgTeacherSalary"}
+
+
+def axis_label(col: str) -> str:
+    """Plain-English axis title for a panel column (falls back to the alias)."""
+    return AXIS_LABELS.get(col, col)
+
+
+def axis_tickformat(col: str) -> str | None:
+    """Plotly d3 tick format matching the column's scale, or None."""
+    if col in _PCT_COLS:
+        return ".0%"
+    if col in _DOLLAR_COLS:
+        return "$,.0f"
+    return None
+
 
 # ---------------------------------------------------------------------------
 # Curated correlations
@@ -199,11 +339,16 @@ for x, y, label in curated_pairs:
             hover_data={"City": True, "School": False, "highlight": False},
         )
         fig.update_traces(textposition="top center", textfont_size=10)
-        fig.update_layout(**DEFAULT_LAYOUT, xaxis_title=x, yaxis_title=y)
+        fig.update_layout(
+            **DEFAULT_LAYOUT,
+            xaxis_title=axis_label(x), yaxis_title=axis_label(y),
+            xaxis_tickformat=axis_tickformat(x), yaxis_tickformat=axis_tickformat(y),
+        )
         st.plotly_chart(fig, use_container_width=True)
         st.caption(
             f"Pearson r = {stats['r']:+.3f} (p = {stats['p']:.3f}, n = {stats['n']}). "
-            f"**Caveat:** correlation across 26 districts doesn't establish cause."
+            f"**Caveat:** correlation across {stats['n']} gateway-city high schools "
+            f"doesn't establish cause."
         )
 
 st.divider()
@@ -249,7 +394,11 @@ if len(data) >= 3:
         trendline="ols",
         hover_data={"School": True, "City": True, "highlight": False},
     )
-    fig.update_layout(**DEFAULT_LAYOUT, xaxis_title=x_var, yaxis_title=y_var)
+    fig.update_layout(
+        **DEFAULT_LAYOUT,
+        xaxis_title=axis_label(x_var), yaxis_title=axis_label(y_var),
+        xaxis_tickformat=axis_tickformat(x_var), yaxis_tickformat=axis_tickformat(y_var),
+    )
     st.plotly_chart(fig, use_container_width=True)
 
     stats = pearson(data, x_var, y_var)
@@ -331,14 +480,16 @@ if len(lagged) >= 5:
         trendline="ols",
         hover_data=["pair_label"],
         labels={
-            "x_val": f"{x_var_lag} (year Y)",
-            "y_val": f"{y_var_lag} (year Y + {lag_years})",
+            "x_val": f"{axis_label(x_var_lag)} — year Y",
+            "y_val": f"{axis_label(y_var_lag)} — year Y + {lag_years}",
         },
     )
     fig.update_layout(
         **DEFAULT_LAYOUT,
-        xaxis_title=f"{x_var_lag} (year Y)",
-        yaxis_title=f"{y_var_lag} (year Y + {lag_years})",
+        xaxis_title=f"{axis_label(x_var_lag)} — year Y",
+        yaxis_title=f"{axis_label(y_var_lag)} — year Y + {lag_years}",
+        xaxis_tickformat=axis_tickformat(x_var_lag),
+        yaxis_tickformat=axis_tickformat(y_var_lag),
     )
     st.plotly_chart(fig, use_container_width=True)
 
@@ -354,6 +505,14 @@ if len(lagged) >= 5:
         f"Each pair = one (school, base-year) observation where both metrics "
         f"exist at year Y and Y + {lag_years}. Lag = 0 collapses to a within-"
         f"year correlation across schools."
+    )
+    st.caption(
+        "⚠️ **These points are not independent.** Each school contributes many "
+        "(school, base-year) pairs, so the n above counts repeated measurements "
+        "of the same schools — not n separate schools. That pseudo-replication "
+        "shrinks the p-value and inflates apparent significance. Read this "
+        "section for the **direction and rough strength** of a lead-lag pattern, "
+        "not as a formal significance test."
     )
 else:
     st.info(

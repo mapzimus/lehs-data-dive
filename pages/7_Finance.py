@@ -71,7 +71,7 @@ if not total_exp.empty:
         st.metric(
             f"LEHS Per Pupil (FY {int(latest['SY'])})",
             f"${latest['IND_VALUE']:,.0f}",
-            f"${latest['IND_VALUE']-prior['IND_VALUE']:+,.0f} vs SY {int(prior['SY'])}" if prior is not None else "",
+            f"${latest['IND_VALUE']-prior['IND_VALUE']:+,.0f} vs FY {int(prior['SY'])}" if prior is not None else "",
         )
         if not total_lchs.empty:
             latest_l = total_lchs.iloc[-1]
@@ -126,6 +126,13 @@ breakdown = lehs_exp[
 ].copy()
 
 if not breakdown.empty:
+    # DESE splits one category across two spellings — "Guidance and Psych" and
+    # "Guidance & Psych" — which would otherwise group into two separate bars.
+    # Normalize "and" / "&" to a single form before aggregating so each category
+    # is one bar.
+    breakdown["IND_SUBCAT"] = (
+        breakdown["IND_SUBCAT"].astype(str).str.replace(r"\s*&\s*", " and ", regex=True)
+    )
     # Aggregate by IND_SUBCAT across funding sources
     agg = breakdown.groupby("IND_SUBCAT")["IND_VALUE"].sum().reset_index().sort_values("IND_VALUE", ascending=True)
     fig = px.bar(agg, x="IND_VALUE", y="IND_SUBCAT", orientation="h",
@@ -272,11 +279,13 @@ st.divider()
 
 st.header("Teacher Pay vs. Gateway-City Peers")
 st.markdown(
-    "Average teacher salary is set at the **district** level — every Lynn "
-    "school pays from the same scale. To see whether Lynn pays competitively, "
-    "the comparison that matters is against other MA Gateway Cities: similar "
-    "demographic profile, similar fiscal pressures, independently negotiated "
-    "contracts."
+    "Lynn's teacher pay scale is negotiated at the **district** level, so the "
+    "*scale* is shared across schools — but each school's **average** salary "
+    "still differs (LEHS, Classical, and Tech all land at slightly different "
+    "averages above), because the mix of teacher experience varies by building. "
+    "To judge whether Lynn pays competitively, the comparison that matters is "
+    "against other MA Gateway Cities: similar demographic profile, similar "
+    "fiscal pressures, independently negotiated contracts."
 )
 
 if not dist_exp.empty:
@@ -560,12 +569,40 @@ else:
                 height=max(420, 22 * len(peers_ch70)),
             )
             st.plotly_chart(fig, use_container_width=True)
-            st.caption(
-                "Every Gateway City spends at least the required minimum (everyone "
-                "is at or above 100%) — districts under 100% face state intervention. "
-                "How *far* above the floor each city goes reflects local fiscal "
-                "capacity and political will."
-            )
+
+            # Honest caption: not every gateway city clears the floor. Name the
+            # districts under 100% and surface Lynn's own shortfall if it is one.
+            below = peers_ch70[peers_ch70["pct_of_req"] < 1.0].sort_values("pct_of_req")
+            below_names = [str(n) for n in below["DIST_NAME"].tolist()]
+            lynn_gap = None
+            if pd.notna(latest.get("REQ_NSS_AMT")) and pd.notna(latest.get("ACTL_NSS_AMT")):
+                lynn_gap = latest["ACTL_NSS_AMT"] - latest["REQ_NSS_AMT"]
+            if below_names:
+                names_str = ", ".join(below_names[:-1]) + (
+                    f" and {below_names[-1]}" if len(below_names) > 1 else below_names[0]
+                )
+                caption = (
+                    f"Not every Gateway City clears the required minimum: "
+                    f"**{len(below_names)}** spent *below* 100% of required Net "
+                    f"School Spending in SY {sy_label(latest_year)} "
+                    f"({names_str}) — a shortfall that can trigger state scrutiny. "
+                )
+                if lynn_gap is not None and lynn_gap < 0:
+                    caption += (
+                        f"**Lynn is among them**, spending about "
+                        f"**${abs(lynn_gap)/1e6:.2f}M under** its required NSS "
+                        f"that year. "
+                    )
+                caption += (
+                    "How far *above* the floor the rest go reflects local fiscal "
+                    "capacity and political will."
+                )
+                st.caption(caption)
+            else:
+                st.caption(
+                    "How *far* above the required floor each city goes reflects "
+                    "local fiscal capacity and political will."
+                )
 
         st.caption(
             f"Source: DESE Chapter 70 Foundation Budget & Net School Spending. "
