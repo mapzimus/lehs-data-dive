@@ -532,6 +532,117 @@ with tab_snapshot:
                     st.plotly_chart(fig, use_container_width=True)
 
 
+    st.divider()
+
+    # -------------------------------------------------------------------
+    # Where Lynn students enroll (vxt3-k35x) — resident outflow by reason
+    # -------------------------------------------------------------------
+    st.header("Where Lynn Students Enroll")
+    st.caption(
+        "Of all students who live in Lynn, where do they actually enroll? Most "
+        "stay in Lynn Public Schools; the rest leave for charter schools or "
+        "inter-district school choice. Source: DESE 'Where Residents Go' (vxt3-k35x)."
+    )
+    choice = load_dataset("school_choice")
+    if not choice.empty:
+        lynn_choice = choice[choice["TOWN_NAME"] == "Lynn"].copy()
+        if not lynn_choice.empty:
+            latest_cy = int(lynn_choice["SY"].max())
+            cur_c = lynn_choice[lynn_choice["SY"] == latest_cy]
+
+            def _share(reason):
+                r = cur_c[cur_c["ENR_REASON"] == reason]["PCT_OF_RESIDENTS"]
+                return float(r.iloc[0]) if not r.empty else 0.0
+
+            c1, c2, c3 = st.columns(3)
+            c1.metric(f"Stay in Lynn (SY {latest_cy})", f"{_share('Resident/Member'):.1%}")
+            c2.metric("Leave for a charter", f"{_share('Charter School'):.1%}")
+            c3.metric("Inter-district choice", f"{_share('School Choice Program'):.1%}")
+
+            out = lynn_choice[lynn_choice["ENR_REASON"].isin(
+                ["Charter School", "School Choice Program"])].sort_values("SY")
+            if not out.empty:
+                fig = px.line(out, x="SY", y="PCT_OF_RESIDENTS", color="ENR_REASON",
+                              markers=True)
+                fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".1%",
+                                  yaxis_title="% of Lynn residents", xaxis_title="School Year",
+                                  legend_title="Leaving via")
+                st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+
+    # -------------------------------------------------------------------
+    # Early education access (rg9w-dkpg) — Pre-K and full-day kindergarten
+    # -------------------------------------------------------------------
+    st.header("Early Education — Pre-K & Kindergarten")
+    st.caption(
+        "Access to early education in Lynn: total Pre-K enrollment, kindergarten "
+        "headcount, and the share of kindergartners in full-day seats. "
+        "Source: DESE Pre-K & Kindergarten Enrollment (rg9w-dkpg)."
+    )
+    early = load_dataset("early_education")
+    if not early.empty:
+        lynn_early = early[(early["DIST_CODE"] == LYNN_DISTRICT_CODE)
+                           & (early["ORG_TYPE"] == "District")
+                           & (early["STU_GRP"] == "All Students")].sort_values("SY")
+        if not lynn_early.empty:
+            cur_e = lynn_early.iloc[-1]
+            fk = cur_e["KGR_SUBGROUP_FUL_PCT"]
+            fk = fk / 100.0 if pd.notna(fk) and fk > 1.5 else fk
+            c1, c2, c3 = st.columns(3)
+            c1.metric(f"Pre-K enrolled (SY {int(cur_e['SY'])})",
+                      f"{int(cur_e['PKG_PKENR_TOT']):,}" if pd.notna(cur_e["PKG_PKENR_TOT"]) else "—")
+            c2.metric("Kindergartners",
+                      f"{int(cur_e['KGR_SUBGROUP_CNT']):,}" if pd.notna(cur_e["KGR_SUBGROUP_CNT"]) else "—")
+            c3.metric("% in full-day K", f"{fk:.0%}" if pd.notna(fk) else "—")
+
+            fdk = lynn_early.dropna(subset=["KGR_SUBGROUP_FUL_PCT"]).copy()
+            fdk["FDK"] = fdk["KGR_SUBGROUP_FUL_PCT"].apply(lambda x: x / 100.0 if x > 1.5 else x)
+            if len(fdk) > 1:
+                fig = px.line(fdk, x="SY", y="FDK", markers=True)
+                fig.update_traces(line=dict(color=LEHS_NAVY, width=3))
+                fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
+                                  yaxis_title="% kindergartners in full-day",
+                                  xaxis_title="School Year")
+                st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+
+    # -------------------------------------------------------------------
+    # Special education — placement settings (n62c-bx65)
+    # -------------------------------------------------------------------
+    st.subheader("Placement settings — how students with disabilities are educated")
+    st.caption(
+        "How students with disabilities spend their day: full inclusion (≥80% in "
+        "general education), partial inclusion, substantially separate, or a "
+        "separate school. Lynn vs the statewide mix. Source: DESE SpEd "
+        "Characteristics (n62c-bx65)."
+    )
+    sped_pl = load_dataset("sped_placement")
+    if not sped_pl.empty:
+        pl = sped_pl[(sped_pl["IND_CAT"] == "Placement")
+                     & (sped_pl["IND_DESC"] != "Total Students with Disabilities")].copy()
+        if not pl.empty:
+            latest_pl = int(pl["SY"].max())
+            order = ["Full Inclusion", "Partial Inclusion", "Substantially Separate",
+                     "Separate School in District"]
+            rows = []
+            for code, label in [(LYNN_DISTRICT_CODE, "Lynn"), ("00000000", "Massachusetts")]:
+                d = pl[(pl["DIST_CODE"] == code) & (pl["SY"] == latest_pl)]
+                for _, rr in d.iterrows():
+                    rows.append({"Setting": rr["IND_DESC"], "Series": label, "Pct": rr["IND_PCT"]})
+            if rows:
+                pl_df = pd.DataFrame(rows)
+                fig = px.bar(pl_df, x="Setting", y="Pct", color="Series", barmode="group",
+                             category_orders={"Setting": order},
+                             color_discrete_map={"Lynn": LEHS_NAVY, "Massachusetts": "#A8B5BD"})
+                fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
+                                  yaxis_title="% of students with disabilities",
+                                  xaxis_title="", legend_title="")
+                st.plotly_chart(fig, use_container_width=True)
+                st.caption(f"School year {latest_pl}.")
+
+
 # ===========================================================================
 # TAB 2 — ALL SCHOOLS (former 14_All_Lynn_Schools.py)
 # ===========================================================================
@@ -759,4 +870,7 @@ data_downloads_panel({
     "Student attendance": attendance,
     "District expenditures": dist_exp,
     "Special education indicators": sped,
+    "School choice / outflow": load_dataset("school_choice"),
+    "Early education (Pre-K & K)": load_dataset("early_education"),
+    "SpEd placement settings": load_dataset("sped_placement"),
 })

@@ -7,7 +7,7 @@ import streamlit as st
 
 from utils.branding import sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
-from utils.constants import LEHS_SCHOOL_CODE
+from utils.constants import LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
 from utils.data_loader import load_dataset
 
 # Per Max's editorial direction: this page is LEHS-focused. School-to-school
@@ -242,6 +242,51 @@ if not retention.empty:
 st.divider()
 
 # ---------------------------------------------------------------------------
+# Staff attendance (2hei-cc7k, SY2025) — staff present vs scheduled days
+# ---------------------------------------------------------------------------
+
+st.header("Staff Attendance")
+st.caption(
+    "DESE's staff-attendance rate: the share of scheduled days staff were "
+    "present (SY 2024-25, the only year DESE has published). Staff absence is a "
+    "direct driver of lost instructional time and substitute coverage."
+)
+
+staff_attend = load_dataset("teacher_attendance")
+if staff_attend.empty:
+    st.info("Staff-attendance data is temporarily unavailable.")
+else:
+    def _sa_rate(df, grp):
+        r = df[df["STAFF_GRP"] == grp]["STAFF_ATTEND_RATE"]
+        return float(r.iloc[0]) if not r.empty else None
+
+    lehs_sa = staff_attend[staff_attend["ORG_CODE"] == LEHS_SCHOOL_CODE]
+    lynn_sa = staff_attend[(staff_attend["DIST_CODE"] == LYNN_DISTRICT_CODE)
+                           & (staff_attend["ORG_TYPE"] == "District")]
+
+    c1, c2, c3 = st.columns(3)
+    for col, grp, label in [(c1, "Teachers", "LEHS teachers"),
+                            (c2, "Administrators", "LEHS administrators"),
+                            (c3, "All Staff", "LEHS all staff")]:
+        v = _sa_rate(lehs_sa, grp)
+        col.metric(label, f"{v:.1%}" if v is not None else "—")
+
+    rows = []
+    for grp in ["Teachers", "Administrators", "All Staff"]:
+        rows.append({"Staff group": grp, "Series": "Lynn English", "Rate": _sa_rate(lehs_sa, grp)})
+        rows.append({"Staff group": grp, "Series": "Lynn district", "Rate": _sa_rate(lynn_sa, grp)})
+    bar = pd.DataFrame(rows).dropna(subset=["Rate"])
+    if not bar.empty:
+        fig = px.bar(bar, x="Staff group", y="Rate", color="Series", barmode="group",
+                     color_discrete_map={"Lynn English": LEHS_GOLD, "Lynn district": LEHS_NAVY})
+        fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
+                          yaxis_title="Attendance rate", xaxis_title="",
+                          yaxis_range=[0.8, 1.0])
+        st.plotly_chart(fig, use_container_width=True)
+
+st.divider()
+
+# ---------------------------------------------------------------------------
 # Experienced + In-field teachers (teacher_data, SUBJECT=All Teachers)
 # ---------------------------------------------------------------------------
 
@@ -432,6 +477,7 @@ try:
     _dl({
         'Staffing (race/gender)': staffing,
         'Enrollment & demographics': enrollment,
+        'Staff attendance': load_dataset("teacher_attendance"),
         'CRDC staffing': crdc_staff,
     })
 except NameError:
