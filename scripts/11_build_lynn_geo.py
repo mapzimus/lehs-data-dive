@@ -757,6 +757,7 @@ REGIONAL_SECONDARY_MEMBERS: dict[str, list[str]] = {
     "06900000": ["NORFOLK", "WRENTHAM", "PLAINVILLE"],            # King Philip
     "07050000": ["BOXFORD", "TOPSFIELD", "MIDDLETON"],            # Masconomet
     "07300000": ["NORTHBOROUGH", "SOUTHBOROUGH"],                 # Northboro-Southboro (Algonquin)
+    "07630000": ["SOMERSET", "BERKLEY"],                          # Somerset Berkley (9-12)
 }
 
 # Orphan towns: tiny rural towns with NO public school of their own, so the
