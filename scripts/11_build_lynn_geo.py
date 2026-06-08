@@ -396,7 +396,7 @@ def _build_district_metrics_table() -> pd.DataFrame:
         att_d = att[
             (att["STU_GRP"] == "All Students")
             & (att["ORG_TYPE"] == "District")
-            & (att.get("ATTEND_PERIOD", "FY") == "FY")
+            & (att.get("ATTEND_PERIOD", "End of Year") == "End of Year")
         ].sort_values("SY").groupby("DIST_CODE").tail(1)
         if "PCT_CHRON_ABS_10" in att_d.columns:
             att_d = att_d[["DIST_CODE", "PCT_CHRON_ABS_10"]].rename(
@@ -552,7 +552,7 @@ def _build_district_metrics_table() -> pd.DataFrame:
         att_r = att_full[
             (att_full["STU_GRP"] == "All Students")
             & (att_full["ORG_TYPE"] == "District")
-            & (att_full.get("ATTEND_PERIOD", "FY") == "FY")
+            & (att_full.get("ATTEND_PERIOD", "End of Year") == "End of Year")
         ].sort_values("SY").groupby("DIST_CODE").tail(1)
         att_r = att_r[["DIST_CODE", "ATTEND_RATE"]].rename(
             columns={"ATTEND_RATE": "attendance_rate"}
@@ -706,7 +706,7 @@ def _build_district_metrics_table() -> pd.DataFrame:
         att_grp_source["DIST_CODE"] = att_grp_source["DIST_CODE"].astype(str).str.zfill(8)
         att_grp_source = att_grp_source[
             (att_grp_source["ORG_TYPE"] == "District")
-            & (att_grp_source.get("ATTEND_PERIOD", "FY") == "FY")
+            & (att_grp_source.get("ATTEND_PERIOD", "End of Year") == "End of Year")
         ][["DIST_CODE", "SY", "STU_GRP", "PCT_CHRON_ABS_10"]]
         gk = _pivot_group_keyed(att_grp_source, "PCT_CHRON_ABS_10", "chronic_absent_pct")
         if not gk.empty:

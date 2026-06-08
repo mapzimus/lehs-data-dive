@@ -366,7 +366,7 @@ def discipline_section() -> list:
     if not att.empty:
         a = att[(att["ORG_CODE"].isin([LEHS_SCHOOL_CODE, LCHS_SCHOOL_CODE]))
                  & (att["STU_GRP"] == "All Students")
-                 & (att["ATTEND_PERIOD"] == "FY")].copy()
+                 & (att["ATTEND_PERIOD"] == "End of Year")].copy()
         a["PCT_CHRON_ABS_10"] = pd.to_numeric(a["PCT_CHRON_ABS_10"], errors="coerce")
         a["School"] = a["ORG_CODE"].map({LEHS_SCHOOL_CODE: "LEHS", LCHS_SCHOOL_CODE: "LCHS"})
         if not a.empty:
