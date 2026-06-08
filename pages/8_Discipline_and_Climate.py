@@ -689,6 +689,283 @@ else:
         "referrals, restraint/seclusion) isn't yet wired in._"
     )
 
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Annual dropout rate (DESE E2C cmm7-ttbg, 2008-2025)
+# ---------------------------------------------------------------------------
+
+st.header("Annual Dropout Rate")
+st.caption(
+    "The **annual dropout rate** is the share of enrolled students in grades "
+    "9-12 who left school during a single year without graduating or "
+    "transferring to another program. It is a one-year flow (not the cumulative "
+    "or cohort rate), so it tends to be smaller than the headline four-year "
+    "figures — but its year-to-year movement is an early-warning signal. "
+    "Source: DESE Education-to-Career (Dropout Report)."
+)
+
+dropout = load_dataset("dropout")
+DROP_STATE_CODE = "00000000"
+if dropout.empty:
+    st.info("Dropout data is temporarily unavailable.")
+else:
+    dropout = dropout.copy()
+    dropout["STU_GRP"] = dropout["STU_GRP"].astype(str).str.replace("\xa0", " ")
+    for _c in ["DRPOUT_PCT_ALL", "DRPOUT_PCT_GRD_09", "DRPOUT_PCT_GRD_10",
+               "DRPOUT_PCT_GRD_11", "DRPOUT_PCT_GRD_12"]:
+        dropout[_c] = pd.to_numeric(dropout[_c], errors="coerce")
+
+    # (a) Trend — LEHS (All Students) vs Lynn district vs Massachusetts.
+    drop_all = dropout[dropout["STU_GRP"] == "All Students"].copy()
+    drop_trend_frames = []
+    for code, name in [(LEHS_SCHOOL_CODE, "Lynn English"),
+                       (LYNN_DISTRICT_CODE, "Lynn district"),
+                       (DROP_STATE_CODE, "Massachusetts")]:
+        t = drop_all[drop_all["ORG_CODE"] == code][["SY", "DRPOUT_PCT_ALL"]].dropna().copy()
+        if not t.empty:
+            t["Series"] = name
+            drop_trend_frames.append(t)
+
+    if drop_trend_frames:
+        dtf = pd.concat(drop_trend_frames, ignore_index=True).sort_values(["Series", "SY"])
+        fig = px.line(
+            dtf, x="SY", y="DRPOUT_PCT_ALL", color="Series", markers=True,
+            color_discrete_map={
+                "Lynn English": LEHS_NAVY,
+                "Lynn district": "#90A4AE",
+                "Massachusetts": STATE_COLOR,
+            },
+        )
+        fig.update_traces(selector=dict(name="Lynn English"), line=dict(width=3))
+        fig.update_traces(selector=dict(name="Lynn district"), line=dict(dash="dash", width=2))
+        fig.update_traces(selector=dict(name="Massachusetts"), line=dict(dash="dot", width=2))
+        fig.update_layout(
+            **DEFAULT_LAYOUT,
+            title="Annual dropout rate — LEHS vs. Lynn district vs. state",
+            yaxis_tickformat=".0%",
+            yaxis_title="Annual dropout rate",
+            xaxis_title="School Year",
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.caption(
+            "LEHS's annual dropout rate has run consistently above both the Lynn "
+            "district and the statewide rate — Massachusetts has held near 2% in "
+            "recent years, while LEHS has fluctuated several times higher. Single "
+            "years can swing sharply because the denominator (one grade-9-to-12 "
+            "cohort) is relatively small, so read the multi-year shape rather "
+            "than any one point."
+        )
+
+    # (b) Latest-year dropout by grade (9-12) — All Students at LEHS.
+    lehs_drop = drop_all[drop_all["ORG_CODE"] == LEHS_SCHOOL_CODE].dropna(subset=["DRPOUT_PCT_ALL"])
+    if not lehs_drop.empty:
+        drop_year = int(lehs_drop["SY"].max())
+        grade_row = lehs_drop[lehs_drop["SY"] == drop_year].iloc[0]
+        grade_data = []
+        for col, label in [("DRPOUT_PCT_GRD_09", "Grade 9"),
+                           ("DRPOUT_PCT_GRD_10", "Grade 10"),
+                           ("DRPOUT_PCT_GRD_11", "Grade 11"),
+                           ("DRPOUT_PCT_GRD_12", "Grade 12")]:
+            v = pd.to_numeric(grade_row.get(col), errors="coerce")
+            if pd.notna(v):
+                grade_data.append({"Grade": label, "Rate": float(v)})
+        if grade_data:
+            gdf = pd.DataFrame(grade_data)
+            gdf["label"] = gdf["Rate"].map(lambda v: f"{v:.1%}")
+            st.markdown(f"**LEHS dropout rate by grade — SY {sy_label(drop_year)}**")
+            fig = px.bar(gdf, x="Grade", y="Rate", text="label")
+            fig.update_traces(marker_color=LEHS_NAVY, textposition="outside",
+                              cliponaxis=False)
+            fig.update_layout(
+                **DEFAULT_LAYOUT,
+                yaxis_tickformat=".0%",
+                yaxis_title="Annual dropout rate",
+                xaxis_title="",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            st.caption(
+                "Dropout risk is not spread evenly across grades — it typically "
+                "concentrates in the upper grades, where students who have fallen "
+                "behind on credits are most likely to leave."
+            )
+
+    # (c) Latest-year dropout by student group — LEHS.
+    DROP_SUB_PRIORITY = [
+        "All Students", "English Learners", "Hispanic or Latino",
+        "Black or African American", "Asian", "White",
+        "Multi-Race, Not Hispanic or Latino", "Low Income",
+        "Economically Disadvantaged", "Students with Disabilities", "High Needs",
+        "Female", "Male",
+    ]
+    DROP_SUB_COLORS = {
+        "All Students":                       LEHS_NAVY,
+        "English Learners":                   SUBGROUP_PALETTE["English Learner"],
+        "Hispanic or Latino":                 SUBGROUP_PALETTE["Hispanic/Latino"],
+        "Black or African American":          SUBGROUP_PALETTE["African American/Black"],
+        "Asian":                              SUBGROUP_PALETTE["Asian"],
+        "White":                              SUBGROUP_PALETTE["White"],
+        "Multi-Race, Not Hispanic or Latino": SUBGROUP_PALETTE["Multi-Race, Non-Hispanic/Latino"],
+        "Low Income":                         SUBGROUP_PALETTE["Low Income"],
+        "Economically Disadvantaged":         SUBGROUP_PALETTE["Economically Disadvantaged"],
+        "Students with Disabilities":         SUBGROUP_PALETTE["Students w/ Disabilities"],
+        "High Needs":                         SUBGROUP_PALETTE["High Needs"],
+        "Female":                             GENDER_PALETTE["Female"],
+        "Male":                               GENDER_PALETTE["Male"],
+    }
+    lehs_drop_sub = dropout[
+        (dropout["ORG_CODE"] == LEHS_SCHOOL_CODE)
+        & (dropout["STU_GRP"].isin(DROP_SUB_PRIORITY))
+        & (dropout["STU_GRP"] != "All Students")
+    ].dropna(subset=["DRPOUT_PCT_ALL"]).copy()
+    if not lehs_drop_sub.empty:
+        sub_year = int(lehs_drop_sub["SY"].max())
+        lehs_drop_sub = lehs_drop_sub[lehs_drop_sub["SY"] == sub_year].copy()
+        lehs_drop_sub["_ord"] = lehs_drop_sub["STU_GRP"].map(
+            {g: i for i, g in enumerate(DROP_SUB_PRIORITY)}
+        ).fillna(99)
+        lehs_drop_sub = lehs_drop_sub.sort_values("_ord")
+        lehs_drop_sub["label"] = lehs_drop_sub["DRPOUT_PCT_ALL"].map(lambda v: f"{v:.1%}")
+
+        # All-students reference for the dashed line.
+        all_drop_row = drop_all[
+            (drop_all["ORG_CODE"] == LEHS_SCHOOL_CODE) & (drop_all["SY"] == sub_year)
+        ]
+        all_drop_rate = (float(all_drop_row.iloc[0]["DRPOUT_PCT_ALL"])
+                         if not all_drop_row.empty else None)
+
+        st.markdown(f"**LEHS dropout rate by student group — SY {sy_label(sub_year)}**")
+        fig = px.bar(
+            lehs_drop_sub, x="STU_GRP", y="DRPOUT_PCT_ALL", color="STU_GRP",
+            text="label", color_discrete_map=DROP_SUB_COLORS,
+        )
+        fig.update_traces(textposition="outside", cliponaxis=False, showlegend=False)
+        if all_drop_rate is not None:
+            fig.add_hline(
+                y=all_drop_rate, line_dash="dash", line_color=LEHS_GOLD,
+                annotation_text=f"All students ({all_drop_rate:.1%})",
+                annotation_position="top left",
+            )
+        fig.update_layout(
+            **DEFAULT_LAYOUT,
+            yaxis_tickformat=".0%",
+            yaxis_title="Annual dropout rate",
+            xaxis_title="",
+            showlegend=False,
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        st.caption(
+            "The school-wide rate averages over groups that drop out at very "
+            "different rates. English learners and students with disabilities "
+            "are usually the most over-represented. Small-count groups may be "
+            "suppressed or swing year-to-year, so a single high bar is best read "
+            "against the multi-year trend above. (Only groups DESE reported a "
+            "value for in this year are shown.)"
+        )
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Instructional days lost to discipline (DESE E2C 3etc-hecr, 2015-2025)
+# ---------------------------------------------------------------------------
+
+st.header("Instructional Days Lost to Discipline")
+st.caption(
+    "For students who were disciplined, DESE reports how many **instructional "
+    "days** that discipline cost them, grouped into bands (1 day · 2-3 · 4-7 · "
+    "8-10 · more than 10). Longer removals compound academic harm, so the mix "
+    "matters as much as the headline discipline count. The percentages below "
+    "are the share of **all enrolled students** falling in each band — they sum "
+    "to the school's overall discipline rate, not to 100%. Source: DESE "
+    "Education-to-Career (Students Disciplined by Days Missed, All Offenses)."
+)
+
+days = load_dataset("discipline_days_missed")
+if days.empty:
+    st.info("Days-missed discipline data is temporarily unavailable.")
+else:
+    days = days.copy()
+    days["STU_GRP"] = days["STU_GRP"].astype(str).str.replace("\xa0", " ")
+    DAY_BANDS = [
+        ("DAYS_1_PCT", "1 day"),
+        ("DAYS_2_3_PCT", "2-3 days"),
+        ("DAYS_4_7_PCT", "4-7 days"),
+        ("DAYS_8_10_PCT", "8-10 days"),
+        ("DAYS_GRTR_10_PCT", "More than 10 days"),
+    ]
+    for _c, _ in DAY_BANDS:
+        days[_c] = pd.to_numeric(days[_c], errors="coerce")
+    days["STU_DISCIPL_CNT"] = pd.to_numeric(days["STU_DISCIPL_CNT"], errors="coerce")
+    days["STU_CNT"] = pd.to_numeric(days["STU_CNT"], errors="coerce")
+
+    lehs_days = days[
+        (days["ORG_CODE"] == LEHS_SCHOOL_CODE) & (days["STU_GRP"] == "All Students")
+    ].dropna(subset=[c for c, _ in DAY_BANDS], how="all").copy()
+
+    if lehs_days.empty:
+        st.info("No LEHS days-missed rows available yet.")
+    else:
+        days_year = int(lehs_days["SY"].max())
+        drow = lehs_days[lehs_days["SY"] == days_year].iloc[0]
+        band_rows = []
+        for col, label in DAY_BANDS:
+            v = pd.to_numeric(drow.get(col), errors="coerce")
+            band_rows.append({"Band": label, "Pct": float(v) if pd.notna(v) else 0.0})
+        bdf = pd.DataFrame(band_rows)
+
+        disc_cnt = drow.get("STU_DISCIPL_CNT")
+        tot_cnt = drow.get("STU_CNT")
+        if pd.notna(disc_cnt) and pd.notna(tot_cnt) and tot_cnt:
+            st.markdown(
+                f"**SY {sy_label(days_year)}:** {int(disc_cnt):,} of "
+                f"{int(tot_cnt):,} LEHS students were disciplined "
+                f"(**{disc_cnt / tot_cnt:.1%}** of enrollment)."
+            )
+
+        if bdf["Pct"].sum() > 0:
+            bdf["label"] = bdf["Pct"].map(lambda v: f"{v:.1%}")
+            st.markdown(f"**Share of all LEHS students by days missed — SY {sy_label(days_year)}**")
+            fig = px.bar(bdf, x="Band", y="Pct", text="label")
+            fig.update_traces(marker_color=LEHS_NAVY, textposition="outside",
+                              cliponaxis=False)
+            fig.update_layout(
+                **DEFAULT_LAYOUT,
+                yaxis_tickformat=".1%",
+                yaxis_title="% of all enrolled students",
+                xaxis_title="Instructional days lost to discipline",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+            # Composition among only the disciplined students (bands / discipline rate).
+            band_total = bdf["Pct"].sum()
+            if band_total > 0:
+                comp = bdf.copy()
+                comp["Share"] = comp["Pct"] / band_total
+                comp["label"] = comp["Share"].map(lambda v: f"{v:.0%}")
+                st.markdown(
+                    f"**Of disciplined students, how long were they out — "
+                    f"SY {sy_label(days_year)}**"
+                )
+                fig = px.bar(comp, x="Band", y="Share", text="label")
+                fig.update_traces(marker_color=LEHS_GOLD, textposition="outside",
+                                  cliponaxis=False)
+                fig.update_layout(
+                    **DEFAULT_LAYOUT,
+                    yaxis_tickformat=".0%",
+                    yaxis_title="% of disciplined students",
+                    xaxis_title="Instructional days lost to discipline",
+                )
+                st.plotly_chart(fig, use_container_width=True)
+                st.caption(
+                    "Re-based to the disciplined students only, this shows the "
+                    "severity mix: most discipline at LEHS costs a small number "
+                    "of days, but the longest-removal bands (8-10 and 10+ days) "
+                    "are where the steepest instructional loss is concentrated. "
+                    "(Counts are small in some recent years, so the mix can be "
+                    "volatile — read it alongside the discipline rate above.)"
+                )
+
 # >>> auto: csv downloads <<<
 try:
     from utils.charts import data_downloads_panel as _dl
@@ -696,6 +973,8 @@ try:
         'Student attendance': attendance,
         'Discipline (disaggregated by subgroup)': disagg,
         'Discipline disproportionality': disp,
+        'Annual dropout rate': dropout,
+        'Discipline days missed': days,
         'CRDC discipline': crdc,
     })
 except NameError:
