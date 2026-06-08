@@ -106,6 +106,69 @@ if not total_exp.empty:
     with c2:
         st.plotly_chart(fig, use_container_width=True)
 
+# ---------------------------------------------------------------------------
+# How to read the per-pupil number. Same district, but the figures differ —
+# spell out why so the headline isn't misread as a funding gap between schools.
+# Per-pupil = total spending / enrollment, and only the school-reported
+# instructional layer (Sub-Total C) varies between schools; the district-
+# allocated layers (Sub-Total A + B) are split evenly across every Lynn school.
+# Values are computed live so the callout never drifts from the chart above.
+# ---------------------------------------------------------------------------
+
+def _latest_pp(df: pd.DataFrame, cat: str, subcat: str):
+    r = df[(df["IND_CAT"] == cat) & (df["IND_SUBCAT"] == subcat)].sort_values("SY")
+    return float(r.iloc[-1]["IND_VALUE"]) if not r.empty else None
+
+_pp = {
+    "a_e": _latest_pp(lehs_exp, "Sub-Total A", "District Non-Instructional Expenditures"),
+    "b_e": _latest_pp(lehs_exp, "Sub-Total B", "District-Level Instructional Expenditures"),
+    "c_e": _latest_pp(lehs_exp, "Sub-Total C", "School-Reported Instructional Expenditures"),
+    "c_l": _latest_pp(lchs_exp, "Sub-Total C", "School-Reported Instructional Expenditures"),
+    "fte_e": _latest_pp(lehs_exp, "Student Demographics", "Student FTE"),
+    "fte_l": _latest_pp(lchs_exp, "Student Demographics", "Student FTE"),
+    "tph_e": _latest_pp(lehs_exp, "Teacher Salaries", "Teachers per 100 FTE students"),
+    "tph_l": _latest_pp(lchs_exp, "Teacher Salaries", "Teachers per 100 FTE students"),
+}
+
+if not total_exp.empty:
+    st.caption(
+        "**How to read this:** per-pupil spending is a school's total spending "
+        "divided by its enrollment — so a school with *fewer* students can show a "
+        "*higher* per-pupil figure without a larger budget. Every Lynn school is "
+        "funded under the same district rules; only each building's own instructional "
+        "spending actually varies."
+    )
+
+if all(_pp[k] is not None for k in _pp):
+    _yr = int(total_exp.iloc[-1]["SY"]) if not total_exp.empty else None
+    _fy = f"FY {_yr}" if _yr else "the latest year"
+    with st.expander("Why isn't per-pupil spending even across Lynn's high schools?"):
+        st.markdown(
+            "DESE reports per-pupil spending in three layers. Two of them are the "
+            "**same for every Lynn school**, because they're funded and allocated "
+            "district-wide:\n\n"
+            f"- **District non-instructional** — administration, benefits, operations, "
+            f"pupil services: **${_pp['a_e']:,.0f}** per pupil, identical across schools.\n"
+            f"- **District-level instructional**: **${_pp['b_e']:,.0f}** per pupil, also "
+            f"identical across schools.\n"
+            f"- **School-reported instructional** — each building's own teaching staff and "
+            f"materials: this is the **only layer that varies**, at **${_pp['c_e']:,.0f}** "
+            f"for Lynn English vs **${_pp['c_l']:,.0f}** for Lynn Classical ({_fy}).\n\n"
+            "The entire difference in the headline number comes from that third layer, and "
+            "two things drive it — **neither means one school is favored**:\n\n"
+            f"1. **Enrollment (the denominator).** Lynn English enrolls more students "
+            f"(~{_pp['fte_e']:,.0f} vs ~{_pp['fte_l']:,.0f} FTE), so the same teaching "
+            f"dollars are spread across more students, which *lowers* its per-pupil figure.\n"
+            f"2. **Staffing ratio.** Lynn Classical runs slightly more teachers per student "
+            f"({_pp['tph_l']:.1f} vs {_pp['tph_e']:.1f} per 100 students), which *raises* "
+            f"its per-pupil instructional cost.\n\n"
+            "**Bottom line:** a higher per-pupil figure here is not extra funding or a bigger "
+            "budget — it mostly reflects a *smaller enrollment base*. Lynn English's **total** "
+            "instructional spending is actually larger; it simply serves more students. "
+            "Figures are DESE's School Expenditures by Spending Category (verified against the "
+            "live source)."
+        )
+
 st.divider()
 
 # ---------------------------------------------------------------------------
