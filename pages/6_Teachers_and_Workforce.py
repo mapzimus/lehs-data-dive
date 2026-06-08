@@ -523,6 +523,132 @@ else:
         st.dataframe(crdc_staff[["SCHOOL_NAME", "STUDENT_ENROLLMENT"] + cols].head(30),
                      use_container_width=True)
 
+# ---------------------------------------------------------------------------
+# Educator age profile (educators_by_age, a4b4-k49f) — workforce aging / pipeline
+# ---------------------------------------------------------------------------
+
+st.header("Educator Age Profile")
+st.caption(
+    "How LEHS's educator workforce splits across age bands, from DESE's "
+    "*Educators by Age* dataset (E2C, a4b4-k49f). The headline uses the "
+    "all-educators rollup. Two numbers frame the talent pipeline: the **near-"
+    "retirement share** (ages 57-64 plus 65+), which signals how much "
+    "experience may walk out the door soon, and the **under-26 share**, the "
+    "newest entrants refilling it. Shares are of full-time-equivalent (FTE) "
+    "staff and sum to ~100% across the bands."
+)
+
+educ_age = load_dataset("educators_by_age")
+if educ_age.empty:
+    st.info("Educator-age data is temporarily unavailable.")
+else:
+    age_roll = educ_age[
+        (educ_age["JOB_CAT"].astype(str) == "All")
+        & (educ_age["JOB_NAME"].astype(str) == "All")
+    ].copy()
+    # Prefer LEHS school-level; fall back to the Lynn district rollup if the
+    # school-level rows are sparse/absent.
+    lehs_age = age_roll[age_roll["ORG_CODE"] == LEHS_SCHOOL_CODE].copy()
+    if not lehs_age.empty:
+        scope_df, scope_label = lehs_age, "Lynn English High"
+    else:
+        scope_df = age_roll[
+            (age_roll["DIST_CODE"] == LYNN_DISTRICT_CODE)
+            & (age_roll["ORG_TYPE"] == "District")
+        ].copy()
+        scope_label = "Lynn district"
+
+    scope_df = scope_df.dropna(subset=["SY"])
+    if scope_df.empty:
+        st.info("No educator-age rollup rows found for LEHS or the Lynn district.")
+    else:
+        # Age bands in order, with the two oldest flagged as "near retirement".
+        AGE_BANDS = [
+            ("UND_26_PCT",      "Under 26",  False),
+            ("BTWN_26_32_PCT",  "26-32",     False),
+            ("BTWN_33_40_PCT",  "33-40",     False),
+            ("BTWN_41_48_PCT",  "41-48",     False),
+            ("BTWN_49_56_PCT",  "49-56",     False),
+            ("BTWN_57_64_PCT",  "57-64",     True),
+            ("OVR_64_PCT",      "65+",       True),
+        ]
+        latest_age_year = int(scope_df["SY"].max())
+        row = scope_df[scope_df["SY"] == latest_age_year].iloc[0]
+
+        band_rows = []
+        for col, label, near_retire in AGE_BANDS:
+            band_rows.append({
+                "Age band": label,
+                "Share": pd.to_numeric(row.get(col), errors="coerce"),
+                "Near retirement": near_retire,
+            })
+        band_df = pd.DataFrame(band_rows).dropna(subset=["Share"])
+
+        near_retire_share = pd.to_numeric(row.get("NEAR_RETIRE_PCT"), errors="coerce")
+        under26_share = pd.to_numeric(row.get("UND_26_PCT"), errors="coerce")
+
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            fte = pd.to_numeric(row.get("FTE_CNT"), errors="coerce")
+            st.metric(
+                f"{scope_label} educator FTE (SY {sy_label(latest_age_year)})",
+                f"{fte:,.0f}" if pd.notna(fte) else "—",
+            )
+        with c2:
+            st.metric(
+                "Near retirement (57+)",
+                f"{near_retire_share:.0%}" if pd.notna(near_retire_share) else "—",
+            )
+        with c3:
+            st.metric(
+                "Under 26",
+                f"{under26_share:.0%}" if pd.notna(under26_share) else "—",
+            )
+
+        if not band_df.empty:
+            # Highlight the two near-retirement bands in gold against navy.
+            colors = [LEHS_GOLD if nr else LEHS_NAVY for nr in band_df["Near retirement"]]
+            band_df["label"] = band_df["Share"].apply(lambda x: f"{x:.0%}")
+            fig = go.Figure(
+                go.Bar(
+                    x=band_df["Age band"], y=band_df["Share"],
+                    marker_color=colors, text=band_df["label"],
+                    textposition="outside",
+                )
+            )
+            fig.update_layout(
+                **DEFAULT_LAYOUT, yaxis_tickformat=".0%",
+                yaxis_title="Share of educator FTE", xaxis_title="Age band",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            st.caption(
+                "Gold bars are the near-retirement bands (57-64 and 65+)."
+            )
+
+        # Plain-language workforce-aging / pipeline callout.
+        if pd.notna(near_retire_share) and pd.notna(under26_share):
+            if near_retire_share >= under26_share:
+                st.warning(
+                    f"**An aging bench.** At {scope_label}, "
+                    f"**{near_retire_share:.0%}** of educators are 57 or older "
+                    f"and could retire within several years, while only "
+                    f"**{under26_share:.0%}** are under 26 to backfill them "
+                    f"(SY {sy_label(latest_age_year)}). When the near-retirement "
+                    f"share outweighs the youngest entrants, the experienced "
+                    f"core can thin faster than the pipeline refills it."
+                )
+            else:
+                st.info(
+                    f"**A younger-leaning workforce.** At {scope_label}, "
+                    f"**{under26_share:.0%}** of educators are under 26 versus "
+                    f"**{near_retire_share:.0%}** at 57 or older "
+                    f"(SY {sy_label(latest_age_year)}) — the entry pipeline is "
+                    f"currently larger than the near-retirement group, though a "
+                    f"younger staff can also mean less veteran experience."
+                )
+
+st.divider()
+
 # >>> auto: csv downloads <<<
 try:
     from utils.charts import data_downloads_panel as _dl
@@ -530,6 +656,7 @@ try:
         'Staffing (race/gender)': staffing,
         'Enrollment & demographics': enrollment,
         'Staff attendance': load_dataset("teacher_attendance"),
+        'Educators by age': load_dataset("educators_by_age"),
         'CRDC staffing': crdc_staff,
     })
 except NameError:
