@@ -83,25 +83,31 @@ def load_lynn_schools() -> gpd.GeoDataFrame:
 
 
 def join_enrollment_to_lynn_schools(lynn_schools: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-    """Attach the latest enrollment-demographics row for each school by name match."""
+    """Attach the latest enrollment-demographics row for each school.
+
+    The MassGIS shapefile's ``SCHID`` IS the 8-digit DESE org code — verified:
+    all 26 Lynn public-school SCHIDs match an ``ORG_CODE`` in
+    enrollment_demographics. So we join on it directly. (The previous fuzzy
+    NAME match only resolved ~5 of 26 schools, leaving most school dots with
+    null enrollment/demographics — which broke proportional sizing and any
+    demographic color mode on the map.)
+    """
     enr_path = PROCESSED_DIR / "enrollment_demographics.parquet"
     if not enr_path.exists():
         return lynn_schools
     enr = pd.read_parquet(enr_path)
     enr["ORG_CODE"] = enr["ORG_CODE"].astype(str).str.zfill(8)
     latest = enr.sort_values("SY").groupby("ORG_CODE").tail(1)
-    keep_cols = ["ORG_CODE", "ORG_NAME", "TOTAL_CNT", "EL_PCT", "LI_PCT", "SWD_PCT",
-                 "HN_PCT", "HL_PCT", "BAA_PCT", "AS_PCT", "WH_PCT", "MNHL_PCT"]
+    keep_cols = ["ORG_CODE", "ORG_NAME", "SY", "TOTAL_CNT", "EL_PCT", "LI_PCT", "SWD_PCT",
+                 "HN_PCT", "HL_PCT", "BAA_PCT", "AS_PCT", "WH_PCT", "MNHL_PCT",
+                 "FLNE_PCT", "ECD_PCT"]
     latest = latest[[c for c in keep_cols if c in latest.columns]]
-    # Lynn schools shapefile uses SCHID — we don't have a direct join key.
-    # Fall back to fuzzy name match.
     lynn = lynn_schools.copy()
-    lynn["NAME_lower"] = lynn["NAME"].str.lower().str.strip()
-    latest["ORG_NAME_lower"] = latest["ORG_NAME"].str.lower().str.strip()
+    # SCHID is the DESE org code; zero-pad both sides to 8 chars and join on it.
+    lynn["SCHID_8"] = lynn["SCHID"].astype(str).str.zfill(8)
     merged = lynn.merge(
-        latest,
-        left_on="NAME_lower", right_on="ORG_NAME_lower", how="left",
-    ).drop(columns=["NAME_lower", "ORG_NAME_lower"])
+        latest, left_on="SCHID_8", right_on="ORG_CODE", how="left",
+    ).drop(columns=["SCHID_8"])
     return gpd.GeoDataFrame(merged, geometry=lynn.geometry.values, crs=lynn.crs)
 
 
