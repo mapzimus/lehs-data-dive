@@ -12,6 +12,38 @@
     --legend-bg: rgba(255, 255, 255, 0.95);
     --nav-height: 64px;
     --panel-width: 320px;
+    /* Semantic theme tokens — light values here; flipped under [data-theme=dark].
+       --text-strong replaces inherited / hard-coded navy text so panel, legend
+       and control copy can lighten in dark mode while navy BACKGROUND pills and
+       headers (which keep white text on them) stay navy. The embedding portfolio
+       site's global sheet sets a near-white body color, so any text that merely
+       inherits would be invisible here — always color panel/legend text with
+       var(--text-strong) (or --text-muted for secondary copy). */
+    --text-strong: #0A1F44;
+    --text-muted: #607D8B;
+    --link: #0A1F44;           /* in-panel cross-links — navy in light */
+    --surface-1: #ffffff;      /* cards, modals, inputs */
+    --surface-2: #f1f5fa;      /* subtle fills, tracks, hovers */
+    --surface-hover: rgba(10, 31, 68, 0.06);
+    --input-bg: #ffffff;
+}
+
+/* ── DARK THEME — flip the tokens; navy BACKGROUND pills/headers stay navy. ──
+   Applied when <html data-theme="dark">. Only repoints custom properties +
+   re-skins a handful of surfaces that hard-code light backgrounds. Light mode
+   is untouched. Theme set/persisted in app.js (applyTheme/initTheme). */
+:root[data-theme="dark"] {
+    --panel-bg: rgba(22, 28, 38, 0.97);
+    --legend-bg: rgba(22, 28, 38, 0.96);
+    --panel-border: rgba(255, 255, 255, 0.12);
+    --panel-shadow: 0 2px 20px rgba(0, 0, 0, 0.55);
+    --text-strong: #e7ecf3;
+    --text-muted: #9aa7b5;
+    --link: #7db4ff;           /* in-panel cross-links — bright blue on dark panel */
+    --surface-1: #1b2230;
+    --surface-2: #232c3c;
+    --surface-hover: rgba(255, 255, 255, 0.08);
+    --input-bg: #232c3c;
 }
 
 /* The maps page is full-bleed below the site nav */
@@ -121,7 +153,7 @@ body.maps-page {
     margin-bottom: 6px;
 }
 .panel-header .section-label {
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
     font-weight: 500;
@@ -130,22 +162,29 @@ body.maps-page {
 }
 .back-link {
     font-size: 11px;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     text-decoration: none;
     opacity: 0.7;
 }
 .back-link:hover { opacity: 1; text-decoration: underline; }
 
+/* In-panel cross-links (e.g. "MA Education Atlas →"). Previously these were
+   inline-styled with hard-coded navy text, which vanished against the dark panel
+   in dark mode (the inherited-text trap). Route through a theme-aware token: navy
+   in light, a bright link blue in dark, so the link always reads on its panel. */
+.panel-link { color: var(--link); font-weight: 600; text-decoration: none; }
+.panel-link:hover { text-decoration: underline; }
+
 .panel-title {
     font-size: 22px;
     font-weight: 600;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     margin: 4px 0 8px;
     letter-spacing: -0.3px;
 }
 .panel-desc {
     font-size: 13px;
-    color: #455A64;
+    color: var(--text-muted);
     line-height: 1.5;
     margin: 0;
 }
@@ -153,7 +192,7 @@ body.maps-page {
 .panel-h2 {
     font-size: 11px;
     font-weight: 600;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     text-transform: uppercase;
     letter-spacing: 0.6px;
     margin: 0 0 10px;
@@ -176,7 +215,7 @@ body.maps-page {
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.15s;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
 }
 .view-btn:hover {
     background: rgba(255, 184, 28, 0.1);
@@ -196,7 +235,7 @@ body.maps-page {
     padding: 6px 0;
     cursor: pointer;
     font-size: 13px;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
 }
 .layer-row input[type="checkbox"] {
     accent-color: var(--lehs-navy);
@@ -237,18 +276,18 @@ body.maps-page {
 .schools-ctrl-label {
     font-size: 10px;
     font-weight: 600;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     text-transform: uppercase;
     letter-spacing: 0.4px;
     margin-bottom: 5px;
 }
-.schools-ctrl-hint { font-weight: 400; text-transform: none; letter-spacing: 0; color: #90A4AE; }
+.schools-ctrl-hint { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--text-muted); }
 .select-input--sm { padding: 6px 9px; font-size: 12px; }
 .schools-ctrl-note {
     margin-top: 9px;
     font-size: 10.5px;
     line-height: 1.45;
-    color: #607D8B;
+    color: var(--text-muted);
 }
 .lehs-key-dot {
     display: inline-block;
@@ -271,7 +310,7 @@ body.maps-page {
     align-items: center;
     gap: 5px;
     font-size: 11px;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     white-space: nowrap;
 }
 .scl-sw {
@@ -291,11 +330,11 @@ body.maps-page {
     display: flex;
     justify-content: space-between;
     font-size: 9.5px;
-    color: #607D8B;
+    color: var(--text-muted);
     margin-top: 3px;
 }
-.scl-axis span:nth-child(2) { font-weight: 600; color: var(--lehs-navy); }
-.scl-note { font-size: 9.5px; font-style: italic; color: #90A4AE; margin-top: 3px; }
+.scl-axis span:nth-child(2) { font-weight: 600; color: var(--text-strong); }
+.scl-note { font-size: 9.5px; font-style: italic; color: var(--text-muted); margin-top: 3px; }
 
 /* Graduated-dot SIZE legend — grey dots keyed to enrollment. Diameters set
    inline by renderSchoolSizeLegend() to match the on-map dots at current zoom. */
@@ -317,7 +356,7 @@ body.maps-page {
 }
 .ssl-label {
     font-size: 10px;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     font-variant-numeric: tabular-nums;
     line-height: 1;
 }
@@ -327,7 +366,7 @@ body.maps-page {
     display: block;
     font-size: 11px;
     font-weight: 600;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     margin-bottom: 4px;
     text-transform: uppercase;
     letter-spacing: 0.4px;
@@ -345,7 +384,7 @@ body.maps-page {
     align-items: center;
     gap: 6px;
     font-size: 12px;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     cursor: pointer;
     padding: 2px 0;
 }
@@ -390,7 +429,7 @@ body.maps-page {
     font-family: 'JetBrains Mono', monospace;
     font-size: 13px;
     font-weight: 600;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     min-width: 40px;
     text-align: right;
 }
@@ -398,7 +437,7 @@ body.maps-page {
     margin-top: 6px;
     font-size: 10px;
     font-style: italic;
-    color: #90A4AE;
+    color: var(--text-muted);
     line-height: 1.4;
 }
 
@@ -415,8 +454,8 @@ body.maps-page {
     justify-content: space-between;
     padding: 2px 0;
 }
-.summary-row strong { color: var(--lehs-navy); }
-.summary-row span:first-child { color: #607D8B; }
+.summary-row strong { color: var(--text-strong); }
+.summary-row span:first-child { color: var(--text-muted); }
 
 /* Classed legend rows */
 .legend-class {
@@ -433,14 +472,14 @@ body.maps-page {
     border: 1px solid rgba(0,0,0,0.1);
     flex-shrink: 0;
 }
-.legend-class-range { color: var(--lehs-navy); }
+.legend-class-range { color: var(--text-strong); }
 
 .legend-meta {
     margin-top: 8px;
     padding-top: 8px;
     border-top: 1px solid var(--panel-border);
     font-size: 10px;
-    color: #607D8B;
+    color: var(--text-muted);
 }
 
 /* "No data" swatch in legend meta */
@@ -465,7 +504,7 @@ body.maps-page {
         rgba(180, 168, 140, 0.45) 4px
     );
 }
-.legend-null strong { color: var(--lehs-navy); }
+.legend-null strong { color: var(--text-strong); }
 
 /* Mini histogram in the legend */
 .hist {
@@ -575,7 +614,7 @@ body.maps-page {
     display: inline-block;
     padding: 3px 9px;
     background: rgba(255, 184, 28, 0.18);
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     border-radius: 3px;
     font-size: 10px;
     font-weight: 700;
@@ -592,7 +631,7 @@ body.maps-page {
     margin: 0 0 6px;
     font-size: 11px;
     font-weight: 600;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     letter-spacing: 0.5px;
     text-transform: uppercase;
     opacity: 0.85;
@@ -603,8 +642,8 @@ body.maps-page {
     padding: 3px 0;
     font-size: 12px;
 }
-.feature-panel-row .label { color: #607D8B; }
-.feature-panel-row .value { color: var(--lehs-navy); font-weight: 500; }
+.feature-panel-row .label { color: var(--text-muted); }
+.feature-panel-row .value { color: var(--text-strong); font-weight: 500; }
 .feature-panel-row .value.highlight {
     background: rgba(255, 184, 28, 0.25);
     padding: 1px 6px;
@@ -615,7 +654,7 @@ body.maps-page {
 /* ── Rich SCHOOL detail card ────────────────────────────────────────────── */
 .feature-panel-tag.lehs-badge {
     background: var(--lehs-gold);
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     box-shadow: 0 1px 6px rgba(255, 184, 28, 0.5);
 }
 .school-type-pill {
@@ -640,11 +679,11 @@ body.maps-page {
 .school-enroll-num {
     font-size: 26px;
     font-weight: 700;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     line-height: 1.1;
     font-variant-numeric: tabular-nums;
 }
-.school-enroll-lbl { font-size: 11px; color: #607D8B; margin-top: 2px; }
+.school-enroll-lbl { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 
 /* Labeled composition bars */
 .fp-bar-row { margin: 6px 0; }
@@ -654,8 +693,8 @@ body.maps-page {
     font-size: 11px;
     margin-bottom: 2px;
 }
-.fp-bar-label { color: #455A64; }
-.fp-bar-val { color: var(--lehs-navy); font-weight: 600; font-variant-numeric: tabular-nums; }
+.fp-bar-label { color: var(--text-muted); }
+.fp-bar-val { color: var(--text-strong); font-weight: 600; font-variant-numeric: tabular-nums; }
 .fp-bar-track {
     height: 8px;
     background: rgba(10, 31, 68, 0.08);
@@ -690,7 +729,7 @@ body.maps-page {
     align-items: center;
     gap: 5px;
     font-size: 10.5px;
-    color: #455A64;
+    color: var(--text-muted);
     white-space: nowrap;
 }
 .fp-stack-sw {
@@ -718,7 +757,7 @@ body.maps-page {
     padding: 5px 0;
     cursor: pointer;
     font-size: 12px;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
 }
 .toggle-row input[type="checkbox"] {
     accent-color: var(--lehs-navy);
@@ -737,7 +776,7 @@ body.maps-page {
     background: white;
     border: 1px solid var(--panel-border);
     border-radius: 6px;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     cursor: pointer;
 }
 .select-input:focus {
@@ -749,11 +788,11 @@ body.maps-page {
 .panel-footer { padding-top: 10px; }
 .attribution {
     font-size: 10px;
-    color: #607D8B;
+    color: var(--text-muted);
     line-height: 1.6;
 }
-.attribution strong { color: var(--lehs-navy); }
-.attribution a { color: var(--lehs-navy); }
+.attribution strong { color: var(--text-strong); }
+.attribution a { color: var(--text-strong); }
 
 /* ============================================================================
    Legend (bottom-right floating)
@@ -771,14 +810,100 @@ body.maps-page {
     box-shadow: var(--panel-shadow);
     z-index: 5;
     font-size: 12px;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     backdrop-filter: blur(8px);
+    /* --legend-scale (default 1 = no-op) lets the −/+ buttons and corner grip
+       scale the whole card. Origin top-left keeps scaling anchored to the JS
+       left/top position so the on-screen clamp math stays simple. */
+    transform: scale(var(--legend-scale, 1));
+    transform-origin: top left;
 }
 .legend-title {
     font-weight: 600;
-    margin-bottom: 8px;
+    margin-bottom: 0;       /* spacing now lives on .legend-header */
     font-size: 13px;
+    flex: 1 1 auto;
+    min-width: 0;
 }
+
+/* ── Legend customization: draggable header + resize controls ───────────────
+   The header doubles as a drag handle; the −/+/⟲ buttons and the bottom-right
+   grip stay out of the way until you hover/focus the card. Hidden on mobile
+   (the legend docks full-width there). Behavior: setupLegendCustomization(). */
+.legend-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+    cursor: move;
+    touch-action: none;      /* pointer-drag shouldn't scroll the page on touch */
+    border-radius: 4px;
+}
+.legend-header:focus-visible {
+    outline: 2px solid var(--lehs-gold);
+    outline-offset: 2px;
+}
+.legend-tools {
+    display: flex;
+    gap: 3px;
+    flex: 0 0 auto;
+    opacity: 0;              /* revealed on hover/focus to keep the card clean */
+    transition: opacity 0.15s ease;
+}
+.legend:hover .legend-tools,
+.legend:focus-within .legend-tools { opacity: 1; }
+.legend-tool {
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 14px;
+    line-height: 1;
+    color: var(--text-strong);
+    background: rgba(10, 31, 68, 0.06);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+.legend-tool:hover  { background: rgba(10, 31, 68, 0.14); }
+.legend-tool:active { background: rgba(10, 31, 68, 0.22); }
+#legendReset { font-size: 12px; }
+/* Bottom-right resize grip — diagonal hatch, revealed on hover/focus. */
+.legend-resize {
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    width: 13px;
+    height: 13px;
+    cursor: nwse-resize;
+    touch-action: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    background: repeating-linear-gradient(
+        135deg,
+        var(--lehs-navy) 0, var(--lehs-navy) 1px,
+        transparent 1px, transparent 3px
+    );
+}
+.legend:hover .legend-resize,
+.legend:focus-within .legend-resize { opacity: 0.45; }
+.legend-resize:hover { opacity: 0.85; }
+/* Suppress text selection across the page while dragging/resizing. */
+body.legend-busy { -webkit-user-select: none; user-select: none; }
+
+/* Plain-language "how to read the colors" caption + insight line. */
+.legend-caption {
+    font-size: 11.5px;
+    color: var(--text-strong);
+    margin-top: 6px;
+    line-height: 1.35;
+}
+.legend-caption[hidden] { display: none; }
 .legend-stops {
     display: flex;
     flex-direction: column;
@@ -804,7 +929,7 @@ body.maps-page {
     display: flex;
     justify-content: space-between;
     font-size: 10px;
-    color: #607D8B;
+    color: var(--text-muted);
 }
 
 /* ============================================================================
@@ -819,7 +944,7 @@ body.maps-page {
     border-radius: 8px;
     box-shadow: var(--panel-shadow);
     text-align: center;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     z-index: 100;
     font-size: 13px;
 }
@@ -848,7 +973,7 @@ body.maps-page {
 .popup-title {
     font-size: 14px;
     font-weight: 600;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     margin: 0 0 8px;
     padding-bottom: 6px;
     border-bottom: 1px solid var(--panel-border);
@@ -860,8 +985,8 @@ body.maps-page {
     padding: 3px 0;
     font-size: 12px;
 }
-.popup-row .label { color: #607D8B; }
-.popup-row .value { color: var(--lehs-navy); font-weight: 500; }
+.popup-row .label { color: var(--text-muted); }
+.popup-row .value { color: var(--text-strong); font-weight: 500; }
 /* ============================================================================
    Floating toggle (FAB) — desktop hidden, mobile shows it to re-open the drawer
    ============================================================================ */
@@ -968,7 +1093,11 @@ body.maps-page {
     .legend {
         bottom: 12px; left: 12px; right: 12px;
         max-width: none; font-size: 11px; padding: 10px 12px;
+        /* Drop any saved drag/scale — the legend docks full-width on mobile. */
+        transform: none;
     }
+    .legend-header { cursor: default; }
+    .legend-tools, .legend-resize { display: none; }
     .hist { height: 26px; }
 
     .maplibregl-ctrl-group button { width: 38px !important; height: 38px !important; }
@@ -1000,3 +1129,240 @@ body.maps-page {
     .legend { font-size: 10px; }
     .view-btn { font-size: 10px; padding: 9px 8px; }
 }
+
+/* ============================================================================
+   Panel header icon buttons (theme toggle + reset), beside the back-link.
+   ============================================================================ */
+.panel-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.panel-icon-btn {
+    width: 26px; height: 26px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: transparent; border: 1px solid var(--panel-border); border-radius: 6px;
+    color: var(--text-strong); font-size: 15px; line-height: 1; cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    padding: 0;
+}
+.panel-icon-btn:hover { background: var(--surface-hover); border-color: rgba(10, 31, 68, 0.22); }
+.panel-icon-btn svg { width: 15px; height: 15px; }
+
+/* Home / reset-view control — matches the other MapLibre top-right buttons. */
+.maplibregl-ctrl-home { display: flex; align-items: center; justify-content: center; color: #333; background: transparent; border: none; cursor: pointer; }
+.maplibregl-ctrl-home svg { display: block; }
+
+/* ============================================================================
+   MAP-CONTROLS HELP — the "?" button + its modal. Token-based so the modal
+   surface + all its text flip cleanly in dark mode (every text element here
+   resolves to var(--text-strong)/--text-muted; no inheritance from the near-
+   white global body color — the inherited-text trap). Adapted from the atlas
+   help hub, simplified to this map's single-page help markup.
+   ============================================================================ */
+.help-button {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--lehs-navy);
+    color: var(--lehs-gold);
+    border: none;
+    box-shadow: 0 3px 12px rgba(10, 31, 68, 0.35);
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+.help-button:hover { background: #1a3a6b; }
+/* Keep the help launcher clear of the legend card (bottom-right). */
+.maplibregl-ctrl-bottom-right ~ .help-button { right: 16px; }
+
+.help-modal {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 31, 68, 0.55);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 101;            /* above the loading overlay (100) */
+    padding: 20px;
+}
+.help-modal.open { display: flex; }
+.help-modal-inner {
+    position: relative;
+    max-width: 520px;
+    width: 100%;
+    max-height: min(86vh, 720px);
+    overflow-y: auto;
+    background: var(--surface-1);
+    color: var(--text-strong);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    box-shadow: 0 18px 50px rgba(10, 31, 68, 0.35);
+    padding: 26px 28px 18px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+}
+.help-modal-inner h2 {
+    margin: 0 0 4px;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text-strong);
+}
+.help-modal-close {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--panel-border);
+    color: var(--text-muted);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 1px 8px;
+}
+.help-modal-close:hover { color: var(--text-strong); background: var(--surface-hover); }
+.help-section {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--panel-border);
+}
+.help-section > strong {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+.help-row {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 3px 0;
+    font-size: 13px;
+    color: var(--text-strong);
+}
+.help-key {
+    display: inline-block;
+    flex-shrink: 0;
+    min-width: 132px;
+    padding: 4px 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-strong);
+    text-align: center;
+}
+.help-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--panel-border);
+}
+.help-got-it {
+    padding: 9px 20px;
+    background: var(--lehs-navy);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.help-got-it:hover { background: #1a3a6b; }
+
+/* ============================================================================
+   DARK THEME — repoint surfaces that hard-code LIGHT backgrounds at the dark
+   tokens, and keep the native MapLibre controls / popups readable on the dark
+   base. The token swaps above already lightened all panel/legend TEXT; this
+   block fixes elements whose background stayed white so flipped text wouldn't
+   sit light-on-light. Light mode is untouched.
+   ============================================================================ */
+[data-theme="dark"] body.maps-page { background: #0d1118; }
+
+/* Form inputs + native dropdown option list. */
+[data-theme="dark"] .select-input,
+[data-theme="dark"] input[type="text"].select-input {
+    background: var(--input-bg); color: var(--text-strong); border-color: var(--panel-border);
+}
+[data-theme="dark"] .select-input option { background: #1b2230; color: var(--text-strong); }
+
+/* Buttons / pills that hard-code a white background. */
+[data-theme="dark"] .view-btn { background: var(--surface-2); color: var(--text-strong); border-color: var(--panel-border); }
+[data-theme="dark"] .view-btn:hover { background: var(--surface-hover); }
+
+/* Panel toggle hamburger bars + the panel-toggle hover. */
+[data-theme="dark"] .panel-toggle span { background: var(--text-strong); }
+[data-theme="dark"] .panel-toggle:hover { background: var(--surface-hover); }
+
+/* Recessed school-controls block — its translucent navy wash reads as a light
+   smudge over the dark panel; flip to a translucent light wash. */
+[data-theme="dark"] .schools-controls { background: rgba(255, 255, 255, 0.04); }
+[data-theme="dark"] .metric-summary { background: rgba(255, 255, 255, 0.05); }
+[data-theme="dark"] .school-enroll { background: rgba(255, 255, 255, 0.06); }
+[data-theme="dark"] .fp-bar-track { background: rgba(255, 255, 255, 0.12); }
+
+/* Loading overlay card. */
+[data-theme="dark"] .map-loading { background: rgba(22, 28, 38, 0.96); }
+
+/* Legend resize/move tooling on the dark card. */
+[data-theme="dark"] .legend-tool { background: rgba(255, 255, 255, 0.08); }
+[data-theme="dark"] .legend-tool:hover { background: rgba(255, 255, 255, 0.16); }
+[data-theme="dark"] .legend-resize {
+    background: repeating-linear-gradient(
+        135deg,
+        rgba(255,255,255,0.7) 0, rgba(255,255,255,0.7) 1px,
+        transparent 1px, transparent 3px
+    );
+}
+[data-theme="dark"] .legend-insight strong { color: var(--text-strong); }
+
+/* MapLibre native controls + scale + attribution on the dark base. */
+[data-theme="dark"] .maplibregl-ctrl-group { background: #232c3c; }
+[data-theme="dark"] .maplibregl-ctrl-group button + button { border-top-color: rgba(255,255,255,0.12); }
+[data-theme="dark"] .maplibregl-ctrl button .maplibregl-ctrl-icon { filter: invert(1) hue-rotate(180deg) brightness(1.1); }
+[data-theme="dark"] .maplibregl-ctrl-home { color: #e7ecf3; }
+[data-theme="dark"] .maplibregl-ctrl-attrib { background: rgba(22, 28, 38, 0.85); }
+[data-theme="dark"] .maplibregl-ctrl-attrib a { color: var(--text-muted); }
+
+/* MapLibre popup (the MA-wide schools popup) — give it a dark surface so the
+   token-lightened popup text stays legible. */
+[data-theme="dark"] .maplibregl-popup-content { background: var(--surface-1); }
+[data-theme="dark"] .maplibregl-popup-tip { border-top-color: var(--surface-1); border-bottom-color: var(--surface-1); }
+
+/* The embedding site nav is dark in dark mode — brighten its logo + links. */
+[data-theme="dark"] .nav-logo { color: #dbe6ff; }
+[data-theme="dark"] .nav-links a { color: #c2cfe0; }
+[data-theme="dark"] .nav-links a:hover { color: #fff; }
+
+/* Legend insight line (secondary text on the dark legend). */
+[data-theme="dark"] .legend-insight { color: var(--text-muted); }
+
+/* Legend insight (light mode) — secondary caption styling. */
+.legend-insight {
+    margin-top: 7px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+.legend-insight strong { color: var(--text-strong); font-weight: 600; }
+.legend-insight[hidden] { display: none; }

@@ -13,7 +13,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
     <link rel="stylesheet" href="assets/style.css">
-    <link rel="stylesheet" href="style.css?v=20260609-schools">
+    <link rel="stylesheet" href="style.css?v=20260609-darkmode">
 </head>
 <body class="maps-page">
 <a href="#main-content" class="skip-to-content">Skip to content</a>
@@ -58,13 +58,22 @@
         <div class="panel-section">
             <div class="panel-header">
                 <span class="section-label">// Lynn Data Dive</span>
-                <a href="../" class="back-link">← Dashboard</a>
+                <div class="panel-header-actions">
+                    <button class="panel-icon-btn" id="themeToggle" type="button"
+                            aria-pressed="false" title="Switch to dark mode" aria-label="Toggle dark mode">
+                        <svg data-theme-ico="light" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="2"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="2.5" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21.5"/><line x1="2.5" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21.5" y2="12"/><line x1="5.2" y1="5.2" x2="7" y2="7"/><line x1="17" y1="17" x2="18.8" y2="18.8"/><line x1="18.8" y1="5.2" x2="17" y2="7"/><line x1="7" y1="17" x2="5.2" y2="18.8"/></g></svg>
+                        <svg data-theme-ico="dark" viewBox="0 0 24 24" aria-hidden="true" style="display:none"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button class="panel-icon-btn" id="resetAllBtn" type="button"
+                            title="Reset metric, level, view &amp; filters to defaults" aria-label="Reset to defaults">↺</button>
+                    <a href="../" class="back-link">← Dashboard</a>
+                </div>
             </div>
             <h1 class="panel-title">Lynn Maps</h1>
             <p class="panel-desc">
                 Census-tract demographics across Lynn's 22 tracts, every Lynn
                 school pinned, and how Lynn fits in. For the full statewide
-                view, see <a href="../../ma-atlas/" target="_top" style="color:#0A1F44;font-weight:600;">MA Education Atlas →</a>
+                view, see <a href="../../ma-atlas/" target="_top" class="panel-link">MA Education Atlas →</a>
             </p>
         </div>
 
@@ -128,7 +137,7 @@
 
             <div class="year-note" style="font-style:normal; margin-top:14px;">
                 ⓘ For 40+ joined metrics + statewide comparisons see the
-                <a href="../../ma-atlas/" target="_top" style="color:var(--lehs-navy);font-weight:600;">MA Education Atlas →</a>
+                <a href="../../ma-atlas/" target="_top" class="panel-link">MA Education Atlas →</a>
             </div>
 
             <div class="metric-summary" id="metricSummary"></div>
@@ -225,7 +234,7 @@
             <button id="exportCsvBtn" type="button" class="export-csv-btn">
                 ⬇ Export this layer as CSV
             </button>
-            <div class="form-label" style="margin-top:6px; font-size:11px; color:#607D8B;">
+            <div class="form-label" style="margin-top:6px; font-size:11px; color:var(--text-muted);">
                 Exports all features in the active layer with their properties as CSV.
             </div>
         </div>
@@ -243,11 +252,30 @@
     <!-- MAP -->
     <div id="map" class="map-container"></div>
 
-    <!-- LEGEND -->
-    <div class="legend" id="legend">
-        <div class="legend-title" id="legendTitle">Legend</div>
+    <!-- LEGEND — drag the header to move it; pull the corner grip or use the
+         −/+ buttons to resize; ⟲ resets. Position & size persist (localStorage).
+         Wired in setupLegendCustomization(); desktop-only (docks on mobile). -->
+    <div class="legend" id="legend" role="region" aria-label="Map legend">
+        <div class="legend-header" id="legendHeader" tabindex="0"
+             title="Drag to move • arrow keys to nudge"
+             aria-label="Legend — drag to move, or focus and use arrow keys to reposition">
+            <div class="legend-title" id="legendTitle">Legend</div>
+            <div class="legend-tools" role="group" aria-label="Legend size and position">
+                <button type="button" class="legend-tool" id="legendSmaller"
+                        title="Smaller" aria-label="Make legend smaller">&minus;</button>
+                <button type="button" class="legend-tool" id="legendLarger"
+                        title="Larger" aria-label="Make legend larger">+</button>
+                <button type="button" class="legend-tool" id="legendReset"
+                        title="Reset position &amp; size"
+                        aria-label="Reset legend position and size">⟲</button>
+            </div>
+        </div>
         <div class="legend-stops" id="legendStops"></div>
+        <!-- Plain-language "how to read the colors" line (set in updateLegend). -->
+        <div class="legend-caption" id="legendCaption" hidden></div>
         <div class="legend-meta" id="legendMeta"></div>
+        <div class="legend-resize" id="legendResize" aria-hidden="true"
+             title="Drag to resize"></div>
     </div>
 
     <!-- HOVER TOOLTIP (positioned via JS) -->
@@ -321,6 +349,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 </script>
-<script src="app.js?v=20260609-schools"></script>
+<script src="app.js?v=20260609-darkmode"></script>
 </body>
 </html>

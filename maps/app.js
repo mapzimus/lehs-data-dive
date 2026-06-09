@@ -128,9 +128,65 @@ const state = {
     studentGroup: "all",
     year: 2026,
     playing: false,
+    theme: "light",                    // "light" | "dark" — drives the basemap swap
 };
 
 let GEO_DATA = null;  // populated after load
+
+// Assigned by setupLegendCustomization(); lets updateLegend() re-clamp a moved/
+// resized legend after its content height changes. No-op until wired.
+let _legendClamp = null;
+
+// ─── THEME (light / dark) ────────────────────────────────────────────────────
+// Token-based dark mode: a [data-theme] attr on <html> flips the CSS custom
+// properties (see style.css), and we swap the basemap to a dark raster +
+// re-halo our own labels for legibility. Persisted to localStorage; respected
+// on load. Adapted from the statewide atlas (applyTheme/toggleTheme/initTheme),
+// but this Lynn map loads the Positron style directly, so the basemap swap
+// hides Positron's own vector layers and shows a CARTO dark raster instead
+// (see addDarkBasemap() + applyThemeBasemap()).
+function currentTheme() {
+    return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+}
+function syncThemeButton() {
+    const dark = currentTheme() === "dark";
+    const btn = document.getElementById("themeToggle");
+    if (btn) {
+        btn.setAttribute("aria-pressed", dark ? "true" : "false");
+        btn.title = dark ? "Switch to light mode" : "Switch to dark mode";
+    }
+    // Show the sun icon in light mode, the moon in dark mode.
+    document.querySelectorAll("[data-theme-ico]").forEach(el => {
+        el.style.display = ((el.dataset.themeIco === "dark") === dark) ? "" : "none";
+    });
+}
+function applyTheme(theme, opts = {}) {
+    const dark = theme === "dark";
+    state.theme = dark ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    syncThemeButton();
+    // Swap the basemap once the map + dark layer exist (skipped at first paint;
+    // initTheme seeds the attr and the load handler paints the right base).
+    if (!opts.skipBasemap && typeof map !== "undefined" && map.getLayer && map.getLayer("dark-base")) {
+        applyThemeBasemap(dark ? "dark" : "light");
+    }
+    try { localStorage.setItem("lynn-maps-theme", dark ? "dark" : "light"); } catch (e) {}
+}
+function toggleTheme() { applyTheme(currentTheme() === "dark" ? "light" : "dark"); }
+
+// Run at module load (DOM parsed; map not yet created). Sets the chrome from the
+// saved preference / OS setting so the FIRST paint already carries the theme; the
+// load handler then paints the matching basemap (no light flash in dark mode).
+function initTheme() {
+    let t = null;
+    try { t = localStorage.getItem("lynn-maps-theme"); } catch (e) {}
+    if (t !== "dark" && t !== "light") {
+        t = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+    }
+    state.theme = t;
+    document.documentElement.setAttribute("data-theme", t);
+}
+initTheme();
 
 // Year-keyed schema introspection. After load, for each (level, baseMetric)
 // pair we record which years actually have data — drives the slider availability
@@ -268,6 +324,63 @@ function fmt(value, kind) {
 }
 
 function getMetric(id) { return METRICS.find(m => m.id === id) || METRICS[0]; }
+
+// ─── METRIC POLARITY + SEMANTIC PALETTES ─────────────────────────────────────
+// A metric's inherent direction, independent of the chosen palette:
+//   "good"    higher = better  (graduation, attendance, college-going, income…)
+//   "concern" higher = worse   (dropout, chronic absenteeism, rent burden…)
+//   "neutral" no value judgment (raw counts, demographic shares, ratios…)
+// Drives both the plain-language legend caption and the auto-picked semantic
+// palette. Adapted from the atlas's metricPolarity/semanticPalette, but this
+// Lynn catalog is small, so we classify with explicit id/category lists rather
+// than the atlas's broad category sets.
+const POLARITY_GOOD_IDS = new Set([
+    "grad_4yr", "grad_5yr", "attendance_rate", "masscore_pct", "ap_pct_3plus",
+    "mcas_g10_ela_me", "mcas_g10_math_me", "mcas_g10_sci_me",
+    "mcas_g38_ela_me", "mcas_g38_math_me",
+    "pct_any_college", "pct_4yr_college", "pct_2yr_college",
+    "teacher_experienced_pct", "teacher_infield_pct", "teacher_retention_pct",
+    "median_household_income", "bachelors_or_higher_pct",
+]);
+const POLARITY_CONCERN_IDS = new Set([
+    "dropout_pct", "chronic_absent_pct", "severe_burden_pct",
+    // Equity-need shares: "higher = more of a high-need group". On this Lynn map
+    // these read as "more concentrated need", so a warm ramp is the honest cue.
+    "LI_PCT", "HN_PCT", "EL_PCT", "SWD_PCT",
+]);
+function metricPolarity(m) {
+    if (!m) return "neutral";
+    if (POLARITY_CONCERN_IDS.has(m.id)) return "concern";
+    if (POLARITY_GOOD_IDS.has(m.id))    return "good";
+    return "neutral";
+}
+// Semantic palette default by meaning: a "bad when high" metric → a warm Reds/
+// Oranges ramp; a "good when high" metric → a cool Greens/Blues ramp; neutral →
+// the metric's own catalog palette. The user can still override via the palette
+// selector. Kept lightweight: one map + a polarity fallback.
+const SEM_GOOD_PALETTE    = "Greens";   // higher = better → cool/green
+const SEM_CONCERN_PALETTE = "Reds";     // higher = worse  → warm/red
+function semanticPalette(m) {
+    if (!m) return SEM_GOOD_PALETTE;
+    const pol = metricPolarity(m);
+    if (pol === "concern") return SEM_CONCERN_PALETTE;
+    if (pol === "good")    return SEM_GOOD_PALETTE;
+    return m.palette;   // neutral — keep the catalog's own ramp
+}
+// One plain-language sentence describing how to read the active color ramp:
+// which way is "higher", and (where the metric has a clear direction) whether
+// darker is better or worse. The default ramps paint high = dark.
+function legendCaptionText() {
+    const m = getMetric(state.metric);
+    let s = "Darker = higher values";
+    const pol = metricPolarity(m);
+    if (pol !== "neutral") {
+        // Default ramps put the dark end at the HIGH end, so darker-is-good iff
+        // the metric is "good when high".
+        s += (pol === "good") ? " — darker is better" : " — darker is worse";
+    }
+    return s + ".";
+}
 
 // Convert numeric-looking string property values to real numbers in place,
 // for every feature in a GeoJSON FeatureCollection. Necessary because some
@@ -601,7 +714,40 @@ function paintExpression(metricId, paletteName, classify, level) {
     return ["case", valid, expr, NO_DATA_COLOR];
 }
 
+// ─── HOME / RESET-VIEW CONTROL ───────────────────────────────────────────────
+// A standard map button (stacked under the zoom +/−) that flies back to the
+// default Lynn extent. Mirrors the atlas's HomeControl, retargeted at VIEWS.lynn.
+class HomeControl {
+    onAdd(m) {
+        this._map = m;
+        const c = document.createElement("div");
+        c.className = "maplibregl-ctrl maplibregl-ctrl-group";
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "maplibregl-ctrl-home";
+        b.title = "Reset to the Lynn view";
+        b.setAttribute("aria-label", "Reset map to the default Lynn view");
+        b.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">' +
+            '<path d="M3 11l9-8 9 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+            '<path d="M5 10v10h5v-6h4v6h5V10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        b.addEventListener("click", () => {
+            const v = (typeof VIEWS !== "undefined" && VIEWS.lynn) ? VIEWS.lynn : { center: [-70.95, 42.47], zoom: 11.8 };
+            m.flyTo({ ...v, duration: 1000, essential: true });
+            if (typeof setActiveView === "function") setActiveView("lynn");
+        });
+        c.appendChild(b);
+        this._container = c;
+        return c;
+    }
+    onRemove() { if (this._container) this._container.remove(); this._map = undefined; }
+}
+
 // ─── MAP INITIALIZATION ──────────────────────────────────────────────────────
+// Smooth choropleth color cross-fade when the metric/year changes (applied via
+// the fill layers' paint transitions). Off for users who prefer reduced motion.
+const PREFERS_REDUCED_MOTION = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+const FILL_XFADE_MS = PREFERS_REDUCED_MOTION ? 0 : 260;
+
 const map = new maplibregl.Map({
     container: "map",
     style: "https://tiles.openfreemap.org/styles/positron",
@@ -612,11 +758,92 @@ const map = new maplibregl.Map({
     attributionControl: false,
 });
 map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
+// Standard map controls users expect, stacked under the zoom buttons (top-right):
+// jump back to the Lynn view, locate themselves, and go fullscreen.
+map.addControl(new HomeControl(), "top-right");
+map.addControl(new maplibregl.GeolocateControl({
+    positionOptions: { enableHighAccuracy: true },
+    // trackUserLocation makes the control a TOGGLE: click to show your location,
+    // click the active button again to clear the dot.
+    trackUserLocation: true,
+    showUserLocation: true,
+}), "top-right");
+// Fullscreen the whole app shell (#main-content / .maps-main), not just the map
+// canvas — the panel, legend, and modals are siblings of #map, so targeting
+// their shared ancestor keeps the entire UI visible in fullscreen.
+map.addControl(
+    new maplibregl.FullscreenControl({ container: document.getElementById("main-content") }),
+    "top-right"
+);
+// Leaving/entering fullscreen changes the map size — let it re-fit.
+document.addEventListener("fullscreenchange", () => { map.resize(); });
 map.addControl(new maplibregl.AttributionControl({
     compact: true,
-    customAttribution: '<a href="https://maxwellhowegis.com" target="_blank">© Maxwell Howe</a> · MA DESE · US Census · MassGIS',
+    customAttribution: '<a href="https://maxwellhowegis.com" target="_blank">© Maxwell Howe</a> · MA DESE · US Census · MassGIS · © CARTO',
 }), "bottom-right");
 map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: "imperial" }), "bottom-left");
+
+// Positron's own vector layer IDs — captured before we add data layers so the
+// theme swap can hide/show the light basemap without touching our overlays.
+let BASEMAP_LAYER_IDS = [];
+
+// Add a keyless CARTO dark-matter raster basemap as the BOTTOM layer (hidden by
+// default; shown in dark theme). Inserted beneath the first Positron layer so it
+// sits under everything; our data layers are added on top afterwards.
+function addDarkBasemap() {
+    if (!map.getSource("dark-tiles")) {
+        map.addSource("dark-tiles", {
+            type: "raster", tileSize: 256,
+            tiles: [
+                "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+                "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+                "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+            ],
+            attribution: "© OpenStreetMap contributors, © CARTO",
+        });
+    }
+    if (!map.getLayer("dark-base")) {
+        const firstId = BASEMAP_LAYER_IDS[0];   // insert beneath Positron's first layer
+        map.addLayer(
+            { id: "dark-base", type: "raster", source: "dark-tiles", layout: { visibility: "none" } },
+            firstId
+        );
+    }
+}
+
+// Swap the basemap to match the theme: light → Positron vector layers visible,
+// dark raster hidden; dark → Positron hidden, dark raster shown. Also re-halo
+// our own symbol labels (town + school) so they stay legible on the dark base.
+function applyThemeBasemap(theme) {
+    const dark = theme === "dark";
+    BASEMAP_LAYER_IDS.forEach(id => {
+        if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", dark ? "none" : "visible");
+    });
+    if (map.getLayer("dark-base")) {
+        map.setLayoutProperty("dark-base", "visibility", dark ? "visible" : "none");
+    }
+    // Page behind the (transparent) canvas: near-black for dark so any gaps read
+    // on-theme; default otherwise.
+    const container = map.getContainer();
+    if (container) container.style.background = dark ? "#0b0b0d" : "";
+    // Our text labels need a light fill + dark halo to stay legible on the dark
+    // base. Each block is getLayer-guarded (no-op until the layer exists).
+    if (map.getLayer("town-labels")) {
+        map.setPaintProperty("town-labels", "text-color", dark ? "#ECEFF1" : "#0A1F44");
+        map.setPaintProperty("town-labels", "text-halo-color", dark ? "#000000" : "#ffffff");
+        map.setPaintProperty("town-labels", "text-halo-width", dark ? 2.0 : 1.8);
+    }
+    if (map.getLayer("schools-labels")) {
+        map.setPaintProperty("schools-labels", "text-color", dark ? "#ECEFF1" : "#0A1F44");
+        // Keep the gold halo on the focus school in both themes; others get a
+        // dark halo in dark mode for contrast.
+        map.setPaintProperty("schools-labels", "text-halo-color", [
+            "case",
+            ["==", ["get", "ORG_CODE"], LEHS_ORG_CODE], "#FFF3D6",
+            dark ? "#0b0b0d" : "#ffffff",
+        ]);
+    }
+}
 
 map.on("load", async () => {
     try {
@@ -637,6 +864,10 @@ map.on("load", async () => {
         // any numeric-looking string property to a real number once at load
         // time — covers tracts today and future schema drift on any source.
         [tracts, academic, munis].forEach(coerceNumericStringProps);
+
+        // Capture Positron's own layer IDs BEFORE we add data/basemap layers, so
+        // the theme swap can hide/show the light vector basemap cleanly.
+        BASEMAP_LAYER_IDS = map.getStyle().layers.map(l => l.id);
 
         GEO_DATA = { tract: tracts, district: academic, muni: munis };
         buildYearKeyedIndex();
@@ -676,10 +907,16 @@ map.on("load", async () => {
             },
         });
 
+        addDarkBasemap();
         addLayers();
         wireUI();
         applyChoropleth();
         updateLegend();
+        // Paint the basemap + label halos to match the (already-set) theme attr,
+        // and sync the toggle button. skipBasemap on applyTheme would double-call,
+        // so call applyThemeBasemap directly here.
+        applyThemeBasemap(state.theme);
+        syncThemeButton();
         document.getElementById("mapLoading").classList.add("hidden");
     } catch (err) {
         console.error("Map load failed:", err);
@@ -698,6 +935,9 @@ function addLayers() {
         id: "muni-fill", type: "fill", source: "municipalities",
         paint: {
             "fill-color": NO_DATA_COLOR,
+            // Brief cross-fade so recoloring on metric/year change eases in
+            // instead of hard-flipping (respects prefers-reduced-motion).
+            "fill-color-transition": { duration: FILL_XFADE_MS, delay: 0 },
             "fill-opacity": [
                 "case",
                 ["boolean", ["feature-state", "hover"], false], 0.85,
@@ -710,6 +950,7 @@ function addLayers() {
         id: "district-fill", type: "fill", source: "districts",
         paint: {
             "fill-color": NO_DATA_COLOR,
+            "fill-color-transition": { duration: FILL_XFADE_MS, delay: 0 },
             "fill-opacity": [
                 "case",
                 ["boolean", ["feature-state", "hover"], false], 0.85,
@@ -722,6 +963,7 @@ function addLayers() {
         id: "tract-fill", type: "fill", source: "tracts",
         paint: {
             "fill-color": NO_DATA_COLOR,
+            "fill-color-transition": { duration: FILL_XFADE_MS, delay: 0 },
             "fill-opacity": [
                 "case",
                 ["boolean", ["feature-state", "hover"], false], 0.85,
@@ -1379,8 +1621,11 @@ function updateLegend() {
     const nullCount = Math.max(0, totalFeatures - values.length);
 
     if (values.length === 0) {
-        stopsEl.innerHTML = '<div class="legend-row" style="color:#90A4AE;">No data at this level for this metric.</div>';
+        stopsEl.innerHTML = '<div class="legend-row" style="color:var(--text-muted);">No data at this level for this metric.</div>';
         metaEl.innerHTML = `<span class="legend-null"><span class="legend-null-swatch"></span>No data — ${nullCount.toLocaleString()} of ${totalFeatures.toLocaleString()}</span>`;
+        const capEl0 = document.getElementById("legendCaption");
+        if (capEl0) capEl0.hidden = true;
+        if (_legendClamp) _legendClamp();
         return;
     }
 
@@ -1422,6 +1667,16 @@ function updateLegend() {
     metaEl.innerHTML = `
         <span class="legend-null"><span class="legend-null-swatch"></span>No data — <strong>${nullCount.toLocaleString()}</strong> of ${totalFeatures.toLocaleString()} polygons (${100 - dataPct}%)</span>
     `;
+
+    // Plain-language "how to read the colors" caption (metric polarity).
+    const capEl = document.getElementById("legendCaption");
+    if (capEl) {
+        const cap = legendCaptionText();
+        capEl.textContent = cap;
+        capEl.hidden = !cap;
+    }
+    // A moved/resized legend may now be a different height — keep it on-screen.
+    if (_legendClamp) _legendClamp();
 }
 
 // ─── UI WIRING ───────────────────────────────────────────────────────────────
@@ -1481,7 +1736,9 @@ function populateMetricSelect(searchTerm = "") {
     const availIds = candidates.map(m => m.id);
     if (!availIds.includes(state.metric)) state.metric = availIds[0];
     sel.value = state.metric;
-    state.palette = getMetric(state.metric).palette;
+    // Auto-pick a meaning-aware default palette (warm for "bad-when-high", cool
+    // for "good-when-high", catalog default for neutral). User can still override.
+    state.palette = semanticPalette(getMetric(state.metric));
     document.getElementById("paletteSelect").value = state.palette;
     updateMetricSummary();
 }
@@ -1544,7 +1801,7 @@ function wireUI() {
     });
     document.getElementById("metricSelect").addEventListener("change", e => {
         state.metric = e.target.value;
-        state.palette = getMetric(state.metric).palette;
+        state.palette = semanticPalette(getMetric(state.metric));
         document.getElementById("paletteSelect").value = state.palette;
         applyChoropleth();
         updateLegend();
@@ -1713,6 +1970,18 @@ function wireUI() {
     document.querySelectorAll(".view-btn").forEach(b => {
         b.addEventListener("click", () => { if (isMobile()) closePanel(); });
     });
+
+    // Theme (dark / light) toggle — sync its initial state, then wire the click.
+    syncThemeButton();
+    const themeBtn = document.getElementById("themeToggle");
+    if (themeBtn) themeBtn.addEventListener("click", toggleTheme);
+
+    // Reset metric, level, view, theme, school color mode & reference toggles.
+    const resetBtn = document.getElementById("resetAllBtn");
+    if (resetBtn) resetBtn.addEventListener("click", resetAll);
+
+    // Legend drag-to-move + resize controls (desktop).
+    setupLegendCustomization();
 }
 
 function setActiveView(view) {
@@ -1726,6 +1995,274 @@ const VIEWS = {
     ma:            { center: [-71.7, 42.25],  zoom: 7.5,  pitch: 0, bearing: 0 },
     "north-shore": { center: [-70.9, 42.55],  zoom: 9.3,  pitch: 0, bearing: 0 },
 };
+
+// ─── RESET ALL ───────────────────────────────────────────────────────────────
+// Restore the landing defaults: metric, level, classification, student group,
+// year, school color mode, reference-layer toggles, visual mode, theme, and the
+// view. Mirrors the initial `state` object + the HTML's default-checked inputs.
+const REF_TOGGLE_DEFAULTS = {
+    "ref-muni-outline":      true,
+    "ref-academic-outline":  false,
+    "ref-voctech-overlay":   false,
+    "ref-charter-overlay":   false,
+    "ref-lynn-schools":      true,
+    "ref-all-ma-schools":    false,
+    "ref-lynn-town":         true,
+    "ref-gateway-highlight": true,
+};
+const REF_TOGGLE_LAYERS = {
+    "ref-muni-outline":      ["muni-outline"],
+    "ref-academic-outline":  ["academic-outline"],
+    "ref-voctech-overlay":   ["voctech-fill", "voctech-outline"],
+    "ref-charter-overlay":   ["charter-fill", "charter-outline"],
+    "ref-lynn-schools":      ["schools-halo", "schools-lehs-ring", "schools-circles", "schools-labels"],
+    "ref-all-ma-schools":    ["ma-schools-circles"],
+    "ref-lynn-town":         ["lynn-highlight-fill", "lynn-highlight-line"],
+    "ref-gateway-highlight": ["gateway-highlight-fill", "gateway-highlight-line"],
+};
+function resetAll() {
+    if (state.playing) stopYearAnimation();
+    // Core data view → landing defaults.
+    state.level = "muni";
+    state.metric = "EL_PCT";
+    state.classify = "jenks";
+    state.studentGroup = "all";
+    state.year = 2026;
+    state.extrude3d = false;
+    state.labels = true;
+    state.townLabels = true;
+    state.schoolColorMode = "type";
+    // Reflect the simple selects/radios.
+    const levelSel = document.getElementById("levelSelect"); if (levelSel) levelSel.value = state.level;
+    const grpSel   = document.getElementById("groupSelect"); if (grpSel) grpSel.value = "all";
+    const search   = document.getElementById("metricSearch"); if (search) search.value = "";
+    const yearSl   = document.getElementById("yearSlider"); if (yearSl) yearSl.value = String(state.year);
+    const yearLb   = document.getElementById("yearLabel");  if (yearLb) yearLb.textContent = String(state.year);
+    document.querySelectorAll('input[name="classify"]').forEach(r => { r.checked = (r.value === "jenks"); });
+    const t3d = document.getElementById("toggle-3d");          if (t3d) t3d.checked = false;
+    const tl  = document.getElementById("toggle-labels");      if (tl) tl.checked = true;
+    const ttl = document.getElementById("toggle-town-labels"); if (ttl) ttl.checked = true;
+    const scm = document.getElementById("schoolColorMode");    if (scm) scm.value = "type";
+    // Reference layers → defaults (state flags + checkboxes + layer visibility).
+    state.showMuniOutline = true; state.showAcademicOutline = false;
+    state.showVoctechOverlay = false; state.showCharterOverlay = false;
+    state.showLynnSchools = true; state.showAllMaSchools = false;
+    state.showLynnTown = true; state.showGatewayHighlight = true;
+    Object.entries(REF_TOGGLE_DEFAULTS).forEach(([id, on]) => {
+        const el = document.getElementById(id); if (el) el.checked = on;
+        (REF_TOGGLE_LAYERS[id] || []).forEach(l => {
+            if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", on ? "visible" : "none");
+        });
+    });
+    // 3D off (also flattens pitch); labels back on.
+    toggle3D();
+    if (map.getLayer("schools-labels")) map.setLayoutProperty("schools-labels", "visibility", "visible");
+    if (map.getLayer("town-labels"))    map.setLayoutProperty("town-labels", "visibility", "visible");
+    // Theme → light (landing default).
+    if (currentTheme() !== "light") applyTheme("light");
+    // Rebuild the metric list for the muni level, repaint, refresh legends.
+    populateMetricSelect();              // resets palette via semanticPalette + select value
+    applySchoolColorMode();
+    applyChoropleth();
+    updateLegend();
+    updateMetricSummary();
+    updateGroupNote();
+    renderSchoolSizeLegend();
+    setActiveView("lynn");
+    map.flyTo({ ...VIEWS.lynn, duration: 1000, essential: true });
+}
+
+// ─── LEGEND CUSTOMIZATION (drag to move + resize, persisted) ─────────────────
+// The legend header doubles as a drag handle; the −/+ buttons + corner grip
+// resize it (--legend-scale); ⟲ resets. Position & size persist to localStorage.
+// Desktop-only (the legend docks full-width on mobile). Adapted from the atlas's
+// setupLegendCustomization(); pointer events + on-screen clamping unchanged.
+const LEGEND_LS_KEY      = "lynn-maps-legend";
+const LEGEND_MIN_SCALE   = 0.7;
+const LEGEND_MAX_SCALE   = 1.8;
+const LEGEND_EDGE        = 8;     // min gap (px) between the card and the map edge
+const LEGEND_DESKTOP_MIN = 769;  // matches the app's 768px mobile breakpoint
+function setupLegendCustomization() {
+    const legend = document.getElementById("legend");
+    const header = document.getElementById("legendHeader");
+    const grip   = document.getElementById("legendResize");
+    const main   = document.querySelector(".maps-main");
+    if (!legend || !header || !main) return;
+
+    const st = { custom: false, left: 0, top: 0, scale: 1 };
+    const isDesktop  = () => window.innerWidth >= LEGEND_DESKTOP_MIN;
+    const clampScale = s => Math.min(LEGEND_MAX_SCALE, Math.max(LEGEND_MIN_SCALE, s));
+
+    function save() {
+        try {
+            localStorage.setItem(LEGEND_LS_KEY, JSON.stringify({
+                left: Math.round(st.left), top: Math.round(st.top), scale: st.scale,
+            }));
+        } catch (e) {}
+    }
+
+    // Seed left/top from the card's current spot, then hand positioning to JS.
+    function detach() {
+        if (st.custom) return;
+        const lr = legend.getBoundingClientRect();
+        const mr = main.getBoundingClientRect();
+        st.left = lr.left - mr.left;
+        st.top  = lr.top  - mr.top;
+        st.custom = true;
+    }
+
+    // Write scale + position, then clamp using the rendered (scaled) box so the
+    // card can never be pushed off the map.
+    function place() {
+        if (!st.custom) return;
+        legend.style.right  = "auto";
+        legend.style.bottom = "auto";
+        legend.style.setProperty("--legend-scale", String(st.scale));
+        legend.style.left = st.left + "px";
+        legend.style.top  = st.top  + "px";
+        const mr = main.getBoundingClientRect();
+        const lr = legend.getBoundingClientRect();   // scaled box (transform applied)
+        const maxLeft = Math.max(LEGEND_EDGE, mr.width  - lr.width  - LEGEND_EDGE);
+        const maxTop  = Math.max(LEGEND_EDGE, mr.height - lr.height - LEGEND_EDGE);
+        st.left = Math.min(Math.max(LEGEND_EDGE, st.left), maxLeft);
+        st.top  = Math.min(Math.max(LEGEND_EDGE, st.top),  maxTop);
+        legend.style.left = st.left + "px";
+        legend.style.top  = st.top  + "px";
+    }
+
+    // Restore default CSS anchoring (bottom-right) and forget the saved layout.
+    function reset() {
+        st.custom = false; st.left = 0; st.top = 0; st.scale = 1;
+        legend.style.removeProperty("--legend-scale");
+        legend.style.left = legend.style.top = legend.style.right = legend.style.bottom = "";
+        try { localStorage.removeItem(LEGEND_LS_KEY); } catch (e) {}
+    }
+
+    function bump(delta) {
+        if (!isDesktop()) return;
+        detach();
+        st.scale = clampScale(+(st.scale + delta).toFixed(2));
+        place();
+        save();
+    }
+
+    // ── Pointer drag: move (grab the header) ─────────────────────────────────
+    let drag = null;
+    header.addEventListener("pointerdown", e => {
+        if (!isDesktop() || (e.button !== undefined && e.button !== 0)) return;
+        if (e.target.closest(".legend-tool")) return;   // clicks on −/+/⟲ aren't drags
+        detach();
+        drag = { x: e.clientX, y: e.clientY, l: st.left, t: st.top };
+        try { header.setPointerCapture(e.pointerId); } catch (_) {}
+        document.body.classList.add("legend-busy");
+        document.body.style.cursor = "move";
+        e.preventDefault();
+    });
+    header.addEventListener("pointermove", e => {
+        if (!drag) return;
+        st.left = drag.l + (e.clientX - drag.x);
+        st.top  = drag.t + (e.clientY - drag.y);
+        place();
+    });
+    function endDrag(e) {
+        if (!drag) return;
+        drag = null;
+        try { header.releasePointerCapture(e.pointerId); } catch (_) {}
+        document.body.classList.remove("legend-busy");
+        document.body.style.cursor = "";
+        save();
+    }
+    header.addEventListener("pointerup", endDrag);
+    header.addEventListener("pointercancel", endDrag);
+
+    // Keyboard nudge while the header is focused (arrows = 10px, Shift = 1px).
+    header.addEventListener("keydown", e => {
+        if (!isDesktop()) return;
+        const step = e.shiftKey ? 1 : 10;
+        let dx = 0, dy = 0;
+        if      (e.key === "ArrowLeft")  dx = -step;
+        else if (e.key === "ArrowRight") dx =  step;
+        else if (e.key === "ArrowUp")    dy = -step;
+        else if (e.key === "ArrowDown")  dy =  step;
+        else return;
+        e.preventDefault();
+        detach();
+        st.left += dx; st.top += dy;
+        place();
+        save();
+    });
+
+    // ── Pointer drag: resize (corner grip) ───────────────────────────────────
+    let rez = null;
+    if (grip) {
+        grip.addEventListener("pointerdown", e => {
+            if (!isDesktop() || (e.button !== undefined && e.button !== 0)) return;
+            detach();
+            const lr = legend.getBoundingClientRect();
+            rez = { x: e.clientX, y: e.clientY, s: st.scale, w: lr.width };
+            try { grip.setPointerCapture(e.pointerId); } catch (_) {}
+            document.body.classList.add("legend-busy");
+            document.body.style.cursor = "nwse-resize";
+            e.preventDefault();
+            e.stopPropagation();
+        });
+        grip.addEventListener("pointermove", e => {
+            if (!rez) return;
+            // Average of horizontal + vertical drag drives a uniform scale.
+            const d = ((e.clientX - rez.x) + (e.clientY - rez.y)) / 2;
+            st.scale = clampScale(rez.s * ((rez.w + d) / rez.w));
+            place();
+        });
+        const endRez = e => {
+            if (!rez) return;
+            rez = null;
+            try { grip.releasePointerCapture(e.pointerId); } catch (_) {}
+            document.body.classList.remove("legend-busy");
+            document.body.style.cursor = "";
+            save();
+        };
+        grip.addEventListener("pointerup", endRez);
+        grip.addEventListener("pointercancel", endRez);
+    }
+
+    // ── Buttons: −/+ scale, ⟲ reset ──────────────────────────────────────────
+    const smaller  = document.getElementById("legendSmaller");
+    const larger   = document.getElementById("legendLarger");
+    const resetBtn = document.getElementById("legendReset");
+    if (smaller)  smaller.addEventListener("click",  () => bump(-0.1));
+    if (larger)   larger.addEventListener("click",   () => bump(+0.1));
+    if (resetBtn) resetBtn.addEventListener("click", reset);
+
+    // Re-clamp on viewport change; hand back to the docked CSS when narrow.
+    let rzTimer;
+    window.addEventListener("resize", () => {
+        clearTimeout(rzTimer);
+        rzTimer = setTimeout(() => {
+            if (!st.custom) return;
+            if (isDesktop()) {
+                place();
+            } else {
+                legend.style.removeProperty("--legend-scale");
+                legend.style.left = legend.style.top = legend.style.right = legend.style.bottom = "";
+            }
+        }, 150);
+    });
+
+    // Let updateLegend() re-clamp after a content (height) change.
+    _legendClamp = () => { if (st.custom && isDesktop()) place(); };
+
+    // Restore a saved layout (desktop only); clamp absorbs viewport differences.
+    try {
+        const saved = JSON.parse(localStorage.getItem(LEGEND_LS_KEY) || "null");
+        if (saved && isDesktop()) {
+            detach();
+            if (typeof saved.left  === "number") st.left  = saved.left;
+            if (typeof saved.top   === "number") st.top   = saved.top;
+            if (typeof saved.scale === "number") st.scale = clampScale(saved.scale);
+            place();
+        }
+    } catch (e) {}
+}
 
 // 3D extrusion — replaces the flat choropleth fill with extruded polygons
 function toggle3D() {
