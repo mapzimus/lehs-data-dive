@@ -813,6 +813,178 @@ if not _mob.empty:
         st.plotly_chart(fig_m, use_container_width=True)
 
 # ---------------------------------------------------------------------------
+# Student attrition — the year-over-year counterpart to the within-year
+# mobility section above. Attrition = students who were enrolled but did not
+# return the next year and did not graduate (they transferred out / left).
+# DESE's E2C "Student Attrition" report (4as3-w39x) carries School + District
+# rows but no statewide aggregate, so the trend compares LEHS to the Lynn
+# district and the page is explicit that no MA benchmark exists in this source.
+# ---------------------------------------------------------------------------
+
+_attr = load_dataset("student_attrition")
+if not _attr.empty:
+    _attr = _attr.copy()
+    _attr["GRD_ALL"] = pd.to_numeric(_attr["GRD_ALL"], errors="coerce")
+
+    _attr_lehs = _attr[
+        (_attr["ORG_CODE"] == LEHS_SCHOOL_CODE)
+        & (_attr["ORG_TYPE"] == "School")
+        & (_attr["STU_GRP"] == "All Students")
+    ].dropna(subset=["GRD_ALL"]).sort_values("SY").copy()
+    _attr_dist = _attr[
+        (_attr["DIST_CODE"] == LYNN_DISTRICT_CODE)
+        & (_attr["ORG_TYPE"] == "District")
+        & (_attr["STU_GRP"] == "All Students")
+    ].dropna(subset=["GRD_ALL"]).sort_values("SY").copy()
+    _attr_state = _attr[
+        (_attr["ORG_TYPE"] == "State") & (_attr["STU_GRP"] == "All Students")
+    ].dropna(subset=["GRD_ALL"]).sort_values("SY").copy()
+
+    if not _attr_lehs.empty:
+        st.divider()
+        st.subheader("Student attrition")
+        st.caption(
+            "**Attrition** is the share of students who were enrolled but did "
+            "*not* return the following year and did not graduate — they "
+            "transferred out, moved, or otherwise left. It's the year-over-year "
+            "counterpart to the within-year **mobility** above (movement *during* "
+            "a school year). Source: DESE Education-to-Career *Student Attrition* "
+            "report. Note: DESE does not publish a statewide attrition aggregate "
+            "in this dataset, so LEHS is compared against the Lynn district."
+        )
+
+        _latest_a = _attr_lehs.iloc[-1]
+        _prior_a = _attr_lehs.iloc[-2] if len(_attr_lehs) > 1 else None
+
+        a1, a2, a3 = st.columns(3)
+        with a1:
+            st.metric(
+                f"LEHS attrition (SY {sy_label(int(_latest_a['SY']))})",
+                f"{float(_latest_a['GRD_ALL']):.1%}",
+                yoy_delta(
+                    _latest_a["GRD_ALL"] * 100, _prior_a["GRD_ALL"] * 100, "pts"
+                ) if _prior_a is not None else "",
+                delta_color="inverse",
+                help="Share of LEHS students enrolled one year who did not return the next (and did not graduate). Lower is better.",
+            )
+        with a2:
+            if not _attr_dist.empty:
+                _d_latest = _attr_dist.iloc[-1]
+                st.metric(
+                    f"Lynn district (SY {sy_label(int(_d_latest['SY']))})",
+                    f"{float(_d_latest['GRD_ALL']):.1%}",
+                    help="District-wide attrition across all Lynn Public Schools (PK-12), the closest available benchmark.",
+                )
+        with a3:
+            _lehs_mean = float(_attr_lehs["GRD_ALL"].mean())
+            st.metric(
+                "LEHS multi-year average",
+                f"{_lehs_mean:.1%}",
+                help=(
+                    f"Mean LEHS attrition across SY {sy_label(int(_attr_lehs['SY'].min()))}"
+                    f"–{sy_label(int(_attr_lehs['SY'].max()))}. Single years swing "
+                    "several points, so read the trend, not one year."
+                ),
+            )
+
+        # Trend: LEHS vs Lynn district (vs Massachusetts if the source ever
+        # adds a State row — guarded so the line appears automatically).
+        _trend_frames = []
+        for _label, _frame in [
+            ("LEHS", _attr_lehs),
+            ("Lynn District", _attr_dist),
+            ("Massachusetts", _attr_state),
+        ]:
+            _t = _frame[["SY", "GRD_ALL"]].dropna().copy()
+            if not _t.empty:
+                _t["Scope"] = _label
+                _trend_frames.append(_t)
+        if _trend_frames:
+            _trend = pd.concat(_trend_frames, ignore_index=True)
+            _trend["label"] = _trend["GRD_ALL"].apply(lambda x: f"{x:.1%}")
+            fig_a = px.line(
+                _trend.sort_values(["Scope", "SY"]),
+                x="SY", y="GRD_ALL", color="Scope", markers=True, text="label",
+                color_discrete_map={
+                    "LEHS": LEHS_GOLD,
+                    "Lynn District": LEHS_NAVY,
+                    "Massachusetts": STATE_COLOR,
+                },
+            )
+            fig_a.update_traces(textposition="top center", textfont=dict(size=9))
+            fig_a.update_layout(
+                **DEFAULT_LAYOUT,
+                yaxis_tickformat=".0%",
+                yaxis_title="Attrition rate",
+                xaxis_title="School Year",
+            )
+            st.plotly_chart(fig_a, use_container_width=True)
+            st.caption(
+                "LEHS attrition bounces year to year and tends to run a little "
+                "above the district average — expected, since a 9-12 high school "
+                "sees more leaving (moves, transfers, work) than the PK-12 "
+                "district as a whole."
+            )
+
+        # Latest-year subgroup breakdown — sorted high-to-low, with the
+        # all-students rate drawn as a reference line.
+        _sub = _attr[
+            (_attr["ORG_CODE"] == LEHS_SCHOOL_CODE)
+            & (_attr["ORG_TYPE"] == "School")
+            & (_attr["SY"] == _latest_a["SY"])
+            & (_attr["STU_GRP"] != "All Students")
+        ].copy()
+        _sub["GRD_ALL"] = pd.to_numeric(_sub["GRD_ALL"], errors="coerce")
+        _sub = _sub.dropna(subset=["GRD_ALL"]).sort_values("GRD_ALL")
+        if not _sub.empty:
+            st.markdown(
+                f"**Attrition by student group — SY {sy_label(int(_latest_a['SY']))}**"
+            )
+            # Map the SODA subgroup labels onto the project palette where they
+            # line up; anything unmatched falls back to the LEHS navy.
+            _grp_to_palette = {
+                "Black or African American":          "African American/Black",
+                "Asian":                              "Asian",
+                "Hispanic or Latino":                 "Hispanic/Latino",
+                "White":                              "White",
+                "Multi-Race, Not Hispanic or Latino": "Multi-Race, Non-Hispanic/Latino",
+                "English Learners":                   "English Learner",
+                "Students with Disabilities":         "Students w/ Disabilities",
+                "Low Income":                         "Low Income",
+                "High Needs":                         "High Needs",
+            }
+            _sub["color"] = _sub["STU_GRP"].map(
+                lambda g: SUBGROUP_PALETTE.get(_grp_to_palette.get(g, g), LEHS_NAVY)
+            )
+            _sub["label"] = _sub["GRD_ALL"].apply(lambda x: f"{x:.1%}")
+            fig_as = go.Figure(go.Bar(
+                x=_sub["GRD_ALL"],
+                y=_sub["STU_GRP"],
+                orientation="h",
+                text=_sub["label"],
+                textposition="outside",
+                marker_color=_sub["color"],
+            ))
+            fig_as.update_traces(cliponaxis=False)
+            fig_as.add_vline(
+                x=float(_latest_a["GRD_ALL"]), line_dash="dash", line_color=LEHS_GOLD,
+                annotation_text="All-students rate", annotation_position="top",
+            )
+            fig_as.update_layout(
+                **DEFAULT_LAYOUT,
+                xaxis_tickformat=".0%",
+                xaxis_title="Attrition rate",
+                yaxis_title="",
+                height=max(360, 30 * len(_sub)),
+            )
+            st.plotly_chart(fig_as, use_container_width=True)
+            st.caption(
+                "Subgroup attrition for a single high school rests on small "
+                "headcounts, so year-to-year swings can be large — treat the "
+                "ordering as indicative rather than precise."
+            )
+
+# ---------------------------------------------------------------------------
 # Attendance & Chronic Absenteeism
 # DESE accountability metric: share missing ≥10% of school days. LEHS hovers
 # near 50% — one of the most consequential numbers on the page.
@@ -1072,6 +1244,7 @@ try:
         'Teacher & staffing': _td,
         'Average class size': _cs,
         'Student mobility': _mob,
+        'Student attrition': _attr,
         'Attendance & chronic absenteeism': attendance,
         'Accountability': _acc,
     })
