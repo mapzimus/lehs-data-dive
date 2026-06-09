@@ -122,6 +122,7 @@ const state = {
     showCharterOverlay: false,
     showLynnSchools: true,
     showAllMaSchools: false,
+    schoolColorMode: "type",           // "type" | "focus" | EL_PCT | LI_PCT | SWD_PCT
     showLynnTown: true,
     showGatewayHighlight: true,
     studentGroup: "all",
@@ -389,6 +390,171 @@ function sampleColors(palette, n) {
 // off-white. We also style its outline differently (dashed) for clarity.
 const NO_DATA_COLOR = "#f0eee8";
 
+// ─── LYNN SCHOOLS — THE CENTERPIECE ──────────────────────────────────────────
+// This is the Lynn-focused map, so the school dots are the star (more prominent
+// here than in the statewide atlas). They are sized by enrollment, colored by a
+// switchable mode, carry their own size + color legends, and always render the
+// focus school (Lynn English High) in gold. Adapted from the atlas's school
+// layer (SCHOOL_RADIUS / SCHOOL_COLOR_BY_LEVEL / schoolDotRadius) but scaled to
+// Lynn's enrollment range (~26–1,727, not the statewide 0–55,000) and keyed on
+// this geojson's TYPE codes (ELE/MID/SEC/PRI/CHA/UNK), not TYPE_DESC strings.
+
+const LEHS_ORG_CODE = "01630510";   // Lynn English High — the focus school
+
+// School TYPE → label + categorical color. Order drives the color legend.
+const SCHOOL_TYPES = [
+    { key: "ELE", label: "Elementary",   color: "#1976D2" },
+    { key: "MID", label: "Middle",       color: "#F57C00" },
+    { key: "SEC", label: "High / 2ndary",color: "#C62828" },
+    { key: "PRI", label: "Private",      color: "#00897B" },
+    { key: "CHA", label: "Charter",      color: "#7B1FA2" },
+    { key: "UNK", label: "Other",        color: "#607D8B" },
+];
+
+// Demographic color-by options (sequential ramp on a 0–1 fraction). low→high.
+// 5-stop ramps re-using the catalog palettes so colors feel consistent.
+const SCHOOL_DEMO_MODES = {
+    EL_PCT:  { label: "% English Learner",          ramp: PALETTES.Greens.colors },
+    LI_PCT:  { label: "% Low Income",               ramp: PALETTES.Reds.colors },
+    SWD_PCT: { label: "% Students w/ Disabilities", ramp: PALETTES.Purples.colors },
+};
+
+// Enrollment → radius. Area ∝ enrollment ⇒ radius ∝ sqrt(enrollment); grows with
+// zoom (dots get bigger as you zoom in). Stops chosen for Lynn's range, with a
+// floor so the smallest schools stay visible. Schools with null TOTAL_CNT (the 9
+// private/charter) coalesce to a small fixed size so they appear but don't
+// dominate. Deliberately larger than the atlas's stops — this is the centerpiece.
+const SCHOOL_NULL_ENROLL = 90;   // fallback enrollment for sizing null schools
+// radius output for one zoom anchor: max(floor, k·sqrt(enrollment)), plus an
+// optional flat offset (used by the halo / LEHS-ring layers). The offset is
+// folded into the OUTPUT, not wrapped around the whole zoom interpolate —
+// MapLibre rejects ["+", <zoom-interpolate>, n] ("zoom expression may only be
+// used as input to a top-level step/interpolate").
+function _schoolRadiusOutput(floor, k, offset = 0) {
+    const core = ["max", floor, ["*", k, ["sqrt", ["to-number", ["coalesce", ["get", "TOTAL_CNT"], SCHOOL_NULL_ENROLL]]]]];
+    return offset ? ["+", offset, core] : core;
+}
+function _schoolRadiusExpr(offset = 0) {
+    return [
+        "interpolate", ["linear"], ["zoom"],
+        9,  _schoolRadiusOutput(3.5, 0.30, offset),
+        12, _schoolRadiusOutput(5,   0.62, offset),
+        15, _schoolRadiusOutput(7,   1.05, offset),
+    ];
+}
+const SCHOOL_RADIUS           = _schoolRadiusExpr(0);
+const SCHOOL_RADIUS_HALO      = _schoolRadiusExpr(3);
+const SCHOOL_RADIUS_LEHS_RING = _schoolRadiusExpr(6);
+
+// circle-color expression for each color mode. LEHS gold is layered on top via a
+// separate gold focus-ring layer, so these palettes don't need a LEHS branch
+// (except "focus" mode, where every non-LEHS school is muted grey).
+const SCHOOL_COLOR_BY_TYPE = [
+    "match", ["get", "TYPE"],
+    ...SCHOOL_TYPES.flatMap(t => [t.key, t.color]),
+    "#607D8B",
+];
+function schoolColorByDemo(metricId) {
+    const ramp = (SCHOOL_DEMO_MODES[metricId] || SCHOOL_DEMO_MODES.EL_PCT).ramp;
+    const stops = sampleColors(ramp, 5);
+    return [
+        "case",
+        ["==", ["typeof", ["get", metricId]], "number"],
+        ["interpolate", ["linear"], ["to-number", ["get", metricId]],
+            0,    stops[0],
+            0.25, stops[1],
+            0.50, stops[2],
+            0.75, stops[3],
+            1.0,  stops[4]],
+        "#cfd8dc",   // no demographic data (the 9 private/charter) → light grey
+    ];
+}
+const SCHOOL_COLOR_FOCUS = [
+    "case",
+    ["==", ["get", "ORG_CODE"], LEHS_ORG_CODE], "#FFB81C",
+    "#b0bcc6",
+];
+
+// Resolve the active circle-color expression from state.schoolColorMode, which is
+// one of: "type" | "focus" | a demographic metric id (EL_PCT/LI_PCT/SWD_PCT).
+function schoolColorExpression() {
+    const mode = state.schoolColorMode;
+    if (mode === "type")  return SCHOOL_COLOR_BY_TYPE;
+    if (mode === "focus") return SCHOOL_COLOR_FOCUS;
+    if (SCHOOL_DEMO_MODES[mode]) return schoolColorByDemo(mode);
+    return SCHOOL_COLOR_BY_TYPE;
+}
+
+// JS mirror of SCHOOL_RADIUS for the graduated-dot SIZE legend (so the key dots
+// match the on-map dots at the current zoom; recomputed on zoom).
+const SCHOOL_SIZE_LEGEND_ENROLLMENTS = [200, 800, 1700];
+function schoolDotRadius(enrollment, zoom) {
+    const sqrtE = Math.sqrt(enrollment);
+    const r9  = Math.max(3.5, 0.30 * sqrtE);
+    const r12 = Math.max(5,   0.62 * sqrtE);
+    const r15 = Math.max(7,   1.05 * sqrtE);
+    if (zoom <= 9)  return r9;
+    if (zoom <= 12) return r9  + (r12 - r9)  * (zoom - 9)  / 3;
+    if (zoom <= 15) return r12 + (r15 - r12) * (zoom - 12) / 3;
+    return r15;
+}
+
+// Apply the active color mode to the schools circle layer + toggle which legend
+// (categorical type swatches vs sequential demographic ramp) is shown.
+function applySchoolColorMode() {
+    if (map.getLayer("schools-circles")) {
+        map.setPaintProperty("schools-circles", "circle-color", schoolColorExpression());
+    }
+    renderSchoolColorLegend();
+}
+
+// Build the COLOR legend matching the active mode (categorical chips for "type"/
+// "focus", a gradient bar for a demographic). Lives in the schools panel section.
+function renderSchoolColorLegend() {
+    const el = document.getElementById("schoolColorLegend");
+    if (!el) return;
+    const mode = state.schoolColorMode;
+    let html = "";
+    if (mode === "type") {
+        html = SCHOOL_TYPES.map(t =>
+            `<span class="scl-chip"><span class="scl-sw" style="background:${t.color}"></span>${t.label}</span>`
+        ).join("");
+        html += `<span class="scl-chip"><span class="scl-sw scl-sw--lehs"></span>Lynn English (focus)</span>`;
+    } else if (mode === "focus") {
+        html = `<span class="scl-chip"><span class="scl-sw scl-sw--lehs"></span>Lynn English High</span>` +
+               `<span class="scl-chip"><span class="scl-sw" style="background:#b0bcc6"></span>All other schools</span>`;
+    } else {
+        const cfg = SCHOOL_DEMO_MODES[mode] || SCHOOL_DEMO_MODES.EL_PCT;
+        const stops = sampleColors(cfg.ramp, 5);
+        const grad = `linear-gradient(to right, ${stops.join(", ")})`;
+        html = `<div class="scl-bar" style="background:${grad}"></div>` +
+               `<div class="scl-axis"><span>0%</span><span>${cfg.label}</span><span>100%</span></div>` +
+               `<div class="scl-note">Grey dot = no data (private / charter)</div>`;
+    }
+    el.innerHTML = html;
+}
+
+// Graduated-dot SIZE legend for the schools layer — mirrors SCHOOL_RADIUS so the
+// key dots match the on-map dots at the current zoom (recomputed on zoom). Fill
+// is neutral grey — this key is about size (enrollment), not the color mode.
+function renderSchoolSizeLegend() {
+    const el = document.getElementById("schoolSizeLegend");
+    if (!el) return;
+    if (!el.childElementCount) {
+        el.innerHTML = SCHOOL_SIZE_LEGEND_ENROLLMENTS.map(e =>
+            `<span class="ssl-item"><span class="ssl-dot-wrap"><span class="ssl-dot"></span></span>` +
+            `<span class="ssl-label">${e.toLocaleString()}</span></span>`
+        ).join("");
+    }
+    const z = map.getZoom();
+    const dias = SCHOOL_SIZE_LEGEND_ENROLLMENTS.map(e => Math.max(6, Math.round(schoolDotRadius(e, z) * 2)));
+    el.style.setProperty("--ssl-h", Math.max(...dias) + "px");
+    el.querySelectorAll(".ssl-dot").forEach((dot, i) => {
+        dot.style.width = dias[i] + "px";
+        dot.style.height = dias[i] + "px";
+    });
+}
+
 function paintExpression(metricId, paletteName, classify, level) {
     const colors = PALETTES[paletteName].colors;
     const values = getValuesForLevel(level, metricId);
@@ -525,14 +691,17 @@ map.on("load", async () => {
 function addLayers() {
     // ── CHOROPLETH LAYERS (one visible at a time based on state.level) ───────
     // Use feature-state for hover highlights without re-styling
+    // Choropleth fill opacity is a touch lower than a standard atlas (0.68 vs
+    // ~0.8) so the school dots — the centerpiece of this Lynn map — pop off the
+    // backdrop. Hover still lifts to 0.85 for clear feedback.
     map.addLayer({
         id: "muni-fill", type: "fill", source: "municipalities",
         paint: {
             "fill-color": NO_DATA_COLOR,
             "fill-opacity": [
                 "case",
-                ["boolean", ["feature-state", "hover"], false], 0.92,
-                0.78
+                ["boolean", ["feature-state", "hover"], false], 0.85,
+                0.68
             ],
         },
         layout: { visibility: state.level === "muni" ? "visible" : "none" },
@@ -543,8 +712,8 @@ function addLayers() {
             "fill-color": NO_DATA_COLOR,
             "fill-opacity": [
                 "case",
-                ["boolean", ["feature-state", "hover"], false], 0.92,
-                0.78
+                ["boolean", ["feature-state", "hover"], false], 0.85,
+                0.68
             ],
         },
         layout: { visibility: state.level === "district" ? "visible" : "none" },
@@ -555,8 +724,8 @@ function addLayers() {
             "fill-color": NO_DATA_COLOR,
             "fill-opacity": [
                 "case",
-                ["boolean", ["feature-state", "hover"], false], 0.92,
-                0.78
+                ["boolean", ["feature-state", "hover"], false], 0.85,
+                0.68
             ],
         },
         layout: { visibility: state.level === "tract" ? "visible" : "none" },
@@ -710,42 +879,81 @@ function addLayers() {
         minzoom: 7,
     });
 
-    // ── LYNN SCHOOLS (point markers + labels) ────────────────────────────────
+    // ── LYNN SCHOOLS — THE CENTERPIECE (halo + proportional dots + focus ring) ─
+    // Soft white halo underneath each dot so schools pop off the choropleth
+    // backdrop regardless of the fill color behind them.
+    map.addLayer({
+        id: "schools-halo", type: "circle", source: "schools",
+        paint: {
+            "circle-radius": SCHOOL_RADIUS_HALO,
+            "circle-color": "#ffffff",
+            "circle-opacity": 0.55,
+            "circle-blur": 0.35,
+        },
+        layout: { visibility: state.showLynnSchools ? "visible" : "none" },
+    });
+    // Gold focus ring drawn UNDER the dot for Lynn English High only — a fat gold
+    // halo that reads as "special" no matter the active color mode. Filtered to
+    // the single LEHS feature so it never paints anywhere else.
+    map.addLayer({
+        id: "schools-lehs-ring", type: "circle", source: "schools",
+        filter: ["==", ["get", "ORG_CODE"], LEHS_ORG_CODE],
+        paint: {
+            "circle-radius": SCHOOL_RADIUS_LEHS_RING,
+            "circle-color": "rgba(0,0,0,0)",
+            "circle-stroke-color": "#FFB81C",
+            "circle-stroke-width": 4,
+            "circle-stroke-opacity": 0.95,
+        },
+        layout: { visibility: state.showLynnSchools ? "visible" : "none" },
+    });
+    // The proportional, color-coded school dots themselves.
     map.addLayer({
         id: "schools-circles", type: "circle", source: "schools",
         paint: {
-            "circle-radius": [
-                "interpolate", ["linear"], ["coalesce", ["get", "TOTAL_CNT"], 250],
-                100, 4, 500, 7, 1000, 11, 2000, 16,
-            ],
-            "circle-color": [
-                "case",
-                ["==", ["get", "ORG_CODE"], "01630510"], "#FFB81C",
-                "#0A1F44",
-            ],
+            "circle-radius": SCHOOL_RADIUS,
+            "circle-color": schoolColorExpression(),
             "circle-stroke-color": "#ffffff",
-            "circle-stroke-width": 2,
+            "circle-stroke-width": [
+                "case",
+                ["==", ["get", "ORG_CODE"], LEHS_ORG_CODE], 2.4,
+                1.6,
+            ],
             "circle-opacity": 0.95,
         },
         layout: { visibility: state.showLynnSchools ? "visible" : "none" },
     });
+    // School name labels — appear a touch earlier than before; LEHS label always
+    // shown (no collision-drop) and rendered bold/gold-haloed to stand out.
     map.addLayer({
         id: "schools-labels", type: "symbol", source: "schools",
         layout: {
             "text-field": ["get", "NAME"],
-            "text-font": ["Noto Sans Regular"],
-            "text-size": 10,
+            // text-font can't be data-driven reliably across MapLibre versions, so
+            // it stays static (Bold); LEHS emphasis is carried by a larger size,
+            // a gold halo, and always-on label visibility below.
+            "text-font": ["Noto Sans Bold"],
+            "text-size": [
+                "case",
+                ["==", ["get", "ORG_CODE"], LEHS_ORG_CODE], 13,
+                10,
+            ],
             "text-anchor": "top",
-            "text-offset": [0, 1.1],
-            "text-optional": true,
+            "text-offset": [0, 1.2],
+            "text-optional": ["!=", ["get", "ORG_CODE"], LEHS_ORG_CODE],
+            "text-allow-overlap": ["==", ["get", "ORG_CODE"], LEHS_ORG_CODE],
             "visibility": state.labels ? "visible" : "none",
         },
         paint: {
             "text-color": "#0A1F44",
-            "text-halo-color": "#ffffff",
-            "text-halo-width": 1.5,
+            "text-halo-color": [
+                "case",
+                ["==", ["get", "ORG_CODE"], LEHS_ORG_CODE], "#FFF3D6",
+                "#ffffff",
+            ],
+            "text-halo-width": 1.6,
         },
-        minzoom: 13,
+        minzoom: 12,
     });
 
     // ── CLICK HANDLERS ───────────────────────────────────────────────────────
@@ -876,26 +1084,84 @@ function fpRow(label, value, kind = "num", highlight = false) {
     return `<div class="feature-panel-row"><span class="label">${label}</span><span class="value${highlight ? ' highlight' : ''}">${v}</span></div>`;
 }
 
+// Turn the DESE grade string ("PK,K,01,02,...") into a friendly span ("PK–5").
+function formatGrades(gradesStr) {
+    if (!gradesStr) return "—";
+    const parts = String(gradesStr).split(",").map(s => s.trim()).filter(Boolean);
+    if (!parts.length) return "—";
+    const norm = g => (g === "PK" ? "PK" : g === "K" ? "K" : String(parseInt(g, 10)));
+    const first = norm(parts[0]);
+    const last = norm(parts[parts.length - 1]);
+    return parts.length === 1 ? first : `${first}–${last}`;
+}
+
+// Single labeled horizontal bar (value 0–1) for a school composition metric.
+function fpBarRow(label, value, color) {
+    if (value == null || !isFinite(+value)) return "";
+    const pct = Math.max(0, Math.min(100, +value * 100));
+    return `<div class="fp-bar-row">
+        <div class="fp-bar-head"><span class="fp-bar-label">${label}</span><span class="fp-bar-val">${pct.toFixed(1)}%</span></div>
+        <div class="fp-bar-track"><span class="fp-bar-fill" style="width:${pct}%;background:${color};"></span></div>
+    </div>`;
+}
+
+// Stacked single-row bar for the race/ethnicity breakdown.
+function fpStackBar(segments) {
+    const total = segments.reduce((a, s) => a + +s.v, 0) || 1;
+    const segHtml = segments.map(s =>
+        `<span class="fp-stack-seg" style="width:${(+s.v / total) * 100}%;background:${s.color};" title="${s.label}: ${(+s.v * 100).toFixed(1)}%"></span>`
+    ).join("");
+    const legHtml = segments.map(s =>
+        `<span class="fp-stack-key"><span class="fp-stack-sw" style="background:${s.color};"></span>${s.label} ${(+s.v * 100).toFixed(0)}%</span>`
+    ).join("");
+    return `<div class="fp-stack">${segHtml}</div><div class="fp-stack-legend">${legHtml}</div>`;
+}
+
+// "Student composition" section as labeled bars — the headline equity metrics.
+function buildSchoolCompositionSection(p) {
+    const bars = [
+        fpBarRow("English Learner", p.EL_PCT, "#43A047"),
+        fpBarRow("Low Income", p.LI_PCT, "#E53935"),
+        fpBarRow("High Needs", p.HN_PCT, "#8E24AA"),
+        fpBarRow("Students w/ Disabilities", p.SWD_PCT, "#5C6BC0"),
+        fpBarRow("First Lang. Not English", p.FLNE_PCT, "#00897B"),
+    ].join("");
+    if (!bars.trim()) return "";
+    return `<div class="feature-panel-section"><h3>Student composition</h3>${bars}</div>`;
+}
+
 function buildPanelHtml(p, kind) {
     if (kind === "school") {
-        const isLehs = p.ORG_CODE === "01630510";
+        const isLehs = p.ORG_CODE === LEHS_ORG_CODE;
+        const typeLabel = (SCHOOL_TYPES.find(t => t.key === p.TYPE) || {}).label || p.TYPE_DESC || "School";
+        const grades = formatGrades(p.GRADES);
+        const enrollHtml = (p.TOTAL_CNT != null && isFinite(+p.TOTAL_CNT))
+            ? `<div class="school-enroll-num">${(+p.TOTAL_CNT).toLocaleString()}</div><div class="school-enroll-lbl">students enrolled${p.SY ? ` · SY ${p.SY}` : ""}</div>`
+            : `<div class="school-enroll-lbl" style="font-style:italic;">No DESE enrollment / demographics reported (private or charter).</div>`;
+        // Race/ethnicity composition stacked bar (only when data present).
+        const raceParts = [
+            { label: "Hispanic / Latino", v: p.HL_PCT,  color: "#F57C00" },
+            { label: "Black / African Am.", v: p.BAA_PCT, color: "#7B1FA2" },
+            { label: "Asian", v: p.AS_PCT, color: "#1976D2" },
+            { label: "White", v: p.WH_PCT, color: "#90A4AE" },
+            { label: "Multi / Other", v: p.MNHL_PCT, color: "#26A69A" },
+        ].filter(s => s.v != null && isFinite(+s.v) && +s.v > 0);
         return `
-            ${isLehs ? '<div class="feature-panel-tag">Focus school</div>' : ""}
-            <div class="feature-panel-section">
-                <div class="feature-panel-row"><span class="label">Type</span><span class="value">${p.TYPE_DESC || "—"}</span></div>
-                <div class="feature-panel-row"><span class="label">Grades</span><span class="value">${p.GRADES || "—"}</span></div>
-                ${fpRow("Enrollment", p.TOTAL_CNT, "num")}
+            ${isLehs
+                ? '<div class="feature-panel-tag lehs-badge">★ Lynn English — focus school</div>'
+                : `<div class="school-type-pill" style="background:${(SCHOOL_TYPES.find(t => t.key === p.TYPE) || {}).color || "#607D8B"};">${typeLabel}</div>`}
+            <div class="feature-panel-section school-headline">
+                <div class="feature-panel-row"><span class="label">Type</span><span class="value">${typeLabel}${p.TYPE_DESC ? ` <span style="color:#90A4AE;font-weight:400;">(${p.TYPE_DESC})</span>` : ""}</span></div>
+                <div class="feature-panel-row"><span class="label">Grades</span><span class="value">${grades}</span></div>
+                ${p.ADDRESS ? `<div class="feature-panel-row"><span class="label">Address</span><span class="value" style="font-weight:400;text-align:right;">${p.ADDRESS}</span></div>` : ""}
+                <div class="school-enroll">${enrollHtml}</div>
             </div>
-            ${fpSection("Student composition", [
-                fpRow("% English Learner", p.EL_PCT, "pct"),
-                fpRow("% Low Income", p.LI_PCT, "pct"),
-                fpRow("% High Needs", p.HN_PCT, "pct"),
-                fpRow("% Hispanic/Latino", p.HL_PCT, "pct"),
-                fpRow("% Black/African Am.", p.BAA_PCT, "pct"),
-                fpRow("% Asian", p.AS_PCT, "pct"),
-                fpRow("% White", p.WH_PCT, "pct"),
-                fpRow("% SPED", p.SWD_PCT, "pct"),
-            ].join(""))}
+            ${buildSchoolCompositionSection(p)}
+            ${raceParts.length ? `
+                <div class="feature-panel-section">
+                    <h3>Race / ethnicity</h3>
+                    ${fpStackBar(raceParts)}
+                </div>` : ""}
         `;
     }
     if (kind === "tract") {
@@ -1344,7 +1610,7 @@ function wireUI() {
         "ref-academic-outline":  ["academic-outline"],
         "ref-voctech-overlay":   ["voctech-fill", "voctech-outline"],
         "ref-charter-overlay":   ["charter-fill", "charter-outline"],
-        "ref-lynn-schools":      ["schools-circles", "schools-labels"],
+        "ref-lynn-schools":      ["schools-halo", "schools-lehs-ring", "schools-circles", "schools-labels"],
         "ref-all-ma-schools":    ["ma-schools-circles"],
         "ref-lynn-town":         ["lynn-highlight-fill", "lynn-highlight-line"],
         "ref-gateway-highlight": ["gateway-highlight-fill", "gateway-highlight-line"],
@@ -1359,6 +1625,16 @@ function wireUI() {
             });
         });
     });
+
+    // Keep state.showLynnSchools + the size legend in sync with its toggle so the
+    // zoom-recompute guard and a freshly-re-enabled legend behave correctly.
+    const schoolsToggle = document.getElementById("ref-lynn-schools");
+    if (schoolsToggle) {
+        schoolsToggle.addEventListener("change", e => {
+            state.showLynnSchools = e.target.checked;
+            if (e.target.checked) renderSchoolSizeLegend();
+        });
+    }
 
     // 3D extrusion
     document.getElementById("toggle-3d").addEventListener("change", e => {
@@ -1375,6 +1651,25 @@ function wireUI() {
         if (map.getLayer("town-labels"))
             map.setLayoutProperty("town-labels", "visibility", e.target.checked ? "visible" : "none");
     });
+
+    // ── SCHOOL COLOR-MODE control (the centerpiece) ──────────────────────────
+    // A single dropdown drives the dot color: by Type, by a demographic, or the
+    // Lynn-English focus view. Repaints dots + swaps the color legend.
+    const schoolColorSel = document.getElementById("schoolColorMode");
+    if (schoolColorSel) {
+        schoolColorSel.value = state.schoolColorMode;
+        schoolColorSel.addEventListener("change", e => {
+            state.schoolColorMode = e.target.value;
+            applySchoolColorMode();
+        });
+    }
+    // Size legend recomputes on zoom so the key dots always match the map dots.
+    map.on("zoom", () => {
+        if (state.showLynnSchools) renderSchoolSizeLegend();
+    });
+    // Initial paint of both school legends.
+    renderSchoolSizeLegend();
+    renderSchoolColorLegend();
 
     // Quick views
     document.querySelectorAll(".view-btn").forEach(btn => {

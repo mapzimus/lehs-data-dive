@@ -13,7 +13,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
     <link rel="stylesheet" href="assets/style.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=20260609-schools">
 </head>
 <body class="maps-page">
 <a href="#main-content" class="skip-to-content">Skip to content</a>
@@ -160,8 +160,31 @@
             <label class="layer-row">
                 <input type="checkbox" id="ref-lynn-schools" checked>
                 <span class="layer-swatch swatch-schools"></span>
-                <span class="layer-name">Lynn schools (35)</span>
+                <span class="layer-name">Lynn schools (35) — featured</span>
             </label>
+
+            <!-- SCHOOL CENTERPIECE CONTROLS — color mode + size & color legends -->
+            <div class="schools-controls" id="schoolsControls">
+                <div class="schools-ctrl-label">Color school dots by</div>
+                <select id="schoolColorMode" class="select-input select-input--sm">
+                    <option value="type">School type (default)</option>
+                    <optgroup label="Demographic (% of students)">
+                        <option value="EL_PCT">% English Learner</option>
+                        <option value="LI_PCT">% Low Income</option>
+                        <option value="SWD_PCT">% Students w/ Disabilities</option>
+                    </optgroup>
+                    <option value="focus">Spotlight Lynn English High</option>
+                </select>
+
+                <div class="schools-ctrl-label" style="margin-top:10px;">Color key</div>
+                <div class="school-color-legend" id="schoolColorLegend"></div>
+
+                <div class="schools-ctrl-label" style="margin-top:10px;">Dot size <span class="schools-ctrl-hint">= students enrolled</span></div>
+                <div class="schools-size-legend" id="schoolSizeLegend" aria-hidden="true"></div>
+
+                <div class="schools-ctrl-note">Bigger dot = bigger school. <span class="lehs-key-dot"></span> gold ring = Lynn English High, this project's focus school. Click any dot for its full profile.</div>
+            </div>
+
             <label class="layer-row">
                 <input type="checkbox" id="ref-all-ma-schools">
                 <span class="layer-swatch swatch-ma-schools"></span>
@@ -298,6 +321,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 </script>
-<script src="app.js"></script>
+<script src="app.js?v=20260609-schools"></script>
 </body>
 </html>

@@ -212,7 +212,7 @@ body.maps-page {
     flex-shrink: 0;
     border: 1px solid rgba(0,0,0,0.1);
 }
-.swatch-schools         { background: var(--lehs-gold); border-radius: 50%; }
+.swatch-schools         { background: var(--lehs-gold); border-radius: 50%; box-shadow: 0 0 0 2px rgba(255,184,28,0.4); }
 .swatch-gateway         { background: rgba(156, 39, 176, 0.25); border: 2px solid #6a1b9a; }
 .swatch-muni-outline    { background: transparent; border: 1.5px solid #78909c; }
 .swatch-academic-outline{ background: transparent; border: 1.8px solid #1a3a6b; }
@@ -220,6 +220,107 @@ body.maps-page {
 .swatch-charter-overlay { background: rgba(0, 137, 123, 0.15); border: 1.3px dotted #00695C; }
 .swatch-ma-schools      { background: #1976D2; border-radius: 50%; }
 .swatch-lynn            { background: rgba(255, 184, 28, 0.3); border: 2px solid var(--lehs-navy); }
+
+/* ============================================================================
+   SCHOOL CENTERPIECE — color-mode control, size legend, color legend
+   The school dots are the star of this Lynn map, so their controls get a
+   dedicated, slightly-recessed block under the "Lynn schools" toggle.
+   ============================================================================ */
+.schools-controls {
+    margin: 4px 0 10px 24px;
+    padding: 10px 12px;
+    background: rgba(10, 31, 68, 0.035);
+    border: 1px solid var(--panel-border);
+    border-left: 3px solid var(--lehs-gold);
+    border-radius: 0 6px 6px 0;
+}
+.schools-ctrl-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--lehs-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 5px;
+}
+.schools-ctrl-hint { font-weight: 400; text-transform: none; letter-spacing: 0; color: #90A4AE; }
+.select-input--sm { padding: 6px 9px; font-size: 12px; }
+.schools-ctrl-note {
+    margin-top: 9px;
+    font-size: 10.5px;
+    line-height: 1.45;
+    color: #607D8B;
+}
+.lehs-key-dot {
+    display: inline-block;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--lehs-gold);
+    box-shadow: 0 0 0 2px rgba(255,184,28,0.45);
+    vertical-align: middle;
+    margin: 0 1px;
+}
+
+/* Color legend — categorical chips OR a sequential gradient bar */
+.school-color-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px 10px;
+}
+.scl-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--lehs-navy);
+    white-space: nowrap;
+}
+.scl-sw {
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.18);
+}
+.scl-sw--lehs { background: var(--lehs-gold); box-shadow: 0 0 0 2px rgba(255,184,28,0.5); }
+.scl-bar {
+    width: 100%;
+    height: 12px;
+    border-radius: 3px;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+.scl-axis {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9.5px;
+    color: #607D8B;
+    margin-top: 3px;
+}
+.scl-axis span:nth-child(2) { font-weight: 600; color: var(--lehs-navy); }
+.scl-note { font-size: 9.5px; font-style: italic; color: #90A4AE; margin-top: 3px; }
+
+/* Graduated-dot SIZE legend — grey dots keyed to enrollment. Diameters set
+   inline by renderSchoolSizeLegend() to match the on-map dots at current zoom. */
+.schools-size-legend {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    padding: 4px 2px 0;
+    min-height: calc(var(--ssl-h, 16px) + 2px);
+}
+.ssl-item { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.ssl-dot-wrap { height: var(--ssl-h, 16px); display: flex; align-items: flex-end; }
+.ssl-dot {
+    display: block;
+    border-radius: 50%;
+    background: #607D8B;
+    border: 1px solid #ffffff;
+    box-shadow: 0 0 0 0.6px rgba(10, 31, 68, 0.35);
+}
+.ssl-label {
+    font-size: 10px;
+    color: var(--lehs-navy);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
 
 /* Form labels for select inputs */
 .form-label {
@@ -509,6 +610,93 @@ body.maps-page {
     padding: 1px 6px;
     border-radius: 3px;
     font-weight: 600;
+}
+
+/* ── Rich SCHOOL detail card ────────────────────────────────────────────── */
+.feature-panel-tag.lehs-badge {
+    background: var(--lehs-gold);
+    color: var(--lehs-navy);
+    box-shadow: 0 1px 6px rgba(255, 184, 28, 0.5);
+}
+.school-type-pill {
+    display: inline-block;
+    padding: 3px 10px;
+    color: #fff;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+}
+.school-headline .feature-panel-row .value { text-align: right; }
+.school-enroll {
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: rgba(10, 31, 68, 0.05);
+    border-radius: 6px;
+    text-align: center;
+}
+.school-enroll-num {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--lehs-navy);
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+}
+.school-enroll-lbl { font-size: 11px; color: #607D8B; margin-top: 2px; }
+
+/* Labeled composition bars */
+.fp-bar-row { margin: 6px 0; }
+.fp-bar-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    margin-bottom: 2px;
+}
+.fp-bar-label { color: #455A64; }
+.fp-bar-val { color: var(--lehs-navy); font-weight: 600; font-variant-numeric: tabular-nums; }
+.fp-bar-track {
+    height: 8px;
+    background: rgba(10, 31, 68, 0.08);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.fp-bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: 4px;
+    min-width: 2px;
+    transition: width 0.3s ease;
+}
+
+/* Stacked race/ethnicity bar */
+.fp-stack {
+    display: flex;
+    height: 16px;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+}
+.fp-stack-seg { display: block; height: 100%; }
+.fp-stack-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px 10px;
+    margin-top: 7px;
+}
+.fp-stack-key {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10.5px;
+    color: #455A64;
+    white-space: nowrap;
+}
+.fp-stack-sw {
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
 }
 
 @media (max-width: 768px) {
