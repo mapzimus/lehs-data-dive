@@ -483,6 +483,10 @@ if not class_size.empty:
             st.metric("State average (SY 2025)", "17.2 students")
         # By subject
         by_subj = latest[~latest["SUBJ"].astype(str).str.lower().isin(["all", "all subjects"])]
+        # LEHS doesn't teach every DESE subject category (e.g. the CH74-* career
+        # pathways, Geography, Human Services). Those come back as 0.0 and just
+        # clutter the chart — keep only subjects that actually have classes.
+        by_subj = by_subj[by_subj["AVG_CLSS_CNT"] > 0]
         by_subj = by_subj.sort_values("AVG_CLSS_CNT")
         if not by_subj.empty:
             by_subj["label"] = by_subj["AVG_CLSS_CNT"].apply(lambda x: f"{x:.1f}")

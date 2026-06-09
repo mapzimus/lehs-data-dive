@@ -55,12 +55,11 @@ with c4:
     st.metric("% Hispanic/Latino", f"{current['HL_PCT']:.0%}")
 
 st.caption(
-    f"Heads up on two EL counts on this page: this **enrolled** figure "
-    f"({int(current['EL_CNT']):,}, from the SY {enroll_sy_lbl} enrollment file) "
-    "is the number of students currently flagged English Learner. Further down, "
-    "the ACCESS section reports a larger **ELs-assessed** count from a different "
-    "year's testing file — a different denominator (everyone who sat the ACCESS "
-    "test that spring), so the two numbers are not meant to match."
+    f"**Two EL counts appear on this page.** The **{int(current['EL_CNT']):,} enrolled** "
+    "figure above counts students currently flagged as English Learners. "
+    "The ACCESS section below reports a different number — students who sat the "
+    "ACCESS test that spring — so the two figures measure different populations "
+    "and will not match."
 )
 
 fig = go.Figure()

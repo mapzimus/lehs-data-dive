@@ -714,23 +714,47 @@ if not sgp.empty:
 
     if sgp3["AVG_SGP"].notna().any():
         st.markdown(f"**Growth Over Time — {SUBJECT_MAP[sgp_subj]}: LEHS vs. Lynn vs. Massachusetts**")
+        scope_colors = {"LEHS": LEHS_GOLD, "Lynn district": LEHS_NAVY, "Massachusetts": STATE_COLOR}
         fig = px.line(
             sgp3, x="SY", y="AVG_SGP", color="Scope", markers=True,
-            color_discrete_map={"LEHS": LEHS_GOLD, "Lynn district": LEHS_NAVY, "Massachusetts": STATE_COLOR},
+            color_discrete_map=scope_colors,
         )
+        # Real data stays broken at the 2020 NaN (no fake dot) — markers + solid line only on measured years.
         fig.update_traces(connectgaps=False, line=dict(width=3), marker=dict(size=8))
+        # Dashed bridge across the COVID gap: connect 2019 -> 2021 per series so the trend reads as
+        # continuous, but dashed (not solid) to signal that 2020 was never measured.
+        for scope, color in scope_colors.items():
+            seg = sgp3[(sgp3["Scope"] == scope) & (sgp3["SY"].isin([2019, 2021]))].sort_values("SY")
+            if len(seg) == 2 and seg["AVG_SGP"].notna().all():
+                fig.add_trace(go.Scatter(
+                    x=seg["SY"], y=seg["AVG_SGP"], mode="lines",
+                    line=dict(color=color, width=3, dash="dot"),
+                    showlegend=False, hoverinfo="skip",
+                ))
         fig.add_hline(y=50, line_dash="dash", line_color="gray",
                       annotation_text="Typical growth (50)", annotation_position="right")
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Average SGP",
                           xaxis_title="School Year", yaxis_range=[0, 100])
+        # Mark 2020 on the axis with an asterisk (see footnote) — the year stays on the axis but
+        # carries no test; pinning every year as a tick keeps the labels from auto-thinning.
+        fig.update_xaxes(
+            tickmode="array",
+            tickvals=list(MCAS_YEARS),
+            ticktext=[f"{y}*" if y == 2020 else str(y) for y in MCAS_YEARS],
+        )
         st.plotly_chart(fig, use_container_width=True)
         st.caption(
             "**By definition the typical student grows at 50, so the Massachusetts "
             "line sits near 50 every year.** LEHS (gold) and the Lynn district (navy) "
             "in the 40s means students here grow a little slower than similar "
             "students statewide — but nowhere near as far back as the achievement "
-            "gap implies. The lines break at 2020 (MCAS waived); 2021 used a "
-            "COVID-era baseline, so read that point as directional."
+            "gap implies. The dashed segment bridges 2020\\*, when MCAS was waived, so "
+            "read it as a connector rather than a measured trend; 2021 used a COVID-era "
+            "baseline, so treat that point as directional."
+        )
+        st.caption(
+            "\\*2020 — no MCAS was administered statewide (COVID-19), so no growth "
+            "score exists for that year."
         )
 
     # --- SGP by student group, year by year (heatmap) ---
