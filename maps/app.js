@@ -102,6 +102,16 @@ const METRICS = [
     { id:"foreign_born_pct",         label:"% Foreign-born",             cat:"Tract — Census ACS", levels:["tract"], palette:"Purples", format:"pct" },
     { id:"bachelors_or_higher_pct",  label:"% Bachelor's or higher",     cat:"Tract — Census ACS", levels:["tract"], palette:"Blues",   format:"pct" },
     { id:"severe_burden_pct",        label:"% Severely Rent-Burdened",   cat:"Tract — Census ACS", levels:["tract"], palette:"Reds",    format:"pct" },
+
+    // Tract — Community Health (CDC PLACES model-based adult prevalence; values
+    // are already on a 0-100 scale, so format:"pctnum" — NOT "pct" which ×100s).
+    { id:"obesity_pct",          label:"% Adults: obesity",                  cat:"Tract — Community Health", levels:["tract"], palette:"Reds",    format:"pctnum" },
+    { id:"diabetes_pct",         label:"% Adults: diabetes",                 cat:"Tract — Community Health", levels:["tract"], palette:"Reds",    format:"pctnum" },
+    { id:"high_bp_pct",          label:"% Adults: high blood pressure",      cat:"Tract — Community Health", levels:["tract"], palette:"Reds",    format:"pctnum" },
+    { id:"asthma_pct",           label:"% Adults: current asthma",           cat:"Tract — Community Health", levels:["tract"], palette:"Oranges", format:"pctnum" },
+    { id:"smoking_pct",          label:"% Adults: smoking",                  cat:"Tract — Community Health", levels:["tract"], palette:"Oranges", format:"pctnum" },
+    { id:"mental_distress_pct",  label:"% Adults: frequent mental distress", cat:"Tract — Community Health", levels:["tract"], palette:"Purples", format:"pctnum" },
+    { id:"no_leisure_phys_pct",  label:"% Adults: no leisure phys. activity",cat:"Tract — Community Health", levels:["tract"], palette:"Oranges", format:"pctnum" },
 ];
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
@@ -337,6 +347,7 @@ function stopYearAnimation() {
 function fmt(value, kind) {
     if (value == null || !isFinite(value)) return "—";
     if (kind === "pct") return `${(value * 100).toFixed(1)}%`;
+    if (kind === "pctnum") return `${value.toFixed(1)}%`;  // already on a 0-100 scale (CDC PLACES)
     if (kind === "usd") return `$${Math.round(value).toLocaleString()}`;
     return Math.round(value).toLocaleString();
 }
@@ -362,6 +373,9 @@ const POLARITY_GOOD_IDS = new Set([
 ]);
 const POLARITY_CONCERN_IDS = new Set([
     "dropout_pct", "chronic_absent_pct", "severe_burden_pct",
+    // CDC PLACES adult-health burdens: higher = worse community health.
+    "obesity_pct", "diabetes_pct", "high_bp_pct", "asthma_pct", "smoking_pct",
+    "mental_distress_pct", "no_leisure_phys_pct",
     // Equity-need shares: "higher = more of a high-need group". On this Lynn map
     // these read as "more concentrated need", so a warm ramp is the honest cue.
     "LI_PCT", "HN_PCT", "EL_PCT", "SWD_PCT",
