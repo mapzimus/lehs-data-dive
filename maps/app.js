@@ -102,6 +102,16 @@ const METRICS = [
     { id:"foreign_born_pct",         label:"% Foreign-born",             cat:"Tract — Census ACS", levels:["tract"], palette:"Purples", format:"pct" },
     { id:"bachelors_or_higher_pct",  label:"% Bachelor's or higher",     cat:"Tract — Census ACS", levels:["tract"], palette:"Blues",   format:"pct" },
     { id:"severe_burden_pct",        label:"% Severely Rent-Burdened",   cat:"Tract — Census ACS", levels:["tract"], palette:"Reds",    format:"pct" },
+
+    // Tract — Community Health (CDC PLACES model-based adult prevalence; values
+    // are already on a 0-100 scale, so format:"pctnum" — NOT "pct" which ×100s).
+    { id:"obesity_pct",          label:"% Adults: obesity",                  cat:"Tract — Community Health", levels:["tract"], palette:"Reds",    format:"pctnum" },
+    { id:"diabetes_pct",         label:"% Adults: diabetes",                 cat:"Tract — Community Health", levels:["tract"], palette:"Reds",    format:"pctnum" },
+    { id:"high_bp_pct",          label:"% Adults: high blood pressure",      cat:"Tract — Community Health", levels:["tract"], palette:"Reds",    format:"pctnum" },
+    { id:"asthma_pct",           label:"% Adults: current asthma",           cat:"Tract — Community Health", levels:["tract"], palette:"Oranges", format:"pctnum" },
+    { id:"smoking_pct",          label:"% Adults: smoking",                  cat:"Tract — Community Health", levels:["tract"], palette:"Oranges", format:"pctnum" },
+    { id:"mental_distress_pct",  label:"% Adults: frequent mental distress", cat:"Tract — Community Health", levels:["tract"], palette:"Purples", format:"pctnum" },
+    { id:"no_leisure_phys_pct",  label:"% Adults: no leisure phys. activity",cat:"Tract — Community Health", levels:["tract"], palette:"Oranges", format:"pctnum" },
 ];
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
@@ -122,14 +132,89 @@ const state = {
     showCharterOverlay: false,
     showLynnSchools: true,
     showAllMaSchools: false,
+    schoolColorMode: "type",           // "type" | "focus" | EL_PCT | LI_PCT | SWD_PCT
     showLynnTown: true,
     showGatewayHighlight: true,
     studentGroup: "all",
     year: 2026,
     playing: false,
+    theme: "light",                    // "light" | "dark" — drives the basemap swap
+    // Bivariate (two-metric 3×3) mode. metric A is the normal state.metric; B + the
+    // bivar palette live here. Off by default — single-metric is the landing view.
+    bivariate: false,
+    bivarMetricB: null,                // resolved to a sensible default on first enable
+    bivarPalette: "greenblue",
+};
+
+// 3×3 bivariate palettes (Stevens). Colors are flat-indexed: row = metric A
+// tertile (0=low, 2=high), col = metric B tertile (0=low, 2=high), so
+// colors[tA*3 + tB]. Low/low is the lightest corner; high/high is the darkest.
+// Ported from the statewide atlas (BIVAR_PALETTES); a curated subset.
+const BIVAR_PALETTES = {
+    greenblue:   { name: "Green × Blue",    colors: ["#e8e8e8","#b8d6be","#73ae80","#b5c0da","#90b2b3","#5a9178","#6c83b5","#567994","#2a5a5b"] },
+    pinkblue:    { name: "Pink × Blue",     colors: ["#e8e8e8","#b0d5df","#64acbe","#e4acac","#ad9ea5","#627f8c","#c85a5a","#985356","#574249"] },
+    purpleteal:  { name: "Purple × Teal",   colors: ["#e8e8e8","#ace4e4","#5ac8c8","#dfb0d6","#a5add3","#5698b9","#be64ac","#8c62aa","#3b4994"] },
+    purplegold:  { name: "Purple × Gold",   colors: ["#e8e8e8","#e4d9ac","#c8b35a","#cbb8d7","#c8ada0","#af8e53","#9972af","#976b82","#804d36"] },
+    redgreen:    { name: "Red × Green",     colors: ["#e8e8e8","#bcd1c2","#91ba9c","#dec0bc","#b3a996","#879270","#d49891","#a9816b","#675738"] },
+    blueyellow:  { name: "Blue × Yellow",   colors: ["#e8e8e8","#e0d6b8","#d8c588","#bbc3d1","#b3b2a1","#aba070","#8e9eba","#868c8a","#676549"] },
 };
 
 let GEO_DATA = null;  // populated after load
+
+// Assigned by setupLegendCustomization(); lets updateLegend() re-clamp a moved/
+// resized legend after its content height changes. No-op until wired.
+let _legendClamp = null;
+
+// ─── THEME (light / dark) ────────────────────────────────────────────────────
+// Token-based dark mode: a [data-theme] attr on <html> flips the CSS custom
+// properties (see style.css), and we swap the basemap to a dark raster +
+// re-halo our own labels for legibility. Persisted to localStorage; respected
+// on load. Adapted from the statewide atlas (applyTheme/toggleTheme/initTheme),
+// but this Lynn map loads the Positron style directly, so the basemap swap
+// hides Positron's own vector layers and shows a CARTO dark raster instead
+// (see addDarkBasemap() + applyThemeBasemap()).
+function currentTheme() {
+    return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+}
+function syncThemeButton() {
+    const dark = currentTheme() === "dark";
+    const btn = document.getElementById("themeToggle");
+    if (btn) {
+        btn.setAttribute("aria-pressed", dark ? "true" : "false");
+        btn.title = dark ? "Switch to light mode" : "Switch to dark mode";
+    }
+    // Show the sun icon in light mode, the moon in dark mode.
+    document.querySelectorAll("[data-theme-ico]").forEach(el => {
+        el.style.display = ((el.dataset.themeIco === "dark") === dark) ? "" : "none";
+    });
+}
+function applyTheme(theme, opts = {}) {
+    const dark = theme === "dark";
+    state.theme = dark ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    syncThemeButton();
+    // Swap the basemap once the map + dark layer exist (skipped at first paint;
+    // initTheme seeds the attr and the load handler paints the right base).
+    if (!opts.skipBasemap && typeof map !== "undefined" && map.getLayer && map.getLayer("dark-base")) {
+        applyThemeBasemap(dark ? "dark" : "light");
+    }
+    try { localStorage.setItem("lynn-maps-theme", dark ? "dark" : "light"); } catch (e) {}
+}
+function toggleTheme() { applyTheme(currentTheme() === "dark" ? "light" : "dark"); }
+
+// Run at module load (DOM parsed; map not yet created). Sets the chrome from the
+// saved preference / OS setting so the FIRST paint already carries the theme; the
+// load handler then paints the matching basemap (no light flash in dark mode).
+function initTheme() {
+    let t = null;
+    try { t = localStorage.getItem("lynn-maps-theme"); } catch (e) {}
+    if (t !== "dark" && t !== "light") {
+        t = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+    }
+    state.theme = t;
+    document.documentElement.setAttribute("data-theme", t);
+}
+initTheme();
 
 // Year-keyed schema introspection. After load, for each (level, baseMetric)
 // pair we record which years actually have data — drives the slider availability
@@ -262,11 +347,72 @@ function stopYearAnimation() {
 function fmt(value, kind) {
     if (value == null || !isFinite(value)) return "—";
     if (kind === "pct") return `${(value * 100).toFixed(1)}%`;
+    if (kind === "pctnum") return `${value.toFixed(1)}%`;  // already on a 0-100 scale (CDC PLACES)
     if (kind === "usd") return `$${Math.round(value).toLocaleString()}`;
     return Math.round(value).toLocaleString();
 }
 
 function getMetric(id) { return METRICS.find(m => m.id === id) || METRICS[0]; }
+
+// ─── METRIC POLARITY + SEMANTIC PALETTES ─────────────────────────────────────
+// A metric's inherent direction, independent of the chosen palette:
+//   "good"    higher = better  (graduation, attendance, college-going, income…)
+//   "concern" higher = worse   (dropout, chronic absenteeism, rent burden…)
+//   "neutral" no value judgment (raw counts, demographic shares, ratios…)
+// Drives both the plain-language legend caption and the auto-picked semantic
+// palette. Adapted from the atlas's metricPolarity/semanticPalette, but this
+// Lynn catalog is small, so we classify with explicit id/category lists rather
+// than the atlas's broad category sets.
+const POLARITY_GOOD_IDS = new Set([
+    "grad_4yr", "grad_5yr", "attendance_rate", "masscore_pct", "ap_pct_3plus",
+    "mcas_g10_ela_me", "mcas_g10_math_me", "mcas_g10_sci_me",
+    "mcas_g38_ela_me", "mcas_g38_math_me",
+    "pct_any_college", "pct_4yr_college", "pct_2yr_college",
+    "teacher_experienced_pct", "teacher_infield_pct", "teacher_retention_pct",
+    "median_household_income", "bachelors_or_higher_pct",
+]);
+const POLARITY_CONCERN_IDS = new Set([
+    "dropout_pct", "chronic_absent_pct", "severe_burden_pct",
+    // CDC PLACES adult-health burdens: higher = worse community health.
+    "obesity_pct", "diabetes_pct", "high_bp_pct", "asthma_pct", "smoking_pct",
+    "mental_distress_pct", "no_leisure_phys_pct",
+    // Equity-need shares: "higher = more of a high-need group". On this Lynn map
+    // these read as "more concentrated need", so a warm ramp is the honest cue.
+    "LI_PCT", "HN_PCT", "EL_PCT", "SWD_PCT",
+]);
+function metricPolarity(m) {
+    if (!m) return "neutral";
+    if (POLARITY_CONCERN_IDS.has(m.id)) return "concern";
+    if (POLARITY_GOOD_IDS.has(m.id))    return "good";
+    return "neutral";
+}
+// Semantic palette default by meaning: a "bad when high" metric → a warm Reds/
+// Oranges ramp; a "good when high" metric → a cool Greens/Blues ramp; neutral →
+// the metric's own catalog palette. The user can still override via the palette
+// selector. Kept lightweight: one map + a polarity fallback.
+const SEM_GOOD_PALETTE    = "Greens";   // higher = better → cool/green
+const SEM_CONCERN_PALETTE = "Reds";     // higher = worse  → warm/red
+function semanticPalette(m) {
+    if (!m) return SEM_GOOD_PALETTE;
+    const pol = metricPolarity(m);
+    if (pol === "concern") return SEM_CONCERN_PALETTE;
+    if (pol === "good")    return SEM_GOOD_PALETTE;
+    return m.palette;   // neutral — keep the catalog's own ramp
+}
+// One plain-language sentence describing how to read the active color ramp:
+// which way is "higher", and (where the metric has a clear direction) whether
+// darker is better or worse. The default ramps paint high = dark.
+function legendCaptionText() {
+    const m = getMetric(state.metric);
+    let s = "Darker = higher values";
+    const pol = metricPolarity(m);
+    if (pol !== "neutral") {
+        // Default ramps put the dark end at the HIGH end, so darker-is-good iff
+        // the metric is "good when high".
+        s += (pol === "good") ? " — darker is better" : " — darker is worse";
+    }
+    return s + ".";
+}
 
 // Convert numeric-looking string property values to real numbers in place,
 // for every feature in a GeoJSON FeatureCollection. Necessary because some
@@ -389,6 +535,171 @@ function sampleColors(palette, n) {
 // off-white. We also style its outline differently (dashed) for clarity.
 const NO_DATA_COLOR = "#f0eee8";
 
+// ─── LYNN SCHOOLS — THE CENTERPIECE ──────────────────────────────────────────
+// This is the Lynn-focused map, so the school dots are the star (more prominent
+// here than in the statewide atlas). They are sized by enrollment, colored by a
+// switchable mode, carry their own size + color legends, and always render the
+// focus school (Lynn English High) in gold. Adapted from the atlas's school
+// layer (SCHOOL_RADIUS / SCHOOL_COLOR_BY_LEVEL / schoolDotRadius) but scaled to
+// Lynn's enrollment range (~26–1,727, not the statewide 0–55,000) and keyed on
+// this geojson's TYPE codes (ELE/MID/SEC/PRI/CHA/UNK), not TYPE_DESC strings.
+
+const LEHS_ORG_CODE = "01630510";   // Lynn English High — the focus school
+
+// School TYPE → label + categorical color. Order drives the color legend.
+const SCHOOL_TYPES = [
+    { key: "ELE", label: "Elementary",   color: "#1976D2" },
+    { key: "MID", label: "Middle",       color: "#F57C00" },
+    { key: "SEC", label: "High / 2ndary",color: "#C62828" },
+    { key: "PRI", label: "Private",      color: "#00897B" },
+    { key: "CHA", label: "Charter",      color: "#7B1FA2" },
+    { key: "UNK", label: "Other",        color: "#607D8B" },
+];
+
+// Demographic color-by options (sequential ramp on a 0–1 fraction). low→high.
+// 5-stop ramps re-using the catalog palettes so colors feel consistent.
+const SCHOOL_DEMO_MODES = {
+    EL_PCT:  { label: "% English Learner",          ramp: PALETTES.Greens.colors },
+    LI_PCT:  { label: "% Low Income",               ramp: PALETTES.Reds.colors },
+    SWD_PCT: { label: "% Students w/ Disabilities", ramp: PALETTES.Purples.colors },
+};
+
+// Enrollment → radius. Area ∝ enrollment ⇒ radius ∝ sqrt(enrollment); grows with
+// zoom (dots get bigger as you zoom in). Stops chosen for Lynn's range, with a
+// floor so the smallest schools stay visible. Schools with null TOTAL_CNT (the 9
+// private/charter) coalesce to a small fixed size so they appear but don't
+// dominate. Deliberately larger than the atlas's stops — this is the centerpiece.
+const SCHOOL_NULL_ENROLL = 90;   // fallback enrollment for sizing null schools
+// radius output for one zoom anchor: max(floor, k·sqrt(enrollment)), plus an
+// optional flat offset (used by the halo / LEHS-ring layers). The offset is
+// folded into the OUTPUT, not wrapped around the whole zoom interpolate —
+// MapLibre rejects ["+", <zoom-interpolate>, n] ("zoom expression may only be
+// used as input to a top-level step/interpolate").
+function _schoolRadiusOutput(floor, k, offset = 0) {
+    const core = ["max", floor, ["*", k, ["sqrt", ["to-number", ["coalesce", ["get", "TOTAL_CNT"], SCHOOL_NULL_ENROLL]]]]];
+    return offset ? ["+", offset, core] : core;
+}
+function _schoolRadiusExpr(offset = 0) {
+    return [
+        "interpolate", ["linear"], ["zoom"],
+        9,  _schoolRadiusOutput(3.5, 0.30, offset),
+        12, _schoolRadiusOutput(5,   0.62, offset),
+        15, _schoolRadiusOutput(7,   1.05, offset),
+    ];
+}
+const SCHOOL_RADIUS           = _schoolRadiusExpr(0);
+const SCHOOL_RADIUS_HALO      = _schoolRadiusExpr(3);
+const SCHOOL_RADIUS_LEHS_RING = _schoolRadiusExpr(6);
+
+// circle-color expression for each color mode. LEHS gold is layered on top via a
+// separate gold focus-ring layer, so these palettes don't need a LEHS branch
+// (except "focus" mode, where every non-LEHS school is muted grey).
+const SCHOOL_COLOR_BY_TYPE = [
+    "match", ["get", "TYPE"],
+    ...SCHOOL_TYPES.flatMap(t => [t.key, t.color]),
+    "#607D8B",
+];
+function schoolColorByDemo(metricId) {
+    const ramp = (SCHOOL_DEMO_MODES[metricId] || SCHOOL_DEMO_MODES.EL_PCT).ramp;
+    const stops = sampleColors(ramp, 5);
+    return [
+        "case",
+        ["==", ["typeof", ["get", metricId]], "number"],
+        ["interpolate", ["linear"], ["to-number", ["get", metricId]],
+            0,    stops[0],
+            0.25, stops[1],
+            0.50, stops[2],
+            0.75, stops[3],
+            1.0,  stops[4]],
+        "#cfd8dc",   // no demographic data (the 9 private/charter) → light grey
+    ];
+}
+const SCHOOL_COLOR_FOCUS = [
+    "case",
+    ["==", ["get", "ORG_CODE"], LEHS_ORG_CODE], "#FFB81C",
+    "#b0bcc6",
+];
+
+// Resolve the active circle-color expression from state.schoolColorMode, which is
+// one of: "type" | "focus" | a demographic metric id (EL_PCT/LI_PCT/SWD_PCT).
+function schoolColorExpression() {
+    const mode = state.schoolColorMode;
+    if (mode === "type")  return SCHOOL_COLOR_BY_TYPE;
+    if (mode === "focus") return SCHOOL_COLOR_FOCUS;
+    if (SCHOOL_DEMO_MODES[mode]) return schoolColorByDemo(mode);
+    return SCHOOL_COLOR_BY_TYPE;
+}
+
+// JS mirror of SCHOOL_RADIUS for the graduated-dot SIZE legend (so the key dots
+// match the on-map dots at the current zoom; recomputed on zoom).
+const SCHOOL_SIZE_LEGEND_ENROLLMENTS = [200, 800, 1700];
+function schoolDotRadius(enrollment, zoom) {
+    const sqrtE = Math.sqrt(enrollment);
+    const r9  = Math.max(3.5, 0.30 * sqrtE);
+    const r12 = Math.max(5,   0.62 * sqrtE);
+    const r15 = Math.max(7,   1.05 * sqrtE);
+    if (zoom <= 9)  return r9;
+    if (zoom <= 12) return r9  + (r12 - r9)  * (zoom - 9)  / 3;
+    if (zoom <= 15) return r12 + (r15 - r12) * (zoom - 12) / 3;
+    return r15;
+}
+
+// Apply the active color mode to the schools circle layer + toggle which legend
+// (categorical type swatches vs sequential demographic ramp) is shown.
+function applySchoolColorMode() {
+    if (map.getLayer("schools-circles")) {
+        map.setPaintProperty("schools-circles", "circle-color", schoolColorExpression());
+    }
+    renderSchoolColorLegend();
+}
+
+// Build the COLOR legend matching the active mode (categorical chips for "type"/
+// "focus", a gradient bar for a demographic). Lives in the schools panel section.
+function renderSchoolColorLegend() {
+    const el = document.getElementById("schoolColorLegend");
+    if (!el) return;
+    const mode = state.schoolColorMode;
+    let html = "";
+    if (mode === "type") {
+        html = SCHOOL_TYPES.map(t =>
+            `<span class="scl-chip"><span class="scl-sw" style="background:${t.color}"></span>${t.label}</span>`
+        ).join("");
+        html += `<span class="scl-chip"><span class="scl-sw scl-sw--lehs"></span>Lynn English (focus)</span>`;
+    } else if (mode === "focus") {
+        html = `<span class="scl-chip"><span class="scl-sw scl-sw--lehs"></span>Lynn English High</span>` +
+               `<span class="scl-chip"><span class="scl-sw" style="background:#b0bcc6"></span>All other schools</span>`;
+    } else {
+        const cfg = SCHOOL_DEMO_MODES[mode] || SCHOOL_DEMO_MODES.EL_PCT;
+        const stops = sampleColors(cfg.ramp, 5);
+        const grad = `linear-gradient(to right, ${stops.join(", ")})`;
+        html = `<div class="scl-bar" style="background:${grad}"></div>` +
+               `<div class="scl-axis"><span>0%</span><span>${cfg.label}</span><span>100%</span></div>` +
+               `<div class="scl-note">Grey dot = no data (private / charter)</div>`;
+    }
+    el.innerHTML = html;
+}
+
+// Graduated-dot SIZE legend for the schools layer — mirrors SCHOOL_RADIUS so the
+// key dots match the on-map dots at the current zoom (recomputed on zoom). Fill
+// is neutral grey — this key is about size (enrollment), not the color mode.
+function renderSchoolSizeLegend() {
+    const el = document.getElementById("schoolSizeLegend");
+    if (!el) return;
+    if (!el.childElementCount) {
+        el.innerHTML = SCHOOL_SIZE_LEGEND_ENROLLMENTS.map(e =>
+            `<span class="ssl-item"><span class="ssl-dot-wrap"><span class="ssl-dot"></span></span>` +
+            `<span class="ssl-label">${e.toLocaleString()}</span></span>`
+        ).join("");
+    }
+    const z = map.getZoom();
+    const dias = SCHOOL_SIZE_LEGEND_ENROLLMENTS.map(e => Math.max(6, Math.round(schoolDotRadius(e, z) * 2)));
+    el.style.setProperty("--ssl-h", Math.max(...dias) + "px");
+    el.querySelectorAll(".ssl-dot").forEach((dot, i) => {
+        dot.style.width = dias[i] + "px";
+        dot.style.height = dias[i] + "px";
+    });
+}
+
 function paintExpression(metricId, paletteName, classify, level) {
     const colors = PALETTES[paletteName].colors;
     const values = getValuesForLevel(level, metricId);
@@ -435,7 +746,108 @@ function paintExpression(metricId, paletteName, classify, level) {
     return ["case", valid, expr, NO_DATA_COLOR];
 }
 
+// ─── BIVARIATE (TWO-METRIC 3×3) PAINT ────────────────────────────────────────
+// Stash from the last bivariatePaintExpression() call so updateLegend() can draw
+// the 3×3 key with the exact cutpoints used. Reset on exit.
+let _lastBivar = null;
+
+// Two tertile breakpoints (≈33rd & 66th percentile) so a values array splits into
+// 3 roughly-equal-count tiers. Mirrors the atlas's tertileBreaks.
+function tertileBreaks(values) {
+    if (!values || values.length < 3) return [0, 1];
+    const sorted = [...values].sort((a, b) => a - b);
+    const b1 = sorted[Math.floor(sorted.length / 3)];
+    const b2 = sorted[Math.floor((sorted.length * 2) / 3)];
+    return [b1, b2];
+}
+
+// Build a bivariate (3×3) paint expression coloring each feature by the COMBINATION
+// of its A and B metric tertiles. A polygon missing data on EITHER metric falls
+// back to NO_DATA_COLOR (never lands in a colored cell). Returns
+// { expr, breaksA, breaksB, palette } so the legend can show the real cutpoints.
+// Adapted from the atlas's bivariatePaintExpression; takes raw metric IDs and
+// resolves the active (year/group-aware) column via activeColumn, like the
+// univariate path, so bivariate respects the year slider + group filter too.
+function bivariatePaintExpression(metricA, metricB, paletteKey, level) {
+    const pal = BIVAR_PALETTES[paletteKey] || BIVAR_PALETTES.greenblue;
+    const colors = pal.colors;
+    const valuesA = getValuesForLevel(level, metricA);
+    const valuesB = getValuesForLevel(level, metricB);
+    const [a1, a2] = tertileBreaks(valuesA);
+    const [b1, b2] = tertileBreaks(valuesB);
+
+    const colA = activeColumn(metricA, state.year, level);
+    const colB = activeColumn(metricB, state.year, level);
+
+    // tierA: 0 if < a1, 1 if < a2, else 2 (step needs strictly-increasing inputs;
+    // when ties collapse a1===a2 we drop the duplicate so MapLibre won't throw).
+    const stepA = a2 > a1 ? ["step", ["to-number", ["get", colA]], 0, a1, 1, a2, 2]
+                          : ["step", ["to-number", ["get", colA]], 0, a1, 2];
+    const stepB = b2 > b1 ? ["step", ["to-number", ["get", colB]], 0, b1, 1, b2, 2]
+                          : ["step", ["to-number", ["get", colB]], 0, b1, 2];
+    const idx = ["+", ["*", stepA, 3], stepB];
+
+    const matchExpr = ["match", idx];
+    for (let i = 0; i < 9; i++) matchExpr.push(i, colors[i]);
+    matchExpr.push(colors[0]);  // fallback (0–8 cover all combos)
+
+    const bothValid = ["all",
+        ["==", ["typeof", ["get", colA]], "number"],
+        ["==", ["typeof", ["get", colB]], "number"],
+    ];
+    const expr = ["case", bothValid, matchExpr, NO_DATA_COLOR];
+    return { expr, breaksA: [a1, a2], breaksB: [b1, b2], palette: pal };
+}
+
+// Pick a sensible default metric B for the current level: the first metric (other
+// than A) at this level that actually carries data. Keeps bivariate honest at the
+// tract level (where the catalog's ACS metrics may be empty in this build) — if
+// nothing else has data, returns null and bivariate stays a no-op until the user
+// picks a B with data.
+function defaultBivarMetricB(level, metricA) {
+    const candidates = METRICS.filter(m =>
+        m.levels.includes(level) && m.id !== metricA && metricHasData(m.id, level));
+    if (candidates.length) return candidates[0].id;
+    // Fall back to any other metric at this level (even if no data) so the select
+    // isn't empty; the paint just renders all-blank until data exists.
+    const any = METRICS.filter(m => m.levels.includes(level) && m.id !== metricA);
+    return any.length ? any[0].id : null;
+}
+
+// ─── HOME / RESET-VIEW CONTROL ───────────────────────────────────────────────
+// A standard map button (stacked under the zoom +/−) that flies back to the
+// default Lynn extent. Mirrors the atlas's HomeControl, retargeted at VIEWS.lynn.
+class HomeControl {
+    onAdd(m) {
+        this._map = m;
+        const c = document.createElement("div");
+        c.className = "maplibregl-ctrl maplibregl-ctrl-group";
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "maplibregl-ctrl-home";
+        b.title = "Reset to the Lynn view";
+        b.setAttribute("aria-label", "Reset map to the default Lynn view");
+        b.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">' +
+            '<path d="M3 11l9-8 9 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+            '<path d="M5 10v10h5v-6h4v6h5V10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        b.addEventListener("click", () => {
+            const v = (typeof VIEWS !== "undefined" && VIEWS.lynn) ? VIEWS.lynn : { center: [-70.95, 42.47], zoom: 11.8 };
+            m.flyTo({ ...v, duration: 1000, essential: true });
+            if (typeof setActiveView === "function") setActiveView("lynn");
+        });
+        c.appendChild(b);
+        this._container = c;
+        return c;
+    }
+    onRemove() { if (this._container) this._container.remove(); this._map = undefined; }
+}
+
 // ─── MAP INITIALIZATION ──────────────────────────────────────────────────────
+// Smooth choropleth color cross-fade when the metric/year changes (applied via
+// the fill layers' paint transitions). Off for users who prefer reduced motion.
+const PREFERS_REDUCED_MOTION = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+const FILL_XFADE_MS = PREFERS_REDUCED_MOTION ? 0 : 260;
+
 const map = new maplibregl.Map({
     container: "map",
     style: "https://tiles.openfreemap.org/styles/positron",
@@ -444,13 +856,98 @@ const map = new maplibregl.Map({
     minZoom: 6,
     maxZoom: 18,
     attributionControl: false,
+    // Keep the WebGL backbuffer so map.getCanvas().toDataURL() / drawImage(canvas)
+    // can read pixels for PNG export. Without this the canvas is cleared after
+    // each frame and the export would come out blank.
+    preserveDrawingBuffer: true,
 });
 map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
+// Standard map controls users expect, stacked under the zoom buttons (top-right):
+// jump back to the Lynn view, locate themselves, and go fullscreen.
+map.addControl(new HomeControl(), "top-right");
+map.addControl(new maplibregl.GeolocateControl({
+    positionOptions: { enableHighAccuracy: true },
+    // trackUserLocation makes the control a TOGGLE: click to show your location,
+    // click the active button again to clear the dot.
+    trackUserLocation: true,
+    showUserLocation: true,
+}), "top-right");
+// Fullscreen the whole app shell (#main-content / .maps-main), not just the map
+// canvas — the panel, legend, and modals are siblings of #map, so targeting
+// their shared ancestor keeps the entire UI visible in fullscreen.
+map.addControl(
+    new maplibregl.FullscreenControl({ container: document.getElementById("main-content") }),
+    "top-right"
+);
+// Leaving/entering fullscreen changes the map size — let it re-fit.
+document.addEventListener("fullscreenchange", () => { map.resize(); });
 map.addControl(new maplibregl.AttributionControl({
     compact: true,
-    customAttribution: '<a href="https://maxwellhowegis.com" target="_blank">© Maxwell Howe</a> · MA DESE · US Census · MassGIS',
+    customAttribution: '<a href="https://maxwellhowegis.com" target="_blank">© Maxwell Howe</a> · MA DESE · US Census · MassGIS · © CARTO',
 }), "bottom-right");
 map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: "imperial" }), "bottom-left");
+
+// Positron's own vector layer IDs — captured before we add data layers so the
+// theme swap can hide/show the light basemap without touching our overlays.
+let BASEMAP_LAYER_IDS = [];
+
+// Add a keyless CARTO dark-matter raster basemap as the BOTTOM layer (hidden by
+// default; shown in dark theme). Inserted beneath the first Positron layer so it
+// sits under everything; our data layers are added on top afterwards.
+function addDarkBasemap() {
+    if (!map.getSource("dark-tiles")) {
+        map.addSource("dark-tiles", {
+            type: "raster", tileSize: 256,
+            tiles: [
+                "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+                "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+                "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+            ],
+            attribution: "© OpenStreetMap contributors, © CARTO",
+        });
+    }
+    if (!map.getLayer("dark-base")) {
+        const firstId = BASEMAP_LAYER_IDS[0];   // insert beneath Positron's first layer
+        map.addLayer(
+            { id: "dark-base", type: "raster", source: "dark-tiles", layout: { visibility: "none" } },
+            firstId
+        );
+    }
+}
+
+// Swap the basemap to match the theme: light → Positron vector layers visible,
+// dark raster hidden; dark → Positron hidden, dark raster shown. Also re-halo
+// our own symbol labels (town + school) so they stay legible on the dark base.
+function applyThemeBasemap(theme) {
+    const dark = theme === "dark";
+    BASEMAP_LAYER_IDS.forEach(id => {
+        if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", dark ? "none" : "visible");
+    });
+    if (map.getLayer("dark-base")) {
+        map.setLayoutProperty("dark-base", "visibility", dark ? "visible" : "none");
+    }
+    // Page behind the (transparent) canvas: near-black for dark so any gaps read
+    // on-theme; default otherwise.
+    const container = map.getContainer();
+    if (container) container.style.background = dark ? "#0b0b0d" : "";
+    // Our text labels need a light fill + dark halo to stay legible on the dark
+    // base. Each block is getLayer-guarded (no-op until the layer exists).
+    if (map.getLayer("town-labels")) {
+        map.setPaintProperty("town-labels", "text-color", dark ? "#ECEFF1" : "#0A1F44");
+        map.setPaintProperty("town-labels", "text-halo-color", dark ? "#000000" : "#ffffff");
+        map.setPaintProperty("town-labels", "text-halo-width", dark ? 2.0 : 1.8);
+    }
+    if (map.getLayer("schools-labels")) {
+        map.setPaintProperty("schools-labels", "text-color", dark ? "#ECEFF1" : "#0A1F44");
+        // Keep the gold halo on the focus school in both themes; others get a
+        // dark halo in dark mode for contrast.
+        map.setPaintProperty("schools-labels", "text-halo-color", [
+            "case",
+            ["==", ["get", "ORG_CODE"], LEHS_ORG_CODE], "#FFF3D6",
+            dark ? "#0b0b0d" : "#ffffff",
+        ]);
+    }
+}
 
 map.on("load", async () => {
     try {
@@ -471,6 +968,10 @@ map.on("load", async () => {
         // any numeric-looking string property to a real number once at load
         // time — covers tracts today and future schema drift on any source.
         [tracts, academic, munis].forEach(coerceNumericStringProps);
+
+        // Capture Positron's own layer IDs BEFORE we add data/basemap layers, so
+        // the theme swap can hide/show the light vector basemap cleanly.
+        BASEMAP_LAYER_IDS = map.getStyle().layers.map(l => l.id);
 
         GEO_DATA = { tract: tracts, district: academic, muni: munis };
         buildYearKeyedIndex();
@@ -510,10 +1011,20 @@ map.on("load", async () => {
             },
         });
 
+        addDarkBasemap();
         addLayers();
         wireUI();
         applyChoropleth();
         updateLegend();
+        // Restore any shared-link state from the URL hash (level/metric/year/
+        // palette/classify/group/theme/school-mode/bivariate/camera). No-op when
+        // there's no hash; defensive about old/invalid params.
+        applyUrlState();
+        // Paint the basemap + label halos to match the (possibly URL-restored)
+        // theme attr, and sync the toggle button. skipBasemap on applyTheme would
+        // double-call, so call applyThemeBasemap directly here.
+        applyThemeBasemap(state.theme);
+        syncThemeButton();
         document.getElementById("mapLoading").classList.add("hidden");
     } catch (err) {
         console.error("Map load failed:", err);
@@ -525,14 +1036,20 @@ map.on("load", async () => {
 function addLayers() {
     // ── CHOROPLETH LAYERS (one visible at a time based on state.level) ───────
     // Use feature-state for hover highlights without re-styling
+    // Choropleth fill opacity is a touch lower than a standard atlas (0.68 vs
+    // ~0.8) so the school dots — the centerpiece of this Lynn map — pop off the
+    // backdrop. Hover still lifts to 0.85 for clear feedback.
     map.addLayer({
         id: "muni-fill", type: "fill", source: "municipalities",
         paint: {
             "fill-color": NO_DATA_COLOR,
+            // Brief cross-fade so recoloring on metric/year change eases in
+            // instead of hard-flipping (respects prefers-reduced-motion).
+            "fill-color-transition": { duration: FILL_XFADE_MS, delay: 0 },
             "fill-opacity": [
                 "case",
-                ["boolean", ["feature-state", "hover"], false], 0.92,
-                0.78
+                ["boolean", ["feature-state", "hover"], false], 0.85,
+                0.68
             ],
         },
         layout: { visibility: state.level === "muni" ? "visible" : "none" },
@@ -541,10 +1058,11 @@ function addLayers() {
         id: "district-fill", type: "fill", source: "districts",
         paint: {
             "fill-color": NO_DATA_COLOR,
+            "fill-color-transition": { duration: FILL_XFADE_MS, delay: 0 },
             "fill-opacity": [
                 "case",
-                ["boolean", ["feature-state", "hover"], false], 0.92,
-                0.78
+                ["boolean", ["feature-state", "hover"], false], 0.85,
+                0.68
             ],
         },
         layout: { visibility: state.level === "district" ? "visible" : "none" },
@@ -553,10 +1071,11 @@ function addLayers() {
         id: "tract-fill", type: "fill", source: "tracts",
         paint: {
             "fill-color": NO_DATA_COLOR,
+            "fill-color-transition": { duration: FILL_XFADE_MS, delay: 0 },
             "fill-opacity": [
                 "case",
-                ["boolean", ["feature-state", "hover"], false], 0.92,
-                0.78
+                ["boolean", ["feature-state", "hover"], false], 0.85,
+                0.68
             ],
         },
         layout: { visibility: state.level === "tract" ? "visible" : "none" },
@@ -710,42 +1229,81 @@ function addLayers() {
         minzoom: 7,
     });
 
-    // ── LYNN SCHOOLS (point markers + labels) ────────────────────────────────
+    // ── LYNN SCHOOLS — THE CENTERPIECE (halo + proportional dots + focus ring) ─
+    // Soft white halo underneath each dot so schools pop off the choropleth
+    // backdrop regardless of the fill color behind them.
+    map.addLayer({
+        id: "schools-halo", type: "circle", source: "schools",
+        paint: {
+            "circle-radius": SCHOOL_RADIUS_HALO,
+            "circle-color": "#ffffff",
+            "circle-opacity": 0.55,
+            "circle-blur": 0.35,
+        },
+        layout: { visibility: state.showLynnSchools ? "visible" : "none" },
+    });
+    // Gold focus ring drawn UNDER the dot for Lynn English High only — a fat gold
+    // halo that reads as "special" no matter the active color mode. Filtered to
+    // the single LEHS feature so it never paints anywhere else.
+    map.addLayer({
+        id: "schools-lehs-ring", type: "circle", source: "schools",
+        filter: ["==", ["get", "ORG_CODE"], LEHS_ORG_CODE],
+        paint: {
+            "circle-radius": SCHOOL_RADIUS_LEHS_RING,
+            "circle-color": "rgba(0,0,0,0)",
+            "circle-stroke-color": "#FFB81C",
+            "circle-stroke-width": 4,
+            "circle-stroke-opacity": 0.95,
+        },
+        layout: { visibility: state.showLynnSchools ? "visible" : "none" },
+    });
+    // The proportional, color-coded school dots themselves.
     map.addLayer({
         id: "schools-circles", type: "circle", source: "schools",
         paint: {
-            "circle-radius": [
-                "interpolate", ["linear"], ["coalesce", ["get", "TOTAL_CNT"], 250],
-                100, 4, 500, 7, 1000, 11, 2000, 16,
-            ],
-            "circle-color": [
-                "case",
-                ["==", ["get", "ORG_CODE"], "01630510"], "#FFB81C",
-                "#0A1F44",
-            ],
+            "circle-radius": SCHOOL_RADIUS,
+            "circle-color": schoolColorExpression(),
             "circle-stroke-color": "#ffffff",
-            "circle-stroke-width": 2,
+            "circle-stroke-width": [
+                "case",
+                ["==", ["get", "ORG_CODE"], LEHS_ORG_CODE], 2.4,
+                1.6,
+            ],
             "circle-opacity": 0.95,
         },
         layout: { visibility: state.showLynnSchools ? "visible" : "none" },
     });
+    // School name labels — appear a touch earlier than before; LEHS label always
+    // shown (no collision-drop) and rendered bold/gold-haloed to stand out.
     map.addLayer({
         id: "schools-labels", type: "symbol", source: "schools",
         layout: {
             "text-field": ["get", "NAME"],
-            "text-font": ["Noto Sans Regular"],
-            "text-size": 10,
+            // text-font can't be data-driven reliably across MapLibre versions, so
+            // it stays static (Bold); LEHS emphasis is carried by a larger size,
+            // a gold halo, and always-on label visibility below.
+            "text-font": ["Noto Sans Bold"],
+            "text-size": [
+                "case",
+                ["==", ["get", "ORG_CODE"], LEHS_ORG_CODE], 13,
+                10,
+            ],
             "text-anchor": "top",
-            "text-offset": [0, 1.1],
-            "text-optional": true,
+            "text-offset": [0, 1.2],
+            "text-optional": ["!=", ["get", "ORG_CODE"], LEHS_ORG_CODE],
+            "text-allow-overlap": ["==", ["get", "ORG_CODE"], LEHS_ORG_CODE],
             "visibility": state.labels ? "visible" : "none",
         },
         paint: {
             "text-color": "#0A1F44",
-            "text-halo-color": "#ffffff",
-            "text-halo-width": 1.5,
+            "text-halo-color": [
+                "case",
+                ["==", ["get", "ORG_CODE"], LEHS_ORG_CODE], "#FFF3D6",
+                "#ffffff",
+            ],
+            "text-halo-width": 1.6,
         },
-        minzoom: 13,
+        minzoom: 12,
     });
 
     // ── CLICK HANDLERS ───────────────────────────────────────────────────────
@@ -876,26 +1434,84 @@ function fpRow(label, value, kind = "num", highlight = false) {
     return `<div class="feature-panel-row"><span class="label">${label}</span><span class="value${highlight ? ' highlight' : ''}">${v}</span></div>`;
 }
 
+// Turn the DESE grade string ("PK,K,01,02,...") into a friendly span ("PK–5").
+function formatGrades(gradesStr) {
+    if (!gradesStr) return "—";
+    const parts = String(gradesStr).split(",").map(s => s.trim()).filter(Boolean);
+    if (!parts.length) return "—";
+    const norm = g => (g === "PK" ? "PK" : g === "K" ? "K" : String(parseInt(g, 10)));
+    const first = norm(parts[0]);
+    const last = norm(parts[parts.length - 1]);
+    return parts.length === 1 ? first : `${first}–${last}`;
+}
+
+// Single labeled horizontal bar (value 0–1) for a school composition metric.
+function fpBarRow(label, value, color) {
+    if (value == null || !isFinite(+value)) return "";
+    const pct = Math.max(0, Math.min(100, +value * 100));
+    return `<div class="fp-bar-row">
+        <div class="fp-bar-head"><span class="fp-bar-label">${label}</span><span class="fp-bar-val">${pct.toFixed(1)}%</span></div>
+        <div class="fp-bar-track"><span class="fp-bar-fill" style="width:${pct}%;background:${color};"></span></div>
+    </div>`;
+}
+
+// Stacked single-row bar for the race/ethnicity breakdown.
+function fpStackBar(segments) {
+    const total = segments.reduce((a, s) => a + +s.v, 0) || 1;
+    const segHtml = segments.map(s =>
+        `<span class="fp-stack-seg" style="width:${(+s.v / total) * 100}%;background:${s.color};" title="${s.label}: ${(+s.v * 100).toFixed(1)}%"></span>`
+    ).join("");
+    const legHtml = segments.map(s =>
+        `<span class="fp-stack-key"><span class="fp-stack-sw" style="background:${s.color};"></span>${s.label} ${(+s.v * 100).toFixed(0)}%</span>`
+    ).join("");
+    return `<div class="fp-stack">${segHtml}</div><div class="fp-stack-legend">${legHtml}</div>`;
+}
+
+// "Student composition" section as labeled bars — the headline equity metrics.
+function buildSchoolCompositionSection(p) {
+    const bars = [
+        fpBarRow("English Learner", p.EL_PCT, "#43A047"),
+        fpBarRow("Low Income", p.LI_PCT, "#E53935"),
+        fpBarRow("High Needs", p.HN_PCT, "#8E24AA"),
+        fpBarRow("Students w/ Disabilities", p.SWD_PCT, "#5C6BC0"),
+        fpBarRow("First Lang. Not English", p.FLNE_PCT, "#00897B"),
+    ].join("");
+    if (!bars.trim()) return "";
+    return `<div class="feature-panel-section"><h3>Student composition</h3>${bars}</div>`;
+}
+
 function buildPanelHtml(p, kind) {
     if (kind === "school") {
-        const isLehs = p.ORG_CODE === "01630510";
+        const isLehs = p.ORG_CODE === LEHS_ORG_CODE;
+        const typeLabel = (SCHOOL_TYPES.find(t => t.key === p.TYPE) || {}).label || p.TYPE_DESC || "School";
+        const grades = formatGrades(p.GRADES);
+        const enrollHtml = (p.TOTAL_CNT != null && isFinite(+p.TOTAL_CNT))
+            ? `<div class="school-enroll-num">${(+p.TOTAL_CNT).toLocaleString()}</div><div class="school-enroll-lbl">students enrolled${p.SY ? ` · SY ${p.SY}` : ""}</div>`
+            : `<div class="school-enroll-lbl" style="font-style:italic;">No DESE enrollment / demographics reported (private or charter).</div>`;
+        // Race/ethnicity composition stacked bar (only when data present).
+        const raceParts = [
+            { label: "Hispanic / Latino", v: p.HL_PCT,  color: "#F57C00" },
+            { label: "Black / African Am.", v: p.BAA_PCT, color: "#7B1FA2" },
+            { label: "Asian", v: p.AS_PCT, color: "#1976D2" },
+            { label: "White", v: p.WH_PCT, color: "#90A4AE" },
+            { label: "Multi / Other", v: p.MNHL_PCT, color: "#26A69A" },
+        ].filter(s => s.v != null && isFinite(+s.v) && +s.v > 0);
         return `
-            ${isLehs ? '<div class="feature-panel-tag">Focus school</div>' : ""}
-            <div class="feature-panel-section">
-                <div class="feature-panel-row"><span class="label">Type</span><span class="value">${p.TYPE_DESC || "—"}</span></div>
-                <div class="feature-panel-row"><span class="label">Grades</span><span class="value">${p.GRADES || "—"}</span></div>
-                ${fpRow("Enrollment", p.TOTAL_CNT, "num")}
+            ${isLehs
+                ? '<div class="feature-panel-tag lehs-badge">★ Lynn English — focus school</div>'
+                : `<div class="school-type-pill" style="background:${(SCHOOL_TYPES.find(t => t.key === p.TYPE) || {}).color || "#607D8B"};">${typeLabel}</div>`}
+            <div class="feature-panel-section school-headline">
+                <div class="feature-panel-row"><span class="label">Type</span><span class="value">${typeLabel}${p.TYPE_DESC ? ` <span style="color:#90A4AE;font-weight:400;">(${p.TYPE_DESC})</span>` : ""}</span></div>
+                <div class="feature-panel-row"><span class="label">Grades</span><span class="value">${grades}</span></div>
+                ${p.ADDRESS ? `<div class="feature-panel-row"><span class="label">Address</span><span class="value" style="font-weight:400;text-align:right;">${p.ADDRESS}</span></div>` : ""}
+                <div class="school-enroll">${enrollHtml}</div>
             </div>
-            ${fpSection("Student composition", [
-                fpRow("% English Learner", p.EL_PCT, "pct"),
-                fpRow("% Low Income", p.LI_PCT, "pct"),
-                fpRow("% High Needs", p.HN_PCT, "pct"),
-                fpRow("% Hispanic/Latino", p.HL_PCT, "pct"),
-                fpRow("% Black/African Am.", p.BAA_PCT, "pct"),
-                fpRow("% Asian", p.AS_PCT, "pct"),
-                fpRow("% White", p.WH_PCT, "pct"),
-                fpRow("% SPED", p.SWD_PCT, "pct"),
-            ].join(""))}
+            ${buildSchoolCompositionSection(p)}
+            ${raceParts.length ? `
+                <div class="feature-panel-section">
+                    <h3>Race / ethnicity</h3>
+                    ${fpStackBar(raceParts)}
+                </div>` : ""}
         `;
     }
     if (kind === "tract") {
@@ -1014,43 +1630,393 @@ document.addEventListener("DOMContentLoaded", () => {
     const closeBtn = document.getElementById("featurePanelClose");
     if (closeBtn) closeBtn.addEventListener("click", closeFeaturePanel);
 
-    // Help modal — opens via "?" button, auto-shows once on first visit.
-    // Uses a Lynn-specific localStorage key so this map's help-seen state
-    // is independent of the atlas's.
-    const helpBtn   = document.getElementById("helpButton");
-    const helpModal = document.getElementById("helpModal");
-    const helpClose = document.getElementById("helpModalClose");
-    const helpDone  = document.getElementById("helpGotIt");
-    if (!helpModal) return;  // bail if HTML doesn't have the modal
-    const openHelp  = () => { helpModal.classList.add("open"); helpModal.setAttribute("aria-hidden", "false"); };
-    const closeHelp = () => { helpModal.classList.remove("open"); helpModal.setAttribute("aria-hidden", "true"); };
-    if (helpBtn)   helpBtn.addEventListener("click", openHelp);
-    if (helpClose) helpClose.addEventListener("click", closeHelp);
-    if (helpDone)  helpDone.addEventListener("click", () => {
+    // ── Help & guide hub — opens via the labeled pill. Three tabs (the map
+    //    controls cheat-sheet by default, a plain-language how-to, and a
+    //    glossary of THIS map's terms) plus a button that launches the
+    //    interactive guided tour. Opt-in only: we never auto-open the modal
+    //    (an unprompted popup ate screen space) — first-visit discoverability
+    //    is a gentle one-time gold pulse on the pill instead. Uses a Lynn-
+    //    specific localStorage key so this map's help-seen state is independent
+    //    of the atlas's.
+    const helpBtn     = document.getElementById("helpButton");
+    const helpModal   = document.getElementById("helpModal");
+    const helpClose   = document.getElementById("helpModalClose");
+    const helpDone    = document.getElementById("helpGotIt");
+    const helpTourBtn = document.getElementById("helpStartTour");
+
+    function markHelpSeen() {
         try { localStorage.setItem("lynn-maps-help-seen", "1"); } catch (e) {}
-        closeHelp();
-    });
-    helpModal.addEventListener("click", e => {
-        if (e.target === helpModal) closeHelp();   // click backdrop
-    });
-    document.addEventListener("keydown", e => {
-        if (e.key === "Escape") closeHelp();
-    });
-    try {
-        if (!localStorage.getItem("lynn-maps-help-seen")) {
-            setTimeout(openHelp, 800);  // brief delay so the map renders first
+        if (helpBtn) helpBtn.classList.remove("pulse");
+    }
+
+    if (helpModal) {
+        let _helpReturnFocus = null;
+        const openHelp = () => {
+            _helpReturnFocus = document.activeElement;
+            helpModal.classList.add("open");
+            helpModal.setAttribute("aria-hidden", "false");
+            markHelpSeen();
+            if (helpClose) helpClose.focus();
+        };
+        const closeHelp = () => {
+            helpModal.classList.remove("open");
+            helpModal.setAttribute("aria-hidden", "true");
+            if (_helpReturnFocus && _helpReturnFocus.focus) _helpReturnFocus.focus();
+        };
+
+        // Tab switching within the hub.
+        const tabs  = Array.from(helpModal.querySelectorAll(".help-tab"));
+        const panes = Array.from(helpModal.querySelectorAll(".help-pane"));
+        const hbody = helpModal.querySelector(".help-body");
+        function selectTab(name) {
+            tabs.forEach(t => {
+                const on = t.dataset.helpTab === name;
+                t.classList.toggle("active", on);
+                t.setAttribute("aria-selected", on ? "true" : "false");
+            });
+            panes.forEach(p => {
+                const on = p.dataset.helpPane === name;
+                p.classList.toggle("active", on);
+                p.hidden = !on;
+            });
+            if (hbody) hbody.scrollTop = 0;
         }
-    } catch (e) {}
+        tabs.forEach((t, i) => {
+            t.addEventListener("click", () => selectTab(t.dataset.helpTab));
+            // Left/right arrows move between tabs (a11y).
+            t.addEventListener("keydown", e => {
+                if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+                e.preventDefault();
+                const dir = e.key === "ArrowRight" ? 1 : -1;
+                const nx = tabs[(i + dir + tabs.length) % tabs.length];
+                nx.focus();
+                selectTab(nx.dataset.helpTab);
+            });
+        });
+
+        // Trap Tab within the modal while it's open (skip controls in hidden panes).
+        helpModal.addEventListener("keydown", e => {
+            if (e.key !== "Tab" || !helpModal.classList.contains("open")) return;
+            const all = helpModal.querySelectorAll("button, [href], input, [tabindex]:not([tabindex='-1'])");
+            const f = Array.from(all).filter(el => el.offsetParent !== null);
+            if (!f.length) return;
+            const first = f[0], last = f[f.length - 1];
+            if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+            else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        });
+
+        if (helpBtn)   helpBtn.addEventListener("click", openHelp);
+        if (helpClose) helpClose.addEventListener("click", closeHelp);
+        if (helpDone)  helpDone.addEventListener("click", () => { markHelpSeen(); closeHelp(); });
+        if (helpTourBtn) helpTourBtn.addEventListener("click", () => {
+            markHelpSeen();
+            closeHelp();
+            startGuidedTour();
+        });
+        helpModal.addEventListener("click", e => {
+            if (e.target === helpModal) closeHelp();   // click backdrop
+        });
+        document.addEventListener("keydown", e => {
+            if (e.key === "Escape" && helpModal.classList.contains("open")) closeHelp();
+        });
+
+        // First-visit discoverability: a subtle one-time pulse on the pill (no
+        // popup). It stops the moment the visitor opens help.
+        try {
+            if (helpBtn && !localStorage.getItem("lynn-maps-help-seen")) {
+                helpBtn.classList.add("pulse");
+            }
+        } catch (e) {}
+    }
 });
+
+// ─── INTERACTIVE GUIDED TOUR ──────────────────────────────────────────────────
+// A spotlight overlay that points at the REAL Lynn controls one step at a time.
+// Self-contained: it drives the control panel itself (opens it, scrolls each
+// target into view) and even nudges the school-color-mode select so the LEHS
+// spotlight + school color legend are populated for those steps. Keyboard nav
+// (←/→/Esc), a focus trap on the coach card, and Skip/Done affordances. Works
+// on desktop and the mobile drawer. Adapted from the statewide atlas tour.
+function startGuidedTour() {
+    const tour     = document.getElementById("tour");
+    const spot     = document.getElementById("tourSpotlight");
+    const coach    = document.getElementById("tourCoach");
+    const elStep   = document.getElementById("tourStep");
+    const elTitle  = document.getElementById("tourTitle");
+    const elBody   = document.getElementById("tourBody");
+    const elDots   = document.getElementById("tourDots");
+    const btnBack  = document.getElementById("tourBack");
+    const btnNext  = document.getElementById("tourNext");
+    const btnSkip  = document.getElementById("tourSkip");
+    const btnClose = document.getElementById("tourClose");
+    if (!tour || !coach) return;
+
+    const isMobile = () => window.matchMedia("(max-width: 768px)").matches;
+    const panel    = document.getElementById("controlPanel");
+    const backdrop = document.getElementById("panelBackdrop");
+
+    function openPanel() {
+        if (!panel) return;
+        panel.classList.add("open");
+        panel.classList.remove("collapsed");
+        if (isMobile() && backdrop) backdrop.classList.add("open");
+    }
+    function closePanel() {
+        if (!panel) return;
+        panel.classList.remove("open");
+        if (isMobile()) panel.classList.add("collapsed");
+        if (backdrop) backdrop.classList.remove("open");
+    }
+    // Force the school dots into "spotlight LEHS" mode for the centerpiece step,
+    // then restore the visitor's prior mode when the tour ends. Drives the real
+    // control so the map + legend actually reflect the step.
+    const prevSchoolMode = state.schoolColorMode;
+    function setSchoolMode(mode) {
+        const sel = document.getElementById("schoolColorMode");
+        if (sel && sel.value !== mode) {
+            sel.value = mode;
+            sel.dispatchEvent(new Event("change", { bubbles: true }));
+        } else if (state.schoolColorMode !== mode) {
+            state.schoolColorMode = mode;
+            if (typeof applySchoolColorMode === "function") applySchoolColorMode();
+        }
+    }
+
+    // Each step targets a REAL control id (or #map / #legend). `before` drives
+    // the UI so the target is on screen for that step.
+    const steps = [
+        {
+            title: "Welcome to the Lynn Data Dive 👋",
+            body: "This map zooms in on Lynn — its 22 census tracts, every Lynn school, and how Lynn compares across Massachusetts. Here's the 1-minute tour.",
+            before: () => closePanel(),
+        },
+        {
+            target: "#controlPanel",
+            title: "Your control panel",
+            body: "Everything lives here: choose what to map, switch geographic level, restyle the colors, spotlight the schools, and export.",
+            before: () => openPanel(),
+        },
+        {
+            target: "#levelSelect",
+            title: "Pick the geographic level",
+            body: "“Color polygons at” swaps between MA municipalities, school districts, and Lynn's census tracts. Tract metrics (census + health) are Lynn-only.",
+            before: () => openPanel(),
+        },
+        {
+            target: "#metricSelect",
+            title: "Pick what to map",
+            body: "This is the heart of the map. Search or pick a metric and every polygon is shaded by it — demographics, MCAS, spending, or Lynn-tract figures.",
+            before: () => openPanel(),
+        },
+        {
+            target: "#legend",
+            title: "Read the colors",
+            body: "The legend explains the shading, and a plain-language caption tells you what darker vs. lighter means. It updates whenever you change the metric.",
+            before: () => closePanel(),
+        },
+        {
+            target: "#bivariateToggle",
+            title: "Compare two metrics at once",
+            body: "Turn on the bivariate mode to shade each polygon by the combination of two metrics on a 3×3 grid — handy for spotting where two things overlap.",
+            before: () => openPanel(),
+        },
+        {
+            target: "#schoolsControls",
+            title: "Spotlight the schools",
+            body: "Every Lynn school is a dot, sized by enrollment. Recolor the dots by demographic — or use this menu to spotlight one school.",
+            before: () => { openPanel(); setSchoolMode("focus"); },
+        },
+        {
+            target: "#map",
+            title: "Lynn English High — the focus school 🏫",
+            body: "The gold-ringed dot is Lynn English High, this project's focus school. We've just spotlighted it. Click any dot for that school's full profile.",
+            before: () => { closePanel(); setSchoolMode("focus"); },
+        },
+        {
+            target: "#themeToggle",
+            title: "Dark mode",
+            body: "Flip the whole map and panel to a dark theme with this button — easier on the eyes and great for presentations.",
+            before: () => openPanel(),
+        },
+        {
+            target: "#exportPngBtn",
+            title: "Export a PNG",
+            body: "Save a titled image of the current map — with the legend baked in — to drop into a slide or report.",
+            before: () => openPanel(),
+        },
+        {
+            target: "#copyLinkBtn",
+            title: "Share this exact view",
+            body: "Copy a link that reopens the map with the same metric, level, year, colors, and framing — perfect for sharing a finding.",
+            before: () => openPanel(),
+        },
+        {
+            target: "#helpButton",
+            title: "That's it! 🎉",
+            body: "Come back to this Help & guide button anytime — for the how-tos, the controls cheat-sheet, the glossary, or to retake this tour.",
+            before: () => { closePanel(); setSchoolMode(prevSchoolMode); },
+        },
+    ];
+
+    let idx = 0;
+    const returnFocus = document.activeElement;
+
+    // Build the progress dots.
+    elDots.innerHTML = "";
+    const dots = steps.map(() => {
+        const d = document.createElement("span");
+        d.className = "tour-dot";
+        elDots.appendChild(d);
+        return d;
+    });
+
+    function measure(sel) {
+        if (!sel) return null;
+        const el = document.querySelector(sel);
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        if (r.width < 2 || r.height < 2) return null;   // not visible
+        return r;
+    }
+
+    function placeSpotlight(rect) {
+        if (!rect) {
+            // No hole: collapse to an off-screen point so the 9999px shadow
+            // dims the whole viewport and the gold ring stays out of sight.
+            spot.style.width = "0px";
+            spot.style.height = "0px";
+            spot.style.top = "-100px";
+            spot.style.left = "-100px";
+            return;
+        }
+        const pad = 6;
+        spot.style.top    = Math.max(0, rect.top - pad) + "px";
+        spot.style.left   = Math.max(0, rect.left - pad) + "px";
+        spot.style.width  = (rect.width + pad * 2) + "px";
+        spot.style.height = (rect.height + pad * 2) + "px";
+    }
+
+    function placeCoach(rect) {
+        const vw = window.innerWidth, vh = window.innerHeight;
+        const cw = coach.offsetWidth, ch = coach.offsetHeight, m = 14;
+        let top, left;
+        if (!rect) {
+            top = (vh - ch) / 2;
+            left = (vw - cw) / 2;
+        } else {
+            const tall = rect.height > vh * 0.55;
+            const rightRoom = rect.right + m + cw <= vw;
+            const leftRoom  = rect.left - m - cw >= 0;
+            if (tall && (rightRoom || leftRoom)) {
+                left = rightRoom ? rect.right + m : rect.left - m - cw;
+                top  = Math.min(Math.max(m, rect.top), vh - ch - m);
+            } else if (rect.bottom + m + ch <= vh) {
+                top = rect.bottom + m;
+                left = rect.left + rect.width / 2 - cw / 2;
+            } else if (rect.top - m - ch >= 0) {
+                top = rect.top - m - ch;
+                left = rect.left + rect.width / 2 - cw / 2;
+            } else {
+                top = (vh - ch) / 2;
+                left = (vw - cw) / 2;
+            }
+        }
+        coach.style.left = Math.min(Math.max(m, left), vw - cw - m) + "px";
+        coach.style.top  = Math.min(Math.max(m, top), vh - ch - m) + "px";
+    }
+
+    function reposition() {
+        const rect = measure(steps[idx].target);
+        placeSpotlight(rect);
+        placeCoach(rect);
+    }
+
+    function render() {
+        const step = steps[idx];
+        elStep.textContent = `Step ${idx + 1} of ${steps.length}`;
+        elTitle.textContent = step.title;
+        elBody.textContent = step.body;
+        dots.forEach((d, i) => d.classList.toggle("on", i === idx));
+        btnBack.disabled = idx === 0;
+        btnNext.textContent = idx === 0 ? "Start →"
+                            : idx === steps.length - 1 ? "Done"
+                            : "Next →";
+        btnSkip.style.visibility = idx === steps.length - 1 ? "hidden" : "visible";
+
+        if (step.before) { try { step.before(); } catch (e) {} }
+
+        const target = step.target ? document.querySelector(step.target) : null;
+        if (target && target.scrollIntoView) {
+            try { target.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (e) {}
+        }
+        // Place now, then again after layout + transitions settle.
+        reposition();
+        setTimeout(reposition, 230);
+        setTimeout(() => { reposition(); btnNext.focus(); }, 380);
+    }
+
+    function go(n) { idx = Math.min(Math.max(0, n), steps.length - 1); render(); }
+    function next() { if (idx >= steps.length - 1) end(); else go(idx + 1); }
+
+    function end() {
+        tour.classList.remove("open");
+        tour.setAttribute("aria-hidden", "true");
+        window.removeEventListener("resize", onResize);
+        window.removeEventListener("scroll", onResize, true);
+        window.removeEventListener("keydown", onKey, true);
+        setSchoolMode(prevSchoolMode);  // restore the visitor's school color mode
+        if (isMobile()) closePanel();   // tidy the drawer we may have opened
+        if (returnFocus && returnFocus.focus) { try { returnFocus.focus(); } catch (e) {} }
+    }
+
+    const onResize = () => reposition();
+    const onKey = (e) => {
+        if (e.key === "Escape")          { e.preventDefault(); e.stopPropagation(); end(); }
+        else if (e.key === "ArrowRight") { e.preventDefault(); next(); }
+        else if (e.key === "ArrowLeft")  { e.preventDefault(); go(idx - 1); }
+        else if (e.key === "Tab") {
+            const f = Array.from(coach.querySelectorAll("button:not([disabled])"))
+                .filter(el => el.offsetParent !== null && el.style.visibility !== "hidden");
+            if (!f.length) return;
+            const first = f[0], last = f[f.length - 1];
+            if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+            else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }
+    };
+
+    // Wire controls with onclick so re-running the tour never stacks listeners.
+    btnNext.onclick  = next;
+    btnBack.onclick  = () => go(idx - 1);
+    btnSkip.onclick  = end;
+    btnClose.onclick = end;
+
+    window.addEventListener("resize", onResize);
+    window.addEventListener("scroll", onResize, true);
+    window.addEventListener("keydown", onKey, true);
+
+    tour.classList.add("open");
+    tour.setAttribute("aria-hidden", "false");
+    go(0);
+}
 
 // ─── CHOROPLETH APPLY ────────────────────────────────────────────────────────
 function applyChoropleth() {
     const { level, metric, palette, classify } = state;
-    const m = getMetric(metric);
-    // Year-aware: paint uses year-keyed column when available, falls back to base
-    const col = activeColumn(metric, state.year, level);
-    const paint = paintExpression(col, palette, classify, level);
     const layerMap = { muni: "muni-fill", district: "district-fill", tract: "tract-fill" };
+    // Bivariate mode paints the 3×3 combination expression; single-metric mode
+    // paints the classified univariate expression. Either way only the active
+    // level's fill layer is visible + repainted.
+    let paint;
+    if (state.bivariate && state.bivarMetricB) {
+        const bv = bivariatePaintExpression(metric, state.bivarMetricB, state.bivarPalette, level);
+        _lastBivar = bv;
+        paint = bv.expr;
+    } else {
+        _lastBivar = null;
+        // Year-aware: paint uses year-keyed column when available, falls back to base
+        const col = activeColumn(metric, state.year, level);
+        paint = paintExpression(col, palette, classify, level);
+    }
     Object.entries(layerMap).forEach(([lvl, layerId]) => {
         if (!map.getLayer(layerId)) return;
         map.setLayoutProperty(layerId, "visibility", lvl === level ? "visible" : "none");
@@ -1106,15 +2072,62 @@ function updateLegend() {
     const titleEl = document.getElementById("legendTitle");
     const stopsEl = document.getElementById("legendStops");
     const metaEl = document.getElementById("legendMeta");
+    const capEl = document.getElementById("legendCaption");
     titleEl.textContent = m.label;
+
+    // ── Bivariate (3×3) legend takes over the card while bivariate mode is on ──
+    if (state.bivariate && _lastBivar) {
+        const mB = getMetric(state.bivarMetricB);
+        const { breaksA, breaksB, palette: pal } = _lastBivar;
+        const colors = pal.colors;
+        titleEl.textContent = `${m.label} × ${mB.label}`;
+        const cell = i => `<span class="bivar-cell" style="background:${colors[i]};"></span>`;
+        // Grid drawn scatter-style: top row = high A, bottom row = low A;
+        // left col = low B, right col = high B.
+        const grid = `
+            ${cell(6)}${cell(7)}${cell(8)}
+            ${cell(3)}${cell(4)}${cell(5)}
+            ${cell(0)}${cell(1)}${cell(2)}
+        `;
+        stopsEl.innerHTML = `
+            <div class="bivar-wrap">
+                <div class="bivar-ylabel">${m.label} →</div>
+                <div class="bivar-grid">${grid}</div>
+                <div class="bivar-xlabel">${mB.label} →</div>
+            </div>
+            <div class="bivar-cuts">
+                <div><b>${m.label}</b> thirds: &lt; ${fmt(breaksA[0], m.format)}, &lt; ${fmt(breaksA[1], m.format)}, ≥ ${fmt(breaksA[1], m.format)}</div>
+                <div><b>${mB.label}</b> thirds: &lt; ${fmt(breaksB[0], mB.format)}, &lt; ${fmt(breaksB[1], mB.format)}, ≥ ${fmt(breaksB[1], mB.format)}</div>
+            </div>
+        `;
+        // Count polygons missing EITHER metric (painted cream, no grid cell).
+        const fcBV = GEO_DATA[level];
+        const totalBV = fcBV ? fcBV.features.length : 0;
+        const colA = activeColumn(metric, state.year, level);
+        const colB = activeColumn(state.bivarMetricB, state.year, level);
+        let bothBV = 0;
+        if (fcBV) fcBV.features.forEach(f => {
+            const a = f.properties[colA], b = f.properties[colB];
+            if (a != null && isFinite(+a) && b != null && isFinite(+b)) bothBV++;
+        });
+        const nullBV = Math.max(0, totalBV - bothBV);
+        metaEl.innerHTML = nullBV
+            ? `<span class="legend-null"><span class="legend-null-swatch"></span>No data — <strong>${nullBV.toLocaleString()}</strong> of ${totalBV.toLocaleString()} polygons (missing ${m.label} or ${mB.label})</span>`
+            : "";
+        if (capEl) capEl.hidden = true;   // the 3×3 axes already explain the colors
+        if (_legendClamp) _legendClamp();
+        return;
+    }
 
     const values = getValuesForLevel(level, metric);
     const totalFeatures = GEO_DATA[level] ? GEO_DATA[level].features.length : 0;
     const nullCount = Math.max(0, totalFeatures - values.length);
 
     if (values.length === 0) {
-        stopsEl.innerHTML = '<div class="legend-row" style="color:#90A4AE;">No data at this level for this metric.</div>';
+        stopsEl.innerHTML = '<div class="legend-row" style="color:var(--text-muted);">No data at this level for this metric.</div>';
         metaEl.innerHTML = `<span class="legend-null"><span class="legend-null-swatch"></span>No data — ${nullCount.toLocaleString()} of ${totalFeatures.toLocaleString()}</span>`;
+        if (capEl) capEl.hidden = true;
+        if (_legendClamp) _legendClamp();
         return;
     }
 
@@ -1156,6 +2169,15 @@ function updateLegend() {
     metaEl.innerHTML = `
         <span class="legend-null"><span class="legend-null-swatch"></span>No data — <strong>${nullCount.toLocaleString()}</strong> of ${totalFeatures.toLocaleString()} polygons (${100 - dataPct}%)</span>
     `;
+
+    // Plain-language "how to read the colors" caption (metric polarity).
+    if (capEl) {
+        const cap = legendCaptionText();
+        capEl.textContent = cap;
+        capEl.hidden = !cap;
+    }
+    // A moved/resized legend may now be a different height — keep it on-screen.
+    if (_legendClamp) _legendClamp();
 }
 
 // ─── UI WIRING ───────────────────────────────────────────────────────────────
@@ -1215,9 +2237,85 @@ function populateMetricSelect(searchTerm = "") {
     const availIds = candidates.map(m => m.id);
     if (!availIds.includes(state.metric)) state.metric = availIds[0];
     sel.value = state.metric;
-    state.palette = getMetric(state.metric).palette;
+    // Auto-pick a meaning-aware default palette (warm for "bad-when-high", cool
+    // for "good-when-high", catalog default for neutral). User can still override.
+    state.palette = semanticPalette(getMetric(state.metric));
     document.getElementById("paletteSelect").value = state.palette;
     updateMetricSummary();
+    // Keep the bivariate B-metric picker in step (excludes the chosen A; level-aware).
+    populateBivarMetricSelect();
+}
+
+// ─── BIVARIATE SELECTS ───────────────────────────────────────────────────────
+// Metric-B dropdown: every catalog metric at the current level EXCEPT metric A,
+// grouped by category, with a "(data refresh pending)" hint where empty — same
+// affordance as the metric-A picker. Restores/repairs state.bivarMetricB.
+function populateBivarMetricSelect() {
+    const sel = document.getElementById("bivarMetricSelect");
+    if (!sel) return;
+    const candidates = METRICS.filter(m => m.levels.includes(state.level) && m.id !== state.metric);
+    sel.innerHTML = "";
+    if (!candidates.length) {
+        const opt = document.createElement("option");
+        opt.textContent = "No second metric available at this level";
+        opt.disabled = true;
+        sel.appendChild(opt);
+        state.bivarMetricB = null;
+        return;
+    }
+    const categories = [...new Set(candidates.map(m => m.cat))];
+    categories.forEach(cat => {
+        const grp = document.createElement("optgroup");
+        grp.label = cat;
+        candidates.filter(m => m.cat === cat).forEach(m => {
+            const opt = document.createElement("option");
+            opt.value = m.id;
+            const hasData = metricHasData(m.id, state.level);
+            opt.textContent = hasData ? m.label : `${m.label}  · (data refresh pending)`;
+            if (!hasData) opt.style.color = "#9E9E9E";
+            grp.appendChild(opt);
+        });
+        sel.appendChild(grp);
+    });
+    // Repair B if it's now missing / collides with A: pick a sensible default.
+    const ids = candidates.map(m => m.id);
+    if (!state.bivarMetricB || !ids.includes(state.bivarMetricB)) {
+        state.bivarMetricB = defaultBivarMetricB(state.level, state.metric) || ids[0];
+    }
+    sel.value = state.bivarMetricB;
+}
+
+function populateBivarPaletteSelect() {
+    const sel = document.getElementById("bivarPaletteSelect");
+    if (!sel) return;
+    sel.innerHTML = "";
+    Object.entries(BIVAR_PALETTES).forEach(([key, pal]) => {
+        const o = document.createElement("option");
+        o.value = key; o.textContent = pal.name;
+        sel.appendChild(o);
+    });
+    sel.value = state.bivarPalette;
+}
+
+// Enter/exit bivariate mode: flip state, reveal/hide the B + palette pickers,
+// repaint, and swap the legend (3×3 ↔ univariate). Resolves a default metric B
+// on first enable. Used by the toggle wiring, resetAll, and URL restore.
+function setBivariate(on) {
+    state.bivariate = !!on;
+    const ctrls = document.getElementById("bivarControls");
+    if (ctrls) ctrls.style.display = on ? "" : "none";
+    const tog = document.getElementById("bivariateToggle");
+    if (tog) tog.checked = !!on;
+    if (on) {
+        if (!state.bivarMetricB || state.bivarMetricB === state.metric ||
+            !getMetric(state.bivarMetricB).levels.includes(state.level)) {
+            state.bivarMetricB = defaultBivarMetricB(state.level, state.metric);
+        }
+        populateBivarMetricSelect();
+        populateBivarPaletteSelect();
+    }
+    applyChoropleth();
+    updateLegend();
 }
 
 function populatePaletteSelect() {
@@ -1278,7 +2376,7 @@ function wireUI() {
     });
     document.getElementById("metricSelect").addEventListener("change", e => {
         state.metric = e.target.value;
-        state.palette = getMetric(state.metric).palette;
+        state.palette = semanticPalette(getMetric(state.metric));
         document.getElementById("paletteSelect").value = state.palette;
         applyChoropleth();
         updateLegend();
@@ -1328,6 +2426,31 @@ function wireUI() {
         applyChoropleth();
         updateLegend();
     });
+
+    // ── BIVARIATE (compare two metrics) wiring ───────────────────────────────
+    populateBivarPaletteSelect();
+    const bivarToggle = document.getElementById("bivariateToggle");
+    if (bivarToggle) {
+        bivarToggle.checked = state.bivariate;
+        bivarToggle.addEventListener("change", e => setBivariate(e.target.checked));
+    }
+    const bivarMetricSel = document.getElementById("bivarMetricSelect");
+    if (bivarMetricSel) {
+        bivarMetricSel.addEventListener("change", e => {
+            state.bivarMetricB = e.target.value;
+            applyChoropleth();
+            updateLegend();
+        });
+    }
+    const bivarPalSel = document.getElementById("bivarPaletteSelect");
+    if (bivarPalSel) {
+        bivarPalSel.addEventListener("change", e => {
+            state.bivarPalette = e.target.value;
+            applyChoropleth();
+            updateLegend();
+        });
+    }
+
     document.querySelectorAll('input[name="classify"]').forEach(r => {
         r.addEventListener("change", e => {
             if (e.target.checked) {
@@ -1344,7 +2467,7 @@ function wireUI() {
         "ref-academic-outline":  ["academic-outline"],
         "ref-voctech-overlay":   ["voctech-fill", "voctech-outline"],
         "ref-charter-overlay":   ["charter-fill", "charter-outline"],
-        "ref-lynn-schools":      ["schools-circles", "schools-labels"],
+        "ref-lynn-schools":      ["schools-halo", "schools-lehs-ring", "schools-circles", "schools-labels"],
         "ref-all-ma-schools":    ["ma-schools-circles"],
         "ref-lynn-town":         ["lynn-highlight-fill", "lynn-highlight-line"],
         "ref-gateway-highlight": ["gateway-highlight-fill", "gateway-highlight-line"],
@@ -1359,6 +2482,16 @@ function wireUI() {
             });
         });
     });
+
+    // Keep state.showLynnSchools + the size legend in sync with its toggle so the
+    // zoom-recompute guard and a freshly-re-enabled legend behave correctly.
+    const schoolsToggle = document.getElementById("ref-lynn-schools");
+    if (schoolsToggle) {
+        schoolsToggle.addEventListener("change", e => {
+            state.showLynnSchools = e.target.checked;
+            if (e.target.checked) renderSchoolSizeLegend();
+        });
+    }
 
     // 3D extrusion
     document.getElementById("toggle-3d").addEventListener("change", e => {
@@ -1375,6 +2508,25 @@ function wireUI() {
         if (map.getLayer("town-labels"))
             map.setLayoutProperty("town-labels", "visibility", e.target.checked ? "visible" : "none");
     });
+
+    // ── SCHOOL COLOR-MODE control (the centerpiece) ──────────────────────────
+    // A single dropdown drives the dot color: by Type, by a demographic, or the
+    // Lynn-English focus view. Repaints dots + swaps the color legend.
+    const schoolColorSel = document.getElementById("schoolColorMode");
+    if (schoolColorSel) {
+        schoolColorSel.value = state.schoolColorMode;
+        schoolColorSel.addEventListener("change", e => {
+            state.schoolColorMode = e.target.value;
+            applySchoolColorMode();
+        });
+    }
+    // Size legend recomputes on zoom so the key dots always match the map dots.
+    map.on("zoom", () => {
+        if (state.showLynnSchools) renderSchoolSizeLegend();
+    });
+    // Initial paint of both school legends.
+    renderSchoolSizeLegend();
+    renderSchoolColorLegend();
 
     // Quick views
     document.querySelectorAll(".view-btn").forEach(btn => {
@@ -1418,6 +2570,21 @@ function wireUI() {
     document.querySelectorAll(".view-btn").forEach(b => {
         b.addEventListener("click", () => { if (isMobile()) closePanel(); });
     });
+
+    // Theme (dark / light) toggle — sync its initial state, then wire the click.
+    syncThemeButton();
+    const themeBtn = document.getElementById("themeToggle");
+    if (themeBtn) themeBtn.addEventListener("click", toggleTheme);
+
+    // Reset metric, level, view, theme, school color mode & reference toggles.
+    const resetBtn = document.getElementById("resetAllBtn");
+    if (resetBtn) resetBtn.addEventListener("click", resetAll);
+
+    // Legend drag-to-move + resize controls (desktop).
+    setupLegendCustomization();
+
+    // Shareable URL state — wire writers (restore runs from the load handler).
+    setupUrlState();
 }
 
 function setActiveView(view) {
@@ -1431,6 +2598,280 @@ const VIEWS = {
     ma:            { center: [-71.7, 42.25],  zoom: 7.5,  pitch: 0, bearing: 0 },
     "north-shore": { center: [-70.9, 42.55],  zoom: 9.3,  pitch: 0, bearing: 0 },
 };
+
+// ─── RESET ALL ───────────────────────────────────────────────────────────────
+// Restore the landing defaults: metric, level, classification, student group,
+// year, school color mode, reference-layer toggles, visual mode, theme, and the
+// view. Mirrors the initial `state` object + the HTML's default-checked inputs.
+const REF_TOGGLE_DEFAULTS = {
+    "ref-muni-outline":      true,
+    "ref-academic-outline":  false,
+    "ref-voctech-overlay":   false,
+    "ref-charter-overlay":   false,
+    "ref-lynn-schools":      true,
+    "ref-all-ma-schools":    false,
+    "ref-lynn-town":         true,
+    "ref-gateway-highlight": true,
+};
+const REF_TOGGLE_LAYERS = {
+    "ref-muni-outline":      ["muni-outline"],
+    "ref-academic-outline":  ["academic-outline"],
+    "ref-voctech-overlay":   ["voctech-fill", "voctech-outline"],
+    "ref-charter-overlay":   ["charter-fill", "charter-outline"],
+    "ref-lynn-schools":      ["schools-halo", "schools-lehs-ring", "schools-circles", "schools-labels"],
+    "ref-all-ma-schools":    ["ma-schools-circles"],
+    "ref-lynn-town":         ["lynn-highlight-fill", "lynn-highlight-line"],
+    "ref-gateway-highlight": ["gateway-highlight-fill", "gateway-highlight-line"],
+};
+function resetAll() {
+    if (state.playing) stopYearAnimation();
+    // Core data view → landing defaults.
+    state.level = "muni";
+    state.metric = "EL_PCT";
+    state.classify = "jenks";
+    state.studentGroup = "all";
+    state.year = 2026;
+    state.extrude3d = false;
+    state.labels = true;
+    state.townLabels = true;
+    state.schoolColorMode = "type";
+    // Bivariate off; hide its controls + uncheck its toggle.
+    state.bivariate = false;
+    state.bivarMetricB = null;
+    state.bivarPalette = "greenblue";
+    const bivarTog = document.getElementById("bivariateToggle"); if (bivarTog) bivarTog.checked = false;
+    const bivarCtrls = document.getElementById("bivarControls"); if (bivarCtrls) bivarCtrls.style.display = "none";
+    // Reflect the simple selects/radios.
+    const levelSel = document.getElementById("levelSelect"); if (levelSel) levelSel.value = state.level;
+    const grpSel   = document.getElementById("groupSelect"); if (grpSel) grpSel.value = "all";
+    const search   = document.getElementById("metricSearch"); if (search) search.value = "";
+    const yearSl   = document.getElementById("yearSlider"); if (yearSl) yearSl.value = String(state.year);
+    const yearLb   = document.getElementById("yearLabel");  if (yearLb) yearLb.textContent = String(state.year);
+    document.querySelectorAll('input[name="classify"]').forEach(r => { r.checked = (r.value === "jenks"); });
+    const t3d = document.getElementById("toggle-3d");          if (t3d) t3d.checked = false;
+    const tl  = document.getElementById("toggle-labels");      if (tl) tl.checked = true;
+    const ttl = document.getElementById("toggle-town-labels"); if (ttl) ttl.checked = true;
+    const scm = document.getElementById("schoolColorMode");    if (scm) scm.value = "type";
+    // Reference layers → defaults (state flags + checkboxes + layer visibility).
+    state.showMuniOutline = true; state.showAcademicOutline = false;
+    state.showVoctechOverlay = false; state.showCharterOverlay = false;
+    state.showLynnSchools = true; state.showAllMaSchools = false;
+    state.showLynnTown = true; state.showGatewayHighlight = true;
+    Object.entries(REF_TOGGLE_DEFAULTS).forEach(([id, on]) => {
+        const el = document.getElementById(id); if (el) el.checked = on;
+        (REF_TOGGLE_LAYERS[id] || []).forEach(l => {
+            if (map.getLayer(l)) map.setLayoutProperty(l, "visibility", on ? "visible" : "none");
+        });
+    });
+    // 3D off (also flattens pitch); labels back on.
+    toggle3D();
+    if (map.getLayer("schools-labels")) map.setLayoutProperty("schools-labels", "visibility", "visible");
+    if (map.getLayer("town-labels"))    map.setLayoutProperty("town-labels", "visibility", "visible");
+    // Theme → light (landing default).
+    if (currentTheme() !== "light") applyTheme("light");
+    // Rebuild the metric list for the muni level, repaint, refresh legends.
+    populateMetricSelect();              // resets palette via semanticPalette + select value
+    applySchoolColorMode();
+    applyChoropleth();
+    updateLegend();
+    updateMetricSummary();
+    updateGroupNote();
+    renderSchoolSizeLegend();
+    setActiveView("lynn");
+    map.flyTo({ ...VIEWS.lynn, duration: 1000, essential: true });
+}
+
+// ─── LEGEND CUSTOMIZATION (drag to move + resize, persisted) ─────────────────
+// The legend header doubles as a drag handle; the −/+ buttons + corner grip
+// resize it (--legend-scale); ⟲ resets. Position & size persist to localStorage.
+// Desktop-only (the legend docks full-width on mobile). Adapted from the atlas's
+// setupLegendCustomization(); pointer events + on-screen clamping unchanged.
+const LEGEND_LS_KEY      = "lynn-maps-legend";
+const LEGEND_MIN_SCALE   = 0.7;
+const LEGEND_MAX_SCALE   = 1.8;
+const LEGEND_EDGE        = 8;     // min gap (px) between the card and the map edge
+const LEGEND_DESKTOP_MIN = 769;  // matches the app's 768px mobile breakpoint
+function setupLegendCustomization() {
+    const legend = document.getElementById("legend");
+    const header = document.getElementById("legendHeader");
+    const grip   = document.getElementById("legendResize");
+    const main   = document.querySelector(".maps-main");
+    if (!legend || !header || !main) return;
+
+    const st = { custom: false, left: 0, top: 0, scale: 1 };
+    const isDesktop  = () => window.innerWidth >= LEGEND_DESKTOP_MIN;
+    const clampScale = s => Math.min(LEGEND_MAX_SCALE, Math.max(LEGEND_MIN_SCALE, s));
+
+    function save() {
+        try {
+            localStorage.setItem(LEGEND_LS_KEY, JSON.stringify({
+                left: Math.round(st.left), top: Math.round(st.top), scale: st.scale,
+            }));
+        } catch (e) {}
+    }
+
+    // Seed left/top from the card's current spot, then hand positioning to JS.
+    function detach() {
+        if (st.custom) return;
+        const lr = legend.getBoundingClientRect();
+        const mr = main.getBoundingClientRect();
+        st.left = lr.left - mr.left;
+        st.top  = lr.top  - mr.top;
+        st.custom = true;
+    }
+
+    // Write scale + position, then clamp using the rendered (scaled) box so the
+    // card can never be pushed off the map.
+    function place() {
+        if (!st.custom) return;
+        legend.style.right  = "auto";
+        legend.style.bottom = "auto";
+        legend.style.setProperty("--legend-scale", String(st.scale));
+        legend.style.left = st.left + "px";
+        legend.style.top  = st.top  + "px";
+        const mr = main.getBoundingClientRect();
+        const lr = legend.getBoundingClientRect();   // scaled box (transform applied)
+        const maxLeft = Math.max(LEGEND_EDGE, mr.width  - lr.width  - LEGEND_EDGE);
+        const maxTop  = Math.max(LEGEND_EDGE, mr.height - lr.height - LEGEND_EDGE);
+        st.left = Math.min(Math.max(LEGEND_EDGE, st.left), maxLeft);
+        st.top  = Math.min(Math.max(LEGEND_EDGE, st.top),  maxTop);
+        legend.style.left = st.left + "px";
+        legend.style.top  = st.top  + "px";
+    }
+
+    // Restore default CSS anchoring (bottom-right) and forget the saved layout.
+    function reset() {
+        st.custom = false; st.left = 0; st.top = 0; st.scale = 1;
+        legend.style.removeProperty("--legend-scale");
+        legend.style.left = legend.style.top = legend.style.right = legend.style.bottom = "";
+        try { localStorage.removeItem(LEGEND_LS_KEY); } catch (e) {}
+    }
+
+    function bump(delta) {
+        if (!isDesktop()) return;
+        detach();
+        st.scale = clampScale(+(st.scale + delta).toFixed(2));
+        place();
+        save();
+    }
+
+    // ── Pointer drag: move (grab the header) ─────────────────────────────────
+    let drag = null;
+    header.addEventListener("pointerdown", e => {
+        if (!isDesktop() || (e.button !== undefined && e.button !== 0)) return;
+        if (e.target.closest(".legend-tool")) return;   // clicks on −/+/⟲ aren't drags
+        detach();
+        drag = { x: e.clientX, y: e.clientY, l: st.left, t: st.top };
+        try { header.setPointerCapture(e.pointerId); } catch (_) {}
+        document.body.classList.add("legend-busy");
+        document.body.style.cursor = "move";
+        e.preventDefault();
+    });
+    header.addEventListener("pointermove", e => {
+        if (!drag) return;
+        st.left = drag.l + (e.clientX - drag.x);
+        st.top  = drag.t + (e.clientY - drag.y);
+        place();
+    });
+    function endDrag(e) {
+        if (!drag) return;
+        drag = null;
+        try { header.releasePointerCapture(e.pointerId); } catch (_) {}
+        document.body.classList.remove("legend-busy");
+        document.body.style.cursor = "";
+        save();
+    }
+    header.addEventListener("pointerup", endDrag);
+    header.addEventListener("pointercancel", endDrag);
+
+    // Keyboard nudge while the header is focused (arrows = 10px, Shift = 1px).
+    header.addEventListener("keydown", e => {
+        if (!isDesktop()) return;
+        const step = e.shiftKey ? 1 : 10;
+        let dx = 0, dy = 0;
+        if      (e.key === "ArrowLeft")  dx = -step;
+        else if (e.key === "ArrowRight") dx =  step;
+        else if (e.key === "ArrowUp")    dy = -step;
+        else if (e.key === "ArrowDown")  dy =  step;
+        else return;
+        e.preventDefault();
+        detach();
+        st.left += dx; st.top += dy;
+        place();
+        save();
+    });
+
+    // ── Pointer drag: resize (corner grip) ───────────────────────────────────
+    let rez = null;
+    if (grip) {
+        grip.addEventListener("pointerdown", e => {
+            if (!isDesktop() || (e.button !== undefined && e.button !== 0)) return;
+            detach();
+            const lr = legend.getBoundingClientRect();
+            rez = { x: e.clientX, y: e.clientY, s: st.scale, w: lr.width };
+            try { grip.setPointerCapture(e.pointerId); } catch (_) {}
+            document.body.classList.add("legend-busy");
+            document.body.style.cursor = "nwse-resize";
+            e.preventDefault();
+            e.stopPropagation();
+        });
+        grip.addEventListener("pointermove", e => {
+            if (!rez) return;
+            // Average of horizontal + vertical drag drives a uniform scale.
+            const d = ((e.clientX - rez.x) + (e.clientY - rez.y)) / 2;
+            st.scale = clampScale(rez.s * ((rez.w + d) / rez.w));
+            place();
+        });
+        const endRez = e => {
+            if (!rez) return;
+            rez = null;
+            try { grip.releasePointerCapture(e.pointerId); } catch (_) {}
+            document.body.classList.remove("legend-busy");
+            document.body.style.cursor = "";
+            save();
+        };
+        grip.addEventListener("pointerup", endRez);
+        grip.addEventListener("pointercancel", endRez);
+    }
+
+    // ── Buttons: −/+ scale, ⟲ reset ──────────────────────────────────────────
+    const smaller  = document.getElementById("legendSmaller");
+    const larger   = document.getElementById("legendLarger");
+    const resetBtn = document.getElementById("legendReset");
+    if (smaller)  smaller.addEventListener("click",  () => bump(-0.1));
+    if (larger)   larger.addEventListener("click",   () => bump(+0.1));
+    if (resetBtn) resetBtn.addEventListener("click", reset);
+
+    // Re-clamp on viewport change; hand back to the docked CSS when narrow.
+    let rzTimer;
+    window.addEventListener("resize", () => {
+        clearTimeout(rzTimer);
+        rzTimer = setTimeout(() => {
+            if (!st.custom) return;
+            if (isDesktop()) {
+                place();
+            } else {
+                legend.style.removeProperty("--legend-scale");
+                legend.style.left = legend.style.top = legend.style.right = legend.style.bottom = "";
+            }
+        }, 150);
+    });
+
+    // Let updateLegend() re-clamp after a content (height) change.
+    _legendClamp = () => { if (st.custom && isDesktop()) place(); };
+
+    // Restore a saved layout (desktop only); clamp absorbs viewport differences.
+    try {
+        const saved = JSON.parse(localStorage.getItem(LEGEND_LS_KEY) || "null");
+        if (saved && isDesktop()) {
+            detach();
+            if (typeof saved.left  === "number") st.left  = saved.left;
+            if (typeof saved.top   === "number") st.top   = saved.top;
+            if (typeof saved.scale === "number") st.scale = clampScale(saved.scale);
+            place();
+        }
+    } catch (e) {}
+}
 
 // 3D extrusion — replaces the flat choropleth fill with extruded polygons
 function toggle3D() {
@@ -1534,3 +2975,624 @@ document.addEventListener("DOMContentLoaded", function () {
     const btn = document.getElementById("exportCsvBtn");
     if (btn) btn.addEventListener("click", downloadCurrentLayerCsv);
 });
+
+// ─── PNG EXPORT (preview modal + canvas compositing) ─────────────────────────
+// Snapshots the live map canvas (preserveDrawingBuffer is set on the Map so the
+// backbuffer is readable), then composites a title pill, the active legend
+// (univariate / bivariate, + the school legend if dots are shown) and a credit
+// chip onto a target canvas. Overlays are drawn in LOGICAL css px and scaled to
+// the target, so they stay crisp at 1×/2×/3×. Theme-aware: a dark surface +
+// light ink in dark mode, light surface + dark ink in light. Capture-once /
+// re-render-many — the title/legend/corner/resolution all re-render instantly
+// off the cached bitmap without re-snapshotting the map. Adapted (much
+// simplified) from the atlas's Export Studio (captureBaseBitmap / renderExport /
+// renderExportPreview / drawLegendStack).
+const exportStudio = {
+    opts: { title: "", subtitle: "", caption: "", corner: "br", resolution: 1 },
+    base: null,          // { bitmap, logicalW, logicalH }
+    capturing: false,
+};
+
+// Theme-aware ink palette for the baked overlays.
+function exportColors() {
+    const dark = currentTheme() === "dark";
+    return dark
+        ? { surface: "rgba(22,28,38,0.94)", border: "rgba(255,255,255,0.16)", ink: "#e7ecf3", sub: "#9aa7b5", page: "#0d1118" }
+        : { surface: "rgba(255,255,255,0.94)", border: "rgba(10,31,68,0.14)", ink: "#0A1F44", sub: "#566873", page: "#ffffff" };
+}
+
+function roundRectPath(ctx, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+}
+
+function clipText(ctx, s, max) {
+    if (ctx.measureText(s).width <= max) return s;
+    let t = s;
+    while (t.length > 1 && ctx.measureText(t + "…").width > max) t = t.slice(0, -1);
+    return t + "…";
+}
+
+// Default title / subtitle for the current view (used to pre-fill the modal).
+function exportDefaultTitle() {
+    const m = getMetric(state.metric);
+    if (state.bivariate && state.bivarMetricB) {
+        return `${m.label} × ${getMetric(state.bivarMetricB).label}`;
+    }
+    return m.label;
+}
+function exportDefaultSubtitle() {
+    const levelLabel = { muni: "Massachusetts municipalities", district: "School districts", tract: "Lynn census tracts" }[state.level] || state.level;
+    const m = getMetric(state.metric);
+    const years = availableYears(state.metric, state.level);
+    const yearPart = (years && years.includes(state.year)) ? ` · ${state.year}` : "";
+    const grpPart = (state.studentGroup && state.studentGroup !== "all") ? ` · ${state.studentGroup}` : "";
+    return state.bivariate ? levelLabel : `${levelLabel}${yearPart}${grpPart}`;
+}
+
+// Build a logical-px legend "block" descriptor for the active view so the canvas
+// renderer can draw it without touching the DOM. Returns { width, height, draw }.
+function buildExportLegendBlock(ctx) {
+    const C = exportColors();
+    const rows = [];          // { kind, ... }
+    const m = getMetric(state.metric);
+    const level = state.level;
+    const PAD = 12, HEAD_H = 18, ROW_H = 17, SW = 22, GRIDCELL = 22, AXIS = 16;
+
+    // Heading text.
+    let heading;
+    if (state.bivariate && _lastBivar) {
+        heading = `${m.label} × ${getMetric(state.bivarMetricB).label}`;
+    } else {
+        heading = m.label;
+    }
+
+    // Compute the legend content the same way updateLegend does.
+    if (state.bivariate && _lastBivar) {
+        const colors = _lastBivar.palette.colors;
+        const mB = getMetric(state.bivarMetricB);
+        const labA = `${m.label} →`, labB = `${mB.label} →`;
+        const gridW = GRIDCELL * 3;
+        const width = Math.max(legW(ctx, heading, "bold 12px Inter, sans-serif"), AXIS + gridW) + PAD * 2;
+        const height = HEAD_H + gridW + AXIS + PAD * 2;
+        return {
+            width: Math.ceil(width), height: Math.ceil(height),
+            draw(ctx, x, y, w) {
+                drawLegSurface(ctx, x, y, w, height, C);
+                const ix = x + PAD, iy = y + PAD;
+                ctx.fillStyle = C.ink; ctx.font = "bold 12px Inter, sans-serif"; ctx.textAlign = "left";
+                ctx.fillText(clipText(ctx, heading, w - PAD * 2), ix, iy + 11);
+                const gx = ix + AXIS, gy = iy + HEAD_H;
+                const order = [6, 7, 8, 3, 4, 5, 0, 1, 2];
+                order.forEach((ci, idx) => {
+                    const r = Math.floor(idx / 3), c = idx % 3;
+                    ctx.fillStyle = colors[ci]; ctx.fillRect(gx + c * GRIDCELL, gy + r * GRIDCELL, GRIDCELL, GRIDCELL);
+                    ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 1; ctx.strokeRect(gx + c * GRIDCELL, gy + r * GRIDCELL, GRIDCELL, GRIDCELL);
+                });
+                ctx.fillStyle = C.sub; ctx.font = "10px Inter, sans-serif"; ctx.textAlign = "left";
+                ctx.fillText(clipText(ctx, labB, gridW + AXIS), gx, gy + gridW + 12);
+                ctx.save(); ctx.translate(ix + 9, gy + gridW); ctx.rotate(-Math.PI / 2);
+                ctx.textAlign = "left"; ctx.fillText(clipText(ctx, labA, gridW), 0, 0); ctx.restore();
+            },
+        };
+    }
+
+    // Univariate (classed or continuous), mirroring updateLegend's math.
+    const values = getValuesForLevel(level, state.metric);
+    const palObj = PALETTES[state.palette];
+    if (!values.length) {
+        rows.push({ kind: "swatch", color: NO_DATA_COLOR, label: "No data at this level" });
+    } else if (state.classify === "continuous") {
+        const min = Math.min(...values), max = Math.max(...values);
+        rows.push({ kind: "bar", colors: sampleColors(palObj.colors, 9), min: fmt(min, m.format), max: fmt(max, m.format) });
+    } else {
+        const breaks = state.classify === "quantile" ? quantileBreaks(values, 5)
+            : state.classify === "jenks" ? jenksBreaks(values, 5)
+            : equalIntervalBreaks(values, 5);
+        const stops = sampleColors(palObj.colors, 5);
+        const ranges = [`< ${fmt(breaks[0], m.format)}`];
+        for (let i = 0; i < breaks.length - 1; i++) ranges.push(`${fmt(breaks[i], m.format)} – ${fmt(breaks[i + 1], m.format)}`);
+        ranges.push(`≥ ${fmt(breaks[breaks.length - 1], m.format)}`);
+        for (let i = 0; i < 5; i++) rows.push({ kind: "swatch", color: stops[i], label: ranges[i] });
+    }
+    // No-data swatch (count).
+    const total = GEO_DATA[level] ? GEO_DATA[level].features.length : 0;
+    const nullCount = Math.max(0, total - values.length);
+    if (nullCount) rows.push({ kind: "swatch", color: NO_DATA_COLOR, label: `No data (${nullCount.toLocaleString()})` });
+
+    // Measure.
+    let w = legW(ctx, heading, "bold 12px Inter, sans-serif");
+    let h = HEAD_H;
+    rows.forEach(r => {
+        if (r.kind === "bar") { w = Math.max(w, 150); h += 30; }
+        else { w = Math.max(w, SW + 8 + legW(ctx, r.label, "11px Inter, sans-serif")); h += ROW_H; }
+    });
+    const width = w + PAD * 2, height = h + PAD * 2;
+    return {
+        width: Math.ceil(width), height: Math.ceil(height),
+        draw(ctx, x, y, ww) {
+            drawLegSurface(ctx, x, y, ww, height, C);
+            const ix = x + PAD; let ry = y + PAD;
+            ctx.fillStyle = C.ink; ctx.font = "bold 12px Inter, sans-serif"; ctx.textAlign = "left";
+            ctx.fillText(clipText(ctx, heading, ww - PAD * 2), ix, ry + 11); ry += HEAD_H;
+            const innerW = ww - PAD * 2;
+            rows.forEach(r => {
+                if (r.kind === "bar") {
+                    const grad = ctx.createLinearGradient(ix, 0, ix + innerW, 0);
+                    r.colors.forEach((c, i) => grad.addColorStop(i / (r.colors.length - 1), c));
+                    ctx.fillStyle = grad; ctx.fillRect(ix, ry, innerW, 13);
+                    ctx.strokeStyle = "rgba(120,120,120,0.4)"; ctx.lineWidth = 1; ctx.strokeRect(ix, ry, innerW, 13);
+                    ctx.fillStyle = C.sub; ctx.font = "11px Inter, sans-serif";
+                    ctx.textAlign = "left"; ctx.fillText(r.min, ix, ry + 26);
+                    ctx.textAlign = "right"; ctx.fillText(r.max, ix + innerW, ry + 26); ctx.textAlign = "left";
+                    ry += 30;
+                } else {
+                    ctx.fillStyle = r.color; roundRectPath(ctx, ix, ry + 2, SW, 12, 2); ctx.fill();
+                    ctx.strokeStyle = "rgba(120,120,120,0.35)"; ctx.lineWidth = 1; ctx.stroke();
+                    ctx.fillStyle = C.ink; ctx.font = "11px Inter, sans-serif"; ctx.textAlign = "left";
+                    ctx.fillText(clipText(ctx, r.label, ww - PAD * 2 - SW - 8), ix + SW + 8, ry + 11);
+                    ry += ROW_H;
+                }
+            });
+        },
+    };
+}
+
+// Optional second block: the school color legend, when the Lynn school dots are
+// shown. Categorical chips (type/focus) or a gradient bar (demographic mode).
+function buildExportSchoolBlock(ctx) {
+    if (!state.showLynnSchools) return null;
+    const C = exportColors();
+    const PAD = 12, HEAD_H = 18, ROW_H = 16, DOT = 12;
+    const mode = state.schoolColorMode;
+    const heading = "Lynn schools";
+    const rows = [];   // { color, label } or a bar
+    if (mode === "type") {
+        SCHOOL_TYPES.forEach(t => rows.push({ color: t.color, label: t.label }));
+        rows.push({ color: "#FFB81C", label: "Lynn English (focus)" });
+    } else if (mode === "focus") {
+        rows.push({ color: "#FFB81C", label: "Lynn English High" });
+        rows.push({ color: "#b0bcc6", label: "All other schools" });
+    } else {
+        const cfg = SCHOOL_DEMO_MODES[mode] || SCHOOL_DEMO_MODES.EL_PCT;
+        const stops = sampleColors(cfg.ramp, 5);
+        let w = Math.max(legW(ctx, heading, "bold 12px Inter, sans-serif"), 140) + PAD * 2;
+        const height = HEAD_H + 30 + PAD * 2;
+        return {
+            width: Math.ceil(w), height: Math.ceil(height),
+            draw(ctx, x, y, ww) {
+                drawLegSurface(ctx, x, y, ww, height, C);
+                const ix = x + PAD; let ry = y + PAD;
+                ctx.fillStyle = C.ink; ctx.font = "bold 12px Inter, sans-serif"; ctx.textAlign = "left";
+                ctx.fillText(heading, ix, ry + 11); ry += HEAD_H;
+                const innerW = ww - PAD * 2;
+                const grad = ctx.createLinearGradient(ix, 0, ix + innerW, 0);
+                stops.forEach((c, i) => grad.addColorStop(i / (stops.length - 1), c));
+                ctx.fillStyle = grad; ctx.fillRect(ix, ry, innerW, 12);
+                ctx.fillStyle = C.sub; ctx.font = "10px Inter, sans-serif";
+                ctx.textAlign = "left"; ctx.fillText("0%", ix, ry + 24);
+                ctx.textAlign = "center"; ctx.fillText(cfg.label, ix + innerW / 2, ry + 24);
+                ctx.textAlign = "right"; ctx.fillText("100%", ix + innerW, ry + 24); ctx.textAlign = "left";
+            },
+        };
+    }
+    let w = legW(ctx, heading, "bold 12px Inter, sans-serif");
+    rows.forEach(r => { w = Math.max(w, DOT + 8 + legW(ctx, r.label, "11px Inter, sans-serif")); });
+    const width = w + PAD * 2, height = HEAD_H + rows.length * ROW_H + PAD * 2;
+    return {
+        width: Math.ceil(width), height: Math.ceil(height),
+        draw(ctx, x, y, ww) {
+            drawLegSurface(ctx, x, y, ww, height, C);
+            const ix = x + PAD; let ry = y + PAD;
+            ctx.fillStyle = C.ink; ctx.font = "bold 12px Inter, sans-serif"; ctx.textAlign = "left";
+            ctx.fillText(heading, ix, ry + 11); ry += HEAD_H;
+            rows.forEach(r => {
+                ctx.beginPath(); ctx.arc(ix + DOT / 2, ry + 8, DOT / 2, 0, Math.PI * 2);
+                ctx.fillStyle = r.color; ctx.fill();
+                ctx.strokeStyle = "rgba(120,120,120,0.4)"; ctx.lineWidth = 1; ctx.stroke();
+                ctx.fillStyle = C.ink; ctx.font = "11px Inter, sans-serif"; ctx.textAlign = "left";
+                ctx.fillText(clipText(ctx, r.label, ww - PAD * 2 - DOT - 8), ix + DOT + 8, ry + 12);
+                ry += ROW_H;
+            });
+        },
+    };
+}
+
+function legW(ctx, s, font) { ctx.font = font; return ctx.measureText(s).width; }
+function drawLegSurface(ctx, x, y, w, h, C) {
+    ctx.fillStyle = C.surface; ctx.strokeStyle = C.border; ctx.lineWidth = 1;
+    roundRectPath(ctx, x, y, w, h, 8); ctx.fill(); ctx.stroke();
+}
+
+// Draw the centered title pill (title + subtitle) at the top.
+function drawExportTitle(ctx, W, title, subtitle, C) {
+    title = (title || "").trim(); subtitle = (subtitle || "").trim();
+    if (!title && !subtitle) return;
+    ctx.textAlign = "center";
+    ctx.font = "bold 22px Inter, sans-serif";
+    const tW = title ? ctx.measureText(title).width : 0;
+    ctx.font = "13px Inter, sans-serif";
+    const sW = subtitle ? ctx.measureText(subtitle).width : 0;
+    const pillW = Math.min(W - 32, Math.max(tW, sW) + 40);
+    const pillH = (title && subtitle) ? 56 : 40;
+    const cx = W / 2, py = 14;
+    ctx.fillStyle = C.surface; ctx.strokeStyle = C.border; ctx.lineWidth = 1;
+    roundRectPath(ctx, cx - pillW / 2, py, pillW, pillH, 10); ctx.fill(); ctx.stroke();
+    if (title) { ctx.fillStyle = C.ink; ctx.font = "bold 22px Inter, sans-serif"; ctx.fillText(clipText(ctx, title, pillW - 24), cx, py + 27); }
+    if (subtitle) { ctx.fillStyle = C.sub; ctx.font = "13px Inter, sans-serif"; ctx.fillText(clipText(ctx, subtitle, pillW - 24), cx, title ? py + 46 : py + 24); }
+    ctx.textAlign = "left";
+}
+
+// Credit chip — centered along the bottom edge, always drawn.
+function drawExportCredit(ctx, W, H, C) {
+    ctx.font = "12px Inter, sans-serif";
+    const credit = "© Maxwell Howe · MA DESE · US Census · MassGIS · OpenFreeMap";
+    const cw = ctx.measureText(credit).width;
+    const chipW = Math.min(W - 24, cw + 20), chipH = 22, x = (W - chipW) / 2, y = H - chipH - 12;
+    ctx.fillStyle = C.surface; ctx.strokeStyle = C.border; ctx.lineWidth = 1;
+    roundRectPath(ctx, x, y, chipW, chipH, 5); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = C.sub; ctx.textAlign = "left";
+    ctx.fillText(clipText(ctx, credit, chipW - 16), x + 10, y + 15);
+}
+
+// Optional caption chip, centered just above the credit.
+function drawExportCaption(ctx, W, H, caption, C) {
+    caption = (caption || "").trim();
+    if (!caption) return;
+    ctx.font = "13px Inter, sans-serif";
+    const cw = ctx.measureText(caption).width;
+    const chipW = Math.min(W - 32, cw + 24), chipH = 24, x = (W - chipW) / 2, y = H - 12 - 22 - chipH - 6;
+    ctx.fillStyle = C.surface; ctx.strokeStyle = C.border; ctx.lineWidth = 1;
+    roundRectPath(ctx, x, y, chipW, chipH, 6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = C.ink; ctx.textAlign = "center";
+    ctx.fillText(clipText(ctx, caption, chipW - 18), W / 2, y + 16); ctx.textAlign = "left";
+}
+
+// Composite the cached base bitmap + overlays onto a target canvas. Overlays are
+// drawn in logical CSS px and scaled to the target so they're crisp at any res.
+function renderExport(target, opts) {
+    const base = exportStudio.base;
+    if (!base || !target.width) return;
+    const C = exportColors();
+    const ctx = target.getContext("2d");
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, target.width, target.height);
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+    ctx.fillStyle = C.page; ctx.fillRect(0, 0, target.width, target.height);
+    ctx.drawImage(base.bitmap, 0, 0, base.bitmap.width, base.bitmap.height, 0, 0, target.width, target.height);
+    const W = base.logicalW, H = base.logicalH, s = target.width / W;
+    ctx.save(); ctx.scale(s, s);
+    drawExportTitle(ctx, W, opts.title, opts.subtitle, C);
+    // Legend stack in the chosen corner (metric block + optional school block).
+    if (opts.corner && opts.corner !== "none") {
+        const blocks = [buildExportLegendBlock(ctx)];
+        const sb = buildExportSchoolBlock(ctx);
+        if (sb) blocks.push(sb);
+        const gap = 8, margin = 14;
+        const stackW = blocks.reduce((mx, b) => Math.max(mx, b.width), 0);
+        const stackH = blocks.reduce((a, b) => a + b.height, 0) + gap * (blocks.length - 1);
+        const onRight = opts.corner.indexOf("r") >= 0;
+        const onTop = opts.corner.indexOf("t") >= 0;
+        const x = onRight ? W - stackW - margin : margin;
+        let y = onTop ? margin + ((opts.title || opts.subtitle) ? 64 : 0) : H - stackH - margin - 30;
+        blocks.forEach(b => { b.draw(ctx, x, y, stackW); y += b.height + gap; });
+    }
+    drawExportCaption(ctx, W, H, opts.caption, C);
+    drawExportCredit(ctx, W, H, C);
+    ctx.restore();
+}
+
+// Snapshot the live map canvas into a logical-sized offscreen bitmap. Waits for
+// the map to be idle (tiles settled) so labels aren't blank. Returns
+// { bitmap, logicalW, logicalH } or { error }.
+async function captureExportBase() {
+    const container = map.getContainer();
+    const logicalW = container.clientWidth, logicalH = container.clientHeight;
+    if (!logicalW || !logicalH) return { error: "Map isn't visible — try again once it loads." };
+    // Settle tiles if the map is mid-move; cap the wait so we never hang.
+    if (map.isMoving && map.isMoving()) {
+        await Promise.race([
+            new Promise(r => map.once("idle", r)),
+            new Promise(r => setTimeout(r, 2000)),
+        ]);
+    }
+    const canvas = map.getCanvas();
+    const bmp = document.createElement("canvas");
+    bmp.width = canvas.width; bmp.height = canvas.height;
+    bmp.getContext("2d").drawImage(canvas, 0, 0);
+    return { bitmap: bmp, logicalW, logicalH };
+}
+
+// Re-render only the in-modal preview canvas (fast — no re-capture).
+function renderExportPreview() {
+    const base = exportStudio.base;
+    const cv = document.getElementById("exportPreview");
+    if (!cv || !base) return;
+    const frame = cv.parentElement;
+    const availW = Math.max(220, (frame ? frame.clientWidth : 540) - 4);
+    const cssW = Math.min(availW, base.logicalW);
+    const cssH = cssW * base.logicalH / base.logicalW;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.style.width = cssW + "px"; cv.style.height = cssH + "px";
+    cv.width = Math.round(cssW * dpr); cv.height = Math.round(cssH * dpr);
+    renderExport(cv, exportStudio.opts);
+    const busy = document.getElementById("exportPreviewBusy"); if (busy) busy.hidden = true;
+}
+
+function exportPngFilename() {
+    const mult = exportStudio.opts.resolution > 1 ? `_${exportStudio.opts.resolution}x` : "";
+    const bivar = state.bivariate ? `_x_${state.bivarMetricB}` : "";
+    return `lynn-map_${state.metric}${bivar}_${state.level}${mult}_${new Date().toISOString().slice(0, 10)}.png`;
+}
+
+// Render at the chosen resolution and download. Guards against exceeding the
+// browser's max canvas dimension by clamping the multiplier (shows a note).
+function downloadExportPng() {
+    const base = exportStudio.base;
+    if (!base) return;
+    let mult = exportStudio.opts.resolution || 1;
+    const out = document.createElement("canvas");
+    let targetW = base.bitmap.width * mult, targetH = base.bitmap.height * mult;
+    const MAX = 16000;
+    let clamped = false;
+    if (Math.max(targetW, targetH) > MAX) {
+        const k = MAX / Math.max(targetW, targetH);
+        targetW = Math.floor(targetW * k); targetH = Math.floor(targetH * k);
+        clamped = true;
+    }
+    out.width = targetW; out.height = targetH;
+    renderExport(out, exportStudio.opts);
+    const note = document.getElementById("exportResNote"); if (note) note.hidden = !clamped;
+    const slug = exportPngFilename();
+    const finish = (url, revoke) => {
+        const a = document.createElement("a");
+        a.href = url; a.download = slug;
+        document.body.appendChild(a); a.click(); a.remove();
+        if (revoke) setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+    if (out.toBlob) out.toBlob(b => { b ? finish(URL.createObjectURL(b), true) : finish(out.toDataURL("image/png"), false); }, "image/png");
+    else finish(out.toDataURL("image/png"), false);
+}
+
+async function openExportModal() {
+    const modal = document.getElementById("exportModal");
+    if (!modal || !GEO_DATA) return;
+    // Pre-fill title / subtitle from the current view (only if untouched/empty).
+    const titleEl = document.getElementById("exportTitle");
+    const subEl = document.getElementById("exportSubtitle");
+    if (titleEl) { titleEl.value = exportDefaultTitle(); exportStudio.opts.title = titleEl.value; }
+    if (subEl) { subEl.value = exportDefaultSubtitle(); exportStudio.opts.subtitle = subEl.value; }
+    const capEl = document.getElementById("exportCaption");
+    if (capEl) exportStudio.opts.caption = capEl.value || "";
+    modal.classList.add("open"); modal.setAttribute("aria-hidden", "false");
+    const busy = document.getElementById("exportPreviewBusy"); if (busy) busy.hidden = false;
+    if (exportStudio.capturing) return;
+    exportStudio.capturing = true;
+    let res;
+    try { res = await captureExportBase(); }
+    finally { exportStudio.capturing = false; }
+    if (res.error) {
+        if (busy) { busy.textContent = res.error; }
+        exportStudio.base = null;
+        return;
+    }
+    exportStudio.base = res;
+    renderExportPreview();
+}
+
+function closeExportModal() {
+    const modal = document.getElementById("exportModal");
+    if (!modal) return;
+    modal.classList.remove("open"); modal.setAttribute("aria-hidden", "true");
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    const pngBtn = document.getElementById("exportPngBtn");
+    if (pngBtn) pngBtn.addEventListener("click", openExportModal);
+    const closeBtn = document.getElementById("exportModalClose");
+    if (closeBtn) closeBtn.addEventListener("click", closeExportModal);
+    const dlBtn = document.getElementById("exportDownloadBtn");
+    if (dlBtn) dlBtn.addEventListener("click", downloadExportPng);
+    const modal = document.getElementById("exportModal");
+    if (modal) modal.addEventListener("click", e => { if (e.target === modal) closeExportModal(); });
+    document.addEventListener("keydown", e => {
+        if (e.key === "Escape") {
+            const m = document.getElementById("exportModal");
+            if (m && m.classList.contains("open")) closeExportModal();
+        }
+    });
+    // Live-edit the overlay fields → re-render the preview (no re-capture).
+    const reRender = () => renderExportPreview();
+    [["exportTitle", "title"], ["exportSubtitle", "subtitle"], ["exportCaption", "caption"]].forEach(([id, key]) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener("input", e => { exportStudio.opts[key] = e.target.value; reRender(); });
+    });
+    const cornerSel = document.getElementById("exportCorner");
+    if (cornerSel) cornerSel.addEventListener("change", e => { exportStudio.opts.corner = e.target.value; reRender(); });
+    document.querySelectorAll('input[name="exportRes"]').forEach(r => {
+        r.addEventListener("change", e => { if (e.target.checked) exportStudio.opts.resolution = parseInt(e.target.value, 10) || 1; });
+    });
+});
+
+// ─── SHAREABLE URL STATE ─────────────────────────────────────────────────────
+// Encode the meaningful UI state in the URL hash; restore on load; update on
+// change via history.replaceState (no history spam). A "Copy link" button copies
+// the current URL. Restore is defensive — unknown/old params fall back to defaults
+// so a stale link never breaks the app. Adapted from the atlas's applyUrlState /
+// writeUrlState (hash-based so it works on a static Pages deploy).
+const VALID_LEVELS    = ["muni", "district", "tract"];
+const VALID_CLASSIFY  = ["jenks", "quantile", "equal", "continuous"];
+
+function writeUrlState() {
+    if (!GEO_DATA) return;   // don't write a half-built URL before load
+    const params = new URLSearchParams();
+    params.set("level", state.level);
+    params.set("metric", state.metric);
+    params.set("palette", state.palette);
+    params.set("classify", state.classify);
+    params.set("year", String(state.year));
+    if (state.studentGroup && state.studentGroup !== "all") params.set("group", state.studentGroup);
+    if (state.theme === "dark") params.set("theme", "dark");
+    if (state.schoolColorMode && state.schoolColorMode !== "type") params.set("scm", state.schoolColorMode);
+    if (state.bivariate && state.bivarMetricB) {
+        params.set("bivar", "1");
+        params.set("bivarB", state.bivarMetricB);
+        params.set("bivarPal", state.bivarPalette);
+    }
+    // Camera so a shared link reproduces the framing the sender saw.
+    try {
+        const c = map.getCenter();
+        params.set("at", `${c.lng.toFixed(4)},${c.lat.toFixed(4)},${map.getZoom().toFixed(2)}`);
+    } catch (e) {}
+    const hash = "#" + params.toString();
+    if (window.location.hash !== hash) {
+        try { history.replaceState(null, "", hash); } catch (e) {}
+    }
+}
+
+// Restore state from the URL hash. Called once after wireUI. Each param is guarded
+// so missing/invalid values fall through to the defaults already in `state`.
+function applyUrlState() {
+    let raw = "";
+    try { raw = window.location.hash.slice(1); } catch (e) { return; }
+    if (!raw) return;
+    const params = new URLSearchParams(raw);
+    let dirty = false;
+
+    const level = params.get("level");
+    if (level && VALID_LEVELS.includes(level)) {
+        state.level = level;
+        const sel = document.getElementById("levelSelect"); if (sel) sel.value = level;
+        dirty = true;
+    }
+    // Metric A — must exist at the (possibly just-restored) level.
+    const metric = params.get("metric");
+    if (metric && METRICS.find(m => m.id === metric && m.levels.includes(state.level))) {
+        state.metric = metric;
+    }
+    // Rebuild the metric list for the level FIRST (so the select has the options),
+    // which also seeds the semantic default palette + bivar-B select.
+    populateMetricSelect();
+    const metricSel = document.getElementById("metricSelect"); if (metricSel) metricSel.value = state.metric;
+
+    const palette = params.get("palette");
+    if (palette && PALETTES[palette]) {
+        state.palette = palette;
+        const sel = document.getElementById("paletteSelect"); if (sel) sel.value = palette;
+        dirty = true;
+    }
+    const classify = params.get("classify");
+    if (classify && VALID_CLASSIFY.includes(classify)) {
+        state.classify = classify;
+        const radio = document.querySelector(`input[name="classify"][value="${classify}"]`);
+        if (radio) radio.checked = true;
+        dirty = true;
+    }
+    const year = parseInt(params.get("year"), 10);
+    if (isFinite(year)) {
+        state.year = year;
+        const ys = document.getElementById("yearSlider"); if (ys) ys.value = String(year);
+        const yl = document.getElementById("yearLabel"); if (yl) yl.textContent = String(year);
+        dirty = true;
+    }
+    const group = params.get("group");
+    if (group) {
+        state.studentGroup = group;
+        const gs = document.getElementById("groupSelect"); if (gs) gs.value = group;
+        dirty = true;
+        if (typeof updateGroupNote === "function") updateGroupNote();
+    }
+    const scm = params.get("scm");
+    if (scm) {
+        state.schoolColorMode = scm;
+        const ss = document.getElementById("schoolColorMode"); if (ss) ss.value = scm;
+        if (typeof applySchoolColorMode === "function") applySchoolColorMode();
+    }
+    if (params.get("theme") === "dark" && currentTheme() !== "dark") {
+        applyTheme("dark");
+    }
+    if (params.get("bivar") === "1") {
+        const bB = params.get("bivarB");
+        if (bB && getMetric(bB) && getMetric(bB).levels.includes(state.level) && bB !== state.metric) {
+            state.bivarMetricB = bB;
+        }
+        const bP = params.get("bivarPal");
+        if (bP && BIVAR_PALETTES[bP]) state.bivarPalette = bP;
+        setBivariate(true);   // populates B + palette selects, repaints, swaps legend
+        dirty = true;
+    }
+    const at = params.get("at");
+    if (at) {
+        const [lng, lat, z] = at.split(",").map(Number);
+        if (isFinite(lng) && isFinite(lat) && isFinite(z)) {
+            try { map.jumpTo({ center: [lng, lat], zoom: z }); } catch (e) {}
+        }
+    }
+    if (dirty) {
+        applyChoropleth();
+        updateLegend();
+        if (typeof updateMetricSummary === "function") updateMetricSummary();
+    }
+}
+
+// Wire URL writing on every state-affecting control + the camera, and the
+// "Copy link" button. Called from wireUI's tail. Debounced writes keep
+// replaceState quiet during slider drags / map pans.
+let _urlWriteTimer = null;
+function scheduleUrlWrite() {
+    clearTimeout(_urlWriteTimer);
+    _urlWriteTimer = setTimeout(writeUrlState, 200);
+}
+function setupUrlState() {
+    ["levelSelect", "metricSelect", "paletteSelect", "groupSelect", "yearSlider",
+     "schoolColorMode", "bivariateToggle", "bivarMetricSelect", "bivarPaletteSelect",
+    ].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener("change", scheduleUrlWrite);
+    });
+    document.querySelectorAll('input[name="classify"]').forEach(el => el.addEventListener("change", scheduleUrlWrite));
+    const themeBtn = document.getElementById("themeToggle");
+    if (themeBtn) themeBtn.addEventListener("click", scheduleUrlWrite);
+    const resetBtn = document.getElementById("resetAllBtn");
+    if (resetBtn) resetBtn.addEventListener("click", () => setTimeout(writeUrlState, 50));
+    // Persist the camera after the user stops moving.
+    map.on("moveend", scheduleUrlWrite);
+
+    // "Copy link" — write current state to the URL, then copy it.
+    const copyBtn = document.getElementById("copyLinkBtn");
+    const note = document.getElementById("copyLinkNote");
+    if (copyBtn) {
+        copyBtn.addEventListener("click", async () => {
+            writeUrlState();
+            const url = window.location.href;
+            let copied = false;
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(url);
+                    copied = true;
+                }
+            } catch (e) {}
+            if (!copied) {
+                // Fallback: a temporary textarea + execCommand for older / insecure contexts.
+                try {
+                    const ta = document.createElement("textarea");
+                    ta.value = url; ta.style.position = "fixed"; ta.style.opacity = "0";
+                    document.body.appendChild(ta); ta.focus(); ta.select();
+                    copied = document.execCommand("copy");
+                    ta.remove();
+                } catch (e) {}
+            }
+            if (note) {
+                const prev = note.textContent;
+                note.textContent = copied ? "✓ Link copied to clipboard." : "Couldn't copy automatically — the link is in your address bar.";
+                setTimeout(() => { note.textContent = prev; }, 2600);
+            }
+        });
+    }
+}

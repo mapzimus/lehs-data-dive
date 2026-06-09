@@ -12,6 +12,38 @@
     --legend-bg: rgba(255, 255, 255, 0.95);
     --nav-height: 64px;
     --panel-width: 320px;
+    /* Semantic theme tokens — light values here; flipped under [data-theme=dark].
+       --text-strong replaces inherited / hard-coded navy text so panel, legend
+       and control copy can lighten in dark mode while navy BACKGROUND pills and
+       headers (which keep white text on them) stay navy. The embedding portfolio
+       site's global sheet sets a near-white body color, so any text that merely
+       inherits would be invisible here — always color panel/legend text with
+       var(--text-strong) (or --text-muted for secondary copy). */
+    --text-strong: #0A1F44;
+    --text-muted: #607D8B;
+    --link: #0A1F44;           /* in-panel cross-links — navy in light */
+    --surface-1: #ffffff;      /* cards, modals, inputs */
+    --surface-2: #f1f5fa;      /* subtle fills, tracks, hovers */
+    --surface-hover: rgba(10, 31, 68, 0.06);
+    --input-bg: #ffffff;
+}
+
+/* ── DARK THEME — flip the tokens; navy BACKGROUND pills/headers stay navy. ──
+   Applied when <html data-theme="dark">. Only repoints custom properties +
+   re-skins a handful of surfaces that hard-code light backgrounds. Light mode
+   is untouched. Theme set/persisted in app.js (applyTheme/initTheme). */
+:root[data-theme="dark"] {
+    --panel-bg: rgba(22, 28, 38, 0.97);
+    --legend-bg: rgba(22, 28, 38, 0.96);
+    --panel-border: rgba(255, 255, 255, 0.12);
+    --panel-shadow: 0 2px 20px rgba(0, 0, 0, 0.55);
+    --text-strong: #e7ecf3;
+    --text-muted: #9aa7b5;
+    --link: #7db4ff;           /* in-panel cross-links — bright blue on dark panel */
+    --surface-1: #1b2230;
+    --surface-2: #232c3c;
+    --surface-hover: rgba(255, 255, 255, 0.08);
+    --input-bg: #232c3c;
 }
 
 /* The maps page is full-bleed below the site nav */
@@ -121,7 +153,7 @@ body.maps-page {
     margin-bottom: 6px;
 }
 .panel-header .section-label {
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
     font-weight: 500;
@@ -130,22 +162,29 @@ body.maps-page {
 }
 .back-link {
     font-size: 11px;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     text-decoration: none;
     opacity: 0.7;
 }
 .back-link:hover { opacity: 1; text-decoration: underline; }
 
+/* In-panel cross-links (e.g. "MA Education Atlas →"). Previously these were
+   inline-styled with hard-coded navy text, which vanished against the dark panel
+   in dark mode (the inherited-text trap). Route through a theme-aware token: navy
+   in light, a bright link blue in dark, so the link always reads on its panel. */
+.panel-link { color: var(--link); font-weight: 600; text-decoration: none; }
+.panel-link:hover { text-decoration: underline; }
+
 .panel-title {
     font-size: 22px;
     font-weight: 600;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     margin: 4px 0 8px;
     letter-spacing: -0.3px;
 }
 .panel-desc {
     font-size: 13px;
-    color: #455A64;
+    color: var(--text-muted);
     line-height: 1.5;
     margin: 0;
 }
@@ -153,7 +192,7 @@ body.maps-page {
 .panel-h2 {
     font-size: 11px;
     font-weight: 600;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     text-transform: uppercase;
     letter-spacing: 0.6px;
     margin: 0 0 10px;
@@ -176,7 +215,7 @@ body.maps-page {
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.15s;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
 }
 .view-btn:hover {
     background: rgba(255, 184, 28, 0.1);
@@ -196,7 +235,7 @@ body.maps-page {
     padding: 6px 0;
     cursor: pointer;
     font-size: 13px;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
 }
 .layer-row input[type="checkbox"] {
     accent-color: var(--lehs-navy);
@@ -212,7 +251,7 @@ body.maps-page {
     flex-shrink: 0;
     border: 1px solid rgba(0,0,0,0.1);
 }
-.swatch-schools         { background: var(--lehs-gold); border-radius: 50%; }
+.swatch-schools         { background: var(--lehs-gold); border-radius: 50%; box-shadow: 0 0 0 2px rgba(255,184,28,0.4); }
 .swatch-gateway         { background: rgba(156, 39, 176, 0.25); border: 2px solid #6a1b9a; }
 .swatch-muni-outline    { background: transparent; border: 1.5px solid #78909c; }
 .swatch-academic-outline{ background: transparent; border: 1.8px solid #1a3a6b; }
@@ -221,12 +260,113 @@ body.maps-page {
 .swatch-ma-schools      { background: #1976D2; border-radius: 50%; }
 .swatch-lynn            { background: rgba(255, 184, 28, 0.3); border: 2px solid var(--lehs-navy); }
 
+/* ============================================================================
+   SCHOOL CENTERPIECE — color-mode control, size legend, color legend
+   The school dots are the star of this Lynn map, so their controls get a
+   dedicated, slightly-recessed block under the "Lynn schools" toggle.
+   ============================================================================ */
+.schools-controls {
+    margin: 4px 0 10px 24px;
+    padding: 10px 12px;
+    background: rgba(10, 31, 68, 0.035);
+    border: 1px solid var(--panel-border);
+    border-left: 3px solid var(--lehs-gold);
+    border-radius: 0 6px 6px 0;
+}
+.schools-ctrl-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-strong);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 5px;
+}
+.schools-ctrl-hint { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--text-muted); }
+.select-input--sm { padding: 6px 9px; font-size: 12px; }
+.schools-ctrl-note {
+    margin-top: 9px;
+    font-size: 10.5px;
+    line-height: 1.45;
+    color: var(--text-muted);
+}
+.lehs-key-dot {
+    display: inline-block;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--lehs-gold);
+    box-shadow: 0 0 0 2px rgba(255,184,28,0.45);
+    vertical-align: middle;
+    margin: 0 1px;
+}
+
+/* Color legend — categorical chips OR a sequential gradient bar */
+.school-color-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px 10px;
+}
+.scl-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: var(--text-strong);
+    white-space: nowrap;
+}
+.scl-sw {
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.18);
+}
+.scl-sw--lehs { background: var(--lehs-gold); box-shadow: 0 0 0 2px rgba(255,184,28,0.5); }
+.scl-bar {
+    width: 100%;
+    height: 12px;
+    border-radius: 3px;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+.scl-axis {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9.5px;
+    color: var(--text-muted);
+    margin-top: 3px;
+}
+.scl-axis span:nth-child(2) { font-weight: 600; color: var(--text-strong); }
+.scl-note { font-size: 9.5px; font-style: italic; color: var(--text-muted); margin-top: 3px; }
+
+/* Graduated-dot SIZE legend — grey dots keyed to enrollment. Diameters set
+   inline by renderSchoolSizeLegend() to match the on-map dots at current zoom. */
+.schools-size-legend {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    padding: 4px 2px 0;
+    min-height: calc(var(--ssl-h, 16px) + 2px);
+}
+.ssl-item { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.ssl-dot-wrap { height: var(--ssl-h, 16px); display: flex; align-items: flex-end; }
+.ssl-dot {
+    display: block;
+    border-radius: 50%;
+    background: #607D8B;
+    border: 1px solid #ffffff;
+    box-shadow: 0 0 0 0.6px rgba(10, 31, 68, 0.35);
+}
+.ssl-label {
+    font-size: 10px;
+    color: var(--text-strong);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+
 /* Form labels for select inputs */
 .form-label {
     display: block;
     font-size: 11px;
     font-weight: 600;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     margin-bottom: 4px;
     text-transform: uppercase;
     letter-spacing: 0.4px;
@@ -244,7 +384,7 @@ body.maps-page {
     align-items: center;
     gap: 6px;
     font-size: 12px;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     cursor: pointer;
     padding: 2px 0;
 }
@@ -289,7 +429,7 @@ body.maps-page {
     font-family: 'JetBrains Mono', monospace;
     font-size: 13px;
     font-weight: 600;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     min-width: 40px;
     text-align: right;
 }
@@ -297,7 +437,7 @@ body.maps-page {
     margin-top: 6px;
     font-size: 10px;
     font-style: italic;
-    color: #90A4AE;
+    color: var(--text-muted);
     line-height: 1.4;
 }
 
@@ -314,8 +454,8 @@ body.maps-page {
     justify-content: space-between;
     padding: 2px 0;
 }
-.summary-row strong { color: var(--lehs-navy); }
-.summary-row span:first-child { color: #607D8B; }
+.summary-row strong { color: var(--text-strong); }
+.summary-row span:first-child { color: var(--text-muted); }
 
 /* Classed legend rows */
 .legend-class {
@@ -332,14 +472,14 @@ body.maps-page {
     border: 1px solid rgba(0,0,0,0.1);
     flex-shrink: 0;
 }
-.legend-class-range { color: var(--lehs-navy); }
+.legend-class-range { color: var(--text-strong); }
 
 .legend-meta {
     margin-top: 8px;
     padding-top: 8px;
     border-top: 1px solid var(--panel-border);
     font-size: 10px;
-    color: #607D8B;
+    color: var(--text-muted);
 }
 
 /* "No data" swatch in legend meta */
@@ -364,7 +504,7 @@ body.maps-page {
         rgba(180, 168, 140, 0.45) 4px
     );
 }
-.legend-null strong { color: var(--lehs-navy); }
+.legend-null strong { color: var(--text-strong); }
 
 /* Mini histogram in the legend */
 .hist {
@@ -474,7 +614,7 @@ body.maps-page {
     display: inline-block;
     padding: 3px 9px;
     background: rgba(255, 184, 28, 0.18);
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     border-radius: 3px;
     font-size: 10px;
     font-weight: 700;
@@ -491,7 +631,7 @@ body.maps-page {
     margin: 0 0 6px;
     font-size: 11px;
     font-weight: 600;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     letter-spacing: 0.5px;
     text-transform: uppercase;
     opacity: 0.85;
@@ -502,13 +642,100 @@ body.maps-page {
     padding: 3px 0;
     font-size: 12px;
 }
-.feature-panel-row .label { color: #607D8B; }
-.feature-panel-row .value { color: var(--lehs-navy); font-weight: 500; }
+.feature-panel-row .label { color: var(--text-muted); }
+.feature-panel-row .value { color: var(--text-strong); font-weight: 500; }
 .feature-panel-row .value.highlight {
     background: rgba(255, 184, 28, 0.25);
     padding: 1px 6px;
     border-radius: 3px;
     font-weight: 600;
+}
+
+/* ── Rich SCHOOL detail card ────────────────────────────────────────────── */
+.feature-panel-tag.lehs-badge {
+    background: var(--lehs-gold);
+    color: var(--text-strong);
+    box-shadow: 0 1px 6px rgba(255, 184, 28, 0.5);
+}
+.school-type-pill {
+    display: inline-block;
+    padding: 3px 10px;
+    color: #fff;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+}
+.school-headline .feature-panel-row .value { text-align: right; }
+.school-enroll {
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: rgba(10, 31, 68, 0.05);
+    border-radius: 6px;
+    text-align: center;
+}
+.school-enroll-num {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text-strong);
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+}
+.school-enroll-lbl { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+/* Labeled composition bars */
+.fp-bar-row { margin: 6px 0; }
+.fp-bar-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    margin-bottom: 2px;
+}
+.fp-bar-label { color: var(--text-muted); }
+.fp-bar-val { color: var(--text-strong); font-weight: 600; font-variant-numeric: tabular-nums; }
+.fp-bar-track {
+    height: 8px;
+    background: rgba(10, 31, 68, 0.08);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.fp-bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: 4px;
+    min-width: 2px;
+    transition: width 0.3s ease;
+}
+
+/* Stacked race/ethnicity bar */
+.fp-stack {
+    display: flex;
+    height: 16px;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+}
+.fp-stack-seg { display: block; height: 100%; }
+.fp-stack-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px 10px;
+    margin-top: 7px;
+}
+.fp-stack-key {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10.5px;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+.fp-stack-sw {
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
 }
 
 @media (max-width: 768px) {
@@ -530,7 +757,7 @@ body.maps-page {
     padding: 5px 0;
     cursor: pointer;
     font-size: 12px;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
 }
 .toggle-row input[type="checkbox"] {
     accent-color: var(--lehs-navy);
@@ -549,7 +776,7 @@ body.maps-page {
     background: white;
     border: 1px solid var(--panel-border);
     border-radius: 6px;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     cursor: pointer;
 }
 .select-input:focus {
@@ -561,11 +788,11 @@ body.maps-page {
 .panel-footer { padding-top: 10px; }
 .attribution {
     font-size: 10px;
-    color: #607D8B;
+    color: var(--text-muted);
     line-height: 1.6;
 }
-.attribution strong { color: var(--lehs-navy); }
-.attribution a { color: var(--lehs-navy); }
+.attribution strong { color: var(--text-strong); }
+.attribution a { color: var(--text-strong); }
 
 /* ============================================================================
    Legend (bottom-right floating)
@@ -583,14 +810,100 @@ body.maps-page {
     box-shadow: var(--panel-shadow);
     z-index: 5;
     font-size: 12px;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     backdrop-filter: blur(8px);
+    /* --legend-scale (default 1 = no-op) lets the −/+ buttons and corner grip
+       scale the whole card. Origin top-left keeps scaling anchored to the JS
+       left/top position so the on-screen clamp math stays simple. */
+    transform: scale(var(--legend-scale, 1));
+    transform-origin: top left;
 }
 .legend-title {
     font-weight: 600;
-    margin-bottom: 8px;
+    margin-bottom: 0;       /* spacing now lives on .legend-header */
     font-size: 13px;
+    flex: 1 1 auto;
+    min-width: 0;
 }
+
+/* ── Legend customization: draggable header + resize controls ───────────────
+   The header doubles as a drag handle; the −/+/⟲ buttons and the bottom-right
+   grip stay out of the way until you hover/focus the card. Hidden on mobile
+   (the legend docks full-width there). Behavior: setupLegendCustomization(). */
+.legend-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+    cursor: move;
+    touch-action: none;      /* pointer-drag shouldn't scroll the page on touch */
+    border-radius: 4px;
+}
+.legend-header:focus-visible {
+    outline: 2px solid var(--lehs-gold);
+    outline-offset: 2px;
+}
+.legend-tools {
+    display: flex;
+    gap: 3px;
+    flex: 0 0 auto;
+    opacity: 0;              /* revealed on hover/focus to keep the card clean */
+    transition: opacity 0.15s ease;
+}
+.legend:hover .legend-tools,
+.legend:focus-within .legend-tools { opacity: 1; }
+.legend-tool {
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 14px;
+    line-height: 1;
+    color: var(--text-strong);
+    background: rgba(10, 31, 68, 0.06);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+.legend-tool:hover  { background: rgba(10, 31, 68, 0.14); }
+.legend-tool:active { background: rgba(10, 31, 68, 0.22); }
+#legendReset { font-size: 12px; }
+/* Bottom-right resize grip — diagonal hatch, revealed on hover/focus. */
+.legend-resize {
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    width: 13px;
+    height: 13px;
+    cursor: nwse-resize;
+    touch-action: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    background: repeating-linear-gradient(
+        135deg,
+        var(--lehs-navy) 0, var(--lehs-navy) 1px,
+        transparent 1px, transparent 3px
+    );
+}
+.legend:hover .legend-resize,
+.legend:focus-within .legend-resize { opacity: 0.45; }
+.legend-resize:hover { opacity: 0.85; }
+/* Suppress text selection across the page while dragging/resizing. */
+body.legend-busy { -webkit-user-select: none; user-select: none; }
+
+/* Plain-language "how to read the colors" caption + insight line. */
+.legend-caption {
+    font-size: 11.5px;
+    color: var(--text-strong);
+    margin-top: 6px;
+    line-height: 1.35;
+}
+.legend-caption[hidden] { display: none; }
 .legend-stops {
     display: flex;
     flex-direction: column;
@@ -616,7 +929,185 @@ body.maps-page {
     display: flex;
     justify-content: space-between;
     font-size: 10px;
-    color: #607D8B;
+    color: var(--text-muted);
+}
+
+/* ============================================================================
+   BIVARIATE (compare two metrics) — panel controls + the 3×3 legend grid.
+   The grid replaces the normal legend stops while bivariate mode is on; it's
+   drawn scatter-style (top row = high A, right col = high B). Token-based so it
+   flips cleanly in dark mode. Ported from the statewide atlas's bivar-* rules.
+   ============================================================================ */
+.bivar-controls {
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: rgba(10, 31, 68, 0.035);
+    border: 1px solid var(--panel-border);
+    border-left: 3px solid var(--lehs-gold);
+    border-radius: 0 6px 6px 0;
+}
+[data-theme="dark"] .bivar-controls { background: rgba(255, 255, 255, 0.04); }
+
+.bivar-wrap {
+    display: grid;
+    grid-template-columns: 16px 1fr;
+    grid-template-rows: auto 16px;
+    grid-template-areas: "ylab grid" ". xlab";
+    gap: 4px;
+    width: 100%;
+    margin: 4px 0 8px;
+}
+.bivar-ylabel {
+    grid-area: ylab;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-size: 10px;
+    color: var(--text-strong);
+    text-align: center;
+    line-height: 16px;
+    letter-spacing: 0.02em;
+    overflow: hidden;
+}
+.bivar-xlabel {
+    grid-area: xlab;
+    font-size: 10px;
+    color: var(--text-strong);
+    text-align: center;
+    letter-spacing: 0.02em;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.bivar-grid {
+    grid-area: grid;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    width: 100%;
+    aspect-ratio: 1 / 1;       /* fill the legend width, stay square */
+    max-width: 132px;
+    gap: 1px;
+    border: 1px solid var(--panel-border);
+}
+.bivar-cell { display: block; width: 100%; height: 100%; }
+.bivar-cuts {
+    font-size: 10.5px;
+    color: var(--text-strong);
+    line-height: 1.4;
+    margin-top: 6px;
+}
+.bivar-cuts b { font-weight: 600; }
+
+/* ============================================================================
+   PNG EXPORT MODAL — preview + overlay-edit controls. Mirrors the help modal's
+   surface/token treatment so it flips cleanly in dark mode (every text element
+   resolves to var(--text-strong)/--text-muted).
+   ============================================================================ */
+.export-modal {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 31, 68, 0.55);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 102;              /* above help modal (101) + loading (100) */
+    padding: 20px;
+}
+.export-modal.open { display: flex; }
+.export-modal-inner {
+    position: relative;
+    max-width: 880px;
+    width: 100%;
+    max-height: min(90vh, 760px);
+    overflow-y: auto;
+    background: var(--surface-1);
+    color: var(--text-strong);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    box-shadow: 0 18px 50px rgba(10, 31, 68, 0.35);
+    padding: 24px 26px 20px;
+    font-family: 'Inter', sans-serif;
+}
+.export-modal-inner h2 {
+    margin: 0 0 14px;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-strong);
+}
+.export-modal-close {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--panel-border);
+    color: var(--text-muted);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 1px 8px;
+}
+.export-modal-close:hover { color: var(--text-strong); background: var(--surface-hover); }
+.export-modal-grid {
+    display: grid;
+    grid-template-columns: 1fr 260px;
+    gap: 20px;
+    align-items: start;
+}
+.export-preview-frame {
+    position: relative;
+    background: var(--surface-2);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 8px;
+    min-height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.export-preview-canvas {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+}
+.export-preview-busy {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+.export-preview-busy[hidden] { display: none; }
+.export-controls .form-label:first-child { margin-top: 0; }
+.export-res-group { margin-top: 4px; }
+.export-modal-footer {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--panel-border);
+}
+.export-download-btn {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--lehs-navy);
+    color: var(--lehs-gold);
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.export-download-btn:hover { background: #1a3a6b; }
+.export-download-btn:active { transform: translateY(1px); }
+
+@media (max-width: 768px) {
+    .export-modal-grid { grid-template-columns: 1fr; }
+    .export-modal-inner { padding: 20px 16px 16px; }
 }
 
 /* ============================================================================
@@ -631,7 +1122,7 @@ body.maps-page {
     border-radius: 8px;
     box-shadow: var(--panel-shadow);
     text-align: center;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     z-index: 100;
     font-size: 13px;
 }
@@ -660,7 +1151,7 @@ body.maps-page {
 .popup-title {
     font-size: 14px;
     font-weight: 600;
-    color: var(--lehs-navy);
+    color: var(--text-strong);
     margin: 0 0 8px;
     padding-bottom: 6px;
     border-bottom: 1px solid var(--panel-border);
@@ -672,8 +1163,8 @@ body.maps-page {
     padding: 3px 0;
     font-size: 12px;
 }
-.popup-row .label { color: #607D8B; }
-.popup-row .value { color: var(--lehs-navy); font-weight: 500; }
+.popup-row .label { color: var(--text-muted); }
+.popup-row .value { color: var(--text-strong); font-weight: 500; }
 /* ============================================================================
    Floating toggle (FAB) — desktop hidden, mobile shows it to re-open the drawer
    ============================================================================ */
@@ -773,14 +1264,33 @@ body.maps-page {
     }
     .feature-panel.open { transform: translateY(0); }
 
-    .help-button { bottom: 16px; right: 16px; width: 44px; height: 44px; font-size: 22px; }
-    .help-modal-inner { padding: 22px 18px 18px; font-size: 14px; }
-    .help-key { min-width: 110px; font-size: 11px; }
+    /* Help pill → round icon on phones so it can't cover the full-width legend.
+       Fixed so it stays above iOS Safari's address bar. */
+    .help-fab {
+        position: fixed;
+        bottom: calc(16px + env(safe-area-inset-bottom));
+        right: 16px;
+        width: 44px; height: 44px;
+        padding: 0;
+        justify-content: center;
+        border-radius: 50%;
+    }
+    .help-fab-label { display: none; }
+    .help-fab-icon { width: 22px; height: 22px; }
+    .help-hd { padding: 18px 18px 12px; }
+    .help-body { padding: 14px 18px 6px; }
+    .help-footer { padding: 12px 18px; }
+    .help-tour-btn, .help-got-it { padding-left: 14px; padding-right: 14px; }
+    .help-key { min-width: 104px; font-size: 11px; }
 
     .legend {
         bottom: 12px; left: 12px; right: 12px;
         max-width: none; font-size: 11px; padding: 10px 12px;
+        /* Drop any saved drag/scale — the legend docks full-width on mobile. */
+        transform: none;
     }
+    .legend-header { cursor: default; }
+    .legend-tools, .legend-resize { display: none; }
     .hist { height: 26px; }
 
     .maplibregl-ctrl-group button { width: 38px !important; height: 38px !important; }
@@ -811,4 +1321,547 @@ body.maps-page {
     .help-modal-inner h2 { font-size: 17px; }
     .legend { font-size: 10px; }
     .view-btn { font-size: 10px; padding: 9px 8px; }
+}
+
+/* ============================================================================
+   Panel header icon buttons (theme toggle + reset), beside the back-link.
+   ============================================================================ */
+.panel-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.panel-icon-btn {
+    width: 26px; height: 26px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: transparent; border: 1px solid var(--panel-border); border-radius: 6px;
+    color: var(--text-strong); font-size: 15px; line-height: 1; cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    padding: 0;
+}
+.panel-icon-btn:hover { background: var(--surface-hover); border-color: rgba(10, 31, 68, 0.22); }
+.panel-icon-btn svg { width: 15px; height: 15px; }
+
+/* Home / reset-view control — matches the other MapLibre top-right buttons. */
+.maplibregl-ctrl-home { display: flex; align-items: center; justify-content: center; color: #333; background: transparent; border: none; cursor: pointer; }
+.maplibregl-ctrl-home svg { display: block; }
+
+/* ============================================================================
+   HELP & GUIDE — a labeled pill that opens a tabbed help hub (controls cheat-
+   sheet · how-to · glossary) + launches the interactive guided tour, plus the
+   tour spotlight overlay. Token-based so every surface + text element flips
+   cleanly in dark mode (text resolves to var(--text-strong)/--text-muted — no
+   inheritance from the near-white global body color, the inherited-text trap).
+   Adapted from the statewide atlas help hub; re-scoped to THIS map's controls.
+   ============================================================================ */
+
+/* ── Launcher pill ───────────────────────────────────────────────────────── */
+.help-fab {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 16px 0 12px;
+    border: none;
+    border-radius: 999px;
+    background: var(--lehs-navy);
+    color: #fff;
+    box-shadow: 0 3px 14px rgba(10, 31, 68, 0.38);
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.01em;
+    z-index: 6;
+    transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.help-fab:hover {
+    transform: translateY(-1px);
+    background: #1a3a6b;
+    box-shadow: 0 6px 20px rgba(10, 31, 68, 0.5);
+}
+.help-fab:active { transform: translateY(0); }
+.help-fab-icon { width: 20px; height: 20px; color: var(--lehs-gold); flex-shrink: 0; }
+.help-fab-label { white-space: nowrap; }
+
+/* One-time discoverability pulse for first-time visitors (JS removes it on the
+   first open). Subtle gold ring — no popup, no screen real-estate. */
+.help-fab.pulse::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    animation: helpFabPulse 2.2s ease-out infinite;
+}
+@keyframes helpFabPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(255, 184, 28, 0.5); }
+    70%  { box-shadow: 0 0 0 12px rgba(255, 184, 28, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 184, 28, 0); }
+}
+
+/* ── Hub modal ───────────────────────────────────────────────────────────── */
+.help-modal {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 31, 68, 0.55);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 101;            /* above the loading overlay (100) */
+    padding: 20px;
+}
+.help-modal.open { display: flex; }
+.help-modal-inner {
+    position: relative;
+    max-width: 540px;
+    width: 100%;
+    max-height: min(86vh, 720px);
+    display: flex;
+    flex-direction: column;
+    background: var(--surface-1);
+    color: var(--text-strong);
+    border: 1px solid var(--panel-border);
+    border-radius: 16px;
+    box-shadow: 0 18px 50px rgba(10, 31, 68, 0.35);
+    font-family: 'Inter', sans-serif;
+    overflow: hidden;
+    animation: helpModalIn 0.2s ease;
+}
+@keyframes helpModalIn {
+    from { opacity: 0; transform: translateY(10px) scale(0.99); }
+    to   { opacity: 1; transform: none; }
+}
+.help-hd {
+    padding: 22px 26px 14px;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--panel-border);
+}
+.help-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: #b8860b;
+    font-weight: 500;
+}
+.help-modal-inner h2 {
+    margin: 4px 0 4px;
+    font-size: 21px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text-strong);
+}
+.help-sub {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-muted);
+}
+.help-modal-close {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--panel-border);
+    color: var(--text-muted);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 1px 8px;
+    z-index: 2;
+}
+.help-modal-close:hover { color: var(--text-strong); background: var(--surface-hover); }
+
+/* Tabs */
+.help-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 12px 18px 0;
+    border-bottom: 1px solid var(--panel-border);
+}
+.help-tab {
+    appearance: none;
+    border: none;
+    background: transparent;
+    padding: 9px 14px;
+    margin-bottom: -1px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2.5px solid transparent;
+    transition: color 0.12s, border-color 0.12s;
+}
+.help-tab:hover { color: var(--text-strong); }
+.help-tab.active {
+    color: var(--text-strong);
+    border-bottom-color: var(--lehs-gold);
+}
+
+/* Scrollable body */
+.help-body {
+    padding: 18px 26px 8px;
+    overflow-y: auto;
+    flex: 1;
+}
+.help-pane { animation: helpModalIn 0.18s ease; }
+.help-pane[hidden] { display: none; }
+
+/* Map-controls cards */
+.help-card { margin-bottom: 16px; }
+.help-card:last-child { margin-bottom: 4px; }
+.help-card-hd {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+.help-card-ico { font-size: 14px; }
+.help-row {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 3px 0;
+    color: var(--text-strong);
+}
+.help-key {
+    display: inline-block;
+    flex-shrink: 0;
+    min-width: 132px;
+    padding: 4px 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-strong);
+    text-align: center;
+}
+
+/* How-to pane */
+.help-quickstart {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 18px;
+    padding: 0;
+    list-style: none;
+}
+.help-quickstart li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 0;
+    min-width: 150px;
+    padding: 10px 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-strong);
+}
+.help-qs-n {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--lehs-navy);
+    color: var(--lehs-gold);
+    font-size: 12px;
+    font-weight: 700;
+}
+.help-howto { display: grid; gap: 4px; }
+.help-howto-item {
+    display: flex;
+    gap: 12px;
+    padding: 10px 4px;
+    border-bottom: 1px solid var(--panel-border);
+}
+.help-howto-item:last-child { border-bottom: none; }
+.help-howto-ico {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: var(--surface-2);
+    font-size: 16px;
+}
+.help-howto-item > div { font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+.help-howto-item strong {
+    display: block;
+    font-size: 13.5px;
+    color: var(--text-strong);
+    margin-bottom: 1px;
+}
+.help-note {
+    margin: 14px 0 4px;
+    padding: 10px 12px;
+    background: var(--surface-2);
+    border-radius: 10px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+/* Glossary */
+.help-terms { margin: 0; }
+.help-term { padding: 9px 0; border-bottom: 1px solid var(--panel-border); }
+.help-term:last-child { border-bottom: none; }
+.help-term dt { font-size: 13px; font-weight: 700; color: var(--text-strong); }
+.help-term dd {
+    margin: 2px 0 0;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+/* Footer */
+.help-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 26px;
+    border-top: 1px solid var(--panel-border);
+    background: var(--surface-2);
+}
+.help-tour-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 16px;
+    background: var(--lehs-gold);
+    color: #0A1F44;            /* always navy text on the gold pill (legible in both themes) */
+    border: none;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter 0.15s, transform 0.15s;
+}
+.help-tour-btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
+.help-tour-play { font-size: 10px; }
+.help-got-it {
+    padding: 9px 20px;
+    background: var(--lehs-navy);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.help-got-it:hover { background: #1a3a6b; }
+
+/* ── Guided tour overlay ─────────────────────────────────────────────────── */
+.tour { position: fixed; inset: 0; z-index: 120; display: none; }
+.tour.open { display: block; }
+.tour-blocker { position: absolute; inset: 0; cursor: default; }
+.tour-spotlight {
+    position: absolute;
+    top: 0; left: 0; width: 0; height: 0;
+    border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(10, 31, 68, 0.6),
+                0 0 0 3px var(--lehs-gold);
+    pointer-events: none;
+    transition: top 0.3s ease, left 0.3s ease, width 0.3s ease, height 0.3s ease;
+}
+.tour-coach {
+    position: absolute;
+    width: min(340px, calc(100vw - 32px));
+    background: var(--surface-1);
+    color: var(--text-strong);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    box-shadow: 0 16px 44px rgba(10, 31, 68, 0.4);
+    padding: 16px 18px 14px;
+    font-family: 'Inter', sans-serif;
+    transition: top 0.25s ease, left 0.25s ease;
+}
+.tour-coach-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+.tour-step {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+.tour-x {
+    background: transparent; border: none; color: var(--text-muted);
+    font-size: 22px; line-height: 1; cursor: pointer; padding: 0 4px;
+}
+.tour-x:hover { color: var(--text-strong); }
+.tour-coach-title { margin: 0 0 5px; font-size: 16px; font-weight: 700; color: var(--text-strong); }
+.tour-coach-body { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+.tour-dots { display: flex; gap: 5px; margin: 12px 0 0; }
+.tour-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--surface-hover);
+    transition: background 0.2s, transform 0.2s;
+}
+.tour-dot.on { background: var(--lehs-gold); transform: scale(1.25); }
+.tour-coach-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 12px;
+}
+.tour-nav { display: flex; gap: 8px; }
+.tour-skip {
+    background: transparent; border: none; cursor: pointer;
+    font-family: 'Inter', sans-serif; font-size: 12px; color: var(--text-muted);
+    padding: 6px 2px;
+}
+.tour-skip:hover { color: var(--text-strong); text-decoration: underline; }
+.tour-back, .tour-next {
+    padding: 7px 14px;
+    border-radius: 7px;
+    font-family: 'Inter', sans-serif;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.tour-back { background: var(--surface-1); color: var(--text-strong); border: 1px solid var(--panel-border); }
+.tour-back:hover { background: var(--surface-2); }
+.tour-back[disabled] { opacity: 0; pointer-events: none; }
+.tour-next { background: var(--lehs-navy); color: #fff; border: 1px solid var(--lehs-navy); }
+.tour-next:hover { background: #1a3a6b; border-color: #1a3a6b; }
+
+/* ============================================================================
+   DARK THEME — repoint surfaces that hard-code LIGHT backgrounds at the dark
+   tokens, and keep the native MapLibre controls / popups readable on the dark
+   base. The token swaps above already lightened all panel/legend TEXT; this
+   block fixes elements whose background stayed white so flipped text wouldn't
+   sit light-on-light. Light mode is untouched.
+   ============================================================================ */
+[data-theme="dark"] body.maps-page { background: #0d1118; }
+
+/* Form inputs + native dropdown option list. */
+[data-theme="dark"] .select-input,
+[data-theme="dark"] input[type="text"].select-input {
+    background: var(--input-bg); color: var(--text-strong); border-color: var(--panel-border);
+}
+[data-theme="dark"] .select-input option { background: #1b2230; color: var(--text-strong); }
+
+/* Buttons / pills that hard-code a white background. */
+[data-theme="dark"] .view-btn { background: var(--surface-2); color: var(--text-strong); border-color: var(--panel-border); }
+[data-theme="dark"] .view-btn:hover { background: var(--surface-hover); }
+
+/* Panel toggle hamburger bars + the panel-toggle hover. */
+[data-theme="dark"] .panel-toggle span { background: var(--text-strong); }
+[data-theme="dark"] .panel-toggle:hover { background: var(--surface-hover); }
+
+/* Recessed school-controls block — its translucent navy wash reads as a light
+   smudge over the dark panel; flip to a translucent light wash. */
+[data-theme="dark"] .schools-controls { background: rgba(255, 255, 255, 0.04); }
+[data-theme="dark"] .metric-summary { background: rgba(255, 255, 255, 0.05); }
+[data-theme="dark"] .school-enroll { background: rgba(255, 255, 255, 0.06); }
+[data-theme="dark"] .fp-bar-track { background: rgba(255, 255, 255, 0.12); }
+
+/* Loading overlay card. */
+[data-theme="dark"] .map-loading { background: rgba(22, 28, 38, 0.96); }
+
+/* Legend resize/move tooling on the dark card. */
+[data-theme="dark"] .legend-tool { background: rgba(255, 255, 255, 0.08); }
+[data-theme="dark"] .legend-tool:hover { background: rgba(255, 255, 255, 0.16); }
+[data-theme="dark"] .legend-resize {
+    background: repeating-linear-gradient(
+        135deg,
+        rgba(255,255,255,0.7) 0, rgba(255,255,255,0.7) 1px,
+        transparent 1px, transparent 3px
+    );
+}
+[data-theme="dark"] .legend-insight strong { color: var(--text-strong); }
+
+/* MapLibre native controls + scale + attribution on the dark base. */
+[data-theme="dark"] .maplibregl-ctrl-group { background: #232c3c; }
+[data-theme="dark"] .maplibregl-ctrl-group button + button { border-top-color: rgba(255,255,255,0.12); }
+[data-theme="dark"] .maplibregl-ctrl button .maplibregl-ctrl-icon { filter: invert(1) hue-rotate(180deg) brightness(1.1); }
+[data-theme="dark"] .maplibregl-ctrl-home { color: #e7ecf3; }
+[data-theme="dark"] .maplibregl-ctrl-attrib { background: rgba(22, 28, 38, 0.85); }
+[data-theme="dark"] .maplibregl-ctrl-attrib a { color: var(--text-muted); }
+
+/* MapLibre popup (the MA-wide schools popup) — give it a dark surface so the
+   token-lightened popup text stays legible. */
+[data-theme="dark"] .maplibregl-popup-content { background: var(--surface-1); }
+[data-theme="dark"] .maplibregl-popup-tip { border-top-color: var(--surface-1); border-bottom-color: var(--surface-1); }
+
+/* The embedding site nav is dark in dark mode — brighten its logo + links. */
+[data-theme="dark"] .nav-logo { color: #dbe6ff; }
+[data-theme="dark"] .nav-links a { color: #c2cfe0; }
+[data-theme="dark"] .nav-links a:hover { color: #fff; }
+
+/* Legend insight line (secondary text on the dark legend). */
+[data-theme="dark"] .legend-insight { color: var(--text-muted); }
+
+/* Legend insight (light mode) — secondary caption styling. */
+.legend-insight {
+    margin-top: 7px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--text-muted);
+}
+.legend-insight strong { color: var(--text-strong); font-weight: 600; }
+.legend-insight[hidden] { display: none; }
+
+/* ============================================================================
+   HELP & GUIDE / TOUR — dark-theme tweaks + keyboard focus rings. The hub and
+   tour surfaces are already token-based (flip automatically); these only
+   brighten the gold eyebrow and re-skin the tour "Back" button (which uses the
+   light surface token) so it reads on the dark coach card.
+   ============================================================================ */
+[data-theme="dark"] .help-eyebrow { color: var(--lehs-gold); }
+[data-theme="dark"] .tour-back { background: var(--surface-2); }
+[data-theme="dark"] .tour-back:hover { background: var(--surface-hover); }
+
+/* Visible keyboard-focus ring on the new interactive controls (mirrors the
+   project convention; only shows for keyboard users via :focus-visible). */
+.help-fab:focus-visible,
+.help-tab:focus-visible,
+.help-tour-btn:focus-visible,
+.help-got-it:focus-visible,
+.help-modal-close:focus-visible,
+.tour-next:focus-visible,
+.tour-back:focus-visible,
+.tour-skip:focus-visible,
+.tour-x:focus-visible {
+    outline: 2px solid var(--lehs-gold);
+    outline-offset: 2px;
+}
+
+/* Honour reduced-motion: drop the pill pulse + spotlight glide for users who
+   ask for less animation. */
+@media (prefers-reduced-motion: reduce) {
+    .help-fab.pulse::after { animation: none; }
+    .tour-spotlight { transition: none; }
+    .help-modal-inner, .help-pane { animation: none; }
 }

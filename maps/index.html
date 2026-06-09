@@ -13,7 +13,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
     <link rel="stylesheet" href="assets/style.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=20260609-help">
 </head>
 <body class="maps-page">
 <a href="#main-content" class="skip-to-content">Skip to content</a>
@@ -58,13 +58,22 @@
         <div class="panel-section">
             <div class="panel-header">
                 <span class="section-label">// Lynn Data Dive</span>
-                <a href="../" class="back-link">← Dashboard</a>
+                <div class="panel-header-actions">
+                    <button class="panel-icon-btn" id="themeToggle" type="button"
+                            aria-pressed="false" title="Switch to dark mode" aria-label="Toggle dark mode">
+                        <svg data-theme-ico="light" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="2"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="2.5" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21.5"/><line x1="2.5" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21.5" y2="12"/><line x1="5.2" y1="5.2" x2="7" y2="7"/><line x1="17" y1="17" x2="18.8" y2="18.8"/><line x1="18.8" y1="5.2" x2="17" y2="7"/><line x1="7" y1="17" x2="5.2" y2="18.8"/></g></svg>
+                        <svg data-theme-ico="dark" viewBox="0 0 24 24" aria-hidden="true" style="display:none"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button class="panel-icon-btn" id="resetAllBtn" type="button"
+                            title="Reset metric, level, view &amp; filters to defaults" aria-label="Reset to defaults">↺</button>
+                    <a href="../" class="back-link">← Dashboard</a>
+                </div>
             </div>
             <h1 class="panel-title">Lynn Maps</h1>
             <p class="panel-desc">
                 Census-tract demographics across Lynn's 22 tracts, every Lynn
                 school pinned, and how Lynn fits in. For the full statewide
-                view, see <a href="../../ma-atlas/" target="_top" style="color:#0A1F44;font-weight:600;">MA Education Atlas →</a>
+                view, see <a href="../../ma-atlas/" target="_top" class="panel-link">MA Education Atlas →</a>
             </p>
         </div>
 
@@ -95,6 +104,25 @@
 
             <label class="form-label" style="margin-top:12px;">Color palette</label>
             <select id="paletteSelect" class="select-input"></select>
+
+            <!-- BIVARIATE (compare two metrics) — a 3×3 grid colors each polygon
+                 by the COMBINATION of two metrics' tertiles. Toggling it on reveals
+                 the metric-B + bivariate-palette pickers and replaces the normal
+                 legend with a 3×3 key. Wired in app.js (setBivariate / bivar*). -->
+            <label class="toggle-row" style="margin-top:14px;">
+                <input type="checkbox" id="bivariateToggle">
+                <span>Compare two metrics (bivariate 3×3)</span>
+            </label>
+            <div class="bivar-controls" id="bivarControls" style="display:none;">
+                <label class="form-label" style="margin-top:4px;">Second metric (B)</label>
+                <select id="bivarMetricSelect" class="select-input select-input--sm"></select>
+                <label class="form-label" style="margin-top:10px;">Bivariate palette</label>
+                <select id="bivarPaletteSelect" class="select-input select-input--sm"></select>
+                <div class="year-note" style="font-style:normal;">
+                    Each metric is split into thirds (low / mid / high); the grid
+                    blends them. Polygons missing either metric stay blank.
+                </div>
+            </div>
 
             <label class="form-label" style="margin-top:12px;">Classification</label>
             <div class="radio-group">
@@ -128,7 +156,7 @@
 
             <div class="year-note" style="font-style:normal; margin-top:14px;">
                 ⓘ For 40+ joined metrics + statewide comparisons see the
-                <a href="../../ma-atlas/" target="_top" style="color:var(--lehs-navy);font-weight:600;">MA Education Atlas →</a>
+                <a href="../../ma-atlas/" target="_top" class="panel-link">MA Education Atlas →</a>
             </div>
 
             <div class="metric-summary" id="metricSummary"></div>
@@ -160,8 +188,31 @@
             <label class="layer-row">
                 <input type="checkbox" id="ref-lynn-schools" checked>
                 <span class="layer-swatch swatch-schools"></span>
-                <span class="layer-name">Lynn schools (35)</span>
+                <span class="layer-name">Lynn schools (35) — featured</span>
             </label>
+
+            <!-- SCHOOL CENTERPIECE CONTROLS — color mode + size & color legends -->
+            <div class="schools-controls" id="schoolsControls">
+                <div class="schools-ctrl-label">Color school dots by</div>
+                <select id="schoolColorMode" class="select-input select-input--sm">
+                    <option value="type">School type (default)</option>
+                    <optgroup label="Demographic (% of students)">
+                        <option value="EL_PCT">% English Learner</option>
+                        <option value="LI_PCT">% Low Income</option>
+                        <option value="SWD_PCT">% Students w/ Disabilities</option>
+                    </optgroup>
+                    <option value="focus">Spotlight Lynn English High</option>
+                </select>
+
+                <div class="schools-ctrl-label" style="margin-top:10px;">Color key</div>
+                <div class="school-color-legend" id="schoolColorLegend"></div>
+
+                <div class="schools-ctrl-label" style="margin-top:10px;">Dot size <span class="schools-ctrl-hint">= students enrolled</span></div>
+                <div class="schools-size-legend" id="schoolSizeLegend" aria-hidden="true"></div>
+
+                <div class="schools-ctrl-note">Bigger dot = bigger school. <span class="lehs-key-dot"></span> gold ring = Lynn English High, this project's focus school. Click any dot for its full profile.</div>
+            </div>
+
             <label class="layer-row">
                 <input type="checkbox" id="ref-all-ma-schools">
                 <span class="layer-swatch swatch-ma-schools"></span>
@@ -196,14 +247,27 @@
             </label>
         </div>
 
-        <!-- DOWNLOAD CSV -->
+        <!-- EXPORT & SHARE -->
         <div class="panel-section">
-            <h2 class="panel-h2">Download</h2>
+            <h2 class="panel-h2">Export &amp; share</h2>
             <button id="exportCsvBtn" type="button" class="export-csv-btn">
                 ⬇ Export this layer as CSV
             </button>
-            <div class="form-label" style="margin-top:6px; font-size:11px; color:#607D8B;">
-                Exports all features in the active layer with their properties as CSV.
+            <div class="form-label" style="margin-top:6px; font-size:11px; color:var(--text-muted); font-weight:400; text-transform:none; letter-spacing:0;">
+                All features in the active layer with their properties as CSV.
+            </div>
+            <button id="exportPngBtn" type="button" class="export-csv-btn" style="margin-top:12px;">
+                🖼 Export map as PNG…
+            </button>
+            <div class="form-label" style="margin-top:6px; font-size:11px; color:var(--text-muted); font-weight:400; text-transform:none; letter-spacing:0;">
+                A PNG of the current map with the legend and a title baked in.
+            </div>
+            <button id="copyLinkBtn" type="button" class="export-csv-btn" style="margin-top:12px;">
+                🔗 Copy link to this view
+            </button>
+            <div class="form-label" id="copyLinkNote" style="margin-top:6px; font-size:11px; color:var(--text-muted); font-weight:400; text-transform:none; letter-spacing:0;">
+                Copies a URL that reopens the map with the same metric, level, year,
+                colors and framing.
             </div>
         </div>
 
@@ -220,51 +284,234 @@
     <!-- MAP -->
     <div id="map" class="map-container"></div>
 
-    <!-- LEGEND -->
-    <div class="legend" id="legend">
-        <div class="legend-title" id="legendTitle">Legend</div>
+    <!-- LEGEND — drag the header to move it; pull the corner grip or use the
+         −/+ buttons to resize; ⟲ resets. Position & size persist (localStorage).
+         Wired in setupLegendCustomization(); desktop-only (docks on mobile). -->
+    <div class="legend" id="legend" role="region" aria-label="Map legend">
+        <div class="legend-header" id="legendHeader" tabindex="0"
+             title="Drag to move • arrow keys to nudge"
+             aria-label="Legend — drag to move, or focus and use arrow keys to reposition">
+            <div class="legend-title" id="legendTitle">Legend</div>
+            <div class="legend-tools" role="group" aria-label="Legend size and position">
+                <button type="button" class="legend-tool" id="legendSmaller"
+                        title="Smaller" aria-label="Make legend smaller">&minus;</button>
+                <button type="button" class="legend-tool" id="legendLarger"
+                        title="Larger" aria-label="Make legend larger">+</button>
+                <button type="button" class="legend-tool" id="legendReset"
+                        title="Reset position &amp; size"
+                        aria-label="Reset legend position and size">⟲</button>
+            </div>
+        </div>
         <div class="legend-stops" id="legendStops"></div>
+        <!-- Plain-language "how to read the colors" line (set in updateLegend). -->
+        <div class="legend-caption" id="legendCaption" hidden></div>
         <div class="legend-meta" id="legendMeta"></div>
+        <div class="legend-resize" id="legendResize" aria-hidden="true"
+             title="Drag to resize"></div>
     </div>
 
     <!-- HOVER TOOLTIP (positioned via JS) -->
     <div class="map-tooltip" id="mapTooltip" aria-hidden="true"></div>
 
-    <!-- MAP CONTROLS HELP -->
-    <button class="help-button" id="helpButton" type="button"
-            title="Map controls help" aria-label="Map controls help">?</button>
+    <!-- HELP & GUIDE — labeled pill launches a tabbed help hub (controls
+         cheat-sheet · how-to · glossary) + the interactive guided tour. The pill
+         collapses to a round icon on phones. First-visit discoverability is a
+         one-time gold pulse (no auto-popup). Wired in app.js (the help-hub +
+         startGuidedTour block). Round "?" → labeled affordance, adapted from the
+         statewide atlas help hub and re-scoped to THIS map's real controls. -->
+    <button class="help-fab" id="helpButton" type="button"
+            aria-haspopup="dialog" aria-controls="helpModal"
+            title="Help &amp; guide" aria-label="Open help and guide">
+        <svg class="help-fab-icon" viewBox="0 0 24 24" aria-hidden="true"
+             fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9.2"></circle>
+            <path d="M9.3 9.2a2.8 2.8 0 0 1 5.4 .9c0 1.9-2.7 2.3-2.7 4"></path>
+            <line x1="12" y1="17.4" x2="12.01" y2="17.4"></line>
+        </svg>
+        <span class="help-fab-label">Help &amp; guide</span>
+    </button>
+
     <div class="help-modal" id="helpModal" aria-hidden="true">
-        <div class="help-modal-inner">
+        <div class="help-modal-inner" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
             <button class="help-modal-close" id="helpModalClose"
                     aria-label="Close help">&times;</button>
-            <h2>Map controls</h2>
 
-            <div class="help-section" style="border-top:none; padding-top:0; margin-top:0;">
-                <strong>Mouse / trackpad</strong>
-                <div class="help-row"><span class="help-key">Drag</span><span>Pan the map</span></div>
-                <div class="help-row"><span class="help-key">Scroll</span><span>Zoom in / out</span></div>
-                <div class="help-row"><span class="help-key">Right-click + Drag</span><span>Rotate &amp; tilt</span></div>
-                <div class="help-row"><span class="help-key">Ctrl + Drag</span><span>Rotate the map</span></div>
-                <div class="help-row"><span class="help-key">Shift + Drag</span><span>Box zoom</span></div>
-                <div class="help-row"><span class="help-key">Click feature</span><span>Open detail panel</span></div>
-                <div class="help-row"><span class="help-key">Hover</span><span>Quick metric tooltip</span></div>
+            <div class="help-hd">
+                <span class="help-eyebrow">// Lynn Data Dive</span>
+                <h2 id="helpModalTitle">Help &amp; guide</h2>
+                <p class="help-sub">New here? Take the 1-minute tour — or browse the how-tos, map controls, and glossary below.</p>
             </div>
 
-            <div class="help-section">
-                <strong>Touch (phone / tablet)</strong>
-                <div class="help-row"><span class="help-key">One-finger drag</span><span>Pan the map</span></div>
-                <div class="help-row"><span class="help-key">Pinch</span><span>Zoom in / out</span></div>
-                <div class="help-row"><span class="help-key">Two-finger twist</span><span>Rotate the map</span></div>
-                <div class="help-row"><span class="help-key">Two-finger drag up/down</span><span>Tilt (3D pitch)</span></div>
-                <div class="help-row"><span class="help-key">Tap feature</span><span>Open detail panel (bottom)</span></div>
+            <div class="help-tabs" role="tablist" aria-label="Help topics">
+                <button class="help-tab active" type="button" role="tab" id="helpTab-controls"
+                        data-help-tab="controls" aria-selected="true" aria-controls="helpPane-controls">Map controls</button>
+                <button class="help-tab" type="button" role="tab" id="helpTab-how"
+                        data-help-tab="how" aria-selected="false" aria-controls="helpPane-how">How to use</button>
+                <button class="help-tab" type="button" role="tab" id="helpTab-terms"
+                        data-help-tab="terms" aria-selected="false" aria-controls="helpPane-terms">Glossary</button>
             </div>
-            <div class="help-section">
-                <strong>Buttons (top-right):</strong>
-                <div class="help-row"><span class="help-key">+ / −</span><span>Zoom in / out</span></div>
-                <div class="help-row"><span class="help-key">Compass</span><span>Reset bearing &amp; pitch to north / flat</span></div>
+
+            <div class="help-body">
+
+                <!-- PANE — Map controls (the cheat sheet; default) -->
+                <div class="help-pane active" id="helpPane-controls" role="tabpanel"
+                     aria-labelledby="helpTab-controls" data-help-pane="controls">
+                    <section class="help-card">
+                        <div class="help-card-hd"><span class="help-card-ico" aria-hidden="true">🖱️</span> Mouse &amp; trackpad</div>
+                        <div class="help-row"><span class="help-key">Drag</span><span>Pan the map</span></div>
+                        <div class="help-row"><span class="help-key">Scroll</span><span>Zoom in / out</span></div>
+                        <div class="help-row"><span class="help-key">Right-click + Drag</span><span>Rotate &amp; tilt</span></div>
+                        <div class="help-row"><span class="help-key">Ctrl + Drag</span><span>Rotate the map</span></div>
+                        <div class="help-row"><span class="help-key">Shift + Drag</span><span>Box zoom</span></div>
+                        <div class="help-row"><span class="help-key">Click a tract / school</span><span>Open its detail panel</span></div>
+                        <div class="help-row"><span class="help-key">Hover</span><span>Quick metric tooltip</span></div>
+                    </section>
+                    <section class="help-card">
+                        <div class="help-card-hd"><span class="help-card-ico" aria-hidden="true">👆</span> Touch (phone / tablet)</div>
+                        <div class="help-row"><span class="help-key">One-finger drag</span><span>Pan the map</span></div>
+                        <div class="help-row"><span class="help-key">Pinch</span><span>Zoom in / out</span></div>
+                        <div class="help-row"><span class="help-key">Two-finger twist</span><span>Rotate the map</span></div>
+                        <div class="help-row"><span class="help-key">Two-finger drag ↕</span><span>Tilt the map (3D)</span></div>
+                        <div class="help-row"><span class="help-key">Tap a tract / school</span><span>Open its detail panel</span></div>
+                    </section>
+                    <section class="help-card">
+                        <div class="help-card-hd"><span class="help-card-ico" aria-hidden="true">🎛️</span> On-screen buttons</div>
+                        <div class="help-row"><span class="help-key">+ / −</span><span>Zoom in / out</span></div>
+                        <div class="help-row"><span class="help-key">Compass</span><span>Reset north &amp; flatten the tilt</span></div>
+                        <div class="help-row"><span class="help-key">⤢ Fullscreen</span><span>Fill the screen with the map</span></div>
+                        <div class="help-row"><span class="help-key">◎ Locate</span><span>Pan to your location</span></div>
+                        <div class="help-row"><span class="help-key">⌂ Home</span><span>Fly back to Lynn</span></div>
+                    </section>
+                </div>
+
+                <!-- PANE — How to use (plain-language feature guide) -->
+                <div class="help-pane" id="helpPane-how" role="tabpanel"
+                     aria-labelledby="helpTab-how" data-help-pane="how" hidden>
+                    <ol class="help-quickstart">
+                        <li><span class="help-qs-n">1</span> Pick a metric to map</li>
+                        <li><span class="help-qs-n">2</span> Click a tract or school</li>
+                        <li><span class="help-qs-n">3</span> Compare &amp; export</li>
+                    </ol>
+                    <div class="help-howto">
+                        <div class="help-howto-item"><span class="help-howto-ico" aria-hidden="true">🎨</span><div><strong>Pick a metric</strong>Use the Metric box (search or pick) to shade every polygon by a topic — demographics, MCAS, spending, or Lynn-tract census &amp; health figures.</div></div>
+                        <div class="help-howto-item"><span class="help-howto-ico" aria-hidden="true">🗺️</span><div><strong>Switch the level</strong>“Color polygons at” swaps between MA municipalities, school districts, and Lynn's 22 census tracts. Tract metrics are Lynn-only.</div></div>
+                        <div class="help-howto-item"><span class="help-howto-ico" aria-hidden="true">📊</span><div><strong>Read the legend</strong>The legend explains the colors and a plain-language caption says what darker vs. lighter means. It updates whenever you change the metric.</div></div>
+                        <div class="help-howto-item"><span class="help-howto-ico" aria-hidden="true">⇄</span><div><strong>Compare two metrics</strong>Turn on “Compare two metrics (bivariate)” to shade each polygon by the combination of two topics on a 3×3 grid.</div></div>
+                        <div class="help-howto-item"><span class="help-howto-ico" aria-hidden="true">🏫</span><div><strong>Spotlight the schools</strong>Every Lynn school is a dot (size = enrollment). Recolor the dots by demographic, or spotlight Lynn English High — this project's focus school, marked with a gold ring.</div></div>
+                        <div class="help-howto-item"><span class="help-howto-ico" aria-hidden="true">🌙</span><div><strong>Dark mode</strong>Use the sun/moon button in the panel header to flip the whole map and panel to a dark theme.</div></div>
+                        <div class="help-howto-item"><span class="help-howto-ico" aria-hidden="true">⬇️</span><div><strong>Export &amp; share</strong>Save the layer as CSV, export a titled PNG of the current map, or copy a link that reopens this exact view.</div></div>
+                    </div>
+                    <p class="help-note">Data comes from MA DESE, the U.S. Census / ACS, CDC PLACES, and MassGIS. Full credits live under “Sources” at the bottom of the panel. For the full statewide picture, see the MA Education Atlas.</p>
+                </div>
+
+                <!-- PANE — Glossary (plain-language terms used on THIS map) -->
+                <div class="help-pane" id="helpPane-terms" role="tabpanel"
+                     aria-labelledby="helpTab-terms" data-help-pane="terms" hidden>
+                    <dl class="help-terms">
+                        <div class="help-term"><dt>Census tract</dt><dd>A small Census-defined neighborhood area (Lynn has 22). Tract metrics here are Census/ACS &amp; health figures, available for Lynn only.</dd></div>
+                        <div class="help-term"><dt>Choropleth</dt><dd>A map that shades each area by a value — darker (or more intense) color means a higher number.</dd></div>
+                        <div class="help-term"><dt>Bivariate</dt><dd>A choropleth showing two metrics at once on a 3×3 color grid, so you can see where both are high, both low, or mixed.</dd></div>
+                        <div class="help-term"><dt>Jenks / Quantile classification</dt><dd>Ways of grouping values into color classes. Jenks (natural breaks) finds natural gaps; Quantile puts an equal count of areas in each class.</dd></div>
+                        <div class="help-term"><dt>MCAS</dt><dd>Massachusetts' statewide student test (grades 3–8 and 10). “% M+E” is the share Meeting or Exceeding expectations.</dd></div>
+                        <div class="help-term"><dt>Per-pupil $</dt><dd>Dollars spent per student, per year.</dd></div>
+                        <div class="help-term"><dt>EL (English Learner)</dt><dd>Students still learning English.</dd></div>
+                        <div class="help-term"><dt>Low Income</dt><dd>Students from economically disadvantaged households (DESE definition).</dd></div>
+                        <div class="help-term"><dt>SWD (Students with Disabilities)</dt><dd>Students with an active Individualized Education Program (IEP).</dd></div>
+                        <div class="help-term"><dt>Dropout vs. attrition</dt><dd>Dropout = students who leave school without graduating. Attrition = any student who leaves a school (transfers, moves), a broader count.</dd></div>
+                        <div class="help-term"><dt>CDC PLACES health metrics</dt><dd>Model-based estimates of adult health (obesity, diabetes, asthma, etc.) at the tract level, expressed as a percent of adults.</dd></div>
+                        <div class="help-term"><dt>ACS</dt><dd>The Census Bureau's American Community Survey — the source of the tract income, language, education, and housing figures.</dd></div>
+                        <div class="help-term"><dt>FTE</dt><dd>Full-Time Equivalent — a way of counting staff so part-timers add up to whole positions.</dd></div>
+                    </dl>
+                </div>
+
             </div>
+
             <div class="help-footer">
+                <button class="help-tour-btn" id="helpStartTour" type="button">
+                    <span class="help-tour-play" aria-hidden="true">▶</span> Take the guided tour
+                </button>
                 <button class="help-got-it" id="helpGotIt">Got it</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INTERACTIVE GUIDED TOUR — a spotlight overlay that points at the real
+         controls one step at a time. Markup is static; target positioning, step
+         content, and navigation are driven from app.js (startGuidedTour). The
+         tour opens the panel itself so each step's target is on screen. -->
+    <div class="tour" id="tour" aria-hidden="true">
+        <div class="tour-blocker" id="tourBlocker"></div>
+        <div class="tour-spotlight" id="tourSpotlight" aria-hidden="true"></div>
+        <div class="tour-coach" id="tourCoach" role="dialog" aria-modal="true"
+             aria-labelledby="tourTitle" aria-describedby="tourBody">
+            <div class="tour-coach-top">
+                <span class="tour-step" id="tourStep"></span>
+                <button class="tour-x" id="tourClose" type="button" aria-label="End tour">&times;</button>
+            </div>
+            <h3 class="tour-coach-title" id="tourTitle"></h3>
+            <p class="tour-coach-body" id="tourBody"></p>
+            <div class="tour-dots" id="tourDots" aria-hidden="true"></div>
+            <div class="tour-coach-actions">
+                <button class="tour-skip" id="tourSkip" type="button">Skip tour</button>
+                <div class="tour-nav">
+                    <button class="tour-back" id="tourBack" type="button">Back</button>
+                    <button class="tour-next" id="tourNext" type="button">Next →</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PNG EXPORT MODAL — live preview + editable title/subtitle/caption, corner
+         choice for the baked-in legend, and a resolution picker. Capture-once /
+         re-render-many: the map canvas is snapshotted, then the title/legend/credit
+         overlays are composited onto a canvas (so they stay crisp at 2×/3×).
+         Wired in app.js (openExportModal / renderExportPreview / downloadExport). -->
+    <div class="export-modal" id="exportModal" aria-hidden="true">
+        <div class="export-modal-inner">
+            <button class="export-modal-close" id="exportModalClose"
+                    aria-label="Close export">&times;</button>
+            <h2>Export map as PNG</h2>
+            <div class="export-modal-grid">
+                <div class="export-preview-frame">
+                    <canvas id="exportPreview" class="export-preview-canvas"></canvas>
+                    <div class="export-preview-busy" id="exportPreviewBusy">Rendering…</div>
+                </div>
+                <div class="export-controls">
+                    <label class="form-label">Title</label>
+                    <input id="exportTitle" type="text" class="select-input select-input--sm" autocomplete="off">
+                    <label class="form-label" style="margin-top:10px;">Subtitle</label>
+                    <input id="exportSubtitle" type="text" class="select-input select-input--sm" autocomplete="off">
+                    <label class="form-label" style="margin-top:10px;">Caption (optional)</label>
+                    <input id="exportCaption" type="text" class="select-input select-input--sm"
+                           placeholder="e.g. a note about the data" autocomplete="off">
+
+                    <label class="form-label" style="margin-top:10px;">Legend corner</label>
+                    <select id="exportCorner" class="select-input select-input--sm">
+                        <option value="bl">Bottom-left</option>
+                        <option value="br" selected>Bottom-right</option>
+                        <option value="tl">Top-left</option>
+                        <option value="tr">Top-right</option>
+                        <option value="none">Hide legend</option>
+                    </select>
+
+                    <label class="form-label" style="margin-top:10px;">Resolution</label>
+                    <div class="radio-group export-res-group">
+                        <label><input type="radio" name="exportRes" value="1" checked> 1× (screen)</label>
+                        <label><input type="radio" name="exportRes" value="2"> 2× (sharper)</label>
+                        <label><input type="radio" name="exportRes" value="3"> 3× (print)</label>
+                    </div>
+                    <div class="year-note" id="exportResNote" hidden>
+                        ⚠ Requested resolution exceeded this browser's canvas limit —
+                        exported at the largest safe size.
+                    </div>
+
+                    <div class="export-modal-footer">
+                        <button class="export-download-btn" id="exportDownloadBtn" type="button">
+                            ⬇ Download PNG
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -298,6 +545,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 </script>
-<script src="app.js"></script>
+<script src="app.js?v=20260609-help"></script>
 </body>
 </html>
