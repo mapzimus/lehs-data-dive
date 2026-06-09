@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.branding import sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
+from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, STATE_COLOR, SUBGROUP_PALETTE
 from utils.constants import LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
 from utils.data_loader import get_dart_indicator, load_dataset
 from utils.interpret import sat_methodology_note, sy_label
@@ -265,6 +265,143 @@ else:
                           title="AP participation at Lynn English over time",
                           yaxis_title="Students / exams", xaxis_title="School Year")
         st.plotly_chart(fig, use_container_width=True)
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Opportunity & course access — an EQUITY lens on who gets to TAKE rigorous
+# coursework, not how they score. DESE's DLCS (digital-literacy / computer-
+# science) and Arts course-taking dashboards report, per school x subgroup x
+# year, the share of enrolled students taking one or more such courses. The
+# gap between subgroups (and vs the statewide rate) is the access story.
+# ---------------------------------------------------------------------------
+
+st.header("Opportunity & Course Access")
+st.caption(
+    "Beyond performance: *who gets the chance* to take computer-science and "
+    "arts coursework at all. These are DESE's DLCS (Digital Literacy & Computer "
+    "Science) and Arts course-taking dashboards — each shows the share of "
+    "enrolled students taking one or more courses in that area. Reading them "
+    "side by side, by student group, is an access-and-equity lens. Source: "
+    "DESE E2C (datasets fbdq-3q4d and w3f3-phkq)."
+)
+
+# Subgroups to surface as the access/equity lens: All Students plus the
+# race/EL/disability/income groups (the DESE labels used in these two files).
+_ACCESS_GROUPS = [
+    "All Students", "Hispanic or Latino", "Black or African American", "Asian",
+    "White", "Multi-Race, Not Hispanic or Latino", "English Learners",
+    "Students with Disabilities", "Low Income", "High Needs",
+]
+
+
+def _course_access_block(name: str, pct_col: str, area_label: str,
+                          x_axis_label: str, key_slug: str) -> None:
+    """Render the latest-year by-subgroup access bar (vs the MA rate) plus a
+    short All-Students trend, for one course-access dataset at LEHS."""
+    df = load_dataset(name)
+    if df.empty:
+        st.info(f"{area_label} course-access data is temporarily unavailable.")
+        return
+    df = df.copy()
+    df["STU_GRP"] = df["STU_GRP"].astype(str).str.replace("\xa0", " ")
+    df[pct_col] = pd.to_numeric(df[pct_col], errors="coerce")
+
+    lehs = df[df["ORG_CODE"] == LEHS_SCHOOL_CODE]
+    if lehs.empty:
+        st.info(f"No LEHS {area_label.lower()} course-access rows.")
+        return
+    latest_sy = int(lehs["SY"].max())
+
+    # Latest-year share by subgroup at LEHS, sorted low→high so the most
+    # under-served groups sit at the bottom of the horizontal bars.
+    grp = (
+        lehs[(lehs["SY"] == latest_sy) & lehs["STU_GRP"].isin(_ACCESS_GROUPS)]
+        .dropna(subset=[pct_col])
+        .sort_values(pct_col, ascending=True)
+    )
+    # Statewide All-Students rate for the same year = the reference line.
+    state_all = df[
+        (df["ORG_TYPE"] == "State")
+        & (df["STU_GRP"] == "All Students")
+        & (df["SY"] == latest_sy)
+    ][pct_col]
+    ma_rate = float(state_all.iloc[0]) if not state_all.empty and pd.notna(state_all.iloc[0]) else None
+
+    if not grp.empty:
+        st.markdown(
+            f"**LEHS {area_label} course participation by student group — "
+            f"SY {sy_label(latest_sy)}**"
+        )
+        grp = grp.assign(label=grp[pct_col].map(lambda x: f"{x:.0%}"))
+        fig = px.bar(grp, x=pct_col, y="STU_GRP", orientation="h", text="label")
+        fig.update_traces(marker_color=LEHS_GOLD, textposition="outside", cliponaxis=False)
+        if ma_rate is not None:
+            fig.add_vline(
+                x=ma_rate, line_dash="dash", line_color=LEHS_NAVY,
+                annotation_text=f"MA rate ({ma_rate:.0%})", annotation_position="top",
+            )
+        fig.update_layout(
+            **DEFAULT_LAYOUT,
+            xaxis_tickformat=".0%", xaxis_title=x_axis_label,
+            yaxis_title="", height=max(340, 30 * len(grp)),
+        )
+        st.plotly_chart(fig, use_container_width=True, key=f"ca_grp_{key_slug}")
+
+    # Short trend — LEHS vs Massachusetts, All Students, when >1 year exists.
+    lehs_all = (
+        lehs[lehs["STU_GRP"] == "All Students"][["SY", pct_col]]
+        .dropna().sort_values("SY")
+    )
+    if len(lehs_all) > 1:
+        state_all_yrs = (
+            df[(df["ORG_TYPE"] == "State") & (df["STU_GRP"] == "All Students")]
+            [["SY", pct_col]].dropna().sort_values("SY")
+        )
+        rows = []
+        for scope, frame in [("LEHS", lehs_all), ("Massachusetts", state_all_yrs)]:
+            if not frame.empty:
+                rows.append(frame.assign(Scope=scope))
+        if rows:
+            trend = pd.concat(rows, ignore_index=True)
+            trend = trend.assign(label=trend[pct_col].map(lambda x: f"{x:.0%}"))
+            fig = px.line(
+                trend.sort_values(["Scope", "SY"]),
+                x="SY", y=pct_col, color="Scope", markers=True, text="label",
+                color_discrete_map={"LEHS": LEHS_GOLD, "Massachusetts": STATE_COLOR},
+            )
+            fig.update_traces(textposition="top center", textfont=dict(size=10))
+            fig.update_layout(
+                **DEFAULT_LAYOUT, yaxis_tickformat=".0%",
+                yaxis_title=f"% taking any {area_label.lower()} course",
+                xaxis_title="School Year",
+            )
+            st.plotly_chart(fig, use_container_width=True, key=f"ca_trend_{key_slug}")
+
+
+col_cs, col_arts = st.columns(2)
+with col_cs:
+    st.subheader("Computer science (DLCS)")
+    _course_access_block(
+        "dlcs_course_taking", "ALL_GRADES_PCT",
+        area_label="computer-science", key_slug="dlcs",
+        x_axis_label="% taking ≥1 digital-literacy / CS course",
+    )
+with col_arts:
+    st.subheader("Arts")
+    _course_access_block(
+        "arts_course_taking", "ALL_GRDS_PCT",
+        area_label="arts", key_slug="arts",
+        x_axis_label="% taking ≥1 arts course",
+    )
+
+st.caption(
+    "An access lens, not an outcome: these bars show how many students *enroll "
+    "in* a computer-science or arts course, by group. Small subgroups (e.g. "
+    "American Indian / Alaska Native, often single-digit counts) are omitted "
+    "here to avoid over-reading a few students; download the data below for the "
+    "full breakdown."
+)
 
 st.divider()
 
@@ -883,6 +1020,8 @@ try:
         'MassCore completion': masscore,
         'Pathways enrollment': pathways,
         'Early College participation': ec_part,
+        'DLCS (computer science) course taking': load_dataset("dlcs_course_taking"),
+        'Arts course taking': load_dataset("arts_course_taking"),
         'IPEDS destinations': ipeds,
     })
 except NameError:
