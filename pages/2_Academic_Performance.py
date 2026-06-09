@@ -999,6 +999,207 @@ else:
                           yaxis_title="% of students retained", xaxis_title="School Year")
         st.plotly_chart(fig, use_container_width=True)
 
+st.divider()
+
+# ===========================================================================
+# 8. GRADE 9 ON-TRACK — course passing (4sut-78p8)
+# ===========================================================================
+# Research treats "on-track" freshman year — passing your courses and earning
+# enough credits to be promoted to grade 10 — as one of the single strongest
+# predictors of on-time graduation. This dataset reports the share of grade-9
+# students passing each subject, plus an "All Subjects" rollup per org/year.
+
+st.header("📗 Grade 9 On-Track — Course Passing")
+st.caption(
+    "Freshman-year course passing is one of the strongest early predictors of "
+    "on-time graduation: students who pass their classes and stay on pace in "
+    "grade 9 graduate at far higher rates. Each bar is the share of LEHS "
+    "grade-9 students passing that subject. **All Subjects** is DESE's combined "
+    "on-track rollup. Source: DESE Education-to-Career (Grade 9 Course Passing)."
+)
+
+g9 = load_dataset("grade9_passing")
+if g9.empty:
+    st.info("Grade-9 course-passing data is temporarily unavailable.")
+else:
+    g9["PASS_PCT"] = pd.to_numeric(g9["PASS_PCT"], errors="coerce")
+    g9_lehs_all = g9[
+        (g9["ORG_CODE"] == LEHS_SCHOOL_CODE) & (g9["STU_GRP"] == "All Students")
+    ].copy()
+
+    if g9_lehs_all.empty:
+        st.info("No LEHS grade-9 course-passing rows found.")
+    else:
+        g9_latest = int(g9_lehs_all["SY"].max())
+
+        # --- (a) Latest-year passing by subject — horizontal bar ---
+        st.markdown(f"**Passing Rate by Subject — All Students, SY {sy_label(g9_latest)}**")
+        bar = (
+            g9_lehs_all[g9_lehs_all["SY"] == g9_latest]
+            .dropna(subset=["PASS_PCT"])
+            .copy()
+        )
+        if not bar.empty:
+            # Put the All-Subjects rollup at the top, the rest sorted by rate.
+            bar["_is_all"] = bar["SUBJ"] == "All Subjects"
+            bar = bar.sort_values(["_is_all", "PASS_PCT"], ascending=[True, True])
+            bar["label"] = bar["PASS_PCT"].apply(lambda x: f"{x:.0%}")
+            bar["color"] = bar["_is_all"].map({True: LEHS_GOLD, False: LEHS_NAVY})
+            fig = go.Figure(go.Bar(
+                x=bar["PASS_PCT"], y=bar["SUBJ"], orientation="h",
+                text=bar["label"], textposition="outside",
+                marker_color=bar["color"].tolist(),
+                customdata=bar[["G09_CNT"]].values,
+                hovertemplate="<b>%{y}</b><br>Passing: %{x:.1%}<br>"
+                              "Grade-9 students: %{customdata[0]:,.0f}<extra></extra>",
+                cliponaxis=False,
+            ))
+            fig.update_layout(
+                **DEFAULT_LAYOUT, xaxis_tickformat=".0%",
+                xaxis_title="Share of grade-9 students passing", yaxis_title="",
+                xaxis_range=[0, min(1.08, max(bar["PASS_PCT"].max() * 1.15, 0.1))],
+                height=max(320, 42 * len(bar)),
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            st.caption(
+                "Gold = DESE's combined **All Subjects** on-track rate; navy = "
+                "individual subjects. A passing rate well below the others flags "
+                "the subject where freshmen most often fall off track."
+            )
+
+        # --- (b) Overall on-track trend (All Subjects rollup) vs benchmarks ---
+        g9_roll_lehs = g9_lehs_all[g9_lehs_all["SUBJ"] == "All Subjects"]
+        if not g9_roll_lehs.empty:
+            st.markdown("**Overall On-Track Rate Over Time — All Subjects**")
+            g9_dist = g9[
+                (g9["DIST_CODE"] == LYNN_DISTRICT_CODE)
+                & (g9["ORG_TYPE"] == "District")
+                & (g9["STU_GRP"] == "All Students")
+                & (g9["SUBJ"] == "All Subjects")
+            ]
+            g9_state = g9[
+                (g9["ORG_TYPE"] == "State")
+                & (g9["STU_GRP"] == "All Students")
+                & (g9["SUBJ"] == "All Subjects")
+            ]
+            frames = []
+            for name, d in [
+                ("Lynn English", g9_roll_lehs),
+                ("Lynn district", g9_dist),
+                ("Massachusetts", g9_state),
+            ]:
+                if not d.empty:
+                    t = with_year_gaps(d[["SY", "PASS_PCT"]].dropna(subset=["PASS_PCT"]), "PASS_PCT")
+                    t["Series"] = name
+                    frames.append(t)
+            if frames:
+                tdf = pd.concat(frames, ignore_index=True)
+                fig = px.line(
+                    tdf, x="SY", y="PASS_PCT", color="Series", markers=True,
+                    color_discrete_map={"Lynn English": LEHS_GOLD,
+                                        "Lynn district": LEHS_NAVY,
+                                        "Massachusetts": STATE_COLOR},
+                )
+                fig.update_traces(connectgaps=False)
+                fig.update_layout(
+                    **DEFAULT_LAYOUT, yaxis_tickformat=".0%",
+                    yaxis_title="% of grade-9 students passing all subjects",
+                    xaxis_title="School Year", yaxis_range=[0, 1.02],
+                )
+                st.plotly_chart(fig, use_container_width=True)
+                st.caption(
+                    "LEHS (gold) vs. the Lynn district and statewide on-track "
+                    "rate. The spring-2020 point reflects pandemic-era grading "
+                    "(many districts adopted pass/no-pass), so read it as an "
+                    "anomaly, not a real spike."
+                )
+
+st.divider()
+
+# ===========================================================================
+# 9. MCAS ALTERNATE ASSESSMENT — performance levels (ks7h-2kdy)
+# ===========================================================================
+# The MCAS-Alt is a portfolio assessment for the small number of students with
+# the most significant cognitive disabilities, who can't take the standard
+# MCAS even with accommodations. Levels: Progressing / Emerging / Awareness /
+# Incomplete. The tested group at any one school is tiny (~10 at LEHS), so this
+# is indicative context, not a rate to compare precisely.
+
+st.header("🧩 MCAS Alternate Assessment")
+st.caption(
+    "The MCAS-Alt is a portfolio assessment for the small group of students "
+    "with the most significant cognitive disabilities, who take it in place of "
+    "the standard MCAS. Each student is rated **Progressing, Emerging, "
+    "Awareness,** or **Incomplete**. **The tested group at LEHS is very small "
+    "(~10 students), so read this as indicative of how these students are "
+    "served — not as a precise rate.** Source: DESE Education-to-Career "
+    "(MCAS Alternate Assessment)."
+)
+
+alt = load_dataset("mcas_alt")
+if alt.empty:
+    st.info("MCAS Alternate Assessment data is temporarily unavailable.")
+else:
+    alt_lehs = alt[alt["ORG_CODE"] == LEHS_SCHOOL_CODE].copy()
+    if alt_lehs.empty:
+        st.info("No LEHS MCAS-Alt rows found.")
+    else:
+        alt_latest = int(alt_lehs["SY"].max())
+        st.markdown(f"**Performance-Level Distribution — SY {sy_label(alt_latest)}**")
+
+        ALT_LEVELS = [
+            ("Progressing", "PROG_PCT", "#4CA66B"),
+            ("Emerging",    "EMRG_PCT", "#A8D5BA"),
+            ("Awareness",   "AWR_PCT",  "#F6C177"),
+            ("Incomplete",  "INCOMPLT_PCT", "#E08E8E"),
+        ]
+        alt_cur = alt_lehs[alt_lehs["SY"] == alt_latest].copy()
+        rows = []
+        for _, r in alt_cur.iterrows():
+            n = pd.to_numeric(r.get("TOT_STU_CNT"), errors="coerce")
+            for level, col, _color in ALT_LEVELS:
+                rows.append({
+                    "Subject": r["SUBJ"],
+                    "Level": level,
+                    "Pct": pd.to_numeric(r.get(col), errors="coerce"),
+                    "n": int(n) if pd.notna(n) else None,
+                })
+        alt_df = pd.DataFrame(rows).dropna(subset=["Pct"])
+
+        if alt_df.empty:
+            st.info("MCAS-Alt performance levels are suppressed for LEHS this year.")
+        else:
+            alt_df["label"] = alt_df["Pct"].apply(lambda x: f"{x:.0%}" if x >= 0.08 else "")
+            fig = px.bar(
+                alt_df, y="Subject", x="Pct", color="Level", orientation="h",
+                text="label",
+                category_orders={
+                    "Level": ["Incomplete", "Awareness", "Emerging", "Progressing"],
+                    "Subject": sorted(alt_df["Subject"].unique()),
+                },
+                color_discrete_map={lvl: c for lvl, _col, c in ALT_LEVELS},
+                custom_data=["n"],
+            )
+            fig.update_traces(
+                textposition="inside", textfont=dict(color="#1f2a44", size=11),
+                hovertemplate="<b>%{y}</b> — %{fullData.name}<br>%{x:.0%}<br>"
+                              "tested: n = %{customdata[0]:,}<extra></extra>",
+            )
+            fig.update_layout(
+                **DEFAULT_LAYOUT, xaxis_tickformat=".0%", barmode="stack",
+                xaxis_title="Share of tested students", yaxis_title="",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            _n_note = alt_cur["TOT_STU_CNT"].dropna()
+            _n_txt = (f"about {int(_n_note.min())}–{int(_n_note.max())}"
+                      if not _n_note.empty else "very few")
+            st.caption(
+                f"**Progressing** is the top level on the MCAS-Alt. With only "
+                f"{_n_txt} students tested per subject, a single student moves "
+                "the percentage by ~10 points — treat this as a portrait of a "
+                "handful of students, not a school-wide statistic."
+            )
+
 # >>> auto: csv downloads <<<
 try:
     from utils.charts import data_downloads_panel as _dl
@@ -1007,6 +1208,8 @@ try:
         'Lynn district Grade-10 MCAS': district,
         'Massachusetts Grade-10 MCAS': state,
         'Grade retention': load_dataset("grade_retention"),
+        'Grade 9 course passing': load_dataset("grade9_passing"),
+        'MCAS Alternate Assessment': load_dataset("mcas_alt"),
     })
 except NameError:
     pass
