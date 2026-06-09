@@ -129,6 +129,24 @@ const state = {
     year: 2026,
     playing: false,
     theme: "light",                    // "light" | "dark" — drives the basemap swap
+    // Bivariate (two-metric 3×3) mode. metric A is the normal state.metric; B + the
+    // bivar palette live here. Off by default — single-metric is the landing view.
+    bivariate: false,
+    bivarMetricB: null,                // resolved to a sensible default on first enable
+    bivarPalette: "greenblue",
+};
+
+// 3×3 bivariate palettes (Stevens). Colors are flat-indexed: row = metric A
+// tertile (0=low, 2=high), col = metric B tertile (0=low, 2=high), so
+// colors[tA*3 + tB]. Low/low is the lightest corner; high/high is the darkest.
+// Ported from the statewide atlas (BIVAR_PALETTES); a curated subset.
+const BIVAR_PALETTES = {
+    greenblue:   { name: "Green × Blue",    colors: ["#e8e8e8","#b8d6be","#73ae80","#b5c0da","#90b2b3","#5a9178","#6c83b5","#567994","#2a5a5b"] },
+    pinkblue:    { name: "Pink × Blue",     colors: ["#e8e8e8","#b0d5df","#64acbe","#e4acac","#ad9ea5","#627f8c","#c85a5a","#985356","#574249"] },
+    purpleteal:  { name: "Purple × Teal",   colors: ["#e8e8e8","#ace4e4","#5ac8c8","#dfb0d6","#a5add3","#5698b9","#be64ac","#8c62aa","#3b4994"] },
+    purplegold:  { name: "Purple × Gold",   colors: ["#e8e8e8","#e4d9ac","#c8b35a","#cbb8d7","#c8ada0","#af8e53","#9972af","#976b82","#804d36"] },
+    redgreen:    { name: "Red × Green",     colors: ["#e8e8e8","#bcd1c2","#91ba9c","#dec0bc","#b3a996","#879270","#d49891","#a9816b","#675738"] },
+    blueyellow:  { name: "Blue × Yellow",   colors: ["#e8e8e8","#e0d6b8","#d8c588","#bbc3d1","#b3b2a1","#aba070","#8e9eba","#868c8a","#676549"] },
 };
 
 let GEO_DATA = null;  // populated after load
@@ -714,6 +732,74 @@ function paintExpression(metricId, paletteName, classify, level) {
     return ["case", valid, expr, NO_DATA_COLOR];
 }
 
+// ─── BIVARIATE (TWO-METRIC 3×3) PAINT ────────────────────────────────────────
+// Stash from the last bivariatePaintExpression() call so updateLegend() can draw
+// the 3×3 key with the exact cutpoints used. Reset on exit.
+let _lastBivar = null;
+
+// Two tertile breakpoints (≈33rd & 66th percentile) so a values array splits into
+// 3 roughly-equal-count tiers. Mirrors the atlas's tertileBreaks.
+function tertileBreaks(values) {
+    if (!values || values.length < 3) return [0, 1];
+    const sorted = [...values].sort((a, b) => a - b);
+    const b1 = sorted[Math.floor(sorted.length / 3)];
+    const b2 = sorted[Math.floor((sorted.length * 2) / 3)];
+    return [b1, b2];
+}
+
+// Build a bivariate (3×3) paint expression coloring each feature by the COMBINATION
+// of its A and B metric tertiles. A polygon missing data on EITHER metric falls
+// back to NO_DATA_COLOR (never lands in a colored cell). Returns
+// { expr, breaksA, breaksB, palette } so the legend can show the real cutpoints.
+// Adapted from the atlas's bivariatePaintExpression; takes raw metric IDs and
+// resolves the active (year/group-aware) column via activeColumn, like the
+// univariate path, so bivariate respects the year slider + group filter too.
+function bivariatePaintExpression(metricA, metricB, paletteKey, level) {
+    const pal = BIVAR_PALETTES[paletteKey] || BIVAR_PALETTES.greenblue;
+    const colors = pal.colors;
+    const valuesA = getValuesForLevel(level, metricA);
+    const valuesB = getValuesForLevel(level, metricB);
+    const [a1, a2] = tertileBreaks(valuesA);
+    const [b1, b2] = tertileBreaks(valuesB);
+
+    const colA = activeColumn(metricA, state.year, level);
+    const colB = activeColumn(metricB, state.year, level);
+
+    // tierA: 0 if < a1, 1 if < a2, else 2 (step needs strictly-increasing inputs;
+    // when ties collapse a1===a2 we drop the duplicate so MapLibre won't throw).
+    const stepA = a2 > a1 ? ["step", ["to-number", ["get", colA]], 0, a1, 1, a2, 2]
+                          : ["step", ["to-number", ["get", colA]], 0, a1, 2];
+    const stepB = b2 > b1 ? ["step", ["to-number", ["get", colB]], 0, b1, 1, b2, 2]
+                          : ["step", ["to-number", ["get", colB]], 0, b1, 2];
+    const idx = ["+", ["*", stepA, 3], stepB];
+
+    const matchExpr = ["match", idx];
+    for (let i = 0; i < 9; i++) matchExpr.push(i, colors[i]);
+    matchExpr.push(colors[0]);  // fallback (0–8 cover all combos)
+
+    const bothValid = ["all",
+        ["==", ["typeof", ["get", colA]], "number"],
+        ["==", ["typeof", ["get", colB]], "number"],
+    ];
+    const expr = ["case", bothValid, matchExpr, NO_DATA_COLOR];
+    return { expr, breaksA: [a1, a2], breaksB: [b1, b2], palette: pal };
+}
+
+// Pick a sensible default metric B for the current level: the first metric (other
+// than A) at this level that actually carries data. Keeps bivariate honest at the
+// tract level (where the catalog's ACS metrics may be empty in this build) — if
+// nothing else has data, returns null and bivariate stays a no-op until the user
+// picks a B with data.
+function defaultBivarMetricB(level, metricA) {
+    const candidates = METRICS.filter(m =>
+        m.levels.includes(level) && m.id !== metricA && metricHasData(m.id, level));
+    if (candidates.length) return candidates[0].id;
+    // Fall back to any other metric at this level (even if no data) so the select
+    // isn't empty; the paint just renders all-blank until data exists.
+    const any = METRICS.filter(m => m.levels.includes(level) && m.id !== metricA);
+    return any.length ? any[0].id : null;
+}
+
 // ─── HOME / RESET-VIEW CONTROL ───────────────────────────────────────────────
 // A standard map button (stacked under the zoom +/−) that flies back to the
 // default Lynn extent. Mirrors the atlas's HomeControl, retargeted at VIEWS.lynn.
@@ -756,6 +842,10 @@ const map = new maplibregl.Map({
     minZoom: 6,
     maxZoom: 18,
     attributionControl: false,
+    // Keep the WebGL backbuffer so map.getCanvas().toDataURL() / drawImage(canvas)
+    // can read pixels for PNG export. Without this the canvas is cleared after
+    // each frame and the export would come out blank.
+    preserveDrawingBuffer: true,
 });
 map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
 // Standard map controls users expect, stacked under the zoom buttons (top-right):
@@ -912,9 +1002,13 @@ map.on("load", async () => {
         wireUI();
         applyChoropleth();
         updateLegend();
-        // Paint the basemap + label halos to match the (already-set) theme attr,
-        // and sync the toggle button. skipBasemap on applyTheme would double-call,
-        // so call applyThemeBasemap directly here.
+        // Restore any shared-link state from the URL hash (level/metric/year/
+        // palette/classify/group/theme/school-mode/bivariate/camera). No-op when
+        // there's no hash; defensive about old/invalid params.
+        applyUrlState();
+        // Paint the basemap + label halos to match the (possibly URL-restored)
+        // theme attr, and sync the toggle button. skipBasemap on applyTheme would
+        // double-call, so call applyThemeBasemap directly here.
         applyThemeBasemap(state.theme);
         syncThemeButton();
         document.getElementById("mapLoading").classList.add("hidden");
@@ -1554,11 +1648,21 @@ document.addEventListener("DOMContentLoaded", () => {
 // ─── CHOROPLETH APPLY ────────────────────────────────────────────────────────
 function applyChoropleth() {
     const { level, metric, palette, classify } = state;
-    const m = getMetric(metric);
-    // Year-aware: paint uses year-keyed column when available, falls back to base
-    const col = activeColumn(metric, state.year, level);
-    const paint = paintExpression(col, palette, classify, level);
     const layerMap = { muni: "muni-fill", district: "district-fill", tract: "tract-fill" };
+    // Bivariate mode paints the 3×3 combination expression; single-metric mode
+    // paints the classified univariate expression. Either way only the active
+    // level's fill layer is visible + repainted.
+    let paint;
+    if (state.bivariate && state.bivarMetricB) {
+        const bv = bivariatePaintExpression(metric, state.bivarMetricB, state.bivarPalette, level);
+        _lastBivar = bv;
+        paint = bv.expr;
+    } else {
+        _lastBivar = null;
+        // Year-aware: paint uses year-keyed column when available, falls back to base
+        const col = activeColumn(metric, state.year, level);
+        paint = paintExpression(col, palette, classify, level);
+    }
     Object.entries(layerMap).forEach(([lvl, layerId]) => {
         if (!map.getLayer(layerId)) return;
         map.setLayoutProperty(layerId, "visibility", lvl === level ? "visible" : "none");
@@ -1614,7 +1718,52 @@ function updateLegend() {
     const titleEl = document.getElementById("legendTitle");
     const stopsEl = document.getElementById("legendStops");
     const metaEl = document.getElementById("legendMeta");
+    const capEl = document.getElementById("legendCaption");
     titleEl.textContent = m.label;
+
+    // ── Bivariate (3×3) legend takes over the card while bivariate mode is on ──
+    if (state.bivariate && _lastBivar) {
+        const mB = getMetric(state.bivarMetricB);
+        const { breaksA, breaksB, palette: pal } = _lastBivar;
+        const colors = pal.colors;
+        titleEl.textContent = `${m.label} × ${mB.label}`;
+        const cell = i => `<span class="bivar-cell" style="background:${colors[i]};"></span>`;
+        // Grid drawn scatter-style: top row = high A, bottom row = low A;
+        // left col = low B, right col = high B.
+        const grid = `
+            ${cell(6)}${cell(7)}${cell(8)}
+            ${cell(3)}${cell(4)}${cell(5)}
+            ${cell(0)}${cell(1)}${cell(2)}
+        `;
+        stopsEl.innerHTML = `
+            <div class="bivar-wrap">
+                <div class="bivar-ylabel">${m.label} →</div>
+                <div class="bivar-grid">${grid}</div>
+                <div class="bivar-xlabel">${mB.label} →</div>
+            </div>
+            <div class="bivar-cuts">
+                <div><b>${m.label}</b> thirds: &lt; ${fmt(breaksA[0], m.format)}, &lt; ${fmt(breaksA[1], m.format)}, ≥ ${fmt(breaksA[1], m.format)}</div>
+                <div><b>${mB.label}</b> thirds: &lt; ${fmt(breaksB[0], mB.format)}, &lt; ${fmt(breaksB[1], mB.format)}, ≥ ${fmt(breaksB[1], mB.format)}</div>
+            </div>
+        `;
+        // Count polygons missing EITHER metric (painted cream, no grid cell).
+        const fcBV = GEO_DATA[level];
+        const totalBV = fcBV ? fcBV.features.length : 0;
+        const colA = activeColumn(metric, state.year, level);
+        const colB = activeColumn(state.bivarMetricB, state.year, level);
+        let bothBV = 0;
+        if (fcBV) fcBV.features.forEach(f => {
+            const a = f.properties[colA], b = f.properties[colB];
+            if (a != null && isFinite(+a) && b != null && isFinite(+b)) bothBV++;
+        });
+        const nullBV = Math.max(0, totalBV - bothBV);
+        metaEl.innerHTML = nullBV
+            ? `<span class="legend-null"><span class="legend-null-swatch"></span>No data — <strong>${nullBV.toLocaleString()}</strong> of ${totalBV.toLocaleString()} polygons (missing ${m.label} or ${mB.label})</span>`
+            : "";
+        if (capEl) capEl.hidden = true;   // the 3×3 axes already explain the colors
+        if (_legendClamp) _legendClamp();
+        return;
+    }
 
     const values = getValuesForLevel(level, metric);
     const totalFeatures = GEO_DATA[level] ? GEO_DATA[level].features.length : 0;
@@ -1623,8 +1772,7 @@ function updateLegend() {
     if (values.length === 0) {
         stopsEl.innerHTML = '<div class="legend-row" style="color:var(--text-muted);">No data at this level for this metric.</div>';
         metaEl.innerHTML = `<span class="legend-null"><span class="legend-null-swatch"></span>No data — ${nullCount.toLocaleString()} of ${totalFeatures.toLocaleString()}</span>`;
-        const capEl0 = document.getElementById("legendCaption");
-        if (capEl0) capEl0.hidden = true;
+        if (capEl) capEl.hidden = true;
         if (_legendClamp) _legendClamp();
         return;
     }
@@ -1669,7 +1817,6 @@ function updateLegend() {
     `;
 
     // Plain-language "how to read the colors" caption (metric polarity).
-    const capEl = document.getElementById("legendCaption");
     if (capEl) {
         const cap = legendCaptionText();
         capEl.textContent = cap;
@@ -1741,6 +1888,80 @@ function populateMetricSelect(searchTerm = "") {
     state.palette = semanticPalette(getMetric(state.metric));
     document.getElementById("paletteSelect").value = state.palette;
     updateMetricSummary();
+    // Keep the bivariate B-metric picker in step (excludes the chosen A; level-aware).
+    populateBivarMetricSelect();
+}
+
+// ─── BIVARIATE SELECTS ───────────────────────────────────────────────────────
+// Metric-B dropdown: every catalog metric at the current level EXCEPT metric A,
+// grouped by category, with a "(data refresh pending)" hint where empty — same
+// affordance as the metric-A picker. Restores/repairs state.bivarMetricB.
+function populateBivarMetricSelect() {
+    const sel = document.getElementById("bivarMetricSelect");
+    if (!sel) return;
+    const candidates = METRICS.filter(m => m.levels.includes(state.level) && m.id !== state.metric);
+    sel.innerHTML = "";
+    if (!candidates.length) {
+        const opt = document.createElement("option");
+        opt.textContent = "No second metric available at this level";
+        opt.disabled = true;
+        sel.appendChild(opt);
+        state.bivarMetricB = null;
+        return;
+    }
+    const categories = [...new Set(candidates.map(m => m.cat))];
+    categories.forEach(cat => {
+        const grp = document.createElement("optgroup");
+        grp.label = cat;
+        candidates.filter(m => m.cat === cat).forEach(m => {
+            const opt = document.createElement("option");
+            opt.value = m.id;
+            const hasData = metricHasData(m.id, state.level);
+            opt.textContent = hasData ? m.label : `${m.label}  · (data refresh pending)`;
+            if (!hasData) opt.style.color = "#9E9E9E";
+            grp.appendChild(opt);
+        });
+        sel.appendChild(grp);
+    });
+    // Repair B if it's now missing / collides with A: pick a sensible default.
+    const ids = candidates.map(m => m.id);
+    if (!state.bivarMetricB || !ids.includes(state.bivarMetricB)) {
+        state.bivarMetricB = defaultBivarMetricB(state.level, state.metric) || ids[0];
+    }
+    sel.value = state.bivarMetricB;
+}
+
+function populateBivarPaletteSelect() {
+    const sel = document.getElementById("bivarPaletteSelect");
+    if (!sel) return;
+    sel.innerHTML = "";
+    Object.entries(BIVAR_PALETTES).forEach(([key, pal]) => {
+        const o = document.createElement("option");
+        o.value = key; o.textContent = pal.name;
+        sel.appendChild(o);
+    });
+    sel.value = state.bivarPalette;
+}
+
+// Enter/exit bivariate mode: flip state, reveal/hide the B + palette pickers,
+// repaint, and swap the legend (3×3 ↔ univariate). Resolves a default metric B
+// on first enable. Used by the toggle wiring, resetAll, and URL restore.
+function setBivariate(on) {
+    state.bivariate = !!on;
+    const ctrls = document.getElementById("bivarControls");
+    if (ctrls) ctrls.style.display = on ? "" : "none";
+    const tog = document.getElementById("bivariateToggle");
+    if (tog) tog.checked = !!on;
+    if (on) {
+        if (!state.bivarMetricB || state.bivarMetricB === state.metric ||
+            !getMetric(state.bivarMetricB).levels.includes(state.level)) {
+            state.bivarMetricB = defaultBivarMetricB(state.level, state.metric);
+        }
+        populateBivarMetricSelect();
+        populateBivarPaletteSelect();
+    }
+    applyChoropleth();
+    updateLegend();
 }
 
 function populatePaletteSelect() {
@@ -1851,6 +2072,31 @@ function wireUI() {
         applyChoropleth();
         updateLegend();
     });
+
+    // ── BIVARIATE (compare two metrics) wiring ───────────────────────────────
+    populateBivarPaletteSelect();
+    const bivarToggle = document.getElementById("bivariateToggle");
+    if (bivarToggle) {
+        bivarToggle.checked = state.bivariate;
+        bivarToggle.addEventListener("change", e => setBivariate(e.target.checked));
+    }
+    const bivarMetricSel = document.getElementById("bivarMetricSelect");
+    if (bivarMetricSel) {
+        bivarMetricSel.addEventListener("change", e => {
+            state.bivarMetricB = e.target.value;
+            applyChoropleth();
+            updateLegend();
+        });
+    }
+    const bivarPalSel = document.getElementById("bivarPaletteSelect");
+    if (bivarPalSel) {
+        bivarPalSel.addEventListener("change", e => {
+            state.bivarPalette = e.target.value;
+            applyChoropleth();
+            updateLegend();
+        });
+    }
+
     document.querySelectorAll('input[name="classify"]').forEach(r => {
         r.addEventListener("change", e => {
             if (e.target.checked) {
@@ -1982,6 +2228,9 @@ function wireUI() {
 
     // Legend drag-to-move + resize controls (desktop).
     setupLegendCustomization();
+
+    // Shareable URL state — wire writers (restore runs from the load handler).
+    setupUrlState();
 }
 
 function setActiveView(view) {
@@ -2032,6 +2281,12 @@ function resetAll() {
     state.labels = true;
     state.townLabels = true;
     state.schoolColorMode = "type";
+    // Bivariate off; hide its controls + uncheck its toggle.
+    state.bivariate = false;
+    state.bivarMetricB = null;
+    state.bivarPalette = "greenblue";
+    const bivarTog = document.getElementById("bivariateToggle"); if (bivarTog) bivarTog.checked = false;
+    const bivarCtrls = document.getElementById("bivarControls"); if (bivarCtrls) bivarCtrls.style.display = "none";
     // Reflect the simple selects/radios.
     const levelSel = document.getElementById("levelSelect"); if (levelSel) levelSel.value = state.level;
     const grpSel   = document.getElementById("groupSelect"); if (grpSel) grpSel.value = "all";
@@ -2366,3 +2621,624 @@ document.addEventListener("DOMContentLoaded", function () {
     const btn = document.getElementById("exportCsvBtn");
     if (btn) btn.addEventListener("click", downloadCurrentLayerCsv);
 });
+
+// ─── PNG EXPORT (preview modal + canvas compositing) ─────────────────────────
+// Snapshots the live map canvas (preserveDrawingBuffer is set on the Map so the
+// backbuffer is readable), then composites a title pill, the active legend
+// (univariate / bivariate, + the school legend if dots are shown) and a credit
+// chip onto a target canvas. Overlays are drawn in LOGICAL css px and scaled to
+// the target, so they stay crisp at 1×/2×/3×. Theme-aware: a dark surface +
+// light ink in dark mode, light surface + dark ink in light. Capture-once /
+// re-render-many — the title/legend/corner/resolution all re-render instantly
+// off the cached bitmap without re-snapshotting the map. Adapted (much
+// simplified) from the atlas's Export Studio (captureBaseBitmap / renderExport /
+// renderExportPreview / drawLegendStack).
+const exportStudio = {
+    opts: { title: "", subtitle: "", caption: "", corner: "br", resolution: 1 },
+    base: null,          // { bitmap, logicalW, logicalH }
+    capturing: false,
+};
+
+// Theme-aware ink palette for the baked overlays.
+function exportColors() {
+    const dark = currentTheme() === "dark";
+    return dark
+        ? { surface: "rgba(22,28,38,0.94)", border: "rgba(255,255,255,0.16)", ink: "#e7ecf3", sub: "#9aa7b5", page: "#0d1118" }
+        : { surface: "rgba(255,255,255,0.94)", border: "rgba(10,31,68,0.14)", ink: "#0A1F44", sub: "#566873", page: "#ffffff" };
+}
+
+function roundRectPath(ctx, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+}
+
+function clipText(ctx, s, max) {
+    if (ctx.measureText(s).width <= max) return s;
+    let t = s;
+    while (t.length > 1 && ctx.measureText(t + "…").width > max) t = t.slice(0, -1);
+    return t + "…";
+}
+
+// Default title / subtitle for the current view (used to pre-fill the modal).
+function exportDefaultTitle() {
+    const m = getMetric(state.metric);
+    if (state.bivariate && state.bivarMetricB) {
+        return `${m.label} × ${getMetric(state.bivarMetricB).label}`;
+    }
+    return m.label;
+}
+function exportDefaultSubtitle() {
+    const levelLabel = { muni: "Massachusetts municipalities", district: "School districts", tract: "Lynn census tracts" }[state.level] || state.level;
+    const m = getMetric(state.metric);
+    const years = availableYears(state.metric, state.level);
+    const yearPart = (years && years.includes(state.year)) ? ` · ${state.year}` : "";
+    const grpPart = (state.studentGroup && state.studentGroup !== "all") ? ` · ${state.studentGroup}` : "";
+    return state.bivariate ? levelLabel : `${levelLabel}${yearPart}${grpPart}`;
+}
+
+// Build a logical-px legend "block" descriptor for the active view so the canvas
+// renderer can draw it without touching the DOM. Returns { width, height, draw }.
+function buildExportLegendBlock(ctx) {
+    const C = exportColors();
+    const rows = [];          // { kind, ... }
+    const m = getMetric(state.metric);
+    const level = state.level;
+    const PAD = 12, HEAD_H = 18, ROW_H = 17, SW = 22, GRIDCELL = 22, AXIS = 16;
+
+    // Heading text.
+    let heading;
+    if (state.bivariate && _lastBivar) {
+        heading = `${m.label} × ${getMetric(state.bivarMetricB).label}`;
+    } else {
+        heading = m.label;
+    }
+
+    // Compute the legend content the same way updateLegend does.
+    if (state.bivariate && _lastBivar) {
+        const colors = _lastBivar.palette.colors;
+        const mB = getMetric(state.bivarMetricB);
+        const labA = `${m.label} →`, labB = `${mB.label} →`;
+        const gridW = GRIDCELL * 3;
+        const width = Math.max(legW(ctx, heading, "bold 12px Inter, sans-serif"), AXIS + gridW) + PAD * 2;
+        const height = HEAD_H + gridW + AXIS + PAD * 2;
+        return {
+            width: Math.ceil(width), height: Math.ceil(height),
+            draw(ctx, x, y, w) {
+                drawLegSurface(ctx, x, y, w, height, C);
+                const ix = x + PAD, iy = y + PAD;
+                ctx.fillStyle = C.ink; ctx.font = "bold 12px Inter, sans-serif"; ctx.textAlign = "left";
+                ctx.fillText(clipText(ctx, heading, w - PAD * 2), ix, iy + 11);
+                const gx = ix + AXIS, gy = iy + HEAD_H;
+                const order = [6, 7, 8, 3, 4, 5, 0, 1, 2];
+                order.forEach((ci, idx) => {
+                    const r = Math.floor(idx / 3), c = idx % 3;
+                    ctx.fillStyle = colors[ci]; ctx.fillRect(gx + c * GRIDCELL, gy + r * GRIDCELL, GRIDCELL, GRIDCELL);
+                    ctx.strokeStyle = "rgba(255,255,255,0.85)"; ctx.lineWidth = 1; ctx.strokeRect(gx + c * GRIDCELL, gy + r * GRIDCELL, GRIDCELL, GRIDCELL);
+                });
+                ctx.fillStyle = C.sub; ctx.font = "10px Inter, sans-serif"; ctx.textAlign = "left";
+                ctx.fillText(clipText(ctx, labB, gridW + AXIS), gx, gy + gridW + 12);
+                ctx.save(); ctx.translate(ix + 9, gy + gridW); ctx.rotate(-Math.PI / 2);
+                ctx.textAlign = "left"; ctx.fillText(clipText(ctx, labA, gridW), 0, 0); ctx.restore();
+            },
+        };
+    }
+
+    // Univariate (classed or continuous), mirroring updateLegend's math.
+    const values = getValuesForLevel(level, state.metric);
+    const palObj = PALETTES[state.palette];
+    if (!values.length) {
+        rows.push({ kind: "swatch", color: NO_DATA_COLOR, label: "No data at this level" });
+    } else if (state.classify === "continuous") {
+        const min = Math.min(...values), max = Math.max(...values);
+        rows.push({ kind: "bar", colors: sampleColors(palObj.colors, 9), min: fmt(min, m.format), max: fmt(max, m.format) });
+    } else {
+        const breaks = state.classify === "quantile" ? quantileBreaks(values, 5)
+            : state.classify === "jenks" ? jenksBreaks(values, 5)
+            : equalIntervalBreaks(values, 5);
+        const stops = sampleColors(palObj.colors, 5);
+        const ranges = [`< ${fmt(breaks[0], m.format)}`];
+        for (let i = 0; i < breaks.length - 1; i++) ranges.push(`${fmt(breaks[i], m.format)} – ${fmt(breaks[i + 1], m.format)}`);
+        ranges.push(`≥ ${fmt(breaks[breaks.length - 1], m.format)}`);
+        for (let i = 0; i < 5; i++) rows.push({ kind: "swatch", color: stops[i], label: ranges[i] });
+    }
+    // No-data swatch (count).
+    const total = GEO_DATA[level] ? GEO_DATA[level].features.length : 0;
+    const nullCount = Math.max(0, total - values.length);
+    if (nullCount) rows.push({ kind: "swatch", color: NO_DATA_COLOR, label: `No data (${nullCount.toLocaleString()})` });
+
+    // Measure.
+    let w = legW(ctx, heading, "bold 12px Inter, sans-serif");
+    let h = HEAD_H;
+    rows.forEach(r => {
+        if (r.kind === "bar") { w = Math.max(w, 150); h += 30; }
+        else { w = Math.max(w, SW + 8 + legW(ctx, r.label, "11px Inter, sans-serif")); h += ROW_H; }
+    });
+    const width = w + PAD * 2, height = h + PAD * 2;
+    return {
+        width: Math.ceil(width), height: Math.ceil(height),
+        draw(ctx, x, y, ww) {
+            drawLegSurface(ctx, x, y, ww, height, C);
+            const ix = x + PAD; let ry = y + PAD;
+            ctx.fillStyle = C.ink; ctx.font = "bold 12px Inter, sans-serif"; ctx.textAlign = "left";
+            ctx.fillText(clipText(ctx, heading, ww - PAD * 2), ix, ry + 11); ry += HEAD_H;
+            const innerW = ww - PAD * 2;
+            rows.forEach(r => {
+                if (r.kind === "bar") {
+                    const grad = ctx.createLinearGradient(ix, 0, ix + innerW, 0);
+                    r.colors.forEach((c, i) => grad.addColorStop(i / (r.colors.length - 1), c));
+                    ctx.fillStyle = grad; ctx.fillRect(ix, ry, innerW, 13);
+                    ctx.strokeStyle = "rgba(120,120,120,0.4)"; ctx.lineWidth = 1; ctx.strokeRect(ix, ry, innerW, 13);
+                    ctx.fillStyle = C.sub; ctx.font = "11px Inter, sans-serif";
+                    ctx.textAlign = "left"; ctx.fillText(r.min, ix, ry + 26);
+                    ctx.textAlign = "right"; ctx.fillText(r.max, ix + innerW, ry + 26); ctx.textAlign = "left";
+                    ry += 30;
+                } else {
+                    ctx.fillStyle = r.color; roundRectPath(ctx, ix, ry + 2, SW, 12, 2); ctx.fill();
+                    ctx.strokeStyle = "rgba(120,120,120,0.35)"; ctx.lineWidth = 1; ctx.stroke();
+                    ctx.fillStyle = C.ink; ctx.font = "11px Inter, sans-serif"; ctx.textAlign = "left";
+                    ctx.fillText(clipText(ctx, r.label, ww - PAD * 2 - SW - 8), ix + SW + 8, ry + 11);
+                    ry += ROW_H;
+                }
+            });
+        },
+    };
+}
+
+// Optional second block: the school color legend, when the Lynn school dots are
+// shown. Categorical chips (type/focus) or a gradient bar (demographic mode).
+function buildExportSchoolBlock(ctx) {
+    if (!state.showLynnSchools) return null;
+    const C = exportColors();
+    const PAD = 12, HEAD_H = 18, ROW_H = 16, DOT = 12;
+    const mode = state.schoolColorMode;
+    const heading = "Lynn schools";
+    const rows = [];   // { color, label } or a bar
+    if (mode === "type") {
+        SCHOOL_TYPES.forEach(t => rows.push({ color: t.color, label: t.label }));
+        rows.push({ color: "#FFB81C", label: "Lynn English (focus)" });
+    } else if (mode === "focus") {
+        rows.push({ color: "#FFB81C", label: "Lynn English High" });
+        rows.push({ color: "#b0bcc6", label: "All other schools" });
+    } else {
+        const cfg = SCHOOL_DEMO_MODES[mode] || SCHOOL_DEMO_MODES.EL_PCT;
+        const stops = sampleColors(cfg.ramp, 5);
+        let w = Math.max(legW(ctx, heading, "bold 12px Inter, sans-serif"), 140) + PAD * 2;
+        const height = HEAD_H + 30 + PAD * 2;
+        return {
+            width: Math.ceil(w), height: Math.ceil(height),
+            draw(ctx, x, y, ww) {
+                drawLegSurface(ctx, x, y, ww, height, C);
+                const ix = x + PAD; let ry = y + PAD;
+                ctx.fillStyle = C.ink; ctx.font = "bold 12px Inter, sans-serif"; ctx.textAlign = "left";
+                ctx.fillText(heading, ix, ry + 11); ry += HEAD_H;
+                const innerW = ww - PAD * 2;
+                const grad = ctx.createLinearGradient(ix, 0, ix + innerW, 0);
+                stops.forEach((c, i) => grad.addColorStop(i / (stops.length - 1), c));
+                ctx.fillStyle = grad; ctx.fillRect(ix, ry, innerW, 12);
+                ctx.fillStyle = C.sub; ctx.font = "10px Inter, sans-serif";
+                ctx.textAlign = "left"; ctx.fillText("0%", ix, ry + 24);
+                ctx.textAlign = "center"; ctx.fillText(cfg.label, ix + innerW / 2, ry + 24);
+                ctx.textAlign = "right"; ctx.fillText("100%", ix + innerW, ry + 24); ctx.textAlign = "left";
+            },
+        };
+    }
+    let w = legW(ctx, heading, "bold 12px Inter, sans-serif");
+    rows.forEach(r => { w = Math.max(w, DOT + 8 + legW(ctx, r.label, "11px Inter, sans-serif")); });
+    const width = w + PAD * 2, height = HEAD_H + rows.length * ROW_H + PAD * 2;
+    return {
+        width: Math.ceil(width), height: Math.ceil(height),
+        draw(ctx, x, y, ww) {
+            drawLegSurface(ctx, x, y, ww, height, C);
+            const ix = x + PAD; let ry = y + PAD;
+            ctx.fillStyle = C.ink; ctx.font = "bold 12px Inter, sans-serif"; ctx.textAlign = "left";
+            ctx.fillText(heading, ix, ry + 11); ry += HEAD_H;
+            rows.forEach(r => {
+                ctx.beginPath(); ctx.arc(ix + DOT / 2, ry + 8, DOT / 2, 0, Math.PI * 2);
+                ctx.fillStyle = r.color; ctx.fill();
+                ctx.strokeStyle = "rgba(120,120,120,0.4)"; ctx.lineWidth = 1; ctx.stroke();
+                ctx.fillStyle = C.ink; ctx.font = "11px Inter, sans-serif"; ctx.textAlign = "left";
+                ctx.fillText(clipText(ctx, r.label, ww - PAD * 2 - DOT - 8), ix + DOT + 8, ry + 12);
+                ry += ROW_H;
+            });
+        },
+    };
+}
+
+function legW(ctx, s, font) { ctx.font = font; return ctx.measureText(s).width; }
+function drawLegSurface(ctx, x, y, w, h, C) {
+    ctx.fillStyle = C.surface; ctx.strokeStyle = C.border; ctx.lineWidth = 1;
+    roundRectPath(ctx, x, y, w, h, 8); ctx.fill(); ctx.stroke();
+}
+
+// Draw the centered title pill (title + subtitle) at the top.
+function drawExportTitle(ctx, W, title, subtitle, C) {
+    title = (title || "").trim(); subtitle = (subtitle || "").trim();
+    if (!title && !subtitle) return;
+    ctx.textAlign = "center";
+    ctx.font = "bold 22px Inter, sans-serif";
+    const tW = title ? ctx.measureText(title).width : 0;
+    ctx.font = "13px Inter, sans-serif";
+    const sW = subtitle ? ctx.measureText(subtitle).width : 0;
+    const pillW = Math.min(W - 32, Math.max(tW, sW) + 40);
+    const pillH = (title && subtitle) ? 56 : 40;
+    const cx = W / 2, py = 14;
+    ctx.fillStyle = C.surface; ctx.strokeStyle = C.border; ctx.lineWidth = 1;
+    roundRectPath(ctx, cx - pillW / 2, py, pillW, pillH, 10); ctx.fill(); ctx.stroke();
+    if (title) { ctx.fillStyle = C.ink; ctx.font = "bold 22px Inter, sans-serif"; ctx.fillText(clipText(ctx, title, pillW - 24), cx, py + 27); }
+    if (subtitle) { ctx.fillStyle = C.sub; ctx.font = "13px Inter, sans-serif"; ctx.fillText(clipText(ctx, subtitle, pillW - 24), cx, title ? py + 46 : py + 24); }
+    ctx.textAlign = "left";
+}
+
+// Credit chip — centered along the bottom edge, always drawn.
+function drawExportCredit(ctx, W, H, C) {
+    ctx.font = "12px Inter, sans-serif";
+    const credit = "© Maxwell Howe · MA DESE · US Census · MassGIS · OpenFreeMap";
+    const cw = ctx.measureText(credit).width;
+    const chipW = Math.min(W - 24, cw + 20), chipH = 22, x = (W - chipW) / 2, y = H - chipH - 12;
+    ctx.fillStyle = C.surface; ctx.strokeStyle = C.border; ctx.lineWidth = 1;
+    roundRectPath(ctx, x, y, chipW, chipH, 5); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = C.sub; ctx.textAlign = "left";
+    ctx.fillText(clipText(ctx, credit, chipW - 16), x + 10, y + 15);
+}
+
+// Optional caption chip, centered just above the credit.
+function drawExportCaption(ctx, W, H, caption, C) {
+    caption = (caption || "").trim();
+    if (!caption) return;
+    ctx.font = "13px Inter, sans-serif";
+    const cw = ctx.measureText(caption).width;
+    const chipW = Math.min(W - 32, cw + 24), chipH = 24, x = (W - chipW) / 2, y = H - 12 - 22 - chipH - 6;
+    ctx.fillStyle = C.surface; ctx.strokeStyle = C.border; ctx.lineWidth = 1;
+    roundRectPath(ctx, x, y, chipW, chipH, 6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = C.ink; ctx.textAlign = "center";
+    ctx.fillText(clipText(ctx, caption, chipW - 18), W / 2, y + 16); ctx.textAlign = "left";
+}
+
+// Composite the cached base bitmap + overlays onto a target canvas. Overlays are
+// drawn in logical CSS px and scaled to the target so they're crisp at any res.
+function renderExport(target, opts) {
+    const base = exportStudio.base;
+    if (!base || !target.width) return;
+    const C = exportColors();
+    const ctx = target.getContext("2d");
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, target.width, target.height);
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+    ctx.fillStyle = C.page; ctx.fillRect(0, 0, target.width, target.height);
+    ctx.drawImage(base.bitmap, 0, 0, base.bitmap.width, base.bitmap.height, 0, 0, target.width, target.height);
+    const W = base.logicalW, H = base.logicalH, s = target.width / W;
+    ctx.save(); ctx.scale(s, s);
+    drawExportTitle(ctx, W, opts.title, opts.subtitle, C);
+    // Legend stack in the chosen corner (metric block + optional school block).
+    if (opts.corner && opts.corner !== "none") {
+        const blocks = [buildExportLegendBlock(ctx)];
+        const sb = buildExportSchoolBlock(ctx);
+        if (sb) blocks.push(sb);
+        const gap = 8, margin = 14;
+        const stackW = blocks.reduce((mx, b) => Math.max(mx, b.width), 0);
+        const stackH = blocks.reduce((a, b) => a + b.height, 0) + gap * (blocks.length - 1);
+        const onRight = opts.corner.indexOf("r") >= 0;
+        const onTop = opts.corner.indexOf("t") >= 0;
+        const x = onRight ? W - stackW - margin : margin;
+        let y = onTop ? margin + ((opts.title || opts.subtitle) ? 64 : 0) : H - stackH - margin - 30;
+        blocks.forEach(b => { b.draw(ctx, x, y, stackW); y += b.height + gap; });
+    }
+    drawExportCaption(ctx, W, H, opts.caption, C);
+    drawExportCredit(ctx, W, H, C);
+    ctx.restore();
+}
+
+// Snapshot the live map canvas into a logical-sized offscreen bitmap. Waits for
+// the map to be idle (tiles settled) so labels aren't blank. Returns
+// { bitmap, logicalW, logicalH } or { error }.
+async function captureExportBase() {
+    const container = map.getContainer();
+    const logicalW = container.clientWidth, logicalH = container.clientHeight;
+    if (!logicalW || !logicalH) return { error: "Map isn't visible — try again once it loads." };
+    // Settle tiles if the map is mid-move; cap the wait so we never hang.
+    if (map.isMoving && map.isMoving()) {
+        await Promise.race([
+            new Promise(r => map.once("idle", r)),
+            new Promise(r => setTimeout(r, 2000)),
+        ]);
+    }
+    const canvas = map.getCanvas();
+    const bmp = document.createElement("canvas");
+    bmp.width = canvas.width; bmp.height = canvas.height;
+    bmp.getContext("2d").drawImage(canvas, 0, 0);
+    return { bitmap: bmp, logicalW, logicalH };
+}
+
+// Re-render only the in-modal preview canvas (fast — no re-capture).
+function renderExportPreview() {
+    const base = exportStudio.base;
+    const cv = document.getElementById("exportPreview");
+    if (!cv || !base) return;
+    const frame = cv.parentElement;
+    const availW = Math.max(220, (frame ? frame.clientWidth : 540) - 4);
+    const cssW = Math.min(availW, base.logicalW);
+    const cssH = cssW * base.logicalH / base.logicalW;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.style.width = cssW + "px"; cv.style.height = cssH + "px";
+    cv.width = Math.round(cssW * dpr); cv.height = Math.round(cssH * dpr);
+    renderExport(cv, exportStudio.opts);
+    const busy = document.getElementById("exportPreviewBusy"); if (busy) busy.hidden = true;
+}
+
+function exportPngFilename() {
+    const mult = exportStudio.opts.resolution > 1 ? `_${exportStudio.opts.resolution}x` : "";
+    const bivar = state.bivariate ? `_x_${state.bivarMetricB}` : "";
+    return `lynn-map_${state.metric}${bivar}_${state.level}${mult}_${new Date().toISOString().slice(0, 10)}.png`;
+}
+
+// Render at the chosen resolution and download. Guards against exceeding the
+// browser's max canvas dimension by clamping the multiplier (shows a note).
+function downloadExportPng() {
+    const base = exportStudio.base;
+    if (!base) return;
+    let mult = exportStudio.opts.resolution || 1;
+    const out = document.createElement("canvas");
+    let targetW = base.bitmap.width * mult, targetH = base.bitmap.height * mult;
+    const MAX = 16000;
+    let clamped = false;
+    if (Math.max(targetW, targetH) > MAX) {
+        const k = MAX / Math.max(targetW, targetH);
+        targetW = Math.floor(targetW * k); targetH = Math.floor(targetH * k);
+        clamped = true;
+    }
+    out.width = targetW; out.height = targetH;
+    renderExport(out, exportStudio.opts);
+    const note = document.getElementById("exportResNote"); if (note) note.hidden = !clamped;
+    const slug = exportPngFilename();
+    const finish = (url, revoke) => {
+        const a = document.createElement("a");
+        a.href = url; a.download = slug;
+        document.body.appendChild(a); a.click(); a.remove();
+        if (revoke) setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+    if (out.toBlob) out.toBlob(b => { b ? finish(URL.createObjectURL(b), true) : finish(out.toDataURL("image/png"), false); }, "image/png");
+    else finish(out.toDataURL("image/png"), false);
+}
+
+async function openExportModal() {
+    const modal = document.getElementById("exportModal");
+    if (!modal || !GEO_DATA) return;
+    // Pre-fill title / subtitle from the current view (only if untouched/empty).
+    const titleEl = document.getElementById("exportTitle");
+    const subEl = document.getElementById("exportSubtitle");
+    if (titleEl) { titleEl.value = exportDefaultTitle(); exportStudio.opts.title = titleEl.value; }
+    if (subEl) { subEl.value = exportDefaultSubtitle(); exportStudio.opts.subtitle = subEl.value; }
+    const capEl = document.getElementById("exportCaption");
+    if (capEl) exportStudio.opts.caption = capEl.value || "";
+    modal.classList.add("open"); modal.setAttribute("aria-hidden", "false");
+    const busy = document.getElementById("exportPreviewBusy"); if (busy) busy.hidden = false;
+    if (exportStudio.capturing) return;
+    exportStudio.capturing = true;
+    let res;
+    try { res = await captureExportBase(); }
+    finally { exportStudio.capturing = false; }
+    if (res.error) {
+        if (busy) { busy.textContent = res.error; }
+        exportStudio.base = null;
+        return;
+    }
+    exportStudio.base = res;
+    renderExportPreview();
+}
+
+function closeExportModal() {
+    const modal = document.getElementById("exportModal");
+    if (!modal) return;
+    modal.classList.remove("open"); modal.setAttribute("aria-hidden", "true");
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    const pngBtn = document.getElementById("exportPngBtn");
+    if (pngBtn) pngBtn.addEventListener("click", openExportModal);
+    const closeBtn = document.getElementById("exportModalClose");
+    if (closeBtn) closeBtn.addEventListener("click", closeExportModal);
+    const dlBtn = document.getElementById("exportDownloadBtn");
+    if (dlBtn) dlBtn.addEventListener("click", downloadExportPng);
+    const modal = document.getElementById("exportModal");
+    if (modal) modal.addEventListener("click", e => { if (e.target === modal) closeExportModal(); });
+    document.addEventListener("keydown", e => {
+        if (e.key === "Escape") {
+            const m = document.getElementById("exportModal");
+            if (m && m.classList.contains("open")) closeExportModal();
+        }
+    });
+    // Live-edit the overlay fields → re-render the preview (no re-capture).
+    const reRender = () => renderExportPreview();
+    [["exportTitle", "title"], ["exportSubtitle", "subtitle"], ["exportCaption", "caption"]].forEach(([id, key]) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener("input", e => { exportStudio.opts[key] = e.target.value; reRender(); });
+    });
+    const cornerSel = document.getElementById("exportCorner");
+    if (cornerSel) cornerSel.addEventListener("change", e => { exportStudio.opts.corner = e.target.value; reRender(); });
+    document.querySelectorAll('input[name="exportRes"]').forEach(r => {
+        r.addEventListener("change", e => { if (e.target.checked) exportStudio.opts.resolution = parseInt(e.target.value, 10) || 1; });
+    });
+});
+
+// ─── SHAREABLE URL STATE ─────────────────────────────────────────────────────
+// Encode the meaningful UI state in the URL hash; restore on load; update on
+// change via history.replaceState (no history spam). A "Copy link" button copies
+// the current URL. Restore is defensive — unknown/old params fall back to defaults
+// so a stale link never breaks the app. Adapted from the atlas's applyUrlState /
+// writeUrlState (hash-based so it works on a static Pages deploy).
+const VALID_LEVELS    = ["muni", "district", "tract"];
+const VALID_CLASSIFY  = ["jenks", "quantile", "equal", "continuous"];
+
+function writeUrlState() {
+    if (!GEO_DATA) return;   // don't write a half-built URL before load
+    const params = new URLSearchParams();
+    params.set("level", state.level);
+    params.set("metric", state.metric);
+    params.set("palette", state.palette);
+    params.set("classify", state.classify);
+    params.set("year", String(state.year));
+    if (state.studentGroup && state.studentGroup !== "all") params.set("group", state.studentGroup);
+    if (state.theme === "dark") params.set("theme", "dark");
+    if (state.schoolColorMode && state.schoolColorMode !== "type") params.set("scm", state.schoolColorMode);
+    if (state.bivariate && state.bivarMetricB) {
+        params.set("bivar", "1");
+        params.set("bivarB", state.bivarMetricB);
+        params.set("bivarPal", state.bivarPalette);
+    }
+    // Camera so a shared link reproduces the framing the sender saw.
+    try {
+        const c = map.getCenter();
+        params.set("at", `${c.lng.toFixed(4)},${c.lat.toFixed(4)},${map.getZoom().toFixed(2)}`);
+    } catch (e) {}
+    const hash = "#" + params.toString();
+    if (window.location.hash !== hash) {
+        try { history.replaceState(null, "", hash); } catch (e) {}
+    }
+}
+
+// Restore state from the URL hash. Called once after wireUI. Each param is guarded
+// so missing/invalid values fall through to the defaults already in `state`.
+function applyUrlState() {
+    let raw = "";
+    try { raw = window.location.hash.slice(1); } catch (e) { return; }
+    if (!raw) return;
+    const params = new URLSearchParams(raw);
+    let dirty = false;
+
+    const level = params.get("level");
+    if (level && VALID_LEVELS.includes(level)) {
+        state.level = level;
+        const sel = document.getElementById("levelSelect"); if (sel) sel.value = level;
+        dirty = true;
+    }
+    // Metric A — must exist at the (possibly just-restored) level.
+    const metric = params.get("metric");
+    if (metric && METRICS.find(m => m.id === metric && m.levels.includes(state.level))) {
+        state.metric = metric;
+    }
+    // Rebuild the metric list for the level FIRST (so the select has the options),
+    // which also seeds the semantic default palette + bivar-B select.
+    populateMetricSelect();
+    const metricSel = document.getElementById("metricSelect"); if (metricSel) metricSel.value = state.metric;
+
+    const palette = params.get("palette");
+    if (palette && PALETTES[palette]) {
+        state.palette = palette;
+        const sel = document.getElementById("paletteSelect"); if (sel) sel.value = palette;
+        dirty = true;
+    }
+    const classify = params.get("classify");
+    if (classify && VALID_CLASSIFY.includes(classify)) {
+        state.classify = classify;
+        const radio = document.querySelector(`input[name="classify"][value="${classify}"]`);
+        if (radio) radio.checked = true;
+        dirty = true;
+    }
+    const year = parseInt(params.get("year"), 10);
+    if (isFinite(year)) {
+        state.year = year;
+        const ys = document.getElementById("yearSlider"); if (ys) ys.value = String(year);
+        const yl = document.getElementById("yearLabel"); if (yl) yl.textContent = String(year);
+        dirty = true;
+    }
+    const group = params.get("group");
+    if (group) {
+        state.studentGroup = group;
+        const gs = document.getElementById("groupSelect"); if (gs) gs.value = group;
+        dirty = true;
+        if (typeof updateGroupNote === "function") updateGroupNote();
+    }
+    const scm = params.get("scm");
+    if (scm) {
+        state.schoolColorMode = scm;
+        const ss = document.getElementById("schoolColorMode"); if (ss) ss.value = scm;
+        if (typeof applySchoolColorMode === "function") applySchoolColorMode();
+    }
+    if (params.get("theme") === "dark" && currentTheme() !== "dark") {
+        applyTheme("dark");
+    }
+    if (params.get("bivar") === "1") {
+        const bB = params.get("bivarB");
+        if (bB && getMetric(bB) && getMetric(bB).levels.includes(state.level) && bB !== state.metric) {
+            state.bivarMetricB = bB;
+        }
+        const bP = params.get("bivarPal");
+        if (bP && BIVAR_PALETTES[bP]) state.bivarPalette = bP;
+        setBivariate(true);   // populates B + palette selects, repaints, swaps legend
+        dirty = true;
+    }
+    const at = params.get("at");
+    if (at) {
+        const [lng, lat, z] = at.split(",").map(Number);
+        if (isFinite(lng) && isFinite(lat) && isFinite(z)) {
+            try { map.jumpTo({ center: [lng, lat], zoom: z }); } catch (e) {}
+        }
+    }
+    if (dirty) {
+        applyChoropleth();
+        updateLegend();
+        if (typeof updateMetricSummary === "function") updateMetricSummary();
+    }
+}
+
+// Wire URL writing on every state-affecting control + the camera, and the
+// "Copy link" button. Called from wireUI's tail. Debounced writes keep
+// replaceState quiet during slider drags / map pans.
+let _urlWriteTimer = null;
+function scheduleUrlWrite() {
+    clearTimeout(_urlWriteTimer);
+    _urlWriteTimer = setTimeout(writeUrlState, 200);
+}
+function setupUrlState() {
+    ["levelSelect", "metricSelect", "paletteSelect", "groupSelect", "yearSlider",
+     "schoolColorMode", "bivariateToggle", "bivarMetricSelect", "bivarPaletteSelect",
+    ].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener("change", scheduleUrlWrite);
+    });
+    document.querySelectorAll('input[name="classify"]').forEach(el => el.addEventListener("change", scheduleUrlWrite));
+    const themeBtn = document.getElementById("themeToggle");
+    if (themeBtn) themeBtn.addEventListener("click", scheduleUrlWrite);
+    const resetBtn = document.getElementById("resetAllBtn");
+    if (resetBtn) resetBtn.addEventListener("click", () => setTimeout(writeUrlState, 50));
+    // Persist the camera after the user stops moving.
+    map.on("moveend", scheduleUrlWrite);
+
+    // "Copy link" — write current state to the URL, then copy it.
+    const copyBtn = document.getElementById("copyLinkBtn");
+    const note = document.getElementById("copyLinkNote");
+    if (copyBtn) {
+        copyBtn.addEventListener("click", async () => {
+            writeUrlState();
+            const url = window.location.href;
+            let copied = false;
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(url);
+                    copied = true;
+                }
+            } catch (e) {}
+            if (!copied) {
+                // Fallback: a temporary textarea + execCommand for older / insecure contexts.
+                try {
+                    const ta = document.createElement("textarea");
+                    ta.value = url; ta.style.position = "fixed"; ta.style.opacity = "0";
+                    document.body.appendChild(ta); ta.focus(); ta.select();
+                    copied = document.execCommand("copy");
+                    ta.remove();
+                } catch (e) {}
+            }
+            if (note) {
+                const prev = note.textContent;
+                note.textContent = copied ? "✓ Link copied to clipboard." : "Couldn't copy automatically — the link is in your address bar.";
+                setTimeout(() => { note.textContent = prev; }, 2600);
+            }
+        });
+    }
+}

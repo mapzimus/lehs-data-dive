@@ -13,7 +13,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
     <link rel="stylesheet" href="assets/style.css">
-    <link rel="stylesheet" href="style.css?v=20260609-darkmode">
+    <link rel="stylesheet" href="style.css?v=20260609-analysis">
 </head>
 <body class="maps-page">
 <a href="#main-content" class="skip-to-content">Skip to content</a>
@@ -104,6 +104,25 @@
 
             <label class="form-label" style="margin-top:12px;">Color palette</label>
             <select id="paletteSelect" class="select-input"></select>
+
+            <!-- BIVARIATE (compare two metrics) — a 3×3 grid colors each polygon
+                 by the COMBINATION of two metrics' tertiles. Toggling it on reveals
+                 the metric-B + bivariate-palette pickers and replaces the normal
+                 legend with a 3×3 key. Wired in app.js (setBivariate / bivar*). -->
+            <label class="toggle-row" style="margin-top:14px;">
+                <input type="checkbox" id="bivariateToggle">
+                <span>Compare two metrics (bivariate 3×3)</span>
+            </label>
+            <div class="bivar-controls" id="bivarControls" style="display:none;">
+                <label class="form-label" style="margin-top:4px;">Second metric (B)</label>
+                <select id="bivarMetricSelect" class="select-input select-input--sm"></select>
+                <label class="form-label" style="margin-top:10px;">Bivariate palette</label>
+                <select id="bivarPaletteSelect" class="select-input select-input--sm"></select>
+                <div class="year-note" style="font-style:normal;">
+                    Each metric is split into thirds (low / mid / high); the grid
+                    blends them. Polygons missing either metric stay blank.
+                </div>
+            </div>
 
             <label class="form-label" style="margin-top:12px;">Classification</label>
             <div class="radio-group">
@@ -228,14 +247,27 @@
             </label>
         </div>
 
-        <!-- DOWNLOAD CSV -->
+        <!-- EXPORT & SHARE -->
         <div class="panel-section">
-            <h2 class="panel-h2">Download</h2>
+            <h2 class="panel-h2">Export &amp; share</h2>
             <button id="exportCsvBtn" type="button" class="export-csv-btn">
                 ⬇ Export this layer as CSV
             </button>
-            <div class="form-label" style="margin-top:6px; font-size:11px; color:var(--text-muted);">
-                Exports all features in the active layer with their properties as CSV.
+            <div class="form-label" style="margin-top:6px; font-size:11px; color:var(--text-muted); font-weight:400; text-transform:none; letter-spacing:0;">
+                All features in the active layer with their properties as CSV.
+            </div>
+            <button id="exportPngBtn" type="button" class="export-csv-btn" style="margin-top:12px;">
+                🖼 Export map as PNG…
+            </button>
+            <div class="form-label" style="margin-top:6px; font-size:11px; color:var(--text-muted); font-weight:400; text-transform:none; letter-spacing:0;">
+                A PNG of the current map with the legend and a title baked in.
+            </div>
+            <button id="copyLinkBtn" type="button" class="export-csv-btn" style="margin-top:12px;">
+                🔗 Copy link to this view
+            </button>
+            <div class="form-label" id="copyLinkNote" style="margin-top:6px; font-size:11px; color:var(--text-muted); font-weight:400; text-transform:none; letter-spacing:0;">
+                Copies a URL that reopens the map with the same metric, level, year,
+                colors and framing.
             </div>
         </div>
 
@@ -320,6 +352,60 @@
         </div>
     </div>
 
+    <!-- PNG EXPORT MODAL — live preview + editable title/subtitle/caption, corner
+         choice for the baked-in legend, and a resolution picker. Capture-once /
+         re-render-many: the map canvas is snapshotted, then the title/legend/credit
+         overlays are composited onto a canvas (so they stay crisp at 2×/3×).
+         Wired in app.js (openExportModal / renderExportPreview / downloadExport). -->
+    <div class="export-modal" id="exportModal" aria-hidden="true">
+        <div class="export-modal-inner">
+            <button class="export-modal-close" id="exportModalClose"
+                    aria-label="Close export">&times;</button>
+            <h2>Export map as PNG</h2>
+            <div class="export-modal-grid">
+                <div class="export-preview-frame">
+                    <canvas id="exportPreview" class="export-preview-canvas"></canvas>
+                    <div class="export-preview-busy" id="exportPreviewBusy">Rendering…</div>
+                </div>
+                <div class="export-controls">
+                    <label class="form-label">Title</label>
+                    <input id="exportTitle" type="text" class="select-input select-input--sm" autocomplete="off">
+                    <label class="form-label" style="margin-top:10px;">Subtitle</label>
+                    <input id="exportSubtitle" type="text" class="select-input select-input--sm" autocomplete="off">
+                    <label class="form-label" style="margin-top:10px;">Caption (optional)</label>
+                    <input id="exportCaption" type="text" class="select-input select-input--sm"
+                           placeholder="e.g. a note about the data" autocomplete="off">
+
+                    <label class="form-label" style="margin-top:10px;">Legend corner</label>
+                    <select id="exportCorner" class="select-input select-input--sm">
+                        <option value="bl">Bottom-left</option>
+                        <option value="br" selected>Bottom-right</option>
+                        <option value="tl">Top-left</option>
+                        <option value="tr">Top-right</option>
+                        <option value="none">Hide legend</option>
+                    </select>
+
+                    <label class="form-label" style="margin-top:10px;">Resolution</label>
+                    <div class="radio-group export-res-group">
+                        <label><input type="radio" name="exportRes" value="1" checked> 1× (screen)</label>
+                        <label><input type="radio" name="exportRes" value="2"> 2× (sharper)</label>
+                        <label><input type="radio" name="exportRes" value="3"> 3× (print)</label>
+                    </div>
+                    <div class="year-note" id="exportResNote" hidden>
+                        ⚠ Requested resolution exceeded this browser's canvas limit —
+                        exported at the largest safe size.
+                    </div>
+
+                    <div class="export-modal-footer">
+                        <button class="export-download-btn" id="exportDownloadBtn" type="button">
+                            ⬇ Download PNG
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- FEATURE DETAIL SIDE PANEL (sticky, right side) -->
     <aside class="feature-panel" id="featurePanel" aria-hidden="true">
         <header class="feature-panel-header">
@@ -349,6 +435,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 </script>
-<script src="app.js?v=20260609-darkmode"></script>
+<script src="app.js?v=20260609-analysis"></script>
 </body>
 </html>

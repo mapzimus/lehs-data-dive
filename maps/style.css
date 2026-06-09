@@ -933,6 +933,184 @@ body.legend-busy { -webkit-user-select: none; user-select: none; }
 }
 
 /* ============================================================================
+   BIVARIATE (compare two metrics) — panel controls + the 3×3 legend grid.
+   The grid replaces the normal legend stops while bivariate mode is on; it's
+   drawn scatter-style (top row = high A, right col = high B). Token-based so it
+   flips cleanly in dark mode. Ported from the statewide atlas's bivar-* rules.
+   ============================================================================ */
+.bivar-controls {
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: rgba(10, 31, 68, 0.035);
+    border: 1px solid var(--panel-border);
+    border-left: 3px solid var(--lehs-gold);
+    border-radius: 0 6px 6px 0;
+}
+[data-theme="dark"] .bivar-controls { background: rgba(255, 255, 255, 0.04); }
+
+.bivar-wrap {
+    display: grid;
+    grid-template-columns: 16px 1fr;
+    grid-template-rows: auto 16px;
+    grid-template-areas: "ylab grid" ". xlab";
+    gap: 4px;
+    width: 100%;
+    margin: 4px 0 8px;
+}
+.bivar-ylabel {
+    grid-area: ylab;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-size: 10px;
+    color: var(--text-strong);
+    text-align: center;
+    line-height: 16px;
+    letter-spacing: 0.02em;
+    overflow: hidden;
+}
+.bivar-xlabel {
+    grid-area: xlab;
+    font-size: 10px;
+    color: var(--text-strong);
+    text-align: center;
+    letter-spacing: 0.02em;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.bivar-grid {
+    grid-area: grid;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    width: 100%;
+    aspect-ratio: 1 / 1;       /* fill the legend width, stay square */
+    max-width: 132px;
+    gap: 1px;
+    border: 1px solid var(--panel-border);
+}
+.bivar-cell { display: block; width: 100%; height: 100%; }
+.bivar-cuts {
+    font-size: 10.5px;
+    color: var(--text-strong);
+    line-height: 1.4;
+    margin-top: 6px;
+}
+.bivar-cuts b { font-weight: 600; }
+
+/* ============================================================================
+   PNG EXPORT MODAL — preview + overlay-edit controls. Mirrors the help modal's
+   surface/token treatment so it flips cleanly in dark mode (every text element
+   resolves to var(--text-strong)/--text-muted).
+   ============================================================================ */
+.export-modal {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 31, 68, 0.55);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 102;              /* above help modal (101) + loading (100) */
+    padding: 20px;
+}
+.export-modal.open { display: flex; }
+.export-modal-inner {
+    position: relative;
+    max-width: 880px;
+    width: 100%;
+    max-height: min(90vh, 760px);
+    overflow-y: auto;
+    background: var(--surface-1);
+    color: var(--text-strong);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    box-shadow: 0 18px 50px rgba(10, 31, 68, 0.35);
+    padding: 24px 26px 20px;
+    font-family: 'Inter', sans-serif;
+}
+.export-modal-inner h2 {
+    margin: 0 0 14px;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-strong);
+}
+.export-modal-close {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--panel-border);
+    color: var(--text-muted);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 1px 8px;
+}
+.export-modal-close:hover { color: var(--text-strong); background: var(--surface-hover); }
+.export-modal-grid {
+    display: grid;
+    grid-template-columns: 1fr 260px;
+    gap: 20px;
+    align-items: start;
+}
+.export-preview-frame {
+    position: relative;
+    background: var(--surface-2);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 8px;
+    min-height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.export-preview-canvas {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+}
+.export-preview-busy {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+.export-preview-busy[hidden] { display: none; }
+.export-controls .form-label:first-child { margin-top: 0; }
+.export-res-group { margin-top: 4px; }
+.export-modal-footer {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--panel-border);
+}
+.export-download-btn {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--lehs-navy);
+    color: var(--lehs-gold);
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.export-download-btn:hover { background: #1a3a6b; }
+.export-download-btn:active { transform: translateY(1px); }
+
+@media (max-width: 768px) {
+    .export-modal-grid { grid-template-columns: 1fr; }
+    .export-modal-inner { padding: 20px 16px 16px; }
+}
+
+/* ============================================================================
    Loading overlay
    ============================================================================ */
 .map-loading {
