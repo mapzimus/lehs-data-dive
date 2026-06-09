@@ -1264,9 +1264,24 @@ body.legend-busy { -webkit-user-select: none; user-select: none; }
     }
     .feature-panel.open { transform: translateY(0); }
 
-    .help-button { bottom: 16px; right: 16px; width: 44px; height: 44px; font-size: 22px; }
-    .help-modal-inner { padding: 22px 18px 18px; font-size: 14px; }
-    .help-key { min-width: 110px; font-size: 11px; }
+    /* Help pill → round icon on phones so it can't cover the full-width legend.
+       Fixed so it stays above iOS Safari's address bar. */
+    .help-fab {
+        position: fixed;
+        bottom: calc(16px + env(safe-area-inset-bottom));
+        right: 16px;
+        width: 44px; height: 44px;
+        padding: 0;
+        justify-content: center;
+        border-radius: 50%;
+    }
+    .help-fab-label { display: none; }
+    .help-fab-icon { width: 22px; height: 22px; }
+    .help-hd { padding: 18px 18px 12px; }
+    .help-body { padding: 14px 18px 6px; }
+    .help-footer { padding: 12px 18px; }
+    .help-tour-btn, .help-got-it { padding-left: 14px; padding-right: 14px; }
+    .help-key { min-width: 104px; font-size: 11px; }
 
     .legend {
         bottom: 12px; left: 12px; right: 12px;
@@ -1332,37 +1347,62 @@ body.legend-busy { -webkit-user-select: none; user-select: none; }
 .maplibregl-ctrl-home svg { display: block; }
 
 /* ============================================================================
-   MAP-CONTROLS HELP — the "?" button + its modal. Token-based so the modal
-   surface + all its text flip cleanly in dark mode (every text element here
-   resolves to var(--text-strong)/--text-muted; no inheritance from the near-
-   white global body color — the inherited-text trap). Adapted from the atlas
-   help hub, simplified to this map's single-page help markup.
+   HELP & GUIDE — a labeled pill that opens a tabbed help hub (controls cheat-
+   sheet · how-to · glossary) + launches the interactive guided tour, plus the
+   tour spotlight overlay. Token-based so every surface + text element flips
+   cleanly in dark mode (text resolves to var(--text-strong)/--text-muted — no
+   inheritance from the near-white global body color, the inherited-text trap).
+   Adapted from the statewide atlas help hub; re-scoped to THIS map's controls.
    ============================================================================ */
-.help-button {
+
+/* ── Launcher pill ───────────────────────────────────────────────────────── */
+.help-fab {
     position: absolute;
     bottom: 16px;
     right: 16px;
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    background: var(--lehs-navy);
-    color: var(--lehs-gold);
-    border: none;
-    box-shadow: 0 3px 12px rgba(10, 31, 68, 0.35);
-    font-size: 19px;
-    font-weight: 700;
-    line-height: 1;
-    cursor: pointer;
-    z-index: 6;
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    padding: 0;
+    gap: 8px;
+    height: 40px;
+    padding: 0 16px 0 12px;
+    border: none;
+    border-radius: 999px;
+    background: var(--lehs-navy);
+    color: #fff;
+    box-shadow: 0 3px 14px rgba(10, 31, 68, 0.38);
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.01em;
+    z-index: 6;
+    transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
 }
-.help-button:hover { background: #1a3a6b; }
-/* Keep the help launcher clear of the legend card (bottom-right). */
-.maplibregl-ctrl-bottom-right ~ .help-button { right: 16px; }
+.help-fab:hover {
+    transform: translateY(-1px);
+    background: #1a3a6b;
+    box-shadow: 0 6px 20px rgba(10, 31, 68, 0.5);
+}
+.help-fab:active { transform: translateY(0); }
+.help-fab-icon { width: 20px; height: 20px; color: var(--lehs-gold); flex-shrink: 0; }
+.help-fab-label { white-space: nowrap; }
 
+/* One-time discoverability pulse for first-time visitors (JS removes it on the
+   first open). Subtle gold ring — no popup, no screen real-estate. */
+.help-fab.pulse::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    animation: helpFabPulse 2.2s ease-out infinite;
+}
+@keyframes helpFabPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(255, 184, 28, 0.5); }
+    70%  { box-shadow: 0 0 0 12px rgba(255, 184, 28, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 184, 28, 0); }
+}
+
+/* ── Hub modal ───────────────────────────────────────────────────────────── */
 .help-modal {
     position: absolute;
     inset: 0;
@@ -1378,26 +1418,48 @@ body.legend-busy { -webkit-user-select: none; user-select: none; }
 .help-modal.open { display: flex; }
 .help-modal-inner {
     position: relative;
-    max-width: 520px;
+    max-width: 540px;
     width: 100%;
     max-height: min(86vh, 720px);
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
     background: var(--surface-1);
     color: var(--text-strong);
     border: 1px solid var(--panel-border);
-    border-radius: 14px;
+    border-radius: 16px;
     box-shadow: 0 18px 50px rgba(10, 31, 68, 0.35);
-    padding: 26px 28px 18px;
     font-family: 'Inter', sans-serif;
-    font-size: 13px;
-    line-height: 1.5;
+    overflow: hidden;
+    animation: helpModalIn 0.2s ease;
+}
+@keyframes helpModalIn {
+    from { opacity: 0; transform: translateY(10px) scale(0.99); }
+    to   { opacity: 1; transform: none; }
+}
+.help-hd {
+    padding: 22px 26px 14px;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--panel-border);
+}
+.help-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: #b8860b;
+    font-weight: 500;
 }
 .help-modal-inner h2 {
-    margin: 0 0 4px;
-    font-size: 20px;
+    margin: 4px 0 4px;
+    font-size: 21px;
     font-weight: 700;
     letter-spacing: -0.01em;
     color: var(--text-strong);
+}
+.help-sub {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-muted);
 }
 .help-modal-close {
     position: absolute;
@@ -1411,15 +1473,53 @@ body.legend-busy { -webkit-user-select: none; user-select: none; }
     cursor: pointer;
     border-radius: 8px;
     padding: 1px 8px;
+    z-index: 2;
 }
 .help-modal-close:hover { color: var(--text-strong); background: var(--surface-hover); }
-.help-section {
-    margin-top: 16px;
-    padding-top: 14px;
-    border-top: 1px solid var(--panel-border);
+
+/* Tabs */
+.help-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 12px 18px 0;
+    border-bottom: 1px solid var(--panel-border);
 }
-.help-section > strong {
-    display: block;
+.help-tab {
+    appearance: none;
+    border: none;
+    background: transparent;
+    padding: 9px 14px;
+    margin-bottom: -1px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2.5px solid transparent;
+    transition: color 0.12s, border-color 0.12s;
+}
+.help-tab:hover { color: var(--text-strong); }
+.help-tab.active {
+    color: var(--text-strong);
+    border-bottom-color: var(--lehs-gold);
+}
+
+/* Scrollable body */
+.help-body {
+    padding: 18px 26px 8px;
+    overflow-y: auto;
+    flex: 1;
+}
+.help-pane { animation: helpModalIn 0.18s ease; }
+.help-pane[hidden] { display: none; }
+
+/* Map-controls cards */
+.help-card { margin-bottom: 16px; }
+.help-card:last-child { margin-bottom: 4px; }
+.help-card-hd {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     margin-bottom: 8px;
     font-size: 11px;
     font-weight: 700;
@@ -1427,12 +1527,14 @@ body.legend-busy { -webkit-user-select: none; user-select: none; }
     letter-spacing: 0.06em;
     color: var(--text-muted);
 }
+.help-card-ico { font-size: 14px; }
 .help-row {
     display: flex;
     align-items: baseline;
     gap: 12px;
-    padding: 3px 0;
     font-size: 13px;
+    line-height: 1.5;
+    padding: 3px 0;
     color: var(--text-strong);
 }
 .help-key {
@@ -1448,13 +1550,118 @@ body.legend-busy { -webkit-user-select: none; user-select: none; }
     color: var(--text-strong);
     text-align: center;
 }
+
+/* How-to pane */
+.help-quickstart {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 18px;
+    padding: 0;
+    list-style: none;
+}
+.help-quickstart li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 0;
+    min-width: 150px;
+    padding: 10px 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-strong);
+}
+.help-qs-n {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--lehs-navy);
+    color: var(--lehs-gold);
+    font-size: 12px;
+    font-weight: 700;
+}
+.help-howto { display: grid; gap: 4px; }
+.help-howto-item {
+    display: flex;
+    gap: 12px;
+    padding: 10px 4px;
+    border-bottom: 1px solid var(--panel-border);
+}
+.help-howto-item:last-child { border-bottom: none; }
+.help-howto-ico {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: var(--surface-2);
+    font-size: 16px;
+}
+.help-howto-item > div { font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+.help-howto-item strong {
+    display: block;
+    font-size: 13.5px;
+    color: var(--text-strong);
+    margin-bottom: 1px;
+}
+.help-note {
+    margin: 14px 0 4px;
+    padding: 10px 12px;
+    background: var(--surface-2);
+    border-radius: 10px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+/* Glossary */
+.help-terms { margin: 0; }
+.help-term { padding: 9px 0; border-bottom: 1px solid var(--panel-border); }
+.help-term:last-child { border-bottom: none; }
+.help-term dt { font-size: 13px; font-weight: 700; color: var(--text-strong); }
+.help-term dd {
+    margin: 2px 0 0;
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+/* Footer */
 .help-footer {
     display: flex;
-    justify-content: flex-end;
-    margin-top: 18px;
-    padding-top: 14px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 26px;
     border-top: 1px solid var(--panel-border);
+    background: var(--surface-2);
 }
+.help-tour-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 16px;
+    background: var(--lehs-gold);
+    color: #0A1F44;            /* always navy text on the gold pill (legible in both themes) */
+    border: none;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter 0.15s, transform 0.15s;
+}
+.help-tour-btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
+.help-tour-play { font-size: 10px; }
 .help-got-it {
     padding: 9px 20px;
     background: var(--lehs-navy);
@@ -1467,6 +1674,87 @@ body.legend-busy { -webkit-user-select: none; user-select: none; }
     cursor: pointer;
 }
 .help-got-it:hover { background: #1a3a6b; }
+
+/* ── Guided tour overlay ─────────────────────────────────────────────────── */
+.tour { position: fixed; inset: 0; z-index: 120; display: none; }
+.tour.open { display: block; }
+.tour-blocker { position: absolute; inset: 0; cursor: default; }
+.tour-spotlight {
+    position: absolute;
+    top: 0; left: 0; width: 0; height: 0;
+    border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(10, 31, 68, 0.6),
+                0 0 0 3px var(--lehs-gold);
+    pointer-events: none;
+    transition: top 0.3s ease, left 0.3s ease, width 0.3s ease, height 0.3s ease;
+}
+.tour-coach {
+    position: absolute;
+    width: min(340px, calc(100vw - 32px));
+    background: var(--surface-1);
+    color: var(--text-strong);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    box-shadow: 0 16px 44px rgba(10, 31, 68, 0.4);
+    padding: 16px 18px 14px;
+    font-family: 'Inter', sans-serif;
+    transition: top 0.25s ease, left 0.25s ease;
+}
+.tour-coach-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+.tour-step {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+.tour-x {
+    background: transparent; border: none; color: var(--text-muted);
+    font-size: 22px; line-height: 1; cursor: pointer; padding: 0 4px;
+}
+.tour-x:hover { color: var(--text-strong); }
+.tour-coach-title { margin: 0 0 5px; font-size: 16px; font-weight: 700; color: var(--text-strong); }
+.tour-coach-body { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+.tour-dots { display: flex; gap: 5px; margin: 12px 0 0; }
+.tour-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--surface-hover);
+    transition: background 0.2s, transform 0.2s;
+}
+.tour-dot.on { background: var(--lehs-gold); transform: scale(1.25); }
+.tour-coach-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 12px;
+}
+.tour-nav { display: flex; gap: 8px; }
+.tour-skip {
+    background: transparent; border: none; cursor: pointer;
+    font-family: 'Inter', sans-serif; font-size: 12px; color: var(--text-muted);
+    padding: 6px 2px;
+}
+.tour-skip:hover { color: var(--text-strong); text-decoration: underline; }
+.tour-back, .tour-next {
+    padding: 7px 14px;
+    border-radius: 7px;
+    font-family: 'Inter', sans-serif;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.tour-back { background: var(--surface-1); color: var(--text-strong); border: 1px solid var(--panel-border); }
+.tour-back:hover { background: var(--surface-2); }
+.tour-back[disabled] { opacity: 0; pointer-events: none; }
+.tour-next { background: var(--lehs-navy); color: #fff; border: 1px solid var(--lehs-navy); }
+.tour-next:hover { background: #1a3a6b; border-color: #1a3a6b; }
 
 /* ============================================================================
    DARK THEME — repoint surfaces that hard-code LIGHT backgrounds at the dark
@@ -1544,3 +1832,36 @@ body.legend-busy { -webkit-user-select: none; user-select: none; }
 }
 .legend-insight strong { color: var(--text-strong); font-weight: 600; }
 .legend-insight[hidden] { display: none; }
+
+/* ============================================================================
+   HELP & GUIDE / TOUR — dark-theme tweaks + keyboard focus rings. The hub and
+   tour surfaces are already token-based (flip automatically); these only
+   brighten the gold eyebrow and re-skin the tour "Back" button (which uses the
+   light surface token) so it reads on the dark coach card.
+   ============================================================================ */
+[data-theme="dark"] .help-eyebrow { color: var(--lehs-gold); }
+[data-theme="dark"] .tour-back { background: var(--surface-2); }
+[data-theme="dark"] .tour-back:hover { background: var(--surface-hover); }
+
+/* Visible keyboard-focus ring on the new interactive controls (mirrors the
+   project convention; only shows for keyboard users via :focus-visible). */
+.help-fab:focus-visible,
+.help-tab:focus-visible,
+.help-tour-btn:focus-visible,
+.help-got-it:focus-visible,
+.help-modal-close:focus-visible,
+.tour-next:focus-visible,
+.tour-back:focus-visible,
+.tour-skip:focus-visible,
+.tour-x:focus-visible {
+    outline: 2px solid var(--lehs-gold);
+    outline-offset: 2px;
+}
+
+/* Honour reduced-motion: drop the pill pulse + spotlight glide for users who
+   ask for less animation. */
+@media (prefers-reduced-motion: reduce) {
+    .help-fab.pulse::after { animation: none; }
+    .tour-spotlight { transition: none; }
+    .help-modal-inner, .help-pane { animation: none; }
+}

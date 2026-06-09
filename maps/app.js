@@ -1630,34 +1630,374 @@ document.addEventListener("DOMContentLoaded", () => {
     const closeBtn = document.getElementById("featurePanelClose");
     if (closeBtn) closeBtn.addEventListener("click", closeFeaturePanel);
 
-    // Help modal — opens via "?" button, auto-shows once on first visit.
-    // Uses a Lynn-specific localStorage key so this map's help-seen state
-    // is independent of the atlas's.
-    const helpBtn   = document.getElementById("helpButton");
-    const helpModal = document.getElementById("helpModal");
-    const helpClose = document.getElementById("helpModalClose");
-    const helpDone  = document.getElementById("helpGotIt");
-    if (!helpModal) return;  // bail if HTML doesn't have the modal
-    const openHelp  = () => { helpModal.classList.add("open"); helpModal.setAttribute("aria-hidden", "false"); };
-    const closeHelp = () => { helpModal.classList.remove("open"); helpModal.setAttribute("aria-hidden", "true"); };
-    if (helpBtn)   helpBtn.addEventListener("click", openHelp);
-    if (helpClose) helpClose.addEventListener("click", closeHelp);
-    if (helpDone)  helpDone.addEventListener("click", () => {
+    // ── Help & guide hub — opens via the labeled pill. Three tabs (the map
+    //    controls cheat-sheet by default, a plain-language how-to, and a
+    //    glossary of THIS map's terms) plus a button that launches the
+    //    interactive guided tour. Opt-in only: we never auto-open the modal
+    //    (an unprompted popup ate screen space) — first-visit discoverability
+    //    is a gentle one-time gold pulse on the pill instead. Uses a Lynn-
+    //    specific localStorage key so this map's help-seen state is independent
+    //    of the atlas's.
+    const helpBtn     = document.getElementById("helpButton");
+    const helpModal   = document.getElementById("helpModal");
+    const helpClose   = document.getElementById("helpModalClose");
+    const helpDone    = document.getElementById("helpGotIt");
+    const helpTourBtn = document.getElementById("helpStartTour");
+
+    function markHelpSeen() {
         try { localStorage.setItem("lynn-maps-help-seen", "1"); } catch (e) {}
-        closeHelp();
-    });
-    helpModal.addEventListener("click", e => {
-        if (e.target === helpModal) closeHelp();   // click backdrop
-    });
-    document.addEventListener("keydown", e => {
-        if (e.key === "Escape") closeHelp();
-    });
-    try {
-        if (!localStorage.getItem("lynn-maps-help-seen")) {
-            setTimeout(openHelp, 800);  // brief delay so the map renders first
+        if (helpBtn) helpBtn.classList.remove("pulse");
+    }
+
+    if (helpModal) {
+        let _helpReturnFocus = null;
+        const openHelp = () => {
+            _helpReturnFocus = document.activeElement;
+            helpModal.classList.add("open");
+            helpModal.setAttribute("aria-hidden", "false");
+            markHelpSeen();
+            if (helpClose) helpClose.focus();
+        };
+        const closeHelp = () => {
+            helpModal.classList.remove("open");
+            helpModal.setAttribute("aria-hidden", "true");
+            if (_helpReturnFocus && _helpReturnFocus.focus) _helpReturnFocus.focus();
+        };
+
+        // Tab switching within the hub.
+        const tabs  = Array.from(helpModal.querySelectorAll(".help-tab"));
+        const panes = Array.from(helpModal.querySelectorAll(".help-pane"));
+        const hbody = helpModal.querySelector(".help-body");
+        function selectTab(name) {
+            tabs.forEach(t => {
+                const on = t.dataset.helpTab === name;
+                t.classList.toggle("active", on);
+                t.setAttribute("aria-selected", on ? "true" : "false");
+            });
+            panes.forEach(p => {
+                const on = p.dataset.helpPane === name;
+                p.classList.toggle("active", on);
+                p.hidden = !on;
+            });
+            if (hbody) hbody.scrollTop = 0;
         }
-    } catch (e) {}
+        tabs.forEach((t, i) => {
+            t.addEventListener("click", () => selectTab(t.dataset.helpTab));
+            // Left/right arrows move between tabs (a11y).
+            t.addEventListener("keydown", e => {
+                if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+                e.preventDefault();
+                const dir = e.key === "ArrowRight" ? 1 : -1;
+                const nx = tabs[(i + dir + tabs.length) % tabs.length];
+                nx.focus();
+                selectTab(nx.dataset.helpTab);
+            });
+        });
+
+        // Trap Tab within the modal while it's open (skip controls in hidden panes).
+        helpModal.addEventListener("keydown", e => {
+            if (e.key !== "Tab" || !helpModal.classList.contains("open")) return;
+            const all = helpModal.querySelectorAll("button, [href], input, [tabindex]:not([tabindex='-1'])");
+            const f = Array.from(all).filter(el => el.offsetParent !== null);
+            if (!f.length) return;
+            const first = f[0], last = f[f.length - 1];
+            if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+            else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        });
+
+        if (helpBtn)   helpBtn.addEventListener("click", openHelp);
+        if (helpClose) helpClose.addEventListener("click", closeHelp);
+        if (helpDone)  helpDone.addEventListener("click", () => { markHelpSeen(); closeHelp(); });
+        if (helpTourBtn) helpTourBtn.addEventListener("click", () => {
+            markHelpSeen();
+            closeHelp();
+            startGuidedTour();
+        });
+        helpModal.addEventListener("click", e => {
+            if (e.target === helpModal) closeHelp();   // click backdrop
+        });
+        document.addEventListener("keydown", e => {
+            if (e.key === "Escape" && helpModal.classList.contains("open")) closeHelp();
+        });
+
+        // First-visit discoverability: a subtle one-time pulse on the pill (no
+        // popup). It stops the moment the visitor opens help.
+        try {
+            if (helpBtn && !localStorage.getItem("lynn-maps-help-seen")) {
+                helpBtn.classList.add("pulse");
+            }
+        } catch (e) {}
+    }
 });
+
+// ─── INTERACTIVE GUIDED TOUR ──────────────────────────────────────────────────
+// A spotlight overlay that points at the REAL Lynn controls one step at a time.
+// Self-contained: it drives the control panel itself (opens it, scrolls each
+// target into view) and even nudges the school-color-mode select so the LEHS
+// spotlight + school color legend are populated for those steps. Keyboard nav
+// (←/→/Esc), a focus trap on the coach card, and Skip/Done affordances. Works
+// on desktop and the mobile drawer. Adapted from the statewide atlas tour.
+function startGuidedTour() {
+    const tour     = document.getElementById("tour");
+    const spot     = document.getElementById("tourSpotlight");
+    const coach    = document.getElementById("tourCoach");
+    const elStep   = document.getElementById("tourStep");
+    const elTitle  = document.getElementById("tourTitle");
+    const elBody   = document.getElementById("tourBody");
+    const elDots   = document.getElementById("tourDots");
+    const btnBack  = document.getElementById("tourBack");
+    const btnNext  = document.getElementById("tourNext");
+    const btnSkip  = document.getElementById("tourSkip");
+    const btnClose = document.getElementById("tourClose");
+    if (!tour || !coach) return;
+
+    const isMobile = () => window.matchMedia("(max-width: 768px)").matches;
+    const panel    = document.getElementById("controlPanel");
+    const backdrop = document.getElementById("panelBackdrop");
+
+    function openPanel() {
+        if (!panel) return;
+        panel.classList.add("open");
+        panel.classList.remove("collapsed");
+        if (isMobile() && backdrop) backdrop.classList.add("open");
+    }
+    function closePanel() {
+        if (!panel) return;
+        panel.classList.remove("open");
+        if (isMobile()) panel.classList.add("collapsed");
+        if (backdrop) backdrop.classList.remove("open");
+    }
+    // Force the school dots into "spotlight LEHS" mode for the centerpiece step,
+    // then restore the visitor's prior mode when the tour ends. Drives the real
+    // control so the map + legend actually reflect the step.
+    const prevSchoolMode = state.schoolColorMode;
+    function setSchoolMode(mode) {
+        const sel = document.getElementById("schoolColorMode");
+        if (sel && sel.value !== mode) {
+            sel.value = mode;
+            sel.dispatchEvent(new Event("change", { bubbles: true }));
+        } else if (state.schoolColorMode !== mode) {
+            state.schoolColorMode = mode;
+            if (typeof applySchoolColorMode === "function") applySchoolColorMode();
+        }
+    }
+
+    // Each step targets a REAL control id (or #map / #legend). `before` drives
+    // the UI so the target is on screen for that step.
+    const steps = [
+        {
+            title: "Welcome to the Lynn Data Dive 👋",
+            body: "This map zooms in on Lynn — its 22 census tracts, every Lynn school, and how Lynn compares across Massachusetts. Here's the 1-minute tour.",
+            before: () => closePanel(),
+        },
+        {
+            target: "#controlPanel",
+            title: "Your control panel",
+            body: "Everything lives here: choose what to map, switch geographic level, restyle the colors, spotlight the schools, and export.",
+            before: () => openPanel(),
+        },
+        {
+            target: "#levelSelect",
+            title: "Pick the geographic level",
+            body: "“Color polygons at” swaps between MA municipalities, school districts, and Lynn's census tracts. Tract metrics (census + health) are Lynn-only.",
+            before: () => openPanel(),
+        },
+        {
+            target: "#metricSelect",
+            title: "Pick what to map",
+            body: "This is the heart of the map. Search or pick a metric and every polygon is shaded by it — demographics, MCAS, spending, or Lynn-tract figures.",
+            before: () => openPanel(),
+        },
+        {
+            target: "#legend",
+            title: "Read the colors",
+            body: "The legend explains the shading, and a plain-language caption tells you what darker vs. lighter means. It updates whenever you change the metric.",
+            before: () => closePanel(),
+        },
+        {
+            target: "#bivariateToggle",
+            title: "Compare two metrics at once",
+            body: "Turn on the bivariate mode to shade each polygon by the combination of two metrics on a 3×3 grid — handy for spotting where two things overlap.",
+            before: () => openPanel(),
+        },
+        {
+            target: "#schoolsControls",
+            title: "Spotlight the schools",
+            body: "Every Lynn school is a dot, sized by enrollment. Recolor the dots by demographic — or use this menu to spotlight one school.",
+            before: () => { openPanel(); setSchoolMode("focus"); },
+        },
+        {
+            target: "#map",
+            title: "Lynn English High — the focus school 🏫",
+            body: "The gold-ringed dot is Lynn English High, this project's focus school. We've just spotlighted it. Click any dot for that school's full profile.",
+            before: () => { closePanel(); setSchoolMode("focus"); },
+        },
+        {
+            target: "#themeToggle",
+            title: "Dark mode",
+            body: "Flip the whole map and panel to a dark theme with this button — easier on the eyes and great for presentations.",
+            before: () => openPanel(),
+        },
+        {
+            target: "#exportPngBtn",
+            title: "Export a PNG",
+            body: "Save a titled image of the current map — with the legend baked in — to drop into a slide or report.",
+            before: () => openPanel(),
+        },
+        {
+            target: "#copyLinkBtn",
+            title: "Share this exact view",
+            body: "Copy a link that reopens the map with the same metric, level, year, colors, and framing — perfect for sharing a finding.",
+            before: () => openPanel(),
+        },
+        {
+            target: "#helpButton",
+            title: "That's it! 🎉",
+            body: "Come back to this Help & guide button anytime — for the how-tos, the controls cheat-sheet, the glossary, or to retake this tour.",
+            before: () => { closePanel(); setSchoolMode(prevSchoolMode); },
+        },
+    ];
+
+    let idx = 0;
+    const returnFocus = document.activeElement;
+
+    // Build the progress dots.
+    elDots.innerHTML = "";
+    const dots = steps.map(() => {
+        const d = document.createElement("span");
+        d.className = "tour-dot";
+        elDots.appendChild(d);
+        return d;
+    });
+
+    function measure(sel) {
+        if (!sel) return null;
+        const el = document.querySelector(sel);
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        if (r.width < 2 || r.height < 2) return null;   // not visible
+        return r;
+    }
+
+    function placeSpotlight(rect) {
+        if (!rect) {
+            // No hole: collapse to an off-screen point so the 9999px shadow
+            // dims the whole viewport and the gold ring stays out of sight.
+            spot.style.width = "0px";
+            spot.style.height = "0px";
+            spot.style.top = "-100px";
+            spot.style.left = "-100px";
+            return;
+        }
+        const pad = 6;
+        spot.style.top    = Math.max(0, rect.top - pad) + "px";
+        spot.style.left   = Math.max(0, rect.left - pad) + "px";
+        spot.style.width  = (rect.width + pad * 2) + "px";
+        spot.style.height = (rect.height + pad * 2) + "px";
+    }
+
+    function placeCoach(rect) {
+        const vw = window.innerWidth, vh = window.innerHeight;
+        const cw = coach.offsetWidth, ch = coach.offsetHeight, m = 14;
+        let top, left;
+        if (!rect) {
+            top = (vh - ch) / 2;
+            left = (vw - cw) / 2;
+        } else {
+            const tall = rect.height > vh * 0.55;
+            const rightRoom = rect.right + m + cw <= vw;
+            const leftRoom  = rect.left - m - cw >= 0;
+            if (tall && (rightRoom || leftRoom)) {
+                left = rightRoom ? rect.right + m : rect.left - m - cw;
+                top  = Math.min(Math.max(m, rect.top), vh - ch - m);
+            } else if (rect.bottom + m + ch <= vh) {
+                top = rect.bottom + m;
+                left = rect.left + rect.width / 2 - cw / 2;
+            } else if (rect.top - m - ch >= 0) {
+                top = rect.top - m - ch;
+                left = rect.left + rect.width / 2 - cw / 2;
+            } else {
+                top = (vh - ch) / 2;
+                left = (vw - cw) / 2;
+            }
+        }
+        coach.style.left = Math.min(Math.max(m, left), vw - cw - m) + "px";
+        coach.style.top  = Math.min(Math.max(m, top), vh - ch - m) + "px";
+    }
+
+    function reposition() {
+        const rect = measure(steps[idx].target);
+        placeSpotlight(rect);
+        placeCoach(rect);
+    }
+
+    function render() {
+        const step = steps[idx];
+        elStep.textContent = `Step ${idx + 1} of ${steps.length}`;
+        elTitle.textContent = step.title;
+        elBody.textContent = step.body;
+        dots.forEach((d, i) => d.classList.toggle("on", i === idx));
+        btnBack.disabled = idx === 0;
+        btnNext.textContent = idx === 0 ? "Start →"
+                            : idx === steps.length - 1 ? "Done"
+                            : "Next →";
+        btnSkip.style.visibility = idx === steps.length - 1 ? "hidden" : "visible";
+
+        if (step.before) { try { step.before(); } catch (e) {} }
+
+        const target = step.target ? document.querySelector(step.target) : null;
+        if (target && target.scrollIntoView) {
+            try { target.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (e) {}
+        }
+        // Place now, then again after layout + transitions settle.
+        reposition();
+        setTimeout(reposition, 230);
+        setTimeout(() => { reposition(); btnNext.focus(); }, 380);
+    }
+
+    function go(n) { idx = Math.min(Math.max(0, n), steps.length - 1); render(); }
+    function next() { if (idx >= steps.length - 1) end(); else go(idx + 1); }
+
+    function end() {
+        tour.classList.remove("open");
+        tour.setAttribute("aria-hidden", "true");
+        window.removeEventListener("resize", onResize);
+        window.removeEventListener("scroll", onResize, true);
+        window.removeEventListener("keydown", onKey, true);
+        setSchoolMode(prevSchoolMode);  // restore the visitor's school color mode
+        if (isMobile()) closePanel();   // tidy the drawer we may have opened
+        if (returnFocus && returnFocus.focus) { try { returnFocus.focus(); } catch (e) {} }
+    }
+
+    const onResize = () => reposition();
+    const onKey = (e) => {
+        if (e.key === "Escape")          { e.preventDefault(); e.stopPropagation(); end(); }
+        else if (e.key === "ArrowRight") { e.preventDefault(); next(); }
+        else if (e.key === "ArrowLeft")  { e.preventDefault(); go(idx - 1); }
+        else if (e.key === "Tab") {
+            const f = Array.from(coach.querySelectorAll("button:not([disabled])"))
+                .filter(el => el.offsetParent !== null && el.style.visibility !== "hidden");
+            if (!f.length) return;
+            const first = f[0], last = f[f.length - 1];
+            if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+            else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }
+    };
+
+    // Wire controls with onclick so re-running the tour never stacks listeners.
+    btnNext.onclick  = next;
+    btnBack.onclick  = () => go(idx - 1);
+    btnSkip.onclick  = end;
+    btnClose.onclick = end;
+
+    window.addEventListener("resize", onResize);
+    window.addEventListener("scroll", onResize, true);
+    window.addEventListener("keydown", onKey, true);
+
+    tour.classList.add("open");
+    tour.setAttribute("aria-hidden", "false");
+    go(0);
+}
 
 // ─── CHOROPLETH APPLY ────────────────────────────────────────────────────────
 function applyChoropleth() {

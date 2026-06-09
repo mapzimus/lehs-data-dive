@@ -13,7 +13,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
     <link rel="stylesheet" href="assets/style.css">
-    <link rel="stylesheet" href="style.css?v=20260609-tracts">
+    <link rel="stylesheet" href="style.css?v=20260609-help">
 </head>
 <body class="maps-page">
 <a href="#main-content" class="skip-to-content">Skip to content</a>
@@ -313,41 +313,151 @@
     <!-- HOVER TOOLTIP (positioned via JS) -->
     <div class="map-tooltip" id="mapTooltip" aria-hidden="true"></div>
 
-    <!-- MAP CONTROLS HELP -->
-    <button class="help-button" id="helpButton" type="button"
-            title="Map controls help" aria-label="Map controls help">?</button>
+    <!-- HELP & GUIDE — labeled pill launches a tabbed help hub (controls
+         cheat-sheet · how-to · glossary) + the interactive guided tour. The pill
+         collapses to a round icon on phones. First-visit discoverability is a
+         one-time gold pulse (no auto-popup). Wired in app.js (the help-hub +
+         startGuidedTour block). Round "?" → labeled affordance, adapted from the
+         statewide atlas help hub and re-scoped to THIS map's real controls. -->
+    <button class="help-fab" id="helpButton" type="button"
+            aria-haspopup="dialog" aria-controls="helpModal"
+            title="Help &amp; guide" aria-label="Open help and guide">
+        <svg class="help-fab-icon" viewBox="0 0 24 24" aria-hidden="true"
+             fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9.2"></circle>
+            <path d="M9.3 9.2a2.8 2.8 0 0 1 5.4 .9c0 1.9-2.7 2.3-2.7 4"></path>
+            <line x1="12" y1="17.4" x2="12.01" y2="17.4"></line>
+        </svg>
+        <span class="help-fab-label">Help &amp; guide</span>
+    </button>
+
     <div class="help-modal" id="helpModal" aria-hidden="true">
-        <div class="help-modal-inner">
+        <div class="help-modal-inner" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
             <button class="help-modal-close" id="helpModalClose"
                     aria-label="Close help">&times;</button>
-            <h2>Map controls</h2>
 
-            <div class="help-section" style="border-top:none; padding-top:0; margin-top:0;">
-                <strong>Mouse / trackpad</strong>
-                <div class="help-row"><span class="help-key">Drag</span><span>Pan the map</span></div>
-                <div class="help-row"><span class="help-key">Scroll</span><span>Zoom in / out</span></div>
-                <div class="help-row"><span class="help-key">Right-click + Drag</span><span>Rotate &amp; tilt</span></div>
-                <div class="help-row"><span class="help-key">Ctrl + Drag</span><span>Rotate the map</span></div>
-                <div class="help-row"><span class="help-key">Shift + Drag</span><span>Box zoom</span></div>
-                <div class="help-row"><span class="help-key">Click feature</span><span>Open detail panel</span></div>
-                <div class="help-row"><span class="help-key">Hover</span><span>Quick metric tooltip</span></div>
+            <div class="help-hd">
+                <span class="help-eyebrow">// Lynn Data Dive</span>
+                <h2 id="helpModalTitle">Help &amp; guide</h2>
+                <p class="help-sub">New here? Take the 1-minute tour — or browse the how-tos, map controls, and glossary below.</p>
             </div>
 
-            <div class="help-section">
-                <strong>Touch (phone / tablet)</strong>
-                <div class="help-row"><span class="help-key">One-finger drag</span><span>Pan the map</span></div>
-                <div class="help-row"><span class="help-key">Pinch</span><span>Zoom in / out</span></div>
-                <div class="help-row"><span class="help-key">Two-finger twist</span><span>Rotate the map</span></div>
-                <div class="help-row"><span class="help-key">Two-finger drag up/down</span><span>Tilt (3D pitch)</span></div>
-                <div class="help-row"><span class="help-key">Tap feature</span><span>Open detail panel (bottom)</span></div>
+            <div class="help-tabs" role="tablist" aria-label="Help topics">
+                <button class="help-tab active" type="button" role="tab" id="helpTab-controls"
+                        data-help-tab="controls" aria-selected="true" aria-controls="helpPane-controls">Map controls</button>
+                <button class="help-tab" type="button" role="tab" id="helpTab-how"
+                        data-help-tab="how" aria-selected="false" aria-controls="helpPane-how">How to use</button>
+                <button class="help-tab" type="button" role="tab" id="helpTab-terms"
+                        data-help-tab="terms" aria-selected="false" aria-controls="helpPane-terms">Glossary</button>
             </div>
-            <div class="help-section">
-                <strong>Buttons (top-right):</strong>
-                <div class="help-row"><span class="help-key">+ / −</span><span>Zoom in / out</span></div>
-                <div class="help-row"><span class="help-key">Compass</span><span>Reset bearing &amp; pitch to north / flat</span></div>
+
+            <div class="help-body">
+
+                <!-- PANE — Map controls (the cheat sheet; default) -->
+                <div class="help-pane active" id="helpPane-controls" role="tabpanel"
+                     aria-labelledby="helpTab-controls" data-help-pane="controls">
+                    <section class="help-card">
+                        <div class="help-card-hd"><span class="help-card-ico" aria-hidden="true">🖱️</span> Mouse &amp; trackpad</div>
+                        <div class="help-row"><span class="help-key">Drag</span><span>Pan the map</span></div>
+                        <div class="help-row"><span class="help-key">Scroll</span><span>Zoom in / out</span></div>
+                        <div class="help-row"><span class="help-key">Right-click + Drag</span><span>Rotate &amp; tilt</span></div>
+                        <div class="help-row"><span class="help-key">Ctrl + Drag</span><span>Rotate the map</span></div>
+                        <div class="help-row"><span class="help-key">Shift + Drag</span><span>Box zoom</span></div>
+                        <div class="help-row"><span class="help-key">Click a tract / school</span><span>Open its detail panel</span></div>
+                        <div class="help-row"><span class="help-key">Hover</span><span>Quick metric tooltip</span></div>
+                    </section>
+                    <section class="help-card">
+                        <div class="help-card-hd"><span class="help-card-ico" aria-hidden="true">👆</span> Touch (phone / tablet)</div>
+                        <div class="help-row"><span class="help-key">One-finger drag</span><span>Pan the map</span></div>
+                        <div class="help-row"><span class="help-key">Pinch</span><span>Zoom in / out</span></div>
+                        <div class="help-row"><span class="help-key">Two-finger twist</span><span>Rotate the map</span></div>
+                        <div class="help-row"><span class="help-key">Two-finger drag ↕</span><span>Tilt the map (3D)</span></div>
+                        <div class="help-row"><span class="help-key">Tap a tract / school</span><span>Open its detail panel</span></div>
+                    </section>
+                    <section class="help-card">
+                        <div class="help-card-hd"><span class="help-card-ico" aria-hidden="true">🎛️</span> On-screen buttons</div>
+                        <div class="help-row"><span class="help-key">+ / −</span><span>Zoom in / out</span></div>
+                        <div class="help-row"><span class="help-key">Compass</span><span>Reset north &amp; flatten the tilt</span></div>
+                        <div class="help-row"><span class="help-key">⤢ Fullscreen</span><span>Fill the screen with the map</span></div>
+                        <div class="help-row"><span class="help-key">◎ Locate</span><span>Pan to your location</span></div>
+                        <div class="help-row"><span class="help-key">⌂ Home</span><span>Fly back to Lynn</span></div>
+                    </section>
+                </div>
+
+                <!-- PANE — How to use (plain-language feature guide) -->
+                <div class="help-pane" id="helpPane-how" role="tabpanel"
+                     aria-labelledby="helpTab-how" data-help-pane="how" hidden>
+                    <ol class="help-quickstart">
+                        <li><span class="help-qs-n">1</span> Pick a metric to map</li>
+                        <li><span class="help-qs-n">2</span> Click a tract or school</li>
+                        <li><span class="help-qs-n">3</span> Compare &amp; export</li>
+                    </ol>
+                    <div class="help-howto">
+                        <div class="help-howto-item"><span class="help-howto-ico" aria-hidden="true">🎨</span><div><strong>Pick a metric</strong>Use the Metric box (search or pick) to shade every polygon by a topic — demographics, MCAS, spending, or Lynn-tract census &amp; health figures.</div></div>
+                        <div class="help-howto-item"><span class="help-howto-ico" aria-hidden="true">🗺️</span><div><strong>Switch the level</strong>“Color polygons at” swaps between MA municipalities, school districts, and Lynn's 22 census tracts. Tract metrics are Lynn-only.</div></div>
+                        <div class="help-howto-item"><span class="help-howto-ico" aria-hidden="true">📊</span><div><strong>Read the legend</strong>The legend explains the colors and a plain-language caption says what darker vs. lighter means. It updates whenever you change the metric.</div></div>
+                        <div class="help-howto-item"><span class="help-howto-ico" aria-hidden="true">⇄</span><div><strong>Compare two metrics</strong>Turn on “Compare two metrics (bivariate)” to shade each polygon by the combination of two topics on a 3×3 grid.</div></div>
+                        <div class="help-howto-item"><span class="help-howto-ico" aria-hidden="true">🏫</span><div><strong>Spotlight the schools</strong>Every Lynn school is a dot (size = enrollment). Recolor the dots by demographic, or spotlight Lynn English High — this project's focus school, marked with a gold ring.</div></div>
+                        <div class="help-howto-item"><span class="help-howto-ico" aria-hidden="true">🌙</span><div><strong>Dark mode</strong>Use the sun/moon button in the panel header to flip the whole map and panel to a dark theme.</div></div>
+                        <div class="help-howto-item"><span class="help-howto-ico" aria-hidden="true">⬇️</span><div><strong>Export &amp; share</strong>Save the layer as CSV, export a titled PNG of the current map, or copy a link that reopens this exact view.</div></div>
+                    </div>
+                    <p class="help-note">Data comes from MA DESE, the U.S. Census / ACS, CDC PLACES, and MassGIS. Full credits live under “Sources” at the bottom of the panel. For the full statewide picture, see the MA Education Atlas.</p>
+                </div>
+
+                <!-- PANE — Glossary (plain-language terms used on THIS map) -->
+                <div class="help-pane" id="helpPane-terms" role="tabpanel"
+                     aria-labelledby="helpTab-terms" data-help-pane="terms" hidden>
+                    <dl class="help-terms">
+                        <div class="help-term"><dt>Census tract</dt><dd>A small Census-defined neighborhood area (Lynn has 22). Tract metrics here are Census/ACS &amp; health figures, available for Lynn only.</dd></div>
+                        <div class="help-term"><dt>Choropleth</dt><dd>A map that shades each area by a value — darker (or more intense) color means a higher number.</dd></div>
+                        <div class="help-term"><dt>Bivariate</dt><dd>A choropleth showing two metrics at once on a 3×3 color grid, so you can see where both are high, both low, or mixed.</dd></div>
+                        <div class="help-term"><dt>Jenks / Quantile classification</dt><dd>Ways of grouping values into color classes. Jenks (natural breaks) finds natural gaps; Quantile puts an equal count of areas in each class.</dd></div>
+                        <div class="help-term"><dt>MCAS</dt><dd>Massachusetts' statewide student test (grades 3–8 and 10). “% M+E” is the share Meeting or Exceeding expectations.</dd></div>
+                        <div class="help-term"><dt>Per-pupil $</dt><dd>Dollars spent per student, per year.</dd></div>
+                        <div class="help-term"><dt>EL (English Learner)</dt><dd>Students still learning English.</dd></div>
+                        <div class="help-term"><dt>Low Income</dt><dd>Students from economically disadvantaged households (DESE definition).</dd></div>
+                        <div class="help-term"><dt>SWD (Students with Disabilities)</dt><dd>Students with an active Individualized Education Program (IEP).</dd></div>
+                        <div class="help-term"><dt>Dropout vs. attrition</dt><dd>Dropout = students who leave school without graduating. Attrition = any student who leaves a school (transfers, moves), a broader count.</dd></div>
+                        <div class="help-term"><dt>CDC PLACES health metrics</dt><dd>Model-based estimates of adult health (obesity, diabetes, asthma, etc.) at the tract level, expressed as a percent of adults.</dd></div>
+                        <div class="help-term"><dt>ACS</dt><dd>The Census Bureau's American Community Survey — the source of the tract income, language, education, and housing figures.</dd></div>
+                        <div class="help-term"><dt>FTE</dt><dd>Full-Time Equivalent — a way of counting staff so part-timers add up to whole positions.</dd></div>
+                    </dl>
+                </div>
+
             </div>
+
             <div class="help-footer">
+                <button class="help-tour-btn" id="helpStartTour" type="button">
+                    <span class="help-tour-play" aria-hidden="true">▶</span> Take the guided tour
+                </button>
                 <button class="help-got-it" id="helpGotIt">Got it</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INTERACTIVE GUIDED TOUR — a spotlight overlay that points at the real
+         controls one step at a time. Markup is static; target positioning, step
+         content, and navigation are driven from app.js (startGuidedTour). The
+         tour opens the panel itself so each step's target is on screen. -->
+    <div class="tour" id="tour" aria-hidden="true">
+        <div class="tour-blocker" id="tourBlocker"></div>
+        <div class="tour-spotlight" id="tourSpotlight" aria-hidden="true"></div>
+        <div class="tour-coach" id="tourCoach" role="dialog" aria-modal="true"
+             aria-labelledby="tourTitle" aria-describedby="tourBody">
+            <div class="tour-coach-top">
+                <span class="tour-step" id="tourStep"></span>
+                <button class="tour-x" id="tourClose" type="button" aria-label="End tour">&times;</button>
+            </div>
+            <h3 class="tour-coach-title" id="tourTitle"></h3>
+            <p class="tour-coach-body" id="tourBody"></p>
+            <div class="tour-dots" id="tourDots" aria-hidden="true"></div>
+            <div class="tour-coach-actions">
+                <button class="tour-skip" id="tourSkip" type="button">Skip tour</button>
+                <div class="tour-nav">
+                    <button class="tour-back" id="tourBack" type="button">Back</button>
+                    <button class="tour-next" id="tourNext" type="button">Next →</button>
+                </div>
             </div>
         </div>
     </div>
@@ -435,6 +545,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 </script>
-<script src="app.js?v=20260609-tracts"></script>
+<script src="app.js?v=20260609-help"></script>
 </body>
 </html>
