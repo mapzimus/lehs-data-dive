@@ -32,6 +32,9 @@ nav = {
     "The School (LEHS)": [
         st.Page("pages/1_School_Profile.py", title="School Profile", url_path="School_Profile"),
         st.Page("pages/2_Academic_Performance.py", title="Academic Performance", url_path="Academic_Performance"),
+        # DESE determination breakdown — the page admins check first, so it
+        # sits directly under Academic Performance rather than at the end.
+        st.Page("pages/18_Accountability.py", title="State Accountability", url_path="Accountability"),
         # Renamed for the public audience — "ELL Pipeline" is analyst-speak.
         st.Page("pages/3_ELL_Pipeline.py", title="English Learners", url_path="ELL_Pipeline"),
         st.Page("pages/4_College_and_Career.py", title="College & Career", url_path="College_and_Career"),
