@@ -311,7 +311,23 @@ for subject_code, subject_label in [("ELA", "English Language Arts"), ("MATH", "
         yaxis_title="% Meeting + Exceeding",
         xaxis_title="School Year",
     )
+    # Former English Learners is a tiny subgroup (n ≈ 12-25 each year) that
+    # reconstitutes with different students annually, so its line swings on a
+    # one- or two-student basis and its CIs run 20-50 pp wide. Default it to
+    # legend-only so the chart leads with the subgroups whose year-to-year
+    # movement is interpretable; readers can click it on in the legend.
+    fig.update_traces(visible="legendonly",
+                      selector=dict(name="Former English Learners"))
     st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        "**Former English Learners is hidden by default — click it in the "
+        "legend to show it.** That subgroup is small (n ≈ 12-25 each year) and "
+        "reconstitutes with different students annually, so its line swings on "
+        "a one- or two-student basis (a single student is worth ~4-8 points) "
+        "and its 95% confidence intervals run 20-50 points wide every year. "
+        "Read its position as noise, not trend. **Ever English Learners** "
+        "(n ≈ 274) is the stable subgroup to follow for EL-pipeline outcomes."
+    )
 
     # Statistical summary for the latest year — gives the line chart context
     # that DESE's bare percentages don't: how wide is the uncertainty around
