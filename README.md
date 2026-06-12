@@ -5,10 +5,10 @@ A public, integrated data dashboard for **Lynn English High School** (Lynn, MA) 
 | Where | URL |
 |---|---|
 | Live dashboard | https://lynn-data-dive.streamlit.app |
-| Lynn-focused map | https://mapzimus.github.io/lehs-data-dive/ |
+| Lynn-focused map | https://maxwellhowegis.com/Lynn-data-dive/maps/ |
 | MA Education Atlas (statewide companion) | https://maxwellhowegis.com/ma-atlas/ |
 | Portfolio context | https://maxwellhowegis.com/ |
-| Source | https://github.com/mapzimus/lehs-data-dive |
+| Source | this repo (**private** — pipeline + dashboard code) |
 
 This project aggregates every relevant public dataset DESE publishes — MCAS, demographics, attendance, discipline, finance, teacher workforce, college outcomes — into a single school-level narrative with cross-domain correlation analysis no DESE tool currently provides. It is paired with the **MA Education Atlas**, a statewide MapLibre choropleth in the companion repo.
 
@@ -112,16 +112,18 @@ Step-by-step (also runnable individually):
 After the geo build (step 11) finishes, copy the new GeoJSONs into the two map deploys:
 
 ```powershell
-# Statewide atlas — lives as a git submodule of maxwellhowegis (separate repo)
-cp data/processed/ma_*.geojson ../maxwellhowegis/ma-atlas/data/
+# Statewide atlas — dev home is C:\Users\Calen\ma-education-atlas (private repo)
+cp data/processed/ma_*.geojson ../ma-education-atlas/data/
 
-# Lynn-focused map — lives RIGHT HERE in this repo at maps/data/,
-# deployed at https://mapzimus.github.io/lehs-data-dive/
+# Lynn-focused map — dev home is RIGHT HERE in this repo at maps/data/
 cp data/processed/lynn_*.geojson maps/data/
 cp data/processed/ma_*.geojson   maps/data/
+
+# Publish both to the public site (vendored copies in maxwellhowegis):
+powershell -ExecutionPolicy Bypass -File deploy\sync_public_maps.ps1
 ```
 
-> **Atlas note:** `ma-atlas/` is a git submodule pointing at [`mapzimus/ma-education-atlas`](https://github.com/mapzimus/ma-education-atlas). After copying, commit + push inside the submodule, then bump the parent's submodule pointer. See that repo's README for the full flow.
+> **Hosting note (June 2026):** this repo and `ma-education-atlas` are private. The public site serves vendored serve-only copies from the `maxwellhowegis` repo (`Lynn-data-dive/maps/` and `ma-atlas/`) — there is no submodule and no GitHub Pages on this repo anymore. `deploy/sync_public_maps.ps1` is the publish step.
 
 A **GitHub Action** at `.github/workflows/refresh-data.yml` runs `scripts/refresh_all.py` on a semi-annual cron (January + July) and opens a PR with any changed parquets. Requires `CENSUS_API_KEY` configured as a repo secret (Settings → Secrets and variables → Actions).
 
@@ -133,10 +135,10 @@ A **GitHub Action** at `.github/workflows/refresh-data.yml` runs `scripts/refres
 lehs-data-dive/
 ├── Home.py                  # Streamlit landing page
 ├── pages/                   # 20+ dashboard pages
-├── maps/                    # Standalone Lynn-focused MapLibre map
-│   ├── index.html           #   deployed via GH Pages to
-│   ├── app.js               #   https://mapzimus.github.io/lehs-data-dive/
-│   ├── style.css            #   (workflow: .github/workflows/pages.yml)
+├── maps/                    # Standalone Lynn-focused MapLibre map (dev home;
+│   ├── index.html           #   public copy served from maxwellhowegis at
+│   ├── app.js               #   https://maxwellhowegis.com/Lynn-data-dive/maps/
+│   ├── style.css            #   publish via deploy/sync_public_maps.ps1)
 │   ├── assets/              #   vendored css + favicon
 │   └── data/                #   GeoJSONs (refreshed by step 11 of the pipeline)
 ├── data/
