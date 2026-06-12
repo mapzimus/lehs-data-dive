@@ -5,19 +5,27 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from utils.branding import sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY
-from utils.constants import IMAGES_DIR, LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
+from utils.branding import crosslink_callout, page_footer, sidebar_attribution
+from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, data_downloads_panel
+from utils.constants import (
+    GATEWAY_PEER_COLOR,
+    IMAGES_DIR,
+    LCHS_SCHOOL_CODE,
+    LEHS_SCHOOL_CODE,
+    LVTI_COLOR,
+    LYNN_DISTRICT_CODE,
+    STATE_COLOR,
+)
 from utils.data_loader import load_dataset
 from utils.interpret import sy_label
 
 # Per-school chart contrasts compare LEHS against Lynn's two other large
 # comprehensive high schools: Lynn Classical (LCHS) and Lynn Vocational
 # Technical Institute (LVTI / Lynn Tech). Same district, same budget rules,
-# similar enrollment scale — meaningful side-by-side comparison.
+# similar enrollment scale — meaningful side-by-side comparison. LVTI_COLOR
+# (Lynn Tech teal) now comes from utils.constants so a rebrand is one edit.
 LVTI_SCHOOL_CODE = "01630605"
 LCHS_COLOR = LEHS_GOLD
-LVTI_COLOR = "#26A69A"  # teal — distinct from navy + gold
 
 st.set_page_config(page_title="Finance | LEHS", page_icon="💰", layout="wide")
 sidebar_attribution()
@@ -101,10 +109,47 @@ if not total_exp.empty:
             x=total_lvti["SY"], y=total_lvti["IND_VALUE"], mode="lines+markers",
             name="Lynn Tech", line=dict(color=LVTI_COLOR, width=2, dash="dot"),
         ))
+    # 26-gateway-city median per-pupil benchmark. The school-expenditure file
+    # has no state row, and district_expenditures holds ONLY the 26 MA
+    # Gateway-City districts (no state aggregate) — so the only honest
+    # peer line here is the gateway-city median, NOT a state value.
+    gw_med_pp = None
+    if not dist_exp.empty:
+        _gwpp = dist_exp[
+            (dist_exp["IND_CAT"] == "Expenditures Per Pupil")
+            & (dist_exp["IND_SUBCAT"] == "Total Expenditures")
+        ].copy()
+        _gwpp["IND_VALUE"] = pd.to_numeric(_gwpp["IND_VALUE"], errors="coerce")
+        _gwpp["SY"] = pd.to_numeric(_gwpp["SY"], errors="coerce")
+        _gwpp = _gwpp.dropna(subset=["IND_VALUE", "SY"])
+        gw_pp_trend = (
+            _gwpp.groupby("SY")["IND_VALUE"].median().reset_index()
+            .rename(columns={"IND_VALUE": "GatewayMedian"})
+        )
+        if not gw_pp_trend.empty:
+            gw_med_pp = float(
+                gw_pp_trend.sort_values("SY").iloc[-1]["GatewayMedian"]
+            )
+            fig.add_trace(go.Scatter(
+                x=gw_pp_trend["SY"], y=gw_pp_trend["GatewayMedian"],
+                mode="lines", name="26-gateway-city median",
+                line=dict(color=GATEWAY_PEER_COLOR, width=2, dash="longdash"),
+            ))
+
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="$,.0f",
                       yaxis_title="$ per pupil", xaxis_title="Fiscal Year")
     with c2:
         st.plotly_chart(fig, use_container_width=True)
+        if gw_med_pp is not None:
+            st.caption(
+                "The **26-gateway-city median** line is the median *district* "
+                "total per-pupil expenditure across the 26 MA Gateway Cities "
+                f"(latest ≈ **${gw_med_pp:,.0f}**), drawn from DESE's District "
+                "Expenditures file. It is a **district** figure, so it sits "
+                "alongside — not directly under — the school-level bars above; "
+                "there is no statewide per-pupil row in either expenditure file, "
+                "so no state benchmark is shown here."
+            )
 
 # ---------------------------------------------------------------------------
 # How to read the per-pupil number. Same district, but the figures differ —
@@ -408,7 +453,7 @@ if not dist_exp.empty:
         )
         fig.update_traces(textposition="outside", cliponaxis=False)
         fig.add_vline(
-            x=peer_med, line_dash="dash", line_color="#455A64",
+            x=peer_med, line_dash="dash", line_color=STATE_COLOR,
             annotation_text=f"Peer median ${peer_med:,.0f}",
             annotation_position="top",
         )
@@ -597,6 +642,18 @@ else:
             "foundation budget formula's weight for low-income and ELL students "
             "— Gateway Cities like Lynn benefited disproportionately."
         )
+        st.caption(
+            "**On English-learner spending specifically:** the Chapter 70 file "
+            "publishes only district totals (foundation budget, required and "
+            "actual Net School Spending) — it carries **no EL-specific aid or "
+            "spending increment column**, and neither the school- nor "
+            "district-expenditure file breaks out per-pupil spending *on* English "
+            "learners. ELL enrollment does raise a district's foundation budget "
+            "through the formula's EL weight, but how much of the resulting "
+            "dollars actually reach EL programming is **not published at the "
+            "school level** in these DESE sources. This is a documented data "
+            "gap, not a value of zero."
+        )
 
         # Gateway-city peer comparison — actual NSS vs required, latest year
         peers_ch70 = ch70[
@@ -619,7 +676,7 @@ else:
             )
             fig.update_traces(textposition="outside", cliponaxis=False)
             fig.add_vline(
-                x=1.0, line_dash="dash", line_color="#455A64",
+                x=1.0, line_dash="dash", line_color=STATE_COLOR,
                 annotation_text="Required minimum (100%)",
                 annotation_position="top",
             )
@@ -804,14 +861,24 @@ else:
         else:
             st.info("No districts had both per-pupil and graduation data for the same year window.")
 
-# >>> auto: csv downloads <<<
-try:
-    from utils.charts import data_downloads_panel as _dl
-    _dl({
-        'School expenditures': school_exp,
-        'District expenditures': dist_exp,
-    })
-except NameError:
-    # one of the dataset variables wasn't defined on this run
-    pass
+st.divider()
+
+# Spending is one input; the Accountability page is where the state weighs it
+# against outcomes (graduation, MCAS, the progress targets districts are held
+# to). Send readers there to close the dollars-to-results loop.
+crosslink_callout(
+    "**See how these dollars translate into state accountability.** "
+    "Per-pupil spending, teacher pay, and Chapter 70 investment are inputs — "
+    "the Accountability page tracks the outcomes Massachusetts holds Lynn "
+    "English to, including graduation and progress toward improvement targets.",
+    url_path="Accountability",
+    label="Accountability →",
+)
+
+data_downloads_panel({
+    "School expenditures": school_exp,
+    "District expenditures (26 gateway cities)": dist_exp,
+})
+
+page_footer()
 

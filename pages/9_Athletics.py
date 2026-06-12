@@ -15,9 +15,9 @@ import plotly.express as px
 import streamlit as st
 import yaml
 
-from utils.branding import sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT
-from utils.constants import ASSETS_DIR, IMAGES_DIR
+from utils.branding import crosslink_callout, page_footer, sidebar_attribution
+from utils.charts import DEFAULT_LAYOUT, data_downloads_panel
+from utils.constants import ASSETS_DIR, GENDER_PALETTE, IMAGES_DIR
 from utils.data_loader import load_dataset
 
 st.set_page_config(page_title="Athletics | LEHS", page_icon="🐶", layout="wide")
@@ -127,6 +127,75 @@ with c3:
 
 st.divider()
 
+# --- Girls' vs boys' athletics — participation and competitiveness ----------
+# Aggregate every MaxPreps season record by gender: distinct teams (sport),
+# combined win-loss, and win %. Neutral, factual framing — this is a
+# participation/competitiveness snapshot, not a commentary.
+st.header("Girls' and Boys' Athletics")
+
+_gender_rows = []
+for _g in ["Girls", "Boys"]:
+    _gd = ath[ath["gender"] == _g]
+    if _gd.empty:
+        continue
+    _teams = _gd["sport"].nunique()
+    _w = int(_gd["wins"].fillna(0).sum())
+    _l = int(_gd["losses"].fillna(0).sum())
+    _t = int(_gd["ties"].fillna(0).sum())
+    _decided = _w + _l
+    _pct = _w / _decided if _decided else 0.0
+    _gender_rows.append({
+        "Gender": _g, "Teams": _teams, "W": _w, "L": _l, "T": _t,
+        "WinPct": _pct, "Seasons": int(len(_gd)),
+    })
+
+if _gender_rows:
+    gdf = pd.DataFrame(_gender_rows)
+    _girls = gdf[gdf["Gender"] == "Girls"]
+    _boys = gdf[gdf["Gender"] == "Boys"]
+
+    cg, cb = st.columns(2)
+    for _col, _row, _label in [(cg, _girls, "Girls"), (cb, _boys, "Boys")]:
+        if _row.empty:
+            continue
+        r = _row.iloc[0]
+        with _col:
+            st.metric(
+                f"{_label} — distinct varsity sports",
+                f"{int(r['Teams'])}",
+                f"{int(r['W'])}-{int(r['L'])} all-time ({r['WinPct']:.1%} win rate)",
+                delta_color="off",
+            )
+
+    # Side-by-side all-time win % by gender.
+    fig = px.bar(
+        gdf, x="Gender", y="WinPct", color="Gender", text=gdf["WinPct"].map(lambda v: f"{v:.1%}"),
+        color_discrete_map={"Girls": GENDER_PALETTE["Female"], "Boys": GENDER_PALETTE["Male"]},
+    )
+    fig.update_traces(textposition="outside", cliponaxis=False, showlegend=False)
+    fig.update_layout(
+        **DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="All-time win %",
+        xaxis_title="", showlegend=False, yaxis_range=[0, 1.05],
+        title="All-time MaxPreps win percentage by gender",
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    if not _girls.empty and not _boys.empty:
+        g = _girls.iloc[0]
+        b = _boys.iloc[0]
+        st.caption(
+            f"Across all MaxPreps-tracked seasons, Lynn English fielded "
+            f"**{int(g['Teams'])} girls' varsity sports** ({int(g['Seasons'])} "
+            f"team-seasons, **{int(g['W'])}-{int(g['L'])}**, {g['WinPct']:.1%} "
+            f"win rate) and **{int(b['Teams'])} boys' varsity sports** "
+            f"({int(b['Seasons'])} team-seasons, **{int(b['W'])}-{int(b['L'])}**, "
+            f"{b['WinPct']:.1%} win rate). MaxPreps coverage of lower-profile "
+            "sports is thinner in early years, so team-season counts undercount "
+            "the earliest seasons for both."
+        )
+
+st.divider()
+
 # --- Human interest — the rivalry, the banners, the bowl (up top) ----------
 # The Thanksgiving game is the most institutional sports thing about LEHS.
 riv = history.get("rivalry") or {}
@@ -180,6 +249,21 @@ if _bowl_img.exists():
             "Full history on the LEHS History page."
         ),
     )
+
+st.markdown(
+    "**The Manning Bowl.** Lynn's 21,000-seat Manning Bowl opened in 1937 and "
+    "for decades was the home of the Lynn English–Lynn Classical Thanksgiving "
+    "rivalry, drawing some of the largest schoolboy-football crowds in the "
+    "state. It closed after the 2004 game and was replaced by the smaller "
+    "Manning Field on the same Lynn site in 2005."
+)
+crosslink_callout(
+    "**Read the full Manning Bowl story.** The stadium's history, the legacy "
+    "coaches, the Hall of Fame, and notable athlete-alumni live on the LEHS "
+    "History page (Athletics heritage tab).",
+    url_path="LEHS_History",
+    label="LEHS History →",
+)
 
 st.divider()
 
@@ -277,3 +361,7 @@ st.caption(
     "didn't field. **Pre-MaxPreps history & alumni** are hand-curated in "
     "`assets/curated/lehs_athletics_history.yaml`."
 )
+
+data_downloads_panel({"LEHS athletics (MaxPreps)": ath})
+
+page_footer()
