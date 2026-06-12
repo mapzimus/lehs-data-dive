@@ -51,10 +51,10 @@ jobs:
         run: python scripts/refresh_all.py
 
       - name: Sync refreshed GeoJSONs into maps/data/
-        # The Lynn map (deployed via .github/workflows/pages.yml from maps/)
-        # serves its own copy of the lynn_*/ma_* GeoJSONs. Without this sync,
-        # every refresh would require a manual `cp` + commit before the live
-        # map picks up new numbers.
+        # maps/ is the dev home of the Lynn map. The PUBLIC copy is served
+        # from the maxwellhowegis repo (Lynn-data-dive/maps/) — after merging
+        # a refresh PR, run deploy/sync_public_maps.ps1 locally to publish
+        # the new GeoJSONs there.
         run: |
           mkdir -p maps/data
           for f in data/processed/lynn_schools.geojson \
@@ -78,16 +78,17 @@ jobs:
           title: "Semi-annual data refresh"
           body: |
             Automated refresh of every parquet + geojson under `data/processed/`,
-            with the map-facing GeoJSONs synced into `maps/data/` so the Lynn map
-            (https://mapzimus.github.io/lehs-data-dive/) picks up new numbers
-            without a manual copy step.
+            with the map-facing GeoJSONs synced into `maps/data/`.
 
             Triggered by `.github/workflows/refresh-data.yml` (cron: every 6 months,
             or manual). Review the file changes — if numbers shifted in a way that
             looks wrong, close this PR and investigate the underlying script.
 
-            After merge, Streamlit Cloud redeploys the dashboard and the Pages
-            workflow redeploys the map.
+            After merge: Streamlit Cloud redeploys the dashboard automatically.
+            The PUBLIC map copies (maxwellhowegis.com/Lynn-data-dive/maps/ and
+            /ma-atlas/) do NOT update on their own — run
+            `deploy/sync_public_maps.ps1` locally, review the diff in the
+            maxwellhowegis clone, commit, push.
           add-paths: |
             data/processed/**
             maps/data/**
