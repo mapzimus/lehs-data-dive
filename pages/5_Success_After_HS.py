@@ -10,8 +10,15 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from utils.branding import sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
+from utils.branding import crosslink_callout, page_footer, sidebar_attribution
+from utils.charts import (
+    DEFAULT_LAYOUT,
+    LEHS_GOLD,
+    LEHS_NAVY,
+    SUBGROUP_PALETTE,
+    span_years,
+    with_year_gaps,
+)
 from utils.constants import LEHS_SCHOOL_CODE
 from utils.data_loader import get_dart_indicator, load_dataset
 
@@ -185,15 +192,30 @@ if not g_focus.empty:
         "Students with Disabilities":  SUBGROUP_PALETTE["Students w/ Disabilities"],
         "High Needs":                  SUBGROUP_PALETTE["High Needs"],
     }
+    # Break any COVID-era reporting gap so the line doesn't connect across a
+    # missing year.
+    _g_focus_g = with_year_gaps(
+        g_focus, "GRAD_PCT", group_col="STU_GRP", years=span_years(g_focus),
+    )
     fig = px.line(
-        g_focus.sort_values("SY"), x="SY", y="GRAD_PCT", color="STU_GRP",
+        _g_focus_g.sort_values("SY"), x="SY", y="GRAD_PCT", color="STU_GRP",
         markers=True, color_discrete_map=color_map_grad,
     )
+    fig.update_traces(connectgaps=False)
     fig.update_layout(
         **DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="4-Year Grad Rate",
         xaxis_title="Cohort Year",
     )
     st.plotly_chart(fig, use_container_width=True)
+
+crosslink_callout(
+    "Graduation and dropout are core ESSA accountability indicators — they feed "
+    "directly into the determination DESE assigns LEHS each year. The "
+    "**Accountability** page shows how heavily on-time graduation and dropout "
+    "weigh against the other measures in the school's composite rating.",
+    "Accountability",
+    "See how graduation feeds the determination →",
+)
 
 # ---------------------------------------------------------------------------
 # Where the pipeline leaks — subgroup cohort progression (from cohort tracking)
@@ -292,14 +314,18 @@ g_both = grad[
 ].copy()
 
 if not g_both.empty:
+    _g_both_g = with_year_gaps(
+        g_both, "GRAD_PCT", group_col="GRAD_RATE_TYPE", years=span_years(g_both),
+    )
     fig = px.line(
-        g_both.sort_values("SY"), x="SY", y="GRAD_PCT", color="GRAD_RATE_TYPE",
+        _g_both_g.sort_values("SY"), x="SY", y="GRAD_PCT", color="GRAD_RATE_TYPE",
         markers=True,
         color_discrete_map={
             "4-Year Adjusted Cohort Graduation Rate": LEHS_NAVY,
             "5-Year Adjusted Cohort Graduation Rate": LEHS_GOLD,
         },
     )
+    fig.update_traces(connectgaps=False)
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Grad Rate")
     st.plotly_chart(fig, use_container_width=True)
 
@@ -324,9 +350,13 @@ pathway = pd.concat([
 ])
 
 if not pathway.empty:
-    # DART VALUE is 0-100; chart in raw percent and label axis explicitly
+    # DART VALUE is 0-100; chart in raw percent and label axis explicitly.
+    # Break any COVID-era reporting gap rather than connecting across it.
+    _pathway_g = with_year_gaps(
+        pathway, "VALUE", group_col="Indicator", years=span_years(pathway),
+    )
     fig = px.line(
-        pathway.sort_values("SY"), x="SY", y="VALUE", color="Indicator",
+        _pathway_g.sort_values("SY"), x="SY", y="VALUE", color="Indicator",
         markers=True,
         color_discrete_map={
             "Any college (immediate)": LEHS_NAVY,
@@ -335,6 +365,7 @@ if not pathway.empty:
             "Persisted 2 years":       LEHS_GOLD,
         },
     )
+    fig.update_traces(connectgaps=False)
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="% of cohort",
                        yaxis_ticksuffix="%", yaxis_range=[0, 100])
     st.plotly_chart(fig, use_container_width=True)
@@ -599,8 +630,11 @@ chain_df = pd.concat([
 ])
 
 if not chain_df.empty:
+    _chain_g = with_year_gaps(
+        chain_df, "VALUE", group_col="Stage", years=span_years(chain_df),
+    )
     fig = px.line(
-        chain_df.sort_values("SY"), x="SY", y="VALUE", color="Stage", markers=True,
+        _chain_g.sort_values("SY"), x="SY", y="VALUE", color="Stage", markers=True,
         color_discrete_map={
             "Chronic Absence":      "#D32F2F",
             "9-10 Promotion":       "#F57C00",
@@ -608,6 +642,7 @@ if not chain_df.empty:
             "Immediate College":    "#388E3C",
         },
     )
+    fig.update_traces(connectgaps=False)
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Rate (%)",
                        yaxis_ticksuffix="%", yaxis_range=[0, 100])
     st.plotly_chart(fig, use_container_width=True)
@@ -640,3 +675,5 @@ try:
     })
 except NameError:
     pass
+
+page_footer()
