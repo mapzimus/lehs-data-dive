@@ -41,7 +41,7 @@ st.markdown(
 
 # ---------------------------------------------------------------------------
 # Building photo — single compact image at the top. (Principal bio
-# moved out; see the Leadership section on pages/15_LEHS_History.py.)
+# moved out; see the Leadership section on pages/12_LEHS_History.py.)
 # ---------------------------------------------------------------------------
 
 _b_l, _b_c, _b_r = st.columns([1, 2, 1])
@@ -284,7 +284,7 @@ with c4:
         st.metric("% White", res[0], res[1], delta_color="off")
 
 # ---------------------------------------------------------------------------
-# (History section was moved out to its own page — pages/15_LEHS_History.py.
+# (History section was moved out to its own page — pages/12_LEHS_History.py.
 # The Profile page is now data-only; the bottom-of-page footer links into
 # the dedicated history page for the narrative side.)
 # ---------------------------------------------------------------------------

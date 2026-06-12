@@ -572,7 +572,7 @@ st.caption(
     "Stars show how confident we are (`*` p<0.05, `**` p<0.01, `***` p<0.001, from a "
     "two-proportion z-test vs. the school-wide rate)."
 )
-st.page_link("pages/14_Data_Literacy.py", label="New to statistical significance? → Data 101")
+st.page_link("pages/Data_Literacy.py", label="New to statistical significance? → Data 101")
 
 from utils.stats import compare_proportions  # noqa: E402
 
@@ -666,7 +666,7 @@ st.caption(
     "For the full English-Learner journey — proficiency growth, "
     "reclassification, and former-EL outcomes:"
 )
-st.page_link("pages/3_ELL_Pipeline.py", label="English Learners pipeline →")
+st.page_link("pages/4_ELL_Pipeline.py", label="English Learners pipeline →")
 
 st.divider()
 
@@ -837,7 +837,7 @@ if not sgp.empty:
                           yaxis_title="", xaxis_range=[0, 100], showlegend=False)
         st.plotly_chart(fig, use_container_width=True)
         st.page_link(
-            "pages/11_Gateway_Peer_Comparison.py",
+            "pages/Gateway_Peer_Comparison.py",
             label="See the full Gateway-city peer ranking →",
         )
 
