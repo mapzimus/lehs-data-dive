@@ -470,14 +470,14 @@ with p_col:
     st.markdown("### For families")
     st.caption("Choosing a school, understanding outcomes, comparing to siblings.")
     st.page_link("pages/1_School_Profile.py", label="School Profile — who attends LEHS today")
-    st.page_link("pages/2_Academic_Performance.py", label="Academic Performance — MCAS scores, growth, gaps")
+    st.page_link("pages/2_Academic_Performance.py", label="MCAS — scores, growth, subgroup gaps")
     st.page_link("pages/6_Success_After_HS.py", label="Success After HS — does the promise hold up?")
     st.page_link("pages/Lynn_Schools.py", label="Lynn Schools — LEHS vs. its sibling high schools")
 
 with t_col:
     st.markdown("### For teachers")
     st.caption("Instructional planning, student insight, subgroup gaps.")
-    st.page_link("pages/2_Academic_Performance.py", label="Academic Performance — MCAS by subject, growth, gaps")
+    st.page_link("pages/2_Academic_Performance.py", label="MCAS — results by subject, growth, gaps")
     st.page_link("pages/4_ELL_Pipeline.py", label="English Learners — LEHS's central narrative")
     st.page_link("pages/9_Discipline_and_Climate.py", label="Discipline & Climate — chronic absence by group")
     st.page_link("pages/7_Teachers_and_Workforce.py", label="Teachers & Workforce — who's in the building")
@@ -572,7 +572,7 @@ st.header("Questions you can answer here")
 st.markdown(
     """
 - **How is LEHS doing?** — Headline metrics, trends, and peer comparison
-  on **School Profile** and **Academic Performance**.
+  on **School Profile** and **MCAS**.
 - **What does LEHS's English Learner pipeline actually look like?** —
   From WIDA proficiency through MCAS, graduation, and into former-EL
   years on **English Learners**.
@@ -631,9 +631,10 @@ with c1:
     st.page_link("pages/Maps.py", label="Maps — Lynn map + statewide MA Education Atlas")
     st.markdown("**The School (LEHS)**")
     st.page_link("pages/1_School_Profile.py", label="School Profile — demographics, enrollment trends")
-    st.page_link("pages/2_Academic_Performance.py", label="Academic Performance — MCAS, growth, gaps")
+    st.page_link("pages/2_Academic_Performance.py", label="MCAS — Grade-10 results, growth, gaps")
+    st.page_link("pages/2b_Courses_and_Academics.py", label="Courses & Academics — G9 passing, AP, SAT, course access")
     st.page_link("pages/4_ELL_Pipeline.py", label="English Learners (central narrative)")
-    st.page_link("pages/5_College_and_Career.py", label="College & Career — AP, MassCore, FAFSA, plans")
+    st.page_link("pages/5_College_and_Career.py", label="College & Career — pathways, FAFSA, grad outcomes")
     st.page_link("pages/6_Success_After_HS.py", label="Success After HS — 9th grade → degrees → earnings")
     st.page_link("pages/7_Teachers_and_Workforce.py", label="Teachers & Workforce — diversity, staffing")
     st.page_link("pages/8_Finance.py", label="Finance — per-pupil spending breakdowns")

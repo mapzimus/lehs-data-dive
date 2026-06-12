@@ -1,4 +1,7 @@
-"""Section 2 — Academic Performance: MCAS trends, growth, subgroup gaps.
+"""Section 2 — MCAS: Grade-10 trends, growth, subgroup gaps.
+
+Solely MCAS. Grade-9 course passing and grade retention moved to
+Courses & Academics (pages/2b_Courses_and_Academics.py).
 
 This is the dashboard's most-viewed section. Lead with the headline numbers,
 then the full distribution, then benchmarks, then deep subgroup analysis
@@ -30,16 +33,20 @@ from utils.constants import (
 from utils.data_loader import load_dataset
 from utils.interpret import sgp_methodology_note, sy_label
 
-st.set_page_config(page_title="Academic Performance | LEHS", page_icon="📈", layout="wide")
+st.set_page_config(page_title="MCAS | LEHS", page_icon="📈", layout="wide")
 sidebar_attribution()
 
-st.title("Academic Performance")
+st.title("MCAS")
 st.markdown(
     "MCAS Grade 10 results in English Language Arts, Mathematics, and Science — "
     "headline rates, the full achievement-level distribution, multi-year subgroup "
     "gaps, growth percentiles, and benchmarks vs. Lynn district and Massachusetts."
 )
 st.markdown("These assessments feed the state accountability determination — see [State Accountability](/Accountability).")
+st.page_link(
+    "pages/2b_Courses_and_Academics.py",
+    label="Looking for AP, SAT, and course data? → Courses & Academics",
+)
 
 st.divider()
 st.header("📊 MCAS Results — Grade 10")
@@ -196,7 +203,7 @@ if HAS_HISTORY:
     fig.update_traces(textposition="top center", textfont=dict(size=10))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                        yaxis_title="% Meeting or Exceeding")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     st.caption(
         "MCAS was waived in spring 2020 and modified in 2021 — those years "
         "show fewer data points and shouldn't be read as a real trend break."
@@ -222,7 +229,7 @@ if HAS_HISTORY:
                   annotation_text="Meets Expectations (500)", annotation_position="right")
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Average scaled score",
                        xaxis_title="School Year")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     st.divider()
 
@@ -264,7 +271,7 @@ fig = px.bar(
 fig.update_traces(textposition="inside", textfont=dict(color="#1f2a44", size=11))
 fig.update_layout(**DEFAULT_LAYOUT, xaxis_tickformat=".0%", xaxis_title="Share of test-takers",
                    yaxis_title="", barmode="stack")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 # ---------------------------------------------------------------------------
 # Distribution evolution over time — per subject
@@ -306,7 +313,7 @@ if not dist_yearly.empty:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                        yaxis_title="Share of test-takers", xaxis_title="School Year")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -367,7 +374,7 @@ if bench_rows:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="% Meeting + Exceeding",
                        xaxis_title="")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     st.caption(
         "Three natural benchmarks: LEHS, the Lynn district aggregate, and the "
         "Massachusetts statewide average. **The thin lines are a 95% confidence "
@@ -417,7 +424,7 @@ if HAS_HISTORY:
             fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="+.0%",
                                yaxis_title="LEHS minus MA (percentage points)",
                                xaxis_title="School Year")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -494,7 +501,7 @@ if HAS_HISTORY:
         yaxis_title=f"{SUBJECT_MAP[subject_choice]} — % M+E",
         xaxis_title="School Year",
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 else:
     # Single-year fallback: horizontal bar of every subgroup's M+E.
     latest_year_sub = sub[sub["SY"] == sub["SY"].max()].copy()
@@ -520,7 +527,7 @@ else:
             showlegend=False,
             height=max(360, 32 * len(bar)),
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 # ---------------------------------------------------------------------------
 # Gap-to-school-wide evolution over time  (HAS_HISTORY only)
@@ -559,7 +566,7 @@ if HAS_HISTORY:
                 yaxis_title="Gap to school-wide (pp)",
                 xaxis_title="School Year",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
 # ---------------------------------------------------------------------------
 # Latest-year achievement gap with statistical significance markers
@@ -634,7 +641,7 @@ if not latest_sub.empty and "All Students" in latest_sub["STU_GRP"].values:
         **DEFAULT_LAYOUT,
         xaxis_title=f"Percentage point gap vs. school-wide ({all_value:.0%})",
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 # ---------------------------------------------------------------------------
 # Subgroup detail table
@@ -656,7 +663,7 @@ if not latest_year_sub.empty:
     for c in ["% M+E", "% Exceeding", "% Meeting", "% Partial", "% Not Meet"]:
         table[c] = table[c].apply(lambda x: f"{x:.0%}" if pd.notna(x) else "—")
     table["Avg score"] = table["Avg score"].apply(lambda x: f"{x:.0f}" if pd.notna(x) else "—")
-    st.dataframe(table.sort_values("Student group"), use_container_width=True, hide_index=True)
+    st.dataframe(table.sort_values("Student group"), width="stretch", hide_index=True)
     st.caption(
         "Groups with a small **Tested** count swing widely from year to year — "
         "read those rows with caution. DESE suppresses any group under 10 students."
@@ -743,7 +750,7 @@ if not sgp.empty:
             tickvals=list(MCAS_YEARS),
             ticktext=[f"{y}*" if y == 2020 else str(y) for y in MCAS_YEARS],
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         st.caption(
             "**By definition the typical student grows at 50, so the Massachusetts "
             "line sits near 50 every year.** LEHS (gold) and the Lynn district (navy) "
@@ -781,7 +788,7 @@ if not sgp.empty:
             zmid=50, zmin=20, zmax=70, value_fmt="{:.0f}", colorbar_title="SGP",
             height=max(320, 36 * len(_pivot)),
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         st.caption(
             "Read **down a column** to compare groups within a year, **across a "
             "row** for a group's path. Coral = below typical growth (50), teal = "
@@ -835,7 +842,7 @@ if not sgp.empty:
                       annotation_text="State median", annotation_position="top")
         fig.update_layout(**DEFAULT_LAYOUT, xaxis_title="Average SGP",
                           yaxis_title="", xaxis_range=[0, 100], showlegend=False)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         st.page_link(
             "pages/Gateway_Peer_Comparison.py",
             label="See the full Gateway-city peer ranking →",
@@ -873,7 +880,7 @@ if not sgp.empty:
             xaxis_range=[0, 100],
             height=max(360, 28 * sgp_sub["STU_GRP"].nunique()),
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 else:
     st.caption("SGP data not available for LEHS in this dataset.")
 
@@ -907,7 +914,7 @@ if not ach_trend.empty:
                       annotation_text="Statewide median", annotation_position="right")
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Achievement percentile",
                           xaxis_title="School Year", yaxis_range=[0, 100])
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         latest_ach = ach_trend[ach_trend["SY"] == ach_trend["SY"].max()].copy()
         latest_ach["Subject"] = latest_ach["SUBJECT_CODE"].map(SUBJECT_MAP)
@@ -926,7 +933,7 @@ if not ach_trend.empty:
             yaxis_title=f"Achievement percentile (SY {sy_label(int(ach_trend['SY'].max()))})",
             yaxis_range=[0, 100], showlegend=False,
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 # Participation rate
 st.markdown("**Participation Rate — Who actually takes the test?**")
@@ -945,7 +952,7 @@ if HAS_HISTORY:
                   annotation_text="DESE threshold (95%)", annotation_position="right")
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Participation rate",
                        xaxis_title="School Year", yaxis_range=[0.5, 1.05])
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 else:
     pcols = st.columns(3)
     for col, code in zip(pcols, ["ELA", "MATH", "SCI"]):
@@ -975,7 +982,7 @@ if HAS_HISTORY:
     fig.update_traces(textposition="top center", textfont=dict(size=9))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Students tested",
                        xaxis_title="School Year")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 else:
     ccols = st.columns(3)
     for col, code in zip(ccols, ["ELA", "MATH", "SCI"]):
@@ -987,162 +994,8 @@ else:
 
 st.divider()
 
-# ---------------------------------------------------------------------------
-# Grade retention (c8ur-ajfv) — share of students held back / repeating a grade
-# ---------------------------------------------------------------------------
-
-st.header("Grade Retention")
-st.caption(
-    "The share of students held back to repeat a grade — rare in Massachusetts, "
-    "but a meaningful signal of where students struggle to keep pace. LEHS vs "
-    "Lynn district vs the statewide rate, all students."
-)
-
-retention_g = load_dataset("grade_retention")
-if retention_g.empty:
-    st.info("Grade-retention data is temporarily unavailable.")
-else:
-    rg = retention_g[retention_g["STU_GRP"] == "All Students"].copy()
-    series = {
-        "Lynn English": rg[rg["ORG_CODE"] == LEHS_SCHOOL_CODE],
-        "Lynn district": rg[(rg["DIST_CODE"] == LYNN_DISTRICT_CODE) & (rg["ORG_TYPE"] == "District")],
-        "Massachusetts": rg[rg["ORG_TYPE"] == "State"],
-    }
-    frames = []
-    for name, d in series.items():
-        if not d.empty:
-            t = d[["SY", "RET_ALL_PCT"]].copy()
-            t["Series"] = name
-            frames.append(t)
-    if frames:
-        rdf = pd.concat(frames, ignore_index=True).dropna(subset=["RET_ALL_PCT"]).sort_values("SY")
-        fig = px.line(rdf, x="SY", y="RET_ALL_PCT", color="Series", markers=True,
-                      color_discrete_map={"Lynn English": LEHS_GOLD,
-                                          "Lynn district": LEHS_NAVY,
-                                          "Massachusetts": STATE_COLOR})
-        fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".1%",
-                          yaxis_title="% of students retained", xaxis_title="School Year")
-        st.plotly_chart(fig, use_container_width=True)
-
-st.divider()
-
 # ===========================================================================
-# 8. GRADE 9 ON-TRACK — course passing (4sut-78p8)
-# ===========================================================================
-# Research treats "on-track" freshman year — passing your courses and earning
-# enough credits to be promoted to grade 10 — as one of the single strongest
-# predictors of on-time graduation. This dataset reports the share of grade-9
-# students passing each subject, plus an "All Subjects" rollup per org/year.
-
-st.header("📗 Grade 9 On-Track — Course Passing")
-st.caption(
-    "Freshman-year course passing is one of the strongest early predictors of "
-    "on-time graduation: students who pass their classes and stay on pace in "
-    "grade 9 graduate at far higher rates. Each bar is the share of LEHS "
-    "grade-9 students passing that subject. **All Subjects** is DESE's combined "
-    "on-track rollup. Source: DESE Education-to-Career (Grade 9 Course Passing)."
-)
-
-g9 = load_dataset("grade9_passing")
-if g9.empty:
-    st.info("Grade-9 course-passing data is temporarily unavailable.")
-else:
-    g9["PASS_PCT"] = pd.to_numeric(g9["PASS_PCT"], errors="coerce")
-    g9_lehs_all = g9[
-        (g9["ORG_CODE"] == LEHS_SCHOOL_CODE) & (g9["STU_GRP"] == "All Students")
-    ].copy()
-
-    if g9_lehs_all.empty:
-        st.info("No LEHS grade-9 course-passing rows found.")
-    else:
-        g9_latest = int(g9_lehs_all["SY"].max())
-
-        # --- (a) Latest-year passing by subject — horizontal bar ---
-        st.markdown(f"**Passing Rate by Subject — All Students, SY {sy_label(g9_latest)}**")
-        bar = (
-            g9_lehs_all[g9_lehs_all["SY"] == g9_latest]
-            .dropna(subset=["PASS_PCT"])
-            .copy()
-        )
-        if not bar.empty:
-            # Put the All-Subjects rollup at the top, the rest sorted by rate.
-            bar["_is_all"] = bar["SUBJ"] == "All Subjects"
-            bar = bar.sort_values(["_is_all", "PASS_PCT"], ascending=[True, True])
-            bar["label"] = bar["PASS_PCT"].apply(lambda x: f"{x:.0%}")
-            bar["color"] = bar["_is_all"].map({True: LEHS_GOLD, False: LEHS_NAVY})
-            fig = go.Figure(go.Bar(
-                x=bar["PASS_PCT"], y=bar["SUBJ"], orientation="h",
-                text=bar["label"], textposition="outside",
-                marker_color=bar["color"].tolist(),
-                customdata=bar[["G09_CNT"]].values,
-                hovertemplate="<b>%{y}</b><br>Passing: %{x:.1%}<br>"
-                              "Grade-9 students: %{customdata[0]:,.0f}<extra></extra>",
-                cliponaxis=False,
-            ))
-            fig.update_layout(
-                **DEFAULT_LAYOUT, xaxis_tickformat=".0%",
-                xaxis_title="Share of grade-9 students passing", yaxis_title="",
-                xaxis_range=[0, min(1.08, max(bar["PASS_PCT"].max() * 1.15, 0.1))],
-                height=max(320, 42 * len(bar)),
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            st.caption(
-                "Gold = DESE's combined **All Subjects** on-track rate; navy = "
-                "individual subjects. A passing rate well below the others flags "
-                "the subject where freshmen most often fall off track."
-            )
-
-        # --- (b) Overall on-track trend (All Subjects rollup) vs benchmarks ---
-        g9_roll_lehs = g9_lehs_all[g9_lehs_all["SUBJ"] == "All Subjects"]
-        if not g9_roll_lehs.empty:
-            st.markdown("**Overall On-Track Rate Over Time — All Subjects**")
-            g9_dist = g9[
-                (g9["DIST_CODE"] == LYNN_DISTRICT_CODE)
-                & (g9["ORG_TYPE"] == "District")
-                & (g9["STU_GRP"] == "All Students")
-                & (g9["SUBJ"] == "All Subjects")
-            ]
-            g9_state = g9[
-                (g9["ORG_TYPE"] == "State")
-                & (g9["STU_GRP"] == "All Students")
-                & (g9["SUBJ"] == "All Subjects")
-            ]
-            frames = []
-            for name, d in [
-                ("Lynn English", g9_roll_lehs),
-                ("Lynn district", g9_dist),
-                ("Massachusetts", g9_state),
-            ]:
-                if not d.empty:
-                    t = with_year_gaps(d[["SY", "PASS_PCT"]].dropna(subset=["PASS_PCT"]), "PASS_PCT")
-                    t["Series"] = name
-                    frames.append(t)
-            if frames:
-                tdf = pd.concat(frames, ignore_index=True)
-                fig = px.line(
-                    tdf, x="SY", y="PASS_PCT", color="Series", markers=True,
-                    color_discrete_map={"Lynn English": LEHS_GOLD,
-                                        "Lynn district": LEHS_NAVY,
-                                        "Massachusetts": STATE_COLOR},
-                )
-                fig.update_traces(connectgaps=False)
-                fig.update_layout(
-                    **DEFAULT_LAYOUT, yaxis_tickformat=".0%",
-                    yaxis_title="% of grade-9 students passing all subjects",
-                    xaxis_title="School Year", yaxis_range=[0, 1.02],
-                )
-                st.plotly_chart(fig, use_container_width=True)
-                st.caption(
-                    "LEHS (gold) vs. the Lynn district and statewide on-track "
-                    "rate. The spring-2020 point reflects pandemic-era grading "
-                    "(many districts adopted pass/no-pass), so read it as an "
-                    "anomaly, not a real spike."
-                )
-
-st.divider()
-
-# ===========================================================================
-# 9. MCAS ALTERNATE ASSESSMENT — performance levels (ks7h-2kdy)
+# 8. MCAS ALTERNATE ASSESSMENT — performance levels (ks7h-2kdy)
 # ===========================================================================
 # The MCAS-Alt is a portfolio assessment for the small number of students with
 # the most significant cognitive disabilities, who can't take the standard
@@ -1214,7 +1067,7 @@ else:
                 **DEFAULT_LAYOUT, xaxis_tickformat=".0%", barmode="stack",
                 xaxis_title="Share of tested students", yaxis_title="",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
             _n_note = alt_cur["TOT_STU_CNT"].dropna()
             _n_txt = (f"about {int(_n_note.min())}–{int(_n_note.max())}"
                       if not _n_note.empty else "very few")
@@ -1232,8 +1085,6 @@ try:
         'LEHS Grade-10 MCAS': lehs,
         'Lynn district Grade-10 MCAS': district,
         'Massachusetts Grade-10 MCAS': state,
-        'Grade retention': load_dataset("grade_retention"),
-        'Grade 9 course passing': load_dataset("grade9_passing"),
         'MCAS Alternate Assessment': load_dataset("mcas_alt"),
     })
 except NameError:

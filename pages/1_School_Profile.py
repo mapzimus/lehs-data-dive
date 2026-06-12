@@ -168,7 +168,7 @@ if not _mcas.empty:
 
 if _g_row is not None or _m_ela_row is not None or _m_math_row is not None:
     st.caption(
-        "Quick academic snapshot — see **[Academic Performance](/Academic_Performance?embed=true)** "
+        "Quick academic snapshot — see **[MCAS](/Academic_Performance?embed=true)** "
         "for the full subject-by-subject MCAS breakdown with confidence intervals."
     )
     ac1, ac2, ac3, ac4 = st.columns(4)
@@ -180,7 +180,7 @@ if _g_row is not None or _m_ela_row is not None or _m_math_row is not None:
                 help=(
                     "Share of the 4-year cohort that graduated on time. This rate "
                     "swings several points year to year at LEHS — read it with the "
-                    "trend on Academic Performance, not as a fixed number."
+                    "trend on the MCAS page, not as a fixed number."
                 ),
             )
     with ac2:
