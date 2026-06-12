@@ -1,5 +1,10 @@
 # Runtime dependencies for the Streamlit dashboard.
 # (Local-only / data-prep dependencies live in dev/environment.yml.)
+#
+# deploy-kick nonce: 2026-06-12-1 — bump this comment to force Streamlit Cloud
+# to fully rebuild + restart the app (dependency-file changes restart the
+# process; plain code commits only hot-reload, which can leave stale modules
+# in memory after merges that touch utils/).
 
 # Core data
 pandas>=2.2
