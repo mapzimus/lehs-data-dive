@@ -14,7 +14,7 @@ Writes to data/processed/:
     teacher_attendance.parquet   staff attendance rate                 (2hei-cc7k)
     discipline_disaggregated.parquet      REBUILT with real values from 2kca-w7rq
     discipline_disproportionality.parquet REBUILT (latest year per org) — this is
-                                          what un-breaks pages/8_Discipline_and_Climate.py,
+                                          what un-breaks pages/9_Discipline_and_Climate.py,
                                           which until now showed a "not yet populated" notice.
 
 Re-runnable and additive: only the files above are touched; a fetch that fails
@@ -48,7 +48,7 @@ from utils.gap_sources import (  # noqa: E402
 STATE_DIST = "00000000"  # DESE statewide rollup dist_code (used as the sped benchmark)
 
 # ── Discipline legacy-schema mapping ──────────────────────────────────────────
-# pages/8_Discipline_and_Climate.py expects the schema scripts/03 scaffolded:
+# pages/9_Discipline_and_Climate.py expects the schema scripts/03 scaffolded:
 #   discipline_disaggregated:      SY, ORG_CODE, ORG_NAME, DIM, GROUP, INDICATOR, VALUE
 #   discipline_disproportionality: + GROUP_RATE, ALL_RATE, RISK_RATIO
 # Map the SODA student-group labels (2kca-w7rq) to that file's (DIM, GROUP) taxonomy.

@@ -257,3 +257,15 @@ def page_footer() -> None:
         f"Data: MA DESE E2C Hub, profiles.doe.mass.edu, US Census, "
         f"US Dept of Education · See Methodology for full citations."
     )
+
+
+def crosslink_callout(text_md: str, url_path: str, label: str) -> None:
+    """A bordered "see also" box linking to another page in the dashboard.
+
+    `url_path` is the page's nav url_path (as registered in Home.py, e.g.
+    "Accountability"), NOT a file path — st.page_link doesn't resolve under this
+    app's st.navigation routing, so we render a plain in-app markdown link, which
+    is the established cross-link pattern here.
+    """
+    with st.container(border=True):
+        st.markdown(f"{text_md}\n\n[{label}](/{url_path})")

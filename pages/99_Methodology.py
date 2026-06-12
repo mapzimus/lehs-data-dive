@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from utils.branding import sidebar_attribution
+from utils.branding import page_footer, sidebar_attribution
 
 st.set_page_config(page_title="Methodology | LEHS", page_icon="📚", layout="wide")
 sidebar_attribution()
@@ -34,6 +34,8 @@ sources = [
      "Socrata-hosted DESE open data — MCAS, graduation, AP, enrollment, attendance, finance, staffing, plans, pathways, postsecondary"),
     ("DESE Profiles statereport", "profiles.doe.mass.edu/statereport/",
      "Bulk CSVs — discipline, VOCAL climate, accountability, ACCESS for ELLs, detailed staffing"),
+    ("DESE accountability workbooks", "doe.mass.edu/accountability/lists-tools",
+     "Five annual xlsx workbooks behind the State Accountability page — determinations, criterion-referenced indicator detail, targets, and percentile research files (full breakdown below)"),
     ("Civil Rights Data Collection (CRDC)", "civilrightsdata.ed.gov",
      "Federal biennial — granular discipline by race × disability × gender, restraint, school-based arrests, AP offerings, athletic participation"),
     ("IPEDS", "nces.ed.gov/ipeds",
@@ -58,6 +60,53 @@ for name, url, desc in sources:
     st.markdown(f"**{name}** — `{url}`")
     st.caption(desc)
     st.markdown("")
+
+st.subheader("DESE accountability workbooks")
+
+st.markdown(
+    """
+The **[State Accountability](/Accountability?embed=true)** page is built from
+**five public DESE workbooks** published on the accountability
+[lists-and-tools page](https://www.doe.mass.edu/accountability/lists-tools/)
+(`doe.mass.edu/accountability/lists-tools`). They are downloaded by
+`scripts/19_download_accountability_detail.py` and processed into parquet by
+`scripts/16_process_dese_profiles.py`:
+
+1. **`accountability-data-{year}.xlsx`** — one row per school: overall
+   classification, the 1–99 accountability percentile, criterion-referenced
+   target percentages, federal designation, and any low-performing student
+   groups → `accountability_summary.parquet`.
+2. **`criterion-referenced-percentage-{year}.xlsx`** — every indicator ×
+   student group, with prior and current value, change, target, N, points
+   earned, rating, and the rating reason. The HS sheet carries schools →
+   `accountability_indicators.parquet`; the MSHS sheet carries the state and
+   district rows used as benchmarks → `accountability_benchmarks.parquet`.
+3. **`accountability-targets-{year}.xlsx`** — baselines plus this-year and
+   next-year targets with annual increments, per school × student group →
+   `accountability_targets.parquet`. Note the direction: **dropout and
+   chronic-absenteeism targets decrease** — they are reduction targets, so a
+   lower number is the goal.
+4. / 5. **`school-percentile-{year}.xlsx`** and
+   **`student-group-percentile-{year}.xlsx`** — the statewide percentile
+   build-up per indicator. Percentiles blend **three years of data, weighted
+   15% / 25% / 60%** (oldest → newest) → `accountability_percentiles.parquet`.
+
+**How DESE scores it (the short version).** Each indicator earns **0–4
+points** per student group. Points are weighted by category — for *All
+Students*: Achievement 40, Growth 20, HS completion 20, English-language
+proficiency 10, Additional indicators 10; for the *Lowest Performing* group:
+67.5 / 22.5 / 10 (no HS-completion or ELP weight). The **annual**
+criterion-referenced percentage is the weighted share of possible points;
+the **cumulative** figure blends prior year × 40% with current year × 60%;
+a cumulative percentage of **75% or higher reads as "meeting targets."**
+
+**Suppression and lag caveats specific to these files:** DESE blanks small-n
+cells before publication; implausible placeholder scaled scores (outside the
+400–600 MCAS range) are nulled at ingest; and some indicators lag a year
+behind the determination year — graduation, dropout, and extended
+engagement.
+"""
+)
 
 st.divider()
 
@@ -159,7 +208,7 @@ st.markdown(
 - **Earnings data paused**: Average Earnings of HS Graduates by Industry — DESE paused updates in 2025 due to a methodology issue affecting students who didn't attend MA public postsecondary institutions.
 - **VOCAL participation**: not all schools participate every year — LEHS coverage is noted where it appears.
 - **ACS geography**: We use whole-city Lynn ACS rather than a precise LEHS catchment area. The catchment is roughly the eastern half of the city but exact boundaries are not published.
-- **CRDC frequency**: Federal CRDC data is biennial. The latest release reflects the 2020-21 school year. The Civil Rights Data page is hidden from the sidebar until the ingest pipeline is finished.
+- **CRDC frequency**: Federal CRDC data is biennial. The latest public-use release reflects the **2021-22** school year — a pandemic-recovery year — and is shown on the live [Civil Rights Data](/Federal_CRDC?embed=true) page. The public-use file applies small random perturbations to protect privacy, so counts are approximate.
 - **Correlation ≠ causation**: The Correlation Lab surfaces patterns. Confirming cause-and-effect requires more than this dashboard can show.
 """
 )
@@ -180,10 +229,12 @@ conda activate lehs
 python scripts/01_download_e2c.py        # MA DESE E2C Hub (~1.7 GB raw CSVs)
 python scripts/09_download_massgis.py    # MassGIS shapefiles
 CENSUS_API_KEY=your-key python scripts/10_download_census_acs.py
+python scripts/19_download_accountability_detail.py  # DESE accountability workbooks (5 xlsx)
 
 # Filter + process
 python scripts/08_build_master_panel.py  # → data/processed/*.parquet
 python scripts/11_build_lynn_geo.py      # → data/processed/*.geojson
+python scripts/16_process_dese_profiles.py  # → accountability_*.parquet
 
 # Run the dashboard locally
 streamlit run Home.py
@@ -199,4 +250,6 @@ st.markdown(
 - **Source code** — https://github.com/mapzimus/lehs-data-dive
 """
 )
+
+page_footer()
 

@@ -12,7 +12,7 @@ A public, integrated data dashboard for **Lynn English High School** (Lynn, MA) 
 
 This project aggregates every relevant public dataset DESE publishes — MCAS, demographics, attendance, discipline, finance, teacher workforce, college outcomes — into a single school-level narrative with cross-domain correlation analysis no DESE tool currently provides. It is paired with the **MA Education Atlas**, a statewide MapLibre choropleth in the companion repo.
 
-**Status:** Live. 18 dashboard pages, weekly content updates as DESE refreshes data.
+**Status:** Live. 20+ dashboard pages, weekly content updates as DESE refreshes data.
 
 ---
 
@@ -48,6 +48,7 @@ Full citations + suppression rules in `pages/99_Methodology.py`. Top-line:
 
 - **E2C Hub** (educationtocareer.data.mass.gov) — Socrata API, 26 datasets.
 - **DESE Profiles statereport** — disaggregated discipline + climate; `scripts/03_download_dese_statereport.py`.
+- **DESE accountability workbooks** (doe.mass.edu/accountability/lists-tools) — five annual xlsx files: school determinations, criterion-referenced indicator detail by student group, accountability targets, and the school/student-group percentile research files; `scripts/19_download_accountability_detail.py` → `scripts/16_process_dese_profiles.py` → `accountability_*.parquet`.
 - **Federal CRDC** (civilrightsdata.ed.gov) — biennial civil rights collection; `scripts/04_download_crdc.py`.
 - **IPEDS / College Scorecard** — destination college profiles; `scripts/05_download_ipeds.py`.
 - **US Census ACS 5-year** — tract-level Lynn community context; `scripts/10_download_census_acs.py`.
@@ -131,7 +132,7 @@ A **GitHub Action** at `.github/workflows/refresh-data.yml` runs `scripts/refres
 ```
 lehs-data-dive/
 ├── Home.py                  # Streamlit landing page
-├── pages/                   # 18 dashboard pages
+├── pages/                   # 20+ dashboard pages
 ├── maps/                    # Standalone Lynn-focused MapLibre map
 │   ├── index.html           #   deployed via GH Pages to
 │   ├── app.js               #   https://mapzimus.github.io/lehs-data-dive/

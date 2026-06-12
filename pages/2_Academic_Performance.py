@@ -10,7 +10,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from utils.branding import sidebar_attribution
+from utils.branding import page_footer, sidebar_attribution
 from utils.charts import (
     DEFAULT_LAYOUT,
     LEHS_GOLD,
@@ -39,6 +39,7 @@ st.markdown(
     "headline rates, the full achievement-level distribution, multi-year subgroup "
     "gaps, growth percentiles, and benchmarks vs. Lynn district and Massachusetts."
 )
+st.markdown("These assessments feed the state accountability determination — see [State Accountability](/Accountability).")
 
 st.divider()
 st.header("📊 MCAS Results — Grade 10")
@@ -571,7 +572,7 @@ st.caption(
     "Stars show how confident we are (`*` p<0.05, `**` p<0.01, `***` p<0.001, from a "
     "two-proportion z-test vs. the school-wide rate)."
 )
-st.page_link("pages/14_Data_Literacy.py", label="New to statistical significance? → Data 101")
+st.page_link("pages/Data_Literacy.py", label="New to statistical significance? → Data 101")
 
 from utils.stats import compare_proportions  # noqa: E402
 
@@ -665,7 +666,7 @@ st.caption(
     "For the full English-Learner journey — proficiency growth, "
     "reclassification, and former-EL outcomes:"
 )
-st.page_link("pages/3_ELL_Pipeline.py", label="English Learners pipeline →")
+st.page_link("pages/4_ELL_Pipeline.py", label="English Learners pipeline →")
 
 st.divider()
 
@@ -836,7 +837,7 @@ if not sgp.empty:
                           yaxis_title="", xaxis_range=[0, 100], showlegend=False)
         st.plotly_chart(fig, use_container_width=True)
         st.page_link(
-            "pages/11_Gateway_Peer_Comparison.py",
+            "pages/Gateway_Peer_Comparison.py",
             label="See the full Gateway-city peer ranking →",
         )
 
@@ -1237,3 +1238,5 @@ try:
     })
 except NameError:
     pass
+
+page_footer()

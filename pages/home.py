@@ -12,7 +12,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from utils.branding import AUTHOR_NAME, AUTHOR_SITE, sidebar_attribution
+from utils.branding import AUTHOR_NAME, AUTHOR_SITE, page_footer, sidebar_attribution
 from utils.constants import (
     IMAGES_DIR,
     LEHS_GOLD,
@@ -293,13 +293,42 @@ with s_col:
             f"{float(lehs_grad_row['GRAD_PCT']):.0%}",
             help=f"Most recent cohort: SY {sy_label(int(lehs_grad_row['SY']))}",
         )
+    # State accountability teaser — DESE's annual determination for LEHS.
+    # PERCENTILE is the school's 1-99 rank among all MA schools on the
+    # accountability formula; CLASSIFICATION is the headline label.
+    acct_df = load_dataset("accountability_summary")
+    if not acct_df.empty and "ORG_CODE" in acct_df.columns:
+        lehs_acct = acct_df[
+            acct_df["ORG_CODE"].astype(str).str.zfill(8) == LEHS_SCHOOL_CODE
+        ]
+        if "SY" in lehs_acct.columns:
+            lehs_acct = lehs_acct.sort_values("SY")
+        if not lehs_acct.empty:
+            acct_row = lehs_acct.iloc[-1]
+            acct_cls = str(acct_row.get("CLASSIFICATION") or "").strip()
+            acct_pctl = pd.to_numeric(acct_row.get("PERCENTILE"), errors="coerce")
+            if pd.notna(acct_pctl):
+                st.metric(
+                    "State percentile",
+                    f"{int(acct_pctl)} of 99",
+                    help=(
+                        f"DESE accountability percentile vs. all MA schools, "
+                        f"SY {sy_label(int(acct_row['SY']))}. "
+                        f"Classification: {acct_cls or '—'}."
+                    ),
+                )
+            elif acct_cls:
+                st.metric("State classification", acct_cls)
+            st.markdown(
+                "[Why? → State Accountability](/Accountability)"
+            )
     # st.page_link navigates within the multipage app (no new tab),
     # whereas st.link_button always opens externally. For internal
     # routes we want to keep visitors in the same tab/iframe.
     st.page_link(
         "pages/1_School_Profile.py",
         label="Open School Profile →",
-        use_container_width=True,
+        width="stretch",
     )
 
 with d_col:
@@ -338,7 +367,7 @@ with d_col:
     st.page_link(
         "pages/Lynn_District.py",
         label="Open District →",
-        use_container_width=True,
+        width="stretch",
     )
 
 with c_col:
@@ -379,7 +408,7 @@ with c_col:
     st.page_link(
         "pages/Lynn_City.py",
         label="Open Lynn City →",
-        use_container_width=True,
+        width="stretch",
     )
 
 # Visual break between the three scope cards (data-heavy) and the
@@ -399,9 +428,9 @@ with maps_col:
         "**1,800+ MA schools · 351 municipalities · 22 Lynn census tracts.**"
     )
     st.page_link(
-        "pages/13_Maps.py",
+        "pages/Maps.py",
         label="Open Maps →",
-        use_container_width=True,
+        width="stretch",
     )
 
 with learn_col:
@@ -415,9 +444,9 @@ with learn_col:
         "dashboard before."
     )
     st.page_link(
-        "pages/14_Data_Literacy.py",
+        "pages/Data_Literacy.py",
         label="Open Data 101 →",
-        use_container_width=True,
+        width="stretch",
     )
 
 st.divider()
@@ -442,25 +471,25 @@ with p_col:
     st.caption("Choosing a school, understanding outcomes, comparing to siblings.")
     st.page_link("pages/1_School_Profile.py", label="School Profile — who attends LEHS today")
     st.page_link("pages/2_Academic_Performance.py", label="Academic Performance — MCAS scores, growth, gaps")
-    st.page_link("pages/5_Success_After_HS.py", label="Success After HS — does the promise hold up?")
+    st.page_link("pages/6_Success_After_HS.py", label="Success After HS — does the promise hold up?")
     st.page_link("pages/Lynn_Schools.py", label="Lynn Schools — LEHS vs. its sibling high schools")
 
 with t_col:
     st.markdown("### For teachers")
     st.caption("Instructional planning, student insight, subgroup gaps.")
     st.page_link("pages/2_Academic_Performance.py", label="Academic Performance — MCAS by subject, growth, gaps")
-    st.page_link("pages/3_ELL_Pipeline.py", label="English Learners — LEHS's central narrative")
-    st.page_link("pages/8_Discipline_and_Climate.py", label="Discipline & Climate — chronic absence by group")
-    st.page_link("pages/6_Teachers_and_Workforce.py", label="Teachers & Workforce — who's in the building")
+    st.page_link("pages/4_ELL_Pipeline.py", label="English Learners — LEHS's central narrative")
+    st.page_link("pages/9_Discipline_and_Climate.py", label="Discipline & Climate — chronic absence by group")
+    st.page_link("pages/7_Teachers_and_Workforce.py", label="Teachers & Workforce — who's in the building")
 
 with sc_col:
     st.markdown("### For school committee")
     st.caption("Accountability, peer comparison, dollar-for-outcome leverage.")
     st.page_link("pages/Lynn_District.py", label="Lynn District — LPS as a whole")
-    st.page_link("pages/7_Finance.py", label="Finance — per-pupil spending by category")
+    st.page_link("pages/8_Finance.py", label="Finance — per-pupil spending by category")
     st.page_link("pages/Lynn_Schools.py", label="Lynn Schools — vs. same-district siblings")
-    st.page_link("pages/11_Gateway_Peer_Comparison.py", label="Gateway Cities — 26-city scorecard")
-    st.page_link("pages/12_Correlation_Lab.py", label="Cross-Topic Explorer — what moves with what")
+    st.page_link("pages/Gateway_Peer_Comparison.py", label="Gateway Cities — 26-city scorecard")
+    st.page_link("pages/Correlation_Lab.py", label="Cross-Topic Explorer — what moves with what")
 
 st.caption(
     "These are starting points, not the only useful pages. The full sidebar "
@@ -530,7 +559,7 @@ with c2:
     )
     st.page_link("pages/Lynn_Schools.py", label="→ Lynn Schools (same district)")
     st.page_link("pages/Lynn_District.py", label="→ Lynn District (same system)")
-    st.page_link("pages/11_Gateway_Peer_Comparison.py", label="→ Gateway Cities (same role)")
+    st.page_link("pages/Gateway_Peer_Comparison.py", label="→ Gateway Cities (same role)")
 
 st.divider()
 
@@ -564,6 +593,22 @@ st.markdown(
 """
 )
 
+# FAQ — plain-language answers to the terms visitors hit first.
+with st.expander("FAQ: What does “requiring assistance or intervention” mean?"):
+    st.markdown(
+        "It's the classification Massachusetts DESE assigns to schools whose "
+        "accountability results place them among those the state monitors most "
+        "closely — a state determination, not a federal one. The call rests on "
+        "the school's **criterion-referenced target percentage** (a 0–100 score "
+        "for progress toward improvement targets across MCAS achievement, "
+        "growth, chronic absence, graduation, and English-learner progress) and "
+        "on whether the school falls in the **lowest-performing 10%** of schools "
+        "statewide. Schools in this status can also carry the federal **CSI** "
+        "designation — Comprehensive Support and Improvement — which requires a "
+        "state-monitored improvement plan. The indicator-by-indicator breakdown "
+        "for LEHS is on the [State Accountability](/Accountability) page."
+    )
+
 st.divider()
 
 # ---------------------------------------------------------------------------
@@ -583,19 +628,19 @@ c1, c2 = st.columns(2)
 with c1:
     st.markdown("**Top of sidebar**")
     st.page_link("pages/home.py", label="Home — this page")
-    st.page_link("pages/13_Maps.py", label="Maps — Lynn map + statewide MA Education Atlas")
+    st.page_link("pages/Maps.py", label="Maps — Lynn map + statewide MA Education Atlas")
     st.markdown("**The School (LEHS)**")
     st.page_link("pages/1_School_Profile.py", label="School Profile — demographics, enrollment trends")
     st.page_link("pages/2_Academic_Performance.py", label="Academic Performance — MCAS, growth, gaps")
-    st.page_link("pages/3_ELL_Pipeline.py", label="English Learners (central narrative)")
-    st.page_link("pages/4_College_and_Career.py", label="College & Career — AP, MassCore, FAFSA, plans")
-    st.page_link("pages/5_Success_After_HS.py", label="Success After HS — 9th grade → degrees → earnings")
-    st.page_link("pages/6_Teachers_and_Workforce.py", label="Teachers & Workforce — diversity, staffing")
-    st.page_link("pages/7_Finance.py", label="Finance — per-pupil spending breakdowns")
-    st.page_link("pages/8_Discipline_and_Climate.py", label="Discipline & Climate — suspensions, attendance")
-    st.page_link("pages/9_Athletics.py", label="Athletics — records, rivalry, hall of fame")
-    st.page_link("pages/16_Where_Students_Live.py", label="Where Students Live — residential pattern")
-    st.page_link("pages/15_LEHS_History.py", label="LEHS History — 130+ years of the school's story")
+    st.page_link("pages/4_ELL_Pipeline.py", label="English Learners (central narrative)")
+    st.page_link("pages/5_College_and_Career.py", label="College & Career — AP, MassCore, FAFSA, plans")
+    st.page_link("pages/6_Success_After_HS.py", label="Success After HS — 9th grade → degrees → earnings")
+    st.page_link("pages/7_Teachers_and_Workforce.py", label="Teachers & Workforce — diversity, staffing")
+    st.page_link("pages/8_Finance.py", label="Finance — per-pupil spending breakdowns")
+    st.page_link("pages/9_Discipline_and_Climate.py", label="Discipline & Climate — suspensions, attendance")
+    st.page_link("pages/10_Athletics.py", label="Athletics — records, rivalry, hall of fame")
+    st.page_link("pages/11_Where_Students_Live.py", label="Where Students Live — residential pattern")
+    st.page_link("pages/12_LEHS_History.py", label="LEHS History — 130+ years of the school's story")
 
 with c2:
     st.markdown("**Lynn**")
@@ -603,10 +648,10 @@ with c2:
     st.page_link("pages/Lynn_City.py", label="City — demographics, economy, neighborhoods")
     st.markdown("**Comparison**")
     st.page_link("pages/Lynn_Schools.py", label="Lynn Schools — closest peer view")
-    st.page_link("pages/11_Gateway_Peer_Comparison.py", label="Gateway Cities — 26-city scorecard")
-    st.page_link("pages/12_Correlation_Lab.py", label="Cross-Topic Explorer — cross-domain analysis")
+    st.page_link("pages/Gateway_Peer_Comparison.py", label="Gateway Cities — 26-city scorecard")
+    st.page_link("pages/Correlation_Lab.py", label="Cross-Topic Explorer — cross-domain analysis")
     st.markdown("**About**")
-    st.page_link("pages/14_Data_Literacy.py", label="Data 101 — beginner's guide to the charts")
+    st.page_link("pages/Data_Literacy.py", label="Data 101 — beginner's guide to the charts")
     st.page_link("pages/99_Methodology.py", label="Methodology — sources and caveats")
 
 st.divider()
@@ -625,3 +670,5 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+page_footer()

@@ -1,4 +1,4 @@
-﻿"""Section 8 — Discipline, Climate & Safety."""
+"""Section 8 — Discipline, Climate & Safety."""
 
 from pathlib import Path
 
@@ -7,12 +7,22 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from utils.branding import sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, STATE_COLOR, SUBGROUP_PALETTE
+from utils.branding import crosslink_callout, page_footer, sidebar_attribution
+from utils.charts import (
+    DEFAULT_LAYOUT,
+    LEHS_GOLD,
+    LEHS_NAVY,
+    STATE_COLOR,
+    SUBGROUP_PALETTE,
+    data_downloads_panel,
+    span_years,
+    with_year_gaps,
+)
 from utils.constants import (
     GENDER_PALETTE,
     LCHS_SCHOOL_CODE,
     LEHS_SCHOOL_CODE,
+    LVTI_COLOR,
     LYNN_DISTRICT_CODE,
     PROCESSED_DIR,
 )
@@ -21,10 +31,10 @@ from utils.interpret import sy_label
 
 # Same-district contrast: LEHS, LCHS, and LVTI (Lynn Tech) are Lynn's three
 # largest comprehensive high schools. Comparing them isolates school-level
-# effects from city-level demographics.
+# effects from city-level demographics. LVTI_COLOR (Lynn Tech teal) now comes
+# from utils.constants so a rebrand is one edit.
 LVTI_SCHOOL_CODE = "01630605"
 LCHS_COLOR = LEHS_GOLD
-LVTI_COLOR = "#26A69A"  # teal
 
 st.set_page_config(page_title="Discipline & Climate | LEHS", page_icon="⚖️", layout="wide")
 sidebar_attribution()
@@ -89,7 +99,7 @@ if not susp_lehs.empty:
             yaxis_title="% suspended at least once",
             yaxis_ticksuffix="%",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -120,6 +130,10 @@ att["School"] = att["ORG_CODE"].map({
 # end-of-year (full-year) snapshot rather than the nonexistent "FY" literal.
 all_stu = att[(att["STU_GRP"] == "All Students") & (att["ATTEND_PERIOD"] == "End of Year")].sort_values("SY")
 if not all_stu.empty:
+    # Break each school's line at any missing year (incl. the 2020 COVID gap).
+    all_stu = with_year_gaps(
+        all_stu, "PCT_CHRON_ABS_10", group_col="School", years=span_years(all_stu)
+    )
     fig = px.line(
         all_stu, x="SY", y="PCT_CHRON_ABS_10", color="School", markers=True,
         color_discrete_map={
@@ -128,13 +142,14 @@ if not all_stu.empty:
             "Lynn Tech": LVTI_COLOR,
         },
     )
+    fig.update_traces(connectgaps=False)
     fig.update_traces(selector=dict(name="Lynn Classical"),
                       line=dict(dash="dash", width=2))
     fig.update_traces(selector=dict(name="Lynn Tech"),
                       line=dict(dash="dot", width=2))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                       yaxis_title="% Chronically Absent (10%+ missed)")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 # By subgroup — LEHS only (LCHS comparison on subgroups would clutter the chart)
 priority = ["All Students", "English Learners", "Hispanic or Latino",
@@ -162,7 +177,7 @@ if not sub_g.empty:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                        yaxis_title="% Chronically Absent")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     # ---------------------------------------------------------------------------
     # Latest year — chronic absence rates with 95% Wilson CIs by subgroup
@@ -274,7 +289,7 @@ def _research_image(slug: str, caption: str = "") -> None:
     if not path.exists():
         st.caption(f"_(image not yet generated: {slug}.png)_")
         return
-    st.image(str(path), caption=caption, use_container_width=True)
+    st.image(str(path), caption=caption, width="stretch")
 
 
 st.subheader("Does distance from school predict absence?")
@@ -344,6 +359,22 @@ st.markdown(
     "effects* from *neighborhood demographic effects*."
 )
 
+crosslink_callout(
+    "**Where students live shapes who shows up.** The geographic absence "
+    "patterns above line up with the residential and commute analysis on the "
+    "*Where Students Live* page, and with the city's neighborhood demographics "
+    "(Census ACS by tract) on the *Lynn* page — read together they separate a "
+    "distance effect from a neighborhood-demographic effect.",
+    url_path="Where_Students_Live",
+    label="Where Students Live →",
+)
+crosslink_callout(
+    "**Lynn neighborhood context.** Tract-level demographics, income, and "
+    "housing for the neighborhoods the absence hotspots fall in.",
+    url_path="Lynn_City",
+    label="Lynn (Neighborhoods) →",
+)
+
 st.divider()
 
 # ---------------------------------------------------------------------------
@@ -354,8 +385,13 @@ st.header("Attendance Rate")
 att_rate = att[(att["STU_GRP"] == "All Students") & (att["ATTEND_PERIOD"] == "End of Year")].copy()
 att_rate["ATTEND_RATE"] = pd.to_numeric(att_rate["ATTEND_RATE"], errors="coerce")
 if not att_rate.empty:
+    # Break each school's line at any missing year (incl. the 2020 COVID gap).
+    att_rate = with_year_gaps(
+        att_rate.sort_values("SY"), "ATTEND_RATE",
+        group_col="School", years=span_years(att_rate),
+    )
     fig = px.line(
-        att_rate.sort_values("SY"), x="SY", y="ATTEND_RATE", color="School",
+        att_rate, x="SY", y="ATTEND_RATE", color="School",
         markers=True,
         color_discrete_map={
             "Lynn English": LEHS_NAVY,
@@ -363,13 +399,14 @@ if not att_rate.empty:
             "Lynn Tech": LVTI_COLOR,
         },
     )
+    fig.update_traces(connectgaps=False)
     fig.update_traces(selector=dict(name="Lynn Classical"),
                       line=dict(dash="dash", width=2))
     fig.update_traces(selector=dict(name="Lynn Tech"),
                       line=dict(dash="dot", width=2))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                       yaxis_title="Attendance rate")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -450,7 +487,7 @@ if not mobility.empty:
                     **DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                     yaxis_title=f"% {metric.lower()}", xaxis_title="School Year",
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
         # Subgroup breakdown — latest year, sorted by churn descending
         sub = mobility[
@@ -475,7 +512,7 @@ if not mobility.empty:
                 xaxis_tickformat=".0%", xaxis_title="% who left mid-year",
                 yaxis_title="", height=max(360, 28 * len(sub)),
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         st.caption(
             "**About these rates:** churn includes any student who was enrolled at "
@@ -524,6 +561,8 @@ else:
 
     if trend_frames:
         tdf = pd.concat(trend_frames, ignore_index=True).sort_values(["Series", "SY"])
+        # Break the line at the 2020 COVID gap rather than drawing across it.
+        tdf = with_year_gaps(tdf, "VALUE", group_col="Series", years=span_years(tdf))
         fig = px.line(
             tdf, x="SY", y="VALUE", color="Series", markers=True,
             color_discrete_map={
@@ -532,6 +571,7 @@ else:
                 "Massachusetts": STATE_COLOR,
             },
         )
+        fig.update_traces(connectgaps=False)
         fig.update_traces(selector=dict(name="Lynn English"), line=dict(width=3))
         fig.update_traces(selector=dict(name="Lynn district"), line=dict(dash="dash", width=2))
         fig.update_traces(selector=dict(name="Massachusetts"), line=dict(dash="dot", width=2))
@@ -542,7 +582,7 @@ else:
             yaxis_title="% suspended out-of-school",
             xaxis_title="School Year",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         st.caption(
             "LEHS ran far above both its district and the state for years — "
@@ -609,7 +649,7 @@ else:
             xaxis_title="",
             showlegend=False,
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         st.caption(
             "The school-wide rate hides large gaps. **Students with disabilities "
@@ -620,6 +660,46 @@ else:
             "do the most good. (Asian students are shown only where DESE reported "
             "a value; small-count subgroups can be suppressed.)"
         )
+
+        # Suspension-disparity callout — compute each subgroup's OSS rate ratio
+        # vs. the school's All-Students rate and flag groups at >=2x. Neutral,
+        # factual wording: state the ratio, name DESE as source, no editorial.
+        if all_rate is not None and all_rate > 0:
+            ratios = []
+            for _, r in lehs_oss.iterrows():
+                v = pd.to_numeric(r.get("VALUE"), errors="coerce")
+                if pd.isna(v):
+                    continue
+                ratios.append((str(r["GROUP"]), float(v) / all_rate, float(v)))
+            flagged = sorted(
+                [t for t in ratios if t[1] >= 2.0],
+                key=lambda t: t[1], reverse=True,
+            )
+            if flagged:
+                lines = "\n".join(
+                    f"- **{g}** — {rate:.1%} ({ratio:.1f}× the all-students rate)"
+                    for g, ratio, rate in flagged
+                )
+                st.warning(
+                    f"**Suspension-rate disparity, SY {sy_label(latest_disagg_year)}.** "
+                    f"Measured against the LEHS all-students out-of-school "
+                    f"suspension rate of **{all_rate:.1%}**, the following "
+                    f"student group(s) were suspended at **two or more times** "
+                    f"that rate:\n\n{lines}\n\n"
+                    "Rate ratios are each group's reported OSS rate divided by "
+                    "the all-students rate at the same school and year (DESE "
+                    "disaggregated discipline file). Small-count subgroups may "
+                    "be suppressed or volatile year to year."
+                )
+            else:
+                st.caption(
+                    f"No LEHS student group reached twice the all-students "
+                    f"out-of-school suspension rate ({all_rate:.1%}) in "
+                    f"SY {sy_label(latest_disagg_year)}; the widest gap that "
+                    f"year was {max((t[1] for t in ratios), default=0):.1f}× "
+                    "(rate ratios vs. the all-students rate, DESE disaggregated "
+                    "discipline file)."
+                )
 
 st.divider()
 
@@ -667,7 +747,7 @@ else:
         fig.add_hline(y=1.0, line_dash="dash", line_color="#444",
                       annotation_text="All-students baseline")
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Risk ratio (vs. all students)")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -682,12 +762,22 @@ if not crdc.empty:
         "Biennial federal Civil Rights Data Collection. Captures what DESE doesn't: "
         "school-based arrests, law-enforcement referrals, restraint/seclusion."
     )
-    st.dataframe(crdc.head(50), use_container_width=True)
+    st.dataframe(crdc.head(50), width="stretch")
 else:
     st.caption(
         "_Federal CRDC school-level discipline data (arrests, law-enforcement "
         "referrals, restraint/seclusion) isn't yet wired in._"
     )
+
+crosslink_callout(
+    "**Federal civil-rights lens on discipline.** The U.S. Department of "
+    "Education's Civil Rights Data Collection (CRDC) captures measures DESE "
+    "does not — school-based arrests, law-enforcement referrals, and "
+    "restraint/seclusion — disaggregated by race, sex, and disability. See the "
+    "*Civil Rights Data* page for the full federal view.",
+    url_path="Federal_CRDC",
+    label="Civil Rights Data (CRDC) →",
+)
 
 st.divider()
 
@@ -729,6 +819,8 @@ else:
 
     if drop_trend_frames:
         dtf = pd.concat(drop_trend_frames, ignore_index=True).sort_values(["Series", "SY"])
+        # Break the line at any missing year (incl. the 2020 COVID gap).
+        dtf = with_year_gaps(dtf, "DRPOUT_PCT_ALL", group_col="Series", years=span_years(dtf))
         fig = px.line(
             dtf, x="SY", y="DRPOUT_PCT_ALL", color="Series", markers=True,
             color_discrete_map={
@@ -737,6 +829,7 @@ else:
                 "Massachusetts": STATE_COLOR,
             },
         )
+        fig.update_traces(connectgaps=False)
         fig.update_traces(selector=dict(name="Lynn English"), line=dict(width=3))
         fig.update_traces(selector=dict(name="Lynn district"), line=dict(dash="dash", width=2))
         fig.update_traces(selector=dict(name="Massachusetts"), line=dict(dash="dot", width=2))
@@ -747,7 +840,7 @@ else:
             yaxis_title="Annual dropout rate",
             xaxis_title="School Year",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         st.caption(
             "LEHS's annual dropout rate has run consistently above both the Lynn "
@@ -784,7 +877,7 @@ else:
                 yaxis_title="Annual dropout rate",
                 xaxis_title="",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
             st.caption(
                 "Dropout risk is not spread evenly across grades — it typically "
                 "concentrates in the upper grades, where students who have fallen "
@@ -854,7 +947,7 @@ else:
             xaxis_title="",
             showlegend=False,
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         st.caption(
             "The school-wide rate averages over groups that drop out at very "
             "different rates. English learners and students with disabilities "
@@ -935,7 +1028,7 @@ else:
                 yaxis_title="% of all enrolled students",
                 xaxis_title="Instructional days lost to discipline",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
             # Composition among only the disciplined students (bands / discipline rate).
             band_total = bdf["Pct"].sum()
@@ -956,7 +1049,7 @@ else:
                     yaxis_title="% of disciplined students",
                     xaxis_title="Instructional days lost to discipline",
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
                 st.caption(
                     "Re-based to the disciplined students only, this shows the "
                     "severity mix: most discipline at LEHS costs a small number "
@@ -965,6 +1058,20 @@ else:
                     "(Counts are small in some recent years, so the mix can be "
                     "volatile — read it alongside the discipline rate above.)"
                 )
+
+st.divider()
+
+# Chronic absenteeism and the annual dropout rate are both state
+# accountability indicators — send readers to the page that scores them.
+crosslink_callout(
+    "**These show up in the state's accountability scoring.** Chronic "
+    "absenteeism and the annual dropout rate are among the indicators "
+    "Massachusetts uses to weigh school and district performance. The "
+    "Accountability page tracks how LEHS lands on those measures and its "
+    "progress toward improvement targets.",
+    url_path="Accountability",
+    label="State Accountability →",
+)
 
 # >>> auto: csv downloads <<<
 try:
@@ -980,4 +1087,6 @@ try:
 except NameError:
     # one of the dataset variables wasn't defined on this run
     pass
+
+page_footer()
 

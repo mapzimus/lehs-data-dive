@@ -64,7 +64,7 @@ def _show(slug: str, caption: str = "") -> None:
     if not path.exists():
         st.caption(f"_(image not yet generated: {slug}.png)_")
         return
-    st.image(str(path), caption=caption, use_container_width=True)
+    st.image(str(path), caption=caption, width="stretch")
 
 
 st.header("Residential Density of LEHS Students")
@@ -113,7 +113,7 @@ import json  # noqa: E402
 import pandas as pd  # noqa: E402
 import plotly.express as px  # noqa: E402
 
-from utils.charts import DEFAULT_LAYOUT  # noqa: E402
+from utils.charts import DEFAULT_LAYOUT, csv_download  # noqa: E402
 
 _TRACTS_PATH = PROCESSED_DIR / "lynn_tracts.geojson"
 
@@ -168,7 +168,7 @@ if _TRACTS_PATH.exists():
             # Values are already in percent units (e.g. asthma_pct = 12.3);
             # render as a number with a % suffix.
             fig.update_layout(xaxis_ticksuffix="%")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     c1, c2 = st.columns(2)
     with c1:
@@ -215,6 +215,15 @@ if _TRACTS_PATH.exists():
         "severe_burden_pct",
         "% of households cost-burdened (30%+ of income on housing)",
         "{:.0%}", "Oranges",
+    )
+
+    # One-click export of the tract table behind the four charts above —
+    # same attribute set the maps carry (ACS + CDC PLACES per tract).
+    csv_download(
+        _tracts_df,
+        "lynn_tracts.csv",
+        label="⬇ Download the Lynn census-tract table (CSV)",
+        key="dl_lynn_tracts",
     )
 else:
     st.info(

@@ -30,7 +30,7 @@ def csv_download(df: pd.DataFrame, filename: str, label: str | None = None,
         file_name=filename,
         mime="text/csv",
         key=key,
-        use_container_width=False,
+        width="content",
     )
 
 
@@ -112,6 +112,23 @@ def with_year_gaps(
     g = df.drop_duplicates(subset=[year_col]).set_index(year_col).reindex(full)
     g[year_col] = full
     return g.reset_index(drop=True)
+
+
+def span_years(df: pd.DataFrame, year_col: str = "SY") -> tuple[int, ...]:
+    """Contiguous (min..max) year tuple covering a frame's span.
+
+    Feed this to ``with_year_gaps(..., years=span_years(df))`` so any year with
+    no row — most importantly the 2020 COVID assessment gap — becomes an explicit
+    NaN and the line BREAKS there (with ``connectgaps=False``) instead of drawing
+    a straight segment across it. Returns an empty tuple for an empty/garbage
+    frame so callers can guard cheaply.
+    """
+    if df is None or df.empty or year_col not in df.columns:
+        return ()
+    yrs = pd.to_numeric(df[year_col], errors="coerce").dropna()
+    if yrs.empty:
+        return ()
+    return tuple(range(int(yrs.min()), int(yrs.max()) + 1))
 
 
 def year_heatmap(

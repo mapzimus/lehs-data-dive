@@ -1,4 +1,4 @@
-﻿"""Section 11 — Gateway Peer Comparison: LEHS vs. 25 gateway-city main HS."""
+"""Section 11 — Gateway Peer Comparison: LEHS vs. 25 gateway-city main HS."""
 
 import json
 from pathlib import Path
@@ -9,8 +9,14 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from utils.branding import sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, GATEWAY_PEER_COLOR, LEHS_GOLD, LEHS_NAVY
+from utils.branding import crosslink_callout, page_footer, sidebar_attribution
+from utils.charts import (
+    DEFAULT_LAYOUT,
+    GATEWAY_PEER_COLOR,
+    LEHS_GOLD,
+    LEHS_NAVY,
+    data_downloads_panel,
+)
 from utils.constants import (
     LCHS_SCHOOL_CODE,
     LEHS_SCHOOL_CODE,
@@ -91,6 +97,7 @@ grad = load_dataset("graduation_rates")
 ap_perf = load_dataset("ap_performance")
 school_exp = load_dataset("school_expenditures")
 dist_exp = load_dataset("district_expenditures")
+acct = load_dataset("accountability_summary")
 
 if enrollment.empty:
     st.info("Data is temporarily unavailable. Please check back later.")
@@ -209,6 +216,21 @@ if not school_exp.empty:
     sp_latest = sp_latest.rename(columns={"IND_VALUE": "$ Per Pupil"})
     scorecard = scorecard.merge(sp_latest, on="ORG_CODE", how="left")
 
+# State accountability: overall classification + 1-99 percentile, latest year
+# per school. Joined on ORG_CODE; rows with no accountability record (e.g. the
+# synthetic LPS-district row added below) simply stay blank.
+if not acct.empty and {"ORG_CODE", "CLASSIFICATION", "PERCENTILE"}.issubset(acct.columns):
+    acct_latest = acct.sort_values("SY").groupby("ORG_CODE").tail(1)
+    scorecard = scorecard.merge(
+        acct_latest[["ORG_CODE", "CLASSIFICATION", "PERCENTILE"]].rename(
+            columns={"CLASSIFICATION": "State Classification", "PERCENTILE": "Acct %ile"}
+        ),
+        on="ORG_CODE", how="left",
+    )
+else:
+    scorecard["State Classification"] = pd.NA
+    scorecard["Acct %ile"] = pd.NA
+
 # ---------------------------------------------------------------------------
 # LPS-district synthetic row — same column shape as the school rows above
 # but built from district-level datasets so the gateway scatters can show
@@ -307,13 +329,104 @@ def _lynn_role(org_code: str) -> str:
 
 scorecard["lynn_role"] = scorecard["ORG_CODE"].apply(_lynn_role)
 
+# ---------------------------------------------------------------------------
+# "Where LEHS sits" — one-glance ranks on headline metrics, computed across
+# the one-HS-per-city pool (25 other gateway main HS + LEHS for Lynn) so each
+# rank is a true city-to-city position. Ranks sort by value (1 = highest) with
+# no better/worse framing — direction depends on the metric, and the full
+# distribution is in the table just below.
+# ---------------------------------------------------------------------------
+_summary_pool = scorecard[scorecard["ORG_CODE"].isin(similar_peer_codes)]
+
+
+def _lehs_rank_line(col: str, friendly: str) -> str | None:
+    """'**Friendly:** 86% — ranks 12 of 26' line, or None where data is missing."""
+    if col not in _summary_pool.columns:
+        return None
+    vals = pd.to_numeric(_summary_pool[col], errors="coerce")
+    lehs_vals = vals[_summary_pool["ORG_CODE"] == LEHS_SCHOOL_CODE]
+    valid = vals.dropna()
+    if lehs_vals.empty or pd.isna(lehs_vals.iloc[0]) or valid.empty:
+        return None
+    lehs_val = float(lehs_vals.iloc[0])
+    rank = int((valid > lehs_val).sum()) + 1
+    return f"**{friendly}:** {lehs_val:.0%} — {percentile_phrase(rank, len(valid))}."
+
+
+_rank_lines = [
+    ln for ln in (
+        _lehs_rank_line("% Chronic Absence", "Chronic absence"),
+        _lehs_rank_line("4yr Grad Rate", "4-year graduation rate"),
+        _lehs_rank_line("% English Learner(s)", "English-learner share"),
+        _lehs_rank_line("% AP exams 3+", "AP exams scoring 3+"),
+    ) if ln
+]
+if _rank_lines:
+    st.info(
+        "**Where LEHS sits among the gateway-city main high schools** "
+        "(one school per city; rank 1 = highest value; the school count "
+        "shrinks where a school doesn't publish a metric):\n\n"
+        + "\n".join(f"- {ln}" for ln in _rank_lines)
+    )
+
 scorecard = scorecard.sort_values("Enrollment", ascending=False)
+
+# ---------------------------------------------------------------------------
+# Demographic-range filter — applies to the TABLE only. Complements (does not
+# replace) the z-score similar-peers section below: both sliders default to
+# the full observed range, so the default view is unchanged; narrowing either
+# range trims the table to schools inside both windows. Rows missing a value
+# drop out only once a range is narrowed.
+# ---------------------------------------------------------------------------
+scorecard_view = scorecard
+_el_pct = pd.to_numeric(scorecard["% English Learner(s)"], errors="coerce") * 100
+_li_pct = pd.to_numeric(scorecard["% Low Income"], errors="coerce") * 100
+if _el_pct.notna().any() and _li_pct.notna().any():
+    _el_lo, _el_hi = int(np.floor(_el_pct.min())), int(np.ceil(_el_pct.max()))
+    _li_lo, _li_hi = int(np.floor(_li_pct.min())), int(np.ceil(_li_pct.max()))
+    # st.slider requires max > min — degenerate when every school shares a value.
+    if _el_hi <= _el_lo:
+        _el_hi = _el_lo + 1
+    if _li_hi <= _li_lo:
+        _li_hi = _li_lo + 1
+    st.markdown(
+        "**Filter the table to demographically-similar schools** — narrow "
+        "either range to keep only schools inside both windows. Defaults "
+        "show every row."
+    )
+    _fc1, _fc2 = st.columns(2)
+    with _fc1:
+        el_range = st.slider(
+            "% English Learner", min_value=_el_lo, max_value=_el_hi,
+            value=(_el_lo, _el_hi), step=1, format="%d%%",
+            key="scorecard_el_range",
+        )
+    with _fc2:
+        li_range = st.slider(
+            "% Low Income", min_value=_li_lo, max_value=_li_hi,
+            value=(_li_lo, _li_hi), step=1, format="%d%%",
+            key="scorecard_li_range",
+        )
+    if el_range != (_el_lo, _el_hi) or li_range != (_li_lo, _li_hi):
+        _mask = (
+            _el_pct.between(el_range[0], el_range[1])
+            & _li_pct.between(li_range[0], li_range[1])
+        )
+        scorecard_view = scorecard[_mask.fillna(False)]
+        st.caption(
+            f"Showing **{len(scorecard_view)}** of {len(scorecard)} rows with "
+            f"% English Learner in {el_range[0]}–{el_range[1]}% and % low "
+            f"income in {li_range[0]}–{li_range[1]}%. Rows missing either "
+            "value are hidden while a filter is active."
+        )
+
 display_cols = [
     "City", "ORG_NAME", "Enrollment", "% English Learner(s)", "% Low Income", "% High Needs",
     "% Hispanic/Latino", "4yr Grad Rate", "Immediate College", "% FAFSA",
     "% AP exams 3+", "% Chronic Absence", "$ Per Pupil",
+    "State Classification", "Acct %ile",
 ]
-display = scorecard[display_cols].rename(columns={"ORG_NAME": "School"}).copy()
+display = scorecard_view[display_cols].rename(columns={"ORG_NAME": "School"}).copy()
 
 # Format
 for col in ["% English Learner(s)", "% Low Income", "% High Needs", "% Hispanic/Latino",
@@ -321,6 +434,10 @@ for col in ["% English Learner(s)", "% Low Income", "% High Needs", "% Hispanic/
     display[col] = display[col].apply(lambda x: f"{x:.0%}" if pd.notna(x) else "—")
 display["Enrollment"] = display["Enrollment"].apply(lambda x: f"{int(x):,}" if pd.notna(x) else "—")
 display["$ Per Pupil"] = display["$ Per Pupil"].apply(lambda x: f"${x:,.0f}" if pd.notna(x) else "—")
+display["Acct %ile"] = display["Acct %ile"].apply(lambda x: f"{int(x)}" if pd.notna(x) else "—")
+display["State Classification"] = display["State Classification"].apply(
+    lambda x: str(x) if pd.notna(x) and str(x).strip() else "—"
+)
 
 # Highlight Lynn rows. LEHS gets the strongest tint, the same-district
 # siblings + the LPS-district row get a lighter shade so the eye still
@@ -334,7 +451,7 @@ def highlight_lehs_row(row):
     return [""] * len(row)
 
 st.dataframe(display.style.apply(highlight_lehs_row, axis=1),
-             use_container_width=True, hide_index=True)
+             width="stretch", hide_index=True)
 st.caption(
     f"School year {latest_enr_year}. LEHS row highlighted in gold; Lynn "
     "Classical, Lynn Tech, and the LPS-district aggregate are tinted "
@@ -352,7 +469,12 @@ st.caption(
     "is *district-level*, all-in per-pupil spending (district_expenditures), "
     "which is normally several thousand dollars higher because it carries "
     "district-wide costs the school-level figure excludes — so compare school "
-    "rows to school rows, and read the LPS row as the district total."
+    "rows to school rows, and read the LPS row as the district total. "
+    "**State Classification / Acct %ile** come from DESE's most recent "
+    "accountability file: the classification is the state's overall "
+    "determination for the school, and the percentile (1–99) places it among "
+    "schools statewide serving similar grades. Rows without a school-level "
+    "accountability record (e.g., the LPS-district aggregate) show —."
 )
 
 # ---------------------------------------------------------------------------
@@ -488,7 +610,7 @@ if not scatter_df.empty:
         _lynn_scatter(scatter_df, "$ Per Pupil", "4yr Grad Rate",
                        "$ per pupil", "4-year graduation rate",
                        "$,.0f", ".0%"),
-        use_container_width=True,
+        width="stretch",
     )
 
 st.subheader("English-learner share vs. 4-year graduation rate")
@@ -498,7 +620,7 @@ if not scatter_df2.empty:
         _lynn_scatter(scatter_df2, "% English Learner(s)", "4yr Grad Rate",
                        "% English Learners", "4-year graduation rate",
                        ".0%", ".0%"),
-        use_container_width=True,
+        width="stretch",
     )
 
 st.divider()
@@ -569,7 +691,7 @@ if (
             show[col] = show[col].apply(lambda x: f"{x:.0%}" if pd.notna(x) else "—")
     show["Enrollment"] = show["Enrollment"].apply(lambda x: f"{int(x):,}" if pd.notna(x) else "—")
     st.dataframe(show.style.apply(highlight_lehs_row, axis=1),
-                 use_container_width=True, hide_index=True)
+                 width="stretch", hide_index=True)
 
     # Plain-language explanation of who landed in the top-5
     others = closest_full[closest_full["ORG_CODE"] != LEHS_SCHOOL_CODE]["City"].tolist()
@@ -586,4 +708,30 @@ if (
         "main HS in the data panel. A future iteration could draw from "
         "all-MA enrollment for a wider 'similar conditions' peer set."
     )
+
+# ---------------------------------------------------------------------------
+# Cross-link + downloads + footer
+# ---------------------------------------------------------------------------
+
+crosslink_callout(
+    "**Raw peer metrics here; the state's weighted determination there.** "
+    "This page lines up unadjusted rates across the gateway-city main high "
+    "schools. The Accountability page shows how DESE weighs those same "
+    "outcomes — achievement, growth, attendance, graduation — into Lynn "
+    "English's official classification, criterion-referenced score, and "
+    "statewide percentile.",
+    url_path="Accountability",
+    label="State Accountability →",
+)
+
+data_downloads_panel({
+    "Latest-year scorecard (gateway main HS + Lynn rows)": scorecard,
+    "Enrollment & demographics": enrollment,
+    "DART success-after-HS indicators": dart,
+    "Graduation rates": grad,
+    "AP performance": ap_perf,
+    "Accountability summary": acct,
+})
+
+page_footer()
 

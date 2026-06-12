@@ -5,8 +5,15 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from utils.branding import sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
+from utils.branding import crosslink_callout, page_footer, sidebar_attribution
+from utils.charts import (
+    DEFAULT_LAYOUT,
+    LEHS_GOLD,
+    LEHS_NAVY,
+    SUBGROUP_PALETTE,
+    span_years,
+    with_year_gaps,
+)
 from utils.constants import (
     GENDER_PALETTE,
     IMAGES_DIR,
@@ -34,14 +41,14 @@ st.markdown(
 
 # ---------------------------------------------------------------------------
 # Building photo — single compact image at the top. (Principal bio
-# moved out; see the Leadership section on pages/15_LEHS_History.py.)
+# moved out; see the Leadership section on pages/12_LEHS_History.py.)
 # ---------------------------------------------------------------------------
 
 _b_l, _b_c, _b_r = st.columns([1, 2, 1])
 with _b_c:
     st.image(
         str(IMAGES_DIR / "lehs-building.jpg"),
-        use_container_width=True,
+        width="stretch",
         caption="Main entrance, O'Callaghan Way",
     )
 
@@ -277,7 +284,7 @@ with c4:
         st.metric("% White", res[0], res[1], delta_color="off")
 
 # ---------------------------------------------------------------------------
-# (History section was moved out to its own page — pages/15_LEHS_History.py.
+# (History section was moved out to its own page — pages/12_LEHS_History.py.
 # The Profile page is now data-only; the bottom-of-page footer links into
 # the dedicated history page for the narrative side.)
 # ---------------------------------------------------------------------------
@@ -289,19 +296,23 @@ with c4:
 st.divider()
 st.subheader("Total Enrollment Over Time")
 
+# Break any COVID-era reporting gap so the line doesn't draw a straight
+# segment across a missing year (reindex to the full span + connectgaps=False).
+_enr_g = with_year_gaps(lehs, "TOTAL_CNT", years=span_years(lehs))
 fig = px.line(
-    lehs, x="SY", y="TOTAL_CNT", markers=True,
+    _enr_g, x="SY", y="TOTAL_CNT", markers=True,
 )
 fig.update_traces(
     line=dict(color=LEHS_NAVY, width=3),
     marker=dict(size=8),
-    text=lehs["TOTAL_CNT"].apply(lambda v: f"{int(v):,}" if pd.notna(v) else ""),
+    text=_enr_g["TOTAL_CNT"].apply(lambda v: f"{int(v):,}" if pd.notna(v) else ""),
     textposition="top center",
     mode="lines+markers+text",
     textfont=dict(size=10, color=LEHS_NAVY),
+    connectgaps=False,
 )
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Students", xaxis_title="School Year")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 peak_year = lehs.loc[lehs["TOTAL_CNT"].idxmax()]
 trough_year = lehs.loc[lehs["TOTAL_CNT"].idxmin()]
@@ -339,7 +350,7 @@ fig.update_layout(
     **DEFAULT_LAYOUT, yaxis_title="Students", xaxis_title="Grade",
     yaxis_range=[0, grade_data["Students"].max() * 1.15],
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 # Pull-out: 9-12 attrition narrative
 if pd.notna(current["G9_CNT"]) and pd.notna(current["G12_CNT"]):
@@ -387,21 +398,23 @@ if not _td.empty:
     )
     _tr = _tr.dropna(subset=["ratio_num"])
     if not _tr.empty:
-        fig_r = px.line(_tr, x="SY", y="ratio_num", markers=True)
+        _tr_g = with_year_gaps(_tr, "ratio_num", years=span_years(_tr))
+        fig_r = px.line(_tr_g, x="SY", y="ratio_num", markers=True)
         fig_r.update_traces(
             line=dict(color=LEHS_GOLD, width=3),
             marker=dict(size=8, color=LEHS_NAVY),
-            text=_tr["ratio_num"].apply(lambda v: f"{v:.1f}:1"),
+            text=_tr_g["ratio_num"].apply(lambda v: f"{v:.1f}:1" if pd.notna(v) else ""),
             textposition="top center",
             mode="lines+markers+text",
             textfont=dict(size=10, color=LEHS_NAVY),
+            connectgaps=False,
         )
         fig_r.update_layout(
             **DEFAULT_LAYOUT,
             yaxis_title="Students per teacher",
             xaxis_title="School Year",
         )
-        st.plotly_chart(fig_r, use_container_width=True)
+        st.plotly_chart(fig_r, width="stretch")
         _latest_r = _tr.iloc[-1]
         _earliest_r = _tr.iloc[0]
         st.caption(
@@ -484,7 +497,7 @@ if not district.empty:
     fig.update_traces(textposition="outside", cliponaxis=False)
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share",
                        xaxis_title="")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     st.caption(
         "LEHS enrolls noticeably higher shares of English Learners, low-income, "
         "and high-needs students than the district as a whole. Part of that gap "
@@ -527,7 +540,7 @@ with col_a:
     )
     fig.update_traces(textposition="inside", textinfo="percent+label", textfont_size=11)
     fig.update_layout(**DEFAULT_LAYOUT, showlegend=False, height=360)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 with col_b:
     st.markdown("**Composition over time**")
@@ -558,7 +571,7 @@ with col_b:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share",
                        xaxis_title="School Year", height=360)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 # Detailed race table — in an expander so it doesn't repeat the donut's
 # latest-year shares as a third full-height block.
@@ -576,7 +589,7 @@ with st.expander("Detailed race/ethnicity counts and shares (latest year)"):
     race_table["Approx. students"] = race_table["Approx. students"].apply(
         lambda x: f"{int(x):,}" if pd.notna(x) else "—"
     )
-    st.dataframe(race_table, use_container_width=True, hide_index=True)
+    st.dataframe(race_table, width="stretch", hide_index=True)
 
 # ---------------------------------------------------------------------------
 # Gender breakdown
@@ -599,7 +612,7 @@ fig = px.area(
 )
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share",
                    xaxis_title="School Year")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 if "NB_PCT" in lehs.columns and lehs["NB_PCT"].notna().any():
     st.caption(
         "A non-binary category appears in DESE reporting only in recent years "
@@ -657,7 +670,7 @@ fig = px.line(
 )
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share of Students",
                    xaxis_title="School Year")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 # Special pull-out: ELL trajectory
 ell_with_data = lehs.dropna(subset=["EL_PCT"])
@@ -702,7 +715,7 @@ fig = go.Figure(go.Bar(
 ))
 fig.update_layout(**DEFAULT_LAYOUT, xaxis_title="Students", yaxis_title="",
                    xaxis_range=[0, pop_counts["Count"].max() * 1.25])
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 # ---------------------------------------------------------------------------
 # Where LEHS students live — Gap #4: tie the demographic story to a
@@ -719,7 +732,7 @@ if _catchment_thumb.exists():
     with _cm_l:
         st.image(
             str(_catchment_thumb),
-            use_container_width=True,
+            width="stretch",
             caption="Kernel-density estimate of where LEHS students live, aggregated across Lynn.",
         )
     with _cm_r:
@@ -731,11 +744,9 @@ if _catchment_thumb.exists():
             "rental stock, lower-income tracts, and the corridor where "
             "Lynn's foreign-born population concentrates."
         )
-        st.page_link(
-            "pages/16_Where_Students_Live.py",
-            label="Open Where Students Live →",
-            use_container_width=True,
-        )
+        # Markdown link, not st.page_link — file-path page_link doesn't resolve
+        # under this app's st.navigation routing (KeyError: url_pathname).
+        st.markdown("**[Open Where Students Live →](/Where_Students_Live)**")
         st.caption(
             "Source: Lynn Public Schools enrollment records, provided via a "
             "data request and aggregated to neighborhood-level density."
@@ -800,17 +811,22 @@ if not _mob.empty:
         }
         _mob_long["Metric"] = _mob_long["Metric"].map(_mob_label)
         _mob_long = _mob_long.dropna(subset=["Pct"])
+        # Break any COVID-era reporting gap rather than connecting across it.
+        _mob_long = with_year_gaps(
+            _mob_long, "Pct", group_col="Metric", years=span_years(_mob_long),
+        )
         fig_m = px.line(
             _mob_long, x="SY", y="Pct", color="Metric", markers=True,
             color_discrete_map=MOBILITY_PALETTE,
         )
+        fig_m.update_traces(connectgaps=False)
         fig_m.update_layout(
             **DEFAULT_LAYOUT,
             yaxis_tickformat=".0%",
             yaxis_title="Share of students",
             xaxis_title="School Year",
         )
-        st.plotly_chart(fig_m, use_container_width=True)
+        st.plotly_chart(fig_m, width="stretch")
 
 # ---------------------------------------------------------------------------
 # Student attrition — the year-over-year counterpart to the within-year
@@ -901,7 +917,14 @@ if not _attr.empty:
                 _trend_frames.append(_t)
         if _trend_frames:
             _trend = pd.concat(_trend_frames, ignore_index=True)
-            _trend["label"] = _trend["GRD_ALL"].apply(lambda x: f"{x:.1%}")
+            # Break any COVID-era gap so a missing year doesn't draw a straight
+            # segment across it.
+            _trend = with_year_gaps(
+                _trend, "GRD_ALL", group_col="Scope", years=span_years(_trend),
+            )
+            _trend["label"] = _trend["GRD_ALL"].apply(
+                lambda x: f"{x:.1%}" if pd.notna(x) else ""
+            )
             fig_a = px.line(
                 _trend.sort_values(["Scope", "SY"]),
                 x="SY", y="GRD_ALL", color="Scope", markers=True, text="label",
@@ -911,14 +934,14 @@ if not _attr.empty:
                     "Massachusetts": STATE_COLOR,
                 },
             )
-            fig_a.update_traces(textposition="top center", textfont=dict(size=9))
+            fig_a.update_traces(textposition="top center", textfont=dict(size=9), connectgaps=False)
             fig_a.update_layout(
                 **DEFAULT_LAYOUT,
                 yaxis_tickformat=".0%",
                 yaxis_title="Attrition rate",
                 xaxis_title="School Year",
             )
-            st.plotly_chart(fig_a, use_container_width=True)
+            st.plotly_chart(fig_a, width="stretch")
             st.caption(
                 "LEHS attrition bounces year to year and tends to run a little "
                 "above the district average — expected, since a 9-12 high school "
@@ -977,7 +1000,7 @@ if not _attr.empty:
                 yaxis_title="",
                 height=max(360, 30 * len(_sub)),
             )
-            st.plotly_chart(fig_as, use_container_width=True)
+            st.plotly_chart(fig_as, width="stretch")
             st.caption(
                 "Subgroup attrition for a single high school rests on small "
                 "headcounts, so year-to-year swings can be large — treat the "
@@ -1051,20 +1074,29 @@ if not attendance.empty:
                 trend_frames.append(t)
         if trend_frames:
             trend_df = pd.concat(trend_frames, ignore_index=True)
-            trend_df["label"] = trend_df["PCT_CHRON_ABS_10"].apply(lambda x: f"{x:.0%}")
+            # Break the COVID gap (no 2020 reporting) so the line doesn't draw a
+            # straight segment across it — reindex to the full year span and
+            # disable connectgaps.
+            trend_df = with_year_gaps(
+                trend_df, "PCT_CHRON_ABS_10", group_col="Scope",
+                years=span_years(trend_df),
+            )
+            trend_df["label"] = trend_df["PCT_CHRON_ABS_10"].apply(
+                lambda x: f"{x:.0%}" if pd.notna(x) else ""
+            )
             fig = px.line(
                 trend_df.sort_values(["Scope", "SY"]),
                 x="SY", y="PCT_CHRON_ABS_10", color="Scope", markers=True, text="label",
                 color_discrete_map={"LEHS": LEHS_GOLD, "Lynn District": LEHS_NAVY, "Massachusetts": STATE_COLOR},
             )
-            fig.update_traces(textposition="top center", textfont=dict(size=10))
+            fig.update_traces(textposition="top center", textfont=dict(size=10), connectgaps=False)
             fig.update_layout(
                 **DEFAULT_LAYOUT,
                 yaxis_tickformat=".0%",
                 yaxis_title="% chronically absent (≥10% of days)",
                 xaxis_title="School Year",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
             st.caption(
                 "The post-COVID spike (SY 2022) is visible across MA, but LEHS "
                 "has not recovered to its pre-pandemic baseline. Even the "
@@ -1095,7 +1127,7 @@ if not attendance.empty:
                 xaxis_tickformat=".0%", xaxis_title="% chronically absent",
                 yaxis_title="", height=max(360, 28 * len(sub)),
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         # Geographic context — pull in the lehs_research distance/spatial analyses
         st.markdown("**Where chronically absent students live**")
@@ -1113,14 +1145,14 @@ if not attendance.empty:
                 st.image(
                     str(absence_band),
                     caption="Average absenteeism by distance from LEHS (banded).",
-                    use_container_width=True,
+                    width="stretch",
                 )
         if hexbin.exists():
             with col_b:
                 st.image(
                     str(hexbin),
                     caption="Spatial clustering of chronic absenteeism (100 m hex grid).",
-                    use_container_width=True,
+                    width="stretch",
                 )
 
         st.caption(chronic_absenteeism_methodology_note())
@@ -1212,6 +1244,16 @@ if not _acc.empty:
                 unsafe_allow_html=True,
             )
 
+crosslink_callout(
+    "This single classification compresses MCAS achievement and growth, "
+    "English-learner progress, chronic absenteeism, dropout, and graduation "
+    "into one number. The **Accountability** page unpacks what actually drives "
+    "LEHS's determination — and how much of it traces back to the absenteeism "
+    "and graduation indicators above.",
+    "Accountability",
+    "Open the Accountability deep-dive →",
+)
+
 # ---------------------------------------------------------------------------
 # Cross-link out to the narrative history page. The Profile is "just the
 # data"; the story lives next door.
@@ -1228,11 +1270,9 @@ with _h_l:
     )
 with _h_r:
     st.write("")
-    st.page_link(
-        "pages/15_LEHS_History.py",
-        label="Open LEHS History →",
-        use_container_width=True,
-    )
+    # Markdown link, not st.page_link — file-path page_link doesn't resolve
+    # under this app's st.navigation routing (KeyError: url_pathname).
+    st.markdown("**[Open LEHS History →](/LEHS_History)**")
 
 # >>> auto: csv downloads <<<
 try:
@@ -1251,4 +1291,6 @@ try:
 except NameError:
     # one of the dataset variables wasn't defined on this run
     pass
+
+page_footer()
 

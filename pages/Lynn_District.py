@@ -17,7 +17,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from utils.branding import sidebar_attribution
+from utils.branding import page_footer, sidebar_attribution
 from utils.charts import (
     DEFAULT_LAYOUT,
     LEHS_GOLD,
@@ -62,6 +62,9 @@ mcas = load_dataset("mcas_achievement")
 attendance = load_dataset("student_attendance")
 dist_exp = load_dataset("district_expenditures")
 sped = load_dataset("special_ed_indicators")
+# Accountability classifications — one row per school (all 26 Lynn schools),
+# used by the All Schools scorecard + the downloads panel below.
+acct = load_dataset("accountability_summary")
 
 if enrollment.empty:
     st.info("Data is temporarily unavailable. Please check back later.")
@@ -225,7 +228,7 @@ with tab_snapshot:
         fig = px.line(district, x="SY", y="TOTAL_CNT", markers=True)
         fig.update_traces(line=dict(color=LEHS_NAVY, width=3))
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Students", xaxis_title="School Year")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         st.header("Selected Populations Trend (District-wide)")
         long = district.melt(
@@ -252,7 +255,7 @@ with tab_snapshot:
             },
         )
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
         # District MCAS performance
@@ -276,7 +279,7 @@ with tab_snapshot:
                 )
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                    yaxis_title="% Meeting + Exceeding")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
             elem_mcas = district_mcas[
                 district_mcas["TEST_GRADE"].astype(str).isin(
@@ -293,7 +296,7 @@ with tab_snapshot:
                 )
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                    yaxis_title="Avg % M+E across grades")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
         # District graduation
@@ -313,7 +316,7 @@ with tab_snapshot:
             fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                yaxis_title="4-yr Graduation Rate",
                                xaxis_title="Cohort Year")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
         # District attendance / chronic absence
@@ -335,7 +338,7 @@ with tab_snapshot:
             fig.update_traces(line=dict(color="#F57C00", width=3))
             fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                yaxis_title="% Chronically Absent (10%+ missed)")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
         # District finance
@@ -361,7 +364,7 @@ with tab_snapshot:
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="$,.0f",
                                    yaxis_title="$ per pupil", xaxis_title="Fiscal Year")
                 with c2:
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
         # Lynn middle schools (LEHS feeders)
@@ -424,7 +427,7 @@ with tab_snapshot:
             ms_table["Enrollment"] = ms_table["Enrollment"].apply(
                 lambda x: f"{int(x):,}" if pd.notna(x) else "—"
             )
-            st.dataframe(ms_table, use_container_width=True, hide_index=True)
+            st.dataframe(ms_table, width="stretch", hide_index=True)
             st.caption(f"School year {ms_latest_year}. Sources: enrollment_demographics + mcas_achievement parquets.")
 
         # -------------------------------------------------------------------
@@ -499,7 +502,7 @@ with tab_snapshot:
                             xaxis_title="",
                             legend_title="",
                         )
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
                         st.caption(
                             "The gap between the two groups is one of DESE's most "
                             "tracked indicators for SpEd program effectiveness."
@@ -531,7 +534,7 @@ with tab_snapshot:
                             yaxis_title="",
                             height=max(280, 28 * len(post_latest)),
                         )
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
         # Lynn vs. Gateway median vs. State median — small multiples
@@ -564,7 +567,7 @@ with tab_snapshot:
             )
             if fig:
                 with col_a:
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
         if not attendance.empty:
             a = attendance[(attendance["ORG_TYPE"] == "District")
@@ -574,7 +577,7 @@ with tab_snapshot:
                                   state_df=attendance, state_period="End of Year")
             if fig:
                 with col_b:
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
         if not mcas.empty:
             m_g10 = mcas[(mcas["TEST_GRADE"].astype(str) == "10")
@@ -593,7 +596,7 @@ with tab_snapshot:
             )
             if fig:
                 with col_a:
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
         if not mcas.empty:
             m_g10m = mcas[(mcas["TEST_GRADE"].astype(str) == "10")
@@ -612,7 +615,7 @@ with tab_snapshot:
             )
             if fig:
                 with col_b:
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
 
     st.divider()
@@ -650,7 +653,7 @@ with tab_snapshot:
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".1%",
                                   yaxis_title="% of Lynn residents", xaxis_title="School Year",
                                   legend_title="Leaving via")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
                 # Plain-language callout: charter outflow has roughly doubled.
                 charter_ts = out[out["ENR_REASON"] == "Charter School"].copy()
@@ -712,7 +715,7 @@ with tab_snapshot:
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                   yaxis_title="% kindergartners in full-day",
                                   xaxis_title="School Year")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
                 if not fdk_glitch.empty:
                     _gy = ", ".join(f"SY{int(y)}" for y in sorted(fdk_glitch["SY"]))
                     st.caption(
@@ -755,7 +758,7 @@ with tab_snapshot:
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                   yaxis_title="% of students with disabilities",
                                   xaxis_title="", legend_title="")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
                 st.caption(f"School year {latest_pl}.")
 
 
@@ -842,7 +845,7 @@ with tab_all_schools:
         # Sortable scorecard
         # -------------------------------------------------------------------
         display = filtered[[
-            "ORG_NAME", "TOTAL_CNT", "EL_PCT", "LI_PCT", "SWD_PCT",
+            "ORG_CODE", "ORG_NAME", "TOTAL_CNT", "EL_PCT", "LI_PCT", "SWD_PCT",
             "HN_PCT", "HL_PCT", "BAA_PCT", "AS_PCT", "WH_PCT",
         ]].rename(columns={
             "ORG_NAME": "School",
@@ -869,8 +872,51 @@ with tab_all_schools:
             if c.startswith("%"):
                 display[c] = display[c].apply(lambda x: f"{x:.0%}" if pd.notna(x) else "—")
 
-        st.dataframe(display.sort_values("School").style.apply(highlight_lehs, axis=1),
-                     use_container_width=True, hide_index=True, height=500)
+        # DESE accountability classification — latest determination per school,
+        # joined on the 8-digit org code. Missing rows (new/alt programs) show
+        # an em-dash rather than dropping the school from the table.
+        display["ORG_CODE"] = display["ORG_CODE"].astype(str).str.zfill(8)
+        _acct_sy = None
+        if not acct.empty and {"ORG_CODE", "CLASSIFICATION"}.issubset(acct.columns):
+            _acct = acct.copy()
+            _acct["ORG_CODE"] = _acct["ORG_CODE"].astype(str).str.zfill(8)
+            if "SY" in _acct.columns:
+                _acct = _acct.sort_values("SY")
+                _acct_sy = int(pd.to_numeric(_acct["SY"], errors="coerce").max())
+            _acct = _acct.groupby("ORG_CODE").tail(1)
+            display = display.merge(
+                _acct[["ORG_CODE", "CLASSIFICATION"]].rename(
+                    columns={"CLASSIFICATION": "Classification"}
+                ),
+                on="ORG_CODE", how="left",
+            )
+            display["Classification"] = display["Classification"].fillna("—")
+
+        # One-click link to each school's official DESE profile page.
+        display["DESE profile"] = display["ORG_CODE"].map(
+            lambda c: (
+                f"https://profiles.doe.mass.edu/profiles/student.aspx"
+                f"?orgcode={c}&orgtypecode=6"
+            )
+        )
+        display = display.drop(columns=["ORG_CODE"])
+
+        st.dataframe(
+            display.sort_values("School").style.apply(highlight_lehs, axis=1),
+            width="stretch", hide_index=True, height=500,
+            column_config={
+                "DESE profile": st.column_config.LinkColumn(
+                    "DESE profile", display_text="profile ↗",
+                ),
+            },
+        )
+        if _acct_sy is not None:
+            st.caption(
+                f"**Classification** is DESE's SY {_acct_sy} accountability "
+                f"determination (accountability_summary parquet). "
+                f"**DESE profile** opens the school's official page at "
+                f"profiles.doe.mass.edu."
+            )
 
         # -------------------------------------------------------------------
         # Scatter: enrollment vs % English Learner(s)
@@ -893,7 +939,7 @@ with tab_all_schools:
             **DEFAULT_LAYOUT, yaxis_tickformat=".0%",
             xaxis_title="Enrollment", yaxis_title="% English Learner(s)",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
         # Performance comparison
@@ -933,6 +979,54 @@ with tab_all_schools:
                     s_avg = s_avg.rename(columns={"M_PLUS_E_PCT": label})
                     perf = perf.merge(s_avg, on="ORG_CODE", how="left")
 
+        # -------------------------------------------------------------------
+        # Variance flags — which schools sit far from the district norm?
+        # z-scores vs. the unweighted mean of Lynn schools with published
+        # data, on two metrics already in this table: chronic absence and
+        # MCAS % M+E (row-mean of whichever M+E columns a school reports).
+        # |z| >= 1.5 gets flagged. Wording stays neutral — a flag means
+        # "far from the district norm", in either direction, not a rating.
+        # -------------------------------------------------------------------
+        Z_FLAG = 1.5
+
+        def _zscore(s: pd.Series) -> pd.Series:
+            s = pd.to_numeric(s, errors="coerce")
+            sd = s.std()
+            if pd.isna(sd) or sd == 0:
+                return pd.Series([pd.NA] * len(s), index=s.index)
+            return (s - s.mean()) / sd
+
+        _na_series = pd.Series([pd.NA] * len(perf), index=perf.index)
+        _z_chron = (
+            _zscore(perf["PCT_CHRON_ABS_10"])
+            if "PCT_CHRON_ABS_10" in perf.columns else _na_series
+        )
+        _mcas_cols = [c for c in [
+            "MCAS G10 ELA M+E%", "MCAS G10 Math M+E%",
+            "MCAS 3-8 ELA M+E%", "MCAS 3-8 Math M+E%",
+        ] if c in perf.columns]
+        _z_mcas = (
+            _zscore(perf[_mcas_cols].mean(axis=1)) if _mcas_cols else _na_series
+        )
+
+        def _flag_label(zc, zm) -> str:
+            notes = []
+            if pd.notna(zc) and abs(zc) >= Z_FLAG:
+                notes.append(
+                    f"chronic absence {'above' if zc > 0 else 'below'} "
+                    f"district norm (z {zc:+.1f})"
+                )
+            if pd.notna(zm) and abs(zm) >= Z_FLAG:
+                notes.append(
+                    f"MCAS M+E {'above' if zm > 0 else 'below'} "
+                    f"district norm (z {zm:+.1f})"
+                )
+            return "; ".join(notes)
+
+        perf["Stands out"] = [
+            _flag_label(zc, zm) for zc, zm in zip(_z_chron, _z_mcas)
+        ]
+
         perf_display = perf.copy().rename(columns={"ORG_NAME": "School"})
         for c in perf_display.columns:
             if c.endswith("%") or c in ("ATTEND_RATE", "PCT_CHRON_ABS_10"):
@@ -948,7 +1042,32 @@ with tab_all_schools:
             return [""] * len(row)
 
         st.dataframe(perf_display.sort_values("School").style.apply(highlight_lehs_perf, axis=1),
-                     use_container_width=True, hide_index=True, height=500)
+                     width="stretch", hide_index=True, height=500)
+
+        # Filtered callout listing the flagged schools, with enrollment n so
+        # small-school volatility is visible next to each flag.
+        _flagged = perf[perf["Stands out"] != ""].merge(
+            filtered[["ORG_CODE", "TOTAL_CNT"]], on="ORG_CODE", how="left",
+        )
+        if not _flagged.empty:
+            _lines = []
+            for _, fr in _flagged.sort_values("ORG_NAME").iterrows():
+                _n_txt = (
+                    f"{int(fr['TOTAL_CNT']):,} students"
+                    if pd.notna(fr.get("TOTAL_CNT")) else "enrollment n/a"
+                )
+                _lines.append(f"- **{fr['ORG_NAME']}** ({_n_txt}): {fr['Stands out']}")
+            st.markdown(
+                "**Statistical stand-outs** — schools at least 1.5 standard "
+                "deviations from the unweighted mean of Lynn schools on a "
+                "metric in this table:\n" + "\n".join(_lines)
+            )
+            st.caption(
+                "A flag is descriptive, not a quality rating — it marks a "
+                "value far from the district norm in either direction. "
+                "Smaller schools (see the enrollment shown) can swing on a "
+                "handful of students, so read their flags with extra caution."
+            )
 
         # -------------------------------------------------------------------
         # District-level totals
@@ -989,4 +1108,7 @@ data_downloads_panel({
     "School choice / outflow": load_dataset("school_choice"),
     "Early education (Pre-K & K)": load_dataset("early_education"),
     "SpEd placement settings": load_dataset("sped_placement"),
+    "Accountability classifications": acct,
 })
+
+page_footer()

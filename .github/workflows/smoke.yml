@@ -1,0 +1,74 @@
+name: Smoke test — all pages render
+
+# Runs Streamlit's AppTest harness over every dashboard page on each PR.
+# Catches the "merged but broken" class of failure (bad imports, schema
+# drift against the committed parquets, widget crashes) before it reaches
+# main. The data layer is committed to the repo, so no downloads are needed.
+#
+# Note: st.page_link(file_path) only resolves under the st.navigation
+# registry that Home.py builds at runtime, so the harness shims it to a
+# no-op when testing pages in isolation — everything else runs for real.
+
+on:
+  pull_request:
+    paths:
+      - "pages/**"
+      - "utils/**"
+      - "Home.py"
+      - "data/processed/**"
+      - "requirements.txt"
+      - ".github/workflows/smoke.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install system deps for geopandas
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y gdal-bin libgdal-dev libgeos-dev
+
+      - name: Install Python deps
+        run: pip install -r requirements.txt
+
+      - name: AppTest every page + Home boot
+        run: |
+          python - <<'EOF'
+          import glob, sys, traceback
+          import streamlit as st
+          st.page_link = lambda *a, **k: None  # no nav registry under from_file
+          from streamlit.testing.v1 import AppTest
+
+          fails = []
+          targets = sorted(glob.glob("pages/*.py")) + ["Home.py"]
+          for f in targets:
+              try:
+                  at = AppTest.from_file(f, default_timeout=180).run()
+                  if at.exception:
+                      fails.append((f, [str(e.value) for e in at.exception]))
+                      print(f"FAIL {f}: {[str(e.value)[:160] for e in at.exception]}")
+                  else:
+                      print(f"OK   {f}")
+              except Exception:
+                  fails.append((f, traceback.format_exc(limit=3)))
+                  print(f"ERROR {f}")
+          if fails:
+              print(f"\n{len(fails)} page(s) failed:")
+              for f, err in fails:
+                  print(" -", f)
+              sys.exit(1)
+          print(f"\nAll {len(targets)} targets rendered cleanly.")
+          EOF

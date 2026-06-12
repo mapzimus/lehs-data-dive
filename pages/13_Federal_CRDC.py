@@ -6,7 +6,7 @@ import streamlit as st
 
 from utils.branding import page_footer, sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, GATEWAY_PEER_COLOR, LEHS_GOLD, LEHS_NAVY
-from utils.constants import LYNN_DISTRICT_CODE
+from utils.constants import LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
 from utils.data_loader import load_dataset
 
 st.set_page_config(page_title="Federal CRDC | LEHS", page_icon="📊", layout="wide")
@@ -98,6 +98,18 @@ if not staffing.empty:
         c3.metric("Students per social worker", _ratio(lehs.get("SOCIAL_WORKER_FTE")))
         c4.metric("Students per psychologist", _ratio(lehs.get("PSYCHOLOGIST_FTE")))
 
+        # Spell the counselor load out against the ASCA benchmark so the
+        # 250:1 reference line below has an explicit takeaway.
+        _cfte = lehs.get("COUNSELOR_FTE")
+        if pd.notna(_cfte) and float(_cfte) > 0:
+            _per_counselor = enr / float(_cfte)
+            st.markdown(
+                f"**LEHS's counselor load is {_per_counselor / 250:.1f}× the "
+                f"recommended 250 : 1** — {_per_counselor:,.0f} students per "
+                f"counselor FTE against the American School Counselor "
+                f"Association benchmark."
+            )
+
     # Same-district comparison: students per counselor at the three big HS.
     sib = staff[staff["SCHOOL_NAME"].isin(SIBLING_NAMES)].copy()
     sib = sib[(sib["STUDENT_ENROLLMENT"] > 0) & (sib["COUNSELOR_FTE"] > 0)]
@@ -117,7 +129,7 @@ if not staffing.empty:
         fig.update_layout(**DEFAULT_LAYOUT,
                           title="Students per school counselor — Lynn high schools",
                           xaxis_title="Students per counselor FTE")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 else:
     st.info("Support-staff data is unavailable in the current build.")
 
@@ -170,7 +182,7 @@ if not offerings.empty:
         fig.update_layout(**DEFAULT_LAYOUT,
                           title="Students enrolled in AP — Lynn high schools (2021-22)",
                           xaxis_title="AP-enrolled students")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     # Offering matrix (Yes/No) for the schools that offer any advanced course.
     flag_cols = ["AP_OFFERED", "IB_OFFERED", "CALC_OFFERED", "PHYSICS_OFFERED",
@@ -184,7 +196,7 @@ if not offerings.empty:
                 "ALGEBRA_II_OFFERED": "Algebra II"}
         show = matrix[["SCHOOL_NAME"] + have_flags].rename(columns={"SCHOOL_NAME": "School", **nice})
         st.markdown("**Advanced-course offering matrix**")
-        st.dataframe(show, use_container_width=True, hide_index=True)
+        st.dataframe(show, width="stretch", hide_index=True)
 else:
     st.info("Course-offering data is unavailable in the current build.")
 
@@ -225,7 +237,7 @@ if not discipline.empty:
         fig.update_layout(**DEFAULT_LAYOUT, barmode="stack",
                           title="LEHS out-of-school suspensions by race/ethnicity (2021-22)",
                           xaxis_title="Students")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     # All-students summary across discipline measures (LEHS).
     tot = lehs_d[lehs_d["GROUP_DIM"] == "total"]
@@ -242,10 +254,106 @@ if not discipline.empty:
              "LEHS students (all groups)": [row.get(k) for k in labels]}
         )
         st.markdown("**LEHS discipline summary — all students**")
-        st.dataframe(summary, use_container_width=True, hide_index=True)
+        st.dataframe(summary, width="stretch", hide_index=True)
+
+    # --- Disparate-impact check ------------------------------------------
+    # CRDC publishes suspension COUNTS only, so rate denominators come from
+    # the DESE enrollment file for the same school year (SY 2022 = 2021-22).
+    # Estimated subgroup enrollment = DESE share × total enrollment, so the
+    # resulting rates and ratios are approximate (see the perturbation
+    # caveat at the top of the page). Flag any group whose out-of-school
+    # suspension rate is at least 2× the school-wide rate.
+    _GROUP_ENR_COLS = {
+        "Hispanic/Latino": "HL_PCT",
+        "Asian": "AS_PCT",
+        "Black/African American": "BAA_PCT",
+        "White": "WH_PCT",
+        "Two or More Races": "MNHL_PCT",
+        "Native Hawaiian/Pacific Islander": "NHPI_PCT",
+        "American Indian/Alaska Native": "AIAN_PCT",
+        "English Learner": "EL_PCT",
+        "Students w/ Disabilities": "SWD_PCT",
+    }
+    _MIN_GROUP_N = 20  # below this, a one-student swing moves the rate too much
+
+    _enr22 = load_dataset("enrollment_demographics")
+    _lehs_enr22 = pd.DataFrame()
+    if not _enr22.empty and {"ORG_CODE", "SY"} <= set(_enr22.columns):
+        _lehs_enr22 = _enr22[
+            (_enr22["ORG_CODE"].astype(str) == LEHS_SCHOOL_CODE)
+            & (pd.to_numeric(_enr22["SY"], errors="coerce") == 2022)
+        ]
+
+    _oss_cols_ok = {"OSS_SINGLE_COUNT", "OSS_MULTIPLE_COUNT"} <= set(disc.columns)
+    if not tot.empty and not _lehs_enr22.empty and _oss_cols_ok:
+        _e = _lehs_enr22.iloc[0]
+        _total_n = pd.to_numeric(_e.get("TOTAL_CNT"), errors="coerce")
+        _tot_oss = pd.to_numeric(
+            tot.iloc[0][["OSS_SINGLE_COUNT", "OSS_MULTIPLE_COUNT"]],
+            errors="coerce",
+        ).sum(min_count=1)
+        if pd.notna(_total_n) and _total_n > 0 and pd.notna(_tot_oss) and _tot_oss > 0:
+            _school_rate = float(_tot_oss) / float(_total_n)
+            _flags: list[str] = []
+            _checked = 0
+            _sub = lehs_d[lehs_d["GROUP_DIM"] != "total"]
+            for _, _r in _sub.iterrows():
+                _col = _GROUP_ENR_COLS.get(str(_r.get("GROUP", "")).strip())
+                if not _col or _col not in _lehs_enr22.columns:
+                    continue
+                _share = pd.to_numeric(_e.get(_col), errors="coerce")
+                if pd.isna(_share):
+                    continue
+                if _share > 1.5:  # stored as 0-100 rather than a 0-1 fraction
+                    _share = _share / 100.0
+                _grp_n = float(_share) * float(_total_n)
+                if _grp_n < _MIN_GROUP_N:
+                    continue  # too small for a stable rate
+                _grp_oss = pd.to_numeric(
+                    _r[["OSS_SINGLE_COUNT", "OSS_MULTIPLE_COUNT"]],
+                    errors="coerce",
+                ).sum(min_count=1)
+                if pd.isna(_grp_oss):
+                    continue
+                _checked += 1
+                _ratio_vs_school = (float(_grp_oss) / _grp_n) / _school_rate
+                if _ratio_vs_school >= 2.0:
+                    _flags.append(
+                        f"**{_r['GROUP']}** — {int(_grp_oss)} students suspended "
+                        f"out of ≈{_grp_n:,.0f} enrolled "
+                        f"(≈{float(_grp_oss) / _grp_n:.1%}), "
+                        f"{_ratio_vs_school:.1f}× the school-wide rate"
+                    )
+            if _flags:
+                st.warning(
+                    "**Disparate-impact check (2021-22).** The school-wide "
+                    f"out-of-school suspension rate was ≈{_school_rate:.1%} "
+                    f"({int(_tot_oss)} of {int(_total_n):,} students). The "
+                    "following group(s) were suspended at **2× or more** that "
+                    "rate:\n\n- " + "\n- ".join(_flags) + "\n\n"
+                    "Counts are privacy-perturbed and denominators are "
+                    "estimated from DESE enrollment shares, so treat these "
+                    "ratios as approximate."
+                )
+            elif _checked:
+                st.caption(
+                    f"Disparate-impact check (2021-22): no student group's "
+                    f"out-of-school suspension rate exceeds 2× the school-wide "
+                    f"rate of ≈{_school_rate:.1%} in this snapshot "
+                    f"(groups with fewer than {_MIN_GROUP_N} estimated "
+                    f"students are excluded as too small to rate)."
+                )
 
     with st.expander("Full discipline table (all schools × student groups)"):
-        st.dataframe(disc, use_container_width=True, height=400)
+        st.dataframe(disc, width="stretch", height=400)
+
+    st.markdown(
+        "**Keep going:** state-reported discipline rates, days missed, and "
+        "multi-year trends live on "
+        "[Discipline & Climate](/Discipline_and_Climate?embed=true); how "
+        "chronic absenteeism and discipline feed DESE's official rating is "
+        "on [State Accountability](/Accountability?embed=true)."
+    )
 else:
     st.info("Discipline data is unavailable in the current build.")
 

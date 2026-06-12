@@ -27,7 +27,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from utils.branding import sidebar_attribution
+from utils.branding import page_footer, sidebar_attribution
 from utils.constants import IMAGES_DIR
 
 st.set_page_config(page_title="Maps | LEHS", page_icon="🗺️", layout="wide")
@@ -108,7 +108,7 @@ def _preview_or_placeholder(
                 unsafe_allow_html=True,
             )
         else:
-            st.image(str(path), use_container_width=True)
+            st.image(str(path), width="stretch")
     else:
         st.markdown(
             f"""
@@ -159,7 +159,13 @@ with c_lynn:
         "Open Lynn Maps  ↗",
         "https://maxwellhowegis.com/Lynn-data-dive/maps/",
         type="primary",
-        use_container_width=True,
+        width="stretch",
+    )
+
+    st.caption(
+        "**How to read it:** click any census tract for its community-health "
+        "profile, or click a school dot for enrollment and outcomes — darker "
+        "shading means a higher value for the selected layer."
     )
 
     st.markdown(
@@ -212,7 +218,13 @@ with c_atlas:
         "Open MA Atlas  ↗",
         "https://maxwellhowegis.com/ma-atlas/",
         type="primary",
-        use_container_width=True,
+        width="stretch",
+    )
+
+    st.caption(
+        "**How to read it:** pick a metric to shade the whole state, then "
+        "click any town, district, or school point to open its detail panel "
+        "with the underlying numbers."
     )
 
     st.markdown(
@@ -274,3 +286,5 @@ geography honest.
 other chart types this dashboard uses, with live examples.
 """
 )
+
+page_footer()

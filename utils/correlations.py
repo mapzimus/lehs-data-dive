@@ -1,5 +1,5 @@
 """
-Correlation Lab helpers — used by pages/12_Correlation_Lab.py.
+Correlation Lab helpers — used by pages/Correlation_Lab.py.
 
 Cross-domain correlation analysis across the master panel.
 """

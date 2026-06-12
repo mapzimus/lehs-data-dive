@@ -165,7 +165,7 @@ with st.expander("How the score is built — weights, the 75% bar, and LEHS's ma
         [{"Population": pop, **{c: (f"{w[c]:g}%" if c in w else "—") for c in cats}}
          for pop, w in ACCT_WEIGHTS_HS.items()]
     )
-    st.dataframe(wt, use_container_width=True, hide_index=True)
+    st.dataframe(wt, width="stretch", hide_index=True)
     st.markdown(
         f"- **Cumulative** progress = last year × 40% + this year × 60% "
         f"(LEHS: {sy-1} {row['CRIT_PRIOR']:.0f}% × 40% + {sy} {row['CRIT_CURRENT']:.0f}% "
@@ -203,7 +203,7 @@ if not framework.empty:
     fig.update_layout(**DEFAULT_LAYOUT, yaxis=dict(title="Points earned (of 4)", range=[0, 4.4]),
                       xaxis_title="", legend_title="")
     fig.update_xaxes(tickangle=-30)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     st.caption(
         "Indicators sitting at 0 points are the ones to target: each is a place the "
         "school declined year-over-year or fell more than a threshold below its DESE target."
@@ -236,7 +236,7 @@ else:
         fig.update_layout(**DEFAULT_LAYOUT, title=f"LEHS statewide percentile by indicator (SY {sy_lbl})",
                           xaxis=dict(title="Percentile (1 = lowest, 99 = highest)", range=[0, 100]),
                           yaxis=dict(autorange="reversed"))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         st.caption(
             "Percentiles are built on a **3-year weighted average** (15% two years "
             "ago / 25% last year / 60% this year), so they lag a single year's swing. "
@@ -252,7 +252,7 @@ else:
         show["PERCENTILE"] = show["PERCENTILE"].astype(int)
         show.columns = ["Student group", "Overall percentile (1–99)"]
         st.markdown("**Overall percentile by student group**")
-        st.dataframe(show, use_container_width=True, hide_index=True)
+        st.dataframe(show, width="stretch", hide_index=True)
 
 st.divider()
 
@@ -304,7 +304,7 @@ else:
                 ))
                 fig.update_layout(**DEFAULT_LAYOUT, title=ulabel, xaxis_title=UNIT_LABEL[unit],
                                   legend_title="", height=80 + 46 * len(part))
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
             # Table
             tbl = []
@@ -322,7 +322,7 @@ else:
                     "Required change": ("—" if req is None else f"{req:+.1f}"),
                     "Path": ("" if pd.isna(r.get("PATH")) or not r.get("PATH") else str(r["PATH"])),
                 })
-            st.dataframe(pd.DataFrame(tbl), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(tbl), width="stretch", hide_index=True)
     st.caption(
         "Growth (SGP) has no point-in-time target — it's scored on percentile bands. "
         "For **dropout** and **chronic absenteeism**, lower is better, so the target "
@@ -430,7 +430,7 @@ else:
                               annotation_position="top right", annotation_font=dict(size=10, color=LEHS_GOLD))
     fig.update_layout(**DEFAULT_LAYOUT, title=f"{ti} — {tgrp}", yaxis_title=tg_spec["ytitle"],
                       xaxis_title="School Year", legend_title="")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     note = tg_spec.get("note")
     if note == "sgp":
         st.caption(sgp_methodology_note())
@@ -493,7 +493,7 @@ for _, r in gd.iterrows():
         "Points": "—" if pd.isna(r["POINTS"]) else f"{int(r['POINTS'])}/4",
         "DESE reason": "" if pd.isna(r["REASON"]) else str(r["REASON"]),
     })
-st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
 st.caption(
     "Growth indicators are scored on mean SGP bands (no point-in-time target). "
     "A blank cell means DESE suppressed it — the group was too small to report. "
@@ -550,7 +550,7 @@ else:
                       annotation_font=dict(size=10, color=LYNN_SIBLING_COLOR))
     fig.update_layout(**DEFAULT_LAYOUT, title=f"{ind_pick} — by student group (SY {sy_lbl})",
                       xaxis_title=UNIT_LABEL[unit], legend_title="")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     st.caption(
         "Gold tick = each group's DESE target. Lower-is-better indicators (dropout, "
         "chronic absenteeism) read inversely — a bar past its target is a *miss*. "
@@ -585,7 +585,7 @@ else:
             "LEHS − State": "—" if pd.isna(delta) else f"{delta:+.1f}",
         })
     comp = pd.DataFrame(comp_rows)
-    st.dataframe(comp, use_container_width=True, hide_index=True)
+    st.dataframe(comp, width="stretch", hide_index=True)
     st.caption(
         "Units differ by indicator (scaled scores vs %), so this is a table, not a "
         "single chart. For achievement, a negative *LEHS − State* means LEHS trails; "
@@ -631,7 +631,7 @@ if not strip.empty:
     fig.update_layout(**DEFAULT_LAYOUT, title="Accountability percentile — LEHS among its peers",
                       xaxis=dict(title="Percentile (1–99)", range=[0, 100]), legend_title="",
                       height=320)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     st.caption("Every peer school in the dataset, plotted by its 2025 accountability percentile.")
 
 # Sibling table
@@ -642,7 +642,7 @@ if not peers.empty:
                   "CRIT_CUMULATIVE", "FEDERAL_DESIGNATION"]].copy()
     show.columns = ["School", "Classification", "Percentile",
                     f"Annual target % (SY {sy_lbl})", "Cumulative %", "Federal designation"]
-    st.dataframe(show, use_container_width=True, hide_index=True)
+    st.dataframe(show, width="stretch", hide_index=True)
     st.caption("Lynn's comprehensive + alternative high schools — same district and city.")
 
 st.divider()

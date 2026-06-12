@@ -217,6 +217,17 @@ GENDER_PALETTE = {
     "Male":       "#A6C8E8",  # pastel sky
     "Non-binary": "#F4D88A",  # cream gold
 }
+
+# Lynn Vocational Technical Institute — a teal distinct from navy + gold, so the
+# three Lynn comprehensive HS read apart on finance / discipline charts. Was
+# defined inline in pages 7 + 8; centralized here so a rebrand is one edit.
+LVTI_COLOR = "#26A69A"
+
+# Sequential blue ramp for the five MCAS / AP score levels (ordinal 1-5). Was
+# defined inline in pages/4; centralized for cross-page consistency.
+AP_SCORE_COLORS = {
+    "1": "#DEEBF7", "2": "#9ECAE1", "3": "#6BAED6", "4": "#3182BD", "5": "#08519C",
+}
 MOBILITY_PALETTE = {
     "Stability":       LEHS_NAVY,
     "Churn":           "#E89B9B",  # pastel coral — muted "negative"

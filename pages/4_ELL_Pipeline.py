@@ -1,4 +1,4 @@
-﻿"""
+"""
 Section 3 — English Learners.
 
 The central narrative thread: tracking English Learner outcomes from initial
@@ -12,9 +12,14 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from utils.branding import sidebar_attribution
+from utils.branding import crosslink_callout, page_footer, sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
-from utils.constants import LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE, PROCESSED_DIR
+from utils.constants import (
+    LEHS_SCHOOL_CODE,
+    LYNN_DISTRICT_CODE,
+    PROCESSED_DIR,
+    STATE_COLOR,
+)
 from utils.data_loader import load_dataset
 from utils.interpret import sy_label
 
@@ -75,7 +80,7 @@ fig.update_layout(
     yaxis_title="% English Learner",
     xaxis_title="School Year",
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 st.caption(
     "The EL share at LEHS has more than doubled since the early 2000s — a "
@@ -140,12 +145,18 @@ if wida_path.exists():
         annotation_position="bottom right",
         annotation_font=dict(size=11, color="gray"),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     st.caption(
         "Bars show the **average score in each domain**. The dashed line marks "
         "the **4.2 overall-composite** cutoff DESE uses for reclassification — a "
         "student is evaluated on their combined score, so a single domain "
         "sitting above or below 4.2 doesn't by itself reclassify anyone."
+    )
+else:
+    st.info(
+        "WIDA ACCESS summary not available — run "
+        "scripts/build_wida_state_summary.py to generate "
+        "data/processed/wida_state_summary.json."
     )
 
 st.divider()
@@ -208,7 +219,7 @@ else:
             yaxis_title="% making progress",
             xaxis_title="School Year",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         # ----- Honest callout: LEHS RE1 sits far below district + state -----
         # Pull the most recent year shared across all three series.
@@ -237,6 +248,124 @@ else:
                 "Either way the pattern warrants a closer look, not a footnote."
             )
 
+        # ----- HERO: RE1 (making progress), HS-grade band — LEHS vs Lynn vs MA -----
+        # The headline inequity of the page. Uses the HS reporting band (GRADE=='HS')
+        # rather than the all-grades ALL band so the comparison is apples-to-apples
+        # for a 9-12 high school. Built from a fresh load because `el` above was
+        # narrowed to GRADE=='ALL'.
+        _el_hs = load_dataset("el_access")
+        if not _el_hs.empty:
+            _el_hs = _el_hs[_el_hs["GRADE"] == "HS"].dropna(subset=["SY"]).copy()
+            _el_hs["SY"] = _el_hs["SY"].astype(int)
+            _hs_lehs = _el_hs[_el_hs["ORG_CODE"] == LEHS_SCHOOL_CODE].sort_values("SY")
+            _hs_dist = _el_hs[
+                (_el_hs["DIST_CODE"] == LYNN_DISTRICT_CODE)
+                & (_el_hs["ORG_TYPE"] == "District")
+            ].sort_values("SY")
+            _hs_state = _el_hs[_el_hs["ORG_TYPE"] == "State"].sort_values("SY")
+
+            if not _hs_lehs.empty:
+                _hs_cur = _hs_lehs.iloc[-1]
+                _hs_sy = int(_hs_cur["SY"])
+                _hs_sy_lbl = sy_label(_hs_sy)
+
+                def _hs_re_at(frame, col, sy):
+                    f = frame[(frame["SY"] == sy)].dropna(subset=[col])
+                    return float(f.iloc[-1][col]) if not f.empty else None
+
+                _bar_rows = []
+                for _name, _frame, _color in [
+                    ("Lynn English", _hs_lehs, LEHS_GOLD),
+                    ("Lynn district", _hs_dist, LEHS_NAVY),
+                    ("Massachusetts", _hs_state, STATE_COLOR),
+                ]:
+                    _v = _hs_re_at(_frame, "RE1_PCT", _hs_sy)
+                    if _v is not None:
+                        _bar_rows.append((_name, _v, _color))
+
+                if _bar_rows:
+                    st.markdown(
+                        f"**The headline inequity — EL students making progress "
+                        f"(ACCESS RE1, high-school grades, SY {_hs_sy_lbl})**"
+                    )
+                    _bar_df = pd.DataFrame(
+                        _bar_rows, columns=["Scope", "RE1_PCT", "Color"]
+                    )
+                    fig_hero = go.Figure(go.Bar(
+                        x=_bar_df["Scope"],
+                        y=_bar_df["RE1_PCT"],
+                        text=_bar_df["RE1_PCT"].apply(lambda x: f"{x:.0%}"),
+                        textposition="outside",
+                        marker_color=_bar_df["Color"],
+                        cliponaxis=False,
+                    ))
+                    fig_hero.update_layout(
+                        **DEFAULT_LAYOUT,
+                        yaxis_tickformat=".0%",
+                        yaxis_title="% making progress (RE1)",
+                        yaxis_range=[0, max(_bar_df["RE1_PCT"].max() * 1.25, 0.1)],
+                        xaxis_title="",
+                    )
+                    st.plotly_chart(fig_hero, width="stretch")
+                    _lehs_re1_hs = _bar_df.loc[
+                        _bar_df["Scope"] == "Lynn English", "RE1_PCT"
+                    ]
+                    _state_re1_hs = _bar_df.loc[
+                        _bar_df["Scope"] == "Massachusetts", "RE1_PCT"
+                    ]
+                    if not _lehs_re1_hs.empty and not _state_re1_hs.empty:
+                        _gap_pts = round(
+                            (_state_re1_hs.iloc[0] - _lehs_re1_hs.iloc[0]) * 100
+                        )
+                        st.caption(
+                            f"**This gap is the single most important number on the "
+                            f"page.** At the high-school level, only "
+                            f"**{_lehs_re1_hs.iloc[0]:.0%}** of LEHS English Learners "
+                            f"are credited with making progress toward English "
+                            f"proficiency, roughly **{_gap_pts} percentage points** "
+                            f"below the Massachusetts rate. Everything downstream — "
+                            f"MCAS, reclassification, graduation — flows from whether "
+                            f"these students are gaining English."
+                        )
+
+                    # ----- FUNNEL: LEHS RE1 -> RE2 -> RE3 (latest HS year) -----
+                    # Makes the proficiency drop-off visceral: most ELs credited with
+                    # progress, far fewer attain proficiency, and exits track attainment.
+                    _re1 = _hs_re_at(_hs_lehs, "RE1_PCT", _hs_sy)
+                    _re2 = _hs_re_at(_hs_lehs, "RE2_PCT", _hs_sy)
+                    _re3 = _hs_re_at(_hs_lehs, "RE3_PCT", _hs_sy)
+                    _fn_stages, _fn_vals = [], []
+                    for _lbl, _val in [
+                        ("Making progress (RE1)", _re1),
+                        ("Attained proficiency (RE2)", _re2),
+                        ("Exited EL status (RE3)", _re3),
+                    ]:
+                        if _val is not None:
+                            _fn_stages.append(_lbl)
+                            _fn_vals.append(_val)
+                    if len(_fn_vals) >= 2:
+                        st.markdown(
+                            f"**From progress to proficiency to exit — LEHS English "
+                            f"Learners (SY {_hs_sy_lbl})**"
+                        )
+                        fig_fn = go.Figure(go.Funnel(
+                            y=_fn_stages,
+                            x=_fn_vals,
+                            text=[f"{v:.0%}" for v in _fn_vals],
+                            textposition="inside",
+                            textfont=dict(color="white", size=14),
+                            marker=dict(color=[LEHS_GOLD, LEHS_NAVY, STATE_COLOR][:len(_fn_vals)]),
+                            connector=dict(line=dict(color="#B0BEC5", width=1)),
+                        ))
+                        fig_fn.update_layout(**DEFAULT_LAYOUT, height=320)
+                        st.plotly_chart(fig_fn, width="stretch")
+                        st.caption(
+                            "RE3 (exited) tracks attainment rather than the much larger "
+                            "'making progress' pool — most ELs who clear the overall "
+                            "ACCESS threshold reclassify the same year, so the exit bar "
+                            "reflects how few reach proficiency, not a separate barrier."
+                        )
+
         # ----- Companion RE2 (attained proficiency) trend -----
         re2_frames = []
         for d, name in [(lehs_el, "Lynn English"),
@@ -258,7 +387,7 @@ else:
                     yaxis_title="% attaining proficiency",
                     xaxis_title="School Year",
                 )
-                st.plotly_chart(fig2, use_container_width=True)
+                st.plotly_chart(fig2, width="stretch")
                 st.caption(
                     "RE2 — the share **attaining** proficiency outright — is a "
                     "higher bar than RE1 and runs lower everywhere. LEHS trails "
@@ -318,7 +447,7 @@ for subject_code, subject_label in [("ELA", "English Language Arts"), ("MATH", "
     # movement is interpretable; readers can click it on in the legend.
     fig.update_traces(visible="legendonly",
                       selector=dict(name="Former English Learners"))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     st.caption(
         "**Former English Learners is hidden by default — click it in the "
         "legend to show it.** That subgroup is small (n ≈ 12-25 each year) and "
@@ -408,7 +537,7 @@ if fmr_path.exists():
                     yaxis_title="% Meeting + Exceeding",
                     xaxis_title="Years since exiting EL status (All = combined)",
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
         else:
             st.info("No FormerEL records found in Lynn data.")
 else:
@@ -441,6 +570,24 @@ population growth shown above.
 """
 )
 
+crosslink_callout(
+    "EL progress (ACCESS RE1) is one of the indicators DESE folds directly "
+    "into LEHS's accountability determination — so the RE1 gap above is not "
+    "just an instructional concern, it is a measurable drag on the school's "
+    "state rating. The **Accountability** page shows how heavily this weighs.",
+    "Accountability",
+    "See how EL progress feeds the determination →",
+)
+
+crosslink_callout(
+    "Whether these outcomes improve depends on instructional capacity: how "
+    "many LEHS teachers are licensed for English learners, and whether that "
+    "capacity has kept pace with the EL population growth shown above. The "
+    "**Teachers & Workforce** page tracks ELL-instructional staffing.",
+    "Teachers_and_Workforce",
+    "Open Teachers & Workforce →",
+)
+
 # >>> auto: csv downloads <<<
 try:
     from utils.charts import data_downloads_panel as _dl
@@ -452,4 +599,6 @@ try:
 except NameError:
     # one of the dataset variables wasn't defined on this run
     pass
+
+page_footer()
 
