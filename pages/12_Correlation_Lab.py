@@ -12,8 +12,14 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from utils.branding import sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, GATEWAY_PEER_COLOR, LEHS_GOLD, LEHS_NAVY
+from utils.branding import page_footer, sidebar_attribution
+from utils.charts import (
+    DEFAULT_LAYOUT,
+    GATEWAY_PEER_COLOR,
+    LEHS_GOLD,
+    LEHS_NAVY,
+    csv_download,
+)
 from utils.constants import PROCESSED_DIR
 from utils.correlations import interpret_r, pearson, regression_line
 from utils.data_loader import load_dataset
@@ -32,6 +38,15 @@ st.markdown(
 st.caption(
     "**Note:** Correlation is not causation. Patterns here are starting points "
     "for questions, not proof of cause and effect."
+)
+st.caption(
+    "**A concrete confounder to keep in mind:** the gateway cities differ "
+    "sharply in who they enroll — English-learner share and low-income share "
+    "vary widely from city to city — and those shared demographics can drive "
+    "*both* axes of a scatter at once. Two metrics can look tightly linked "
+    "simply because each tracks the same underlying population mix, not "
+    "because one moves the other. This tool surfaces patterns worth "
+    "investigating; it cannot say what causes them."
 )
 
 # ---------------------------------------------------------------------------
@@ -268,14 +283,10 @@ def axis_tickformat(col: str) -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# Curated correlations
+# Latest-year cross-section — one row per school, most recent value per
+# metric. Shared by the strongest-pairs scan, the curated correlations, and
+# the custom explorer below.
 # ---------------------------------------------------------------------------
-
-st.header("Curated Correlations")
-st.caption(
-    "Cross-domain questions across all 26 gateway-city HS. Each scatter uses "
-    "the most recent year for which both metrics are available per school."
-)
 
 
 @st.cache_data(show_spinner=False)
@@ -309,6 +320,111 @@ latest["is_lehs"] = latest["ORG_CODE"] == "01630510"
 latest["School"] = latest.apply(
     lambda r: "Lynn English" if r["is_lehs"] else r["City"],
     axis=1,
+)
+
+# ---------------------------------------------------------------------------
+# Strongest relationships right now — an O(k²) scan over every numeric metric
+# pair on the latest-year cross-section, surfacing the top |r| pairs so the
+# reader doesn't have to hunt through the explorer combinatorics by hand.
+# ---------------------------------------------------------------------------
+
+st.header("Strongest Relationships Right Now")
+st.caption(
+    "Every numeric metric pair in the panel, scanned on the latest year per "
+    "school. Top 5 by |r|; pairs with |r| < 0.40, fewer than 10 schools, or a "
+    "trivial mechanical link are dropped. The confounder note above applies "
+    "doubly here — a strong r is a pattern, not a cause."
+)
+
+# Pairs that are mechanically or definitionally linked — the same instrument
+# in two subjects, near-complements, or part/whole shares of the same total.
+# A high |r| inside these groups is true but uninformative, so the scan skips
+# them. Pairs where BOTH sides are demographic-composition columns are skipped
+# for the same reason: they describe who lives in each city, not anything a
+# school does.
+_NEAR_DUP_GROUPS = [
+    {"GradRate_4yr", "GradRate_5yr", "Dropout"},
+    {"MCAS_G10_ELA", "MCAS_G10_Math"},
+    {"SGP_ELA", "SGP_Math"},
+    {"SAT_Math", "SAT_Reading"},
+    {"ChronicAbsence", "AttendanceRate"},
+    {"ImmediateCollege", "College_2yr", "College_4yr", "CollegePersist"},
+]
+_DEMOGRAPHIC_COLS = {
+    "Enrollment", "ELL_pct", "LowIncome_pct", "SPED_pct", "HighNeeds_pct",
+    "Hispanic_pct", "Black_pct", "Asian_pct", "White_pct",
+    "FirstLangNotEnglish_pct",
+}
+
+
+def _is_near_duplicate(a: str, b: str) -> bool:
+    if a == b:
+        return True
+    if a in _DEMOGRAPHIC_COLS and b in _DEMOGRAPHIC_COLS:
+        return True
+    return any(a in g and b in g for g in _NEAR_DUP_GROUPS)
+
+
+@st.cache_data(show_spinner=False)
+def strongest_pairs(
+    latest_df: pd.DataFrame,
+    cols: tuple[str, ...],
+    min_abs_r: float = 0.40,
+    min_n: int = 10,
+    top_k: int = 5,
+) -> pd.DataFrame:
+    """Pearson r for all metric pairs on the latest-year cross-section.
+
+    Cached because the scan is O(k²) over ~30 metrics; it only re-runs when
+    the underlying panel changes.
+    """
+    rows = []
+    for i, x in enumerate(cols):
+        for y in cols[i + 1:]:
+            if _is_near_duplicate(x, y):
+                continue
+            s = pearson(latest_df, x, y)
+            if pd.isna(s["r"]) or abs(s["r"]) < min_abs_r or s["n"] < min_n:
+                continue
+            rows.append({"x": x, "y": y, "r": s["r"], "n": s["n"]})
+    if not rows:
+        return pd.DataFrame(columns=["x", "y", "r", "n"])
+    out = pd.DataFrame(rows)
+    return out.reindex(out["r"].abs().sort_values(ascending=False).index).head(top_k)
+
+
+_top_pairs = strongest_pairs(latest, tuple(NUMERIC_COLS))
+if _top_pairs.empty:
+    st.info("No metric pair clears |r| ≥ 0.40 on the current panel.")
+else:
+    st.dataframe(
+        pd.DataFrame({
+            "Metric A": _top_pairs["x"].map(axis_label),
+            "Metric B": _top_pairs["y"].map(axis_label),
+            "Pearson r": _top_pairs["r"].map(lambda v: f"{v:+.2f}"),
+            "Direction & strength": _top_pairs["r"].map(interpret_r),
+            "n (schools)": _top_pairs["n"].astype(int).to_numpy(),
+        }),
+        use_container_width=True, hide_index=True,
+    )
+    st.caption(
+        "Excluded as trivial: self pairs, same-instrument subject pairs "
+        "(e.g., MCAS ELA vs. math), near-complements (attendance vs. chronic "
+        "absence), part/whole college-going shares, and pairs where both "
+        "sides are demographic-composition columns. Recreate any row in the "
+        "Custom Correlation Explorer below to see the scatter."
+    )
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Curated correlations
+# ---------------------------------------------------------------------------
+
+st.header("Curated Correlations")
+st.caption(
+    "Cross-domain questions across all 26 gateway-city HS. Each scatter uses "
+    "the most recent year for which both metrics are available per school."
 )
 
 curated_pairs = [
@@ -400,6 +516,18 @@ if len(data) >= 3:
         xaxis_tickformat=axis_tickformat(x_var), yaxis_tickformat=axis_tickformat(y_var),
     )
     st.plotly_chart(fig, use_container_width=True)
+
+    # Download exactly what's plotted: one row per point with the school
+    # label(s) and the two selected metrics (plus SY in panel scope).
+    _dl_cols = list(dict.fromkeys(
+        c for c in ["SY", "School", "City", x_var, y_var] if c in data.columns
+    ))
+    csv_download(
+        data[_dl_cols],
+        f"explorer_{x_var}_vs_{y_var}.csv",
+        label="⬇ Download this scatter's data (CSV)",
+        key="dl_explorer_scatter",
+    )
 
     stats = pearson(data, x_var, y_var)
     reg = regression_line(data, x_var, y_var)
@@ -592,4 +720,6 @@ try:
 except NameError:
     # one of the dataset variables wasn't defined on this run
     pass
+
+page_footer()
 

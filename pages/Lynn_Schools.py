@@ -14,13 +14,15 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from utils.branding import sidebar_attribution
+from utils.branding import page_footer, sidebar_attribution
 from utils.charts import (
     DEFAULT_LAYOUT,
     LEHS_GOLD,
     LEHS_NAVY,
     SUBGROUP_PALETTE,
     data_downloads_panel,
+    span_years,
+    with_year_gaps,
 )
 from utils.constants import (
     IMAGES_DIR,
@@ -54,6 +56,7 @@ mcas = load_dataset("mcas_achievement")
 ap_part = load_dataset("ap_participation")
 retention = load_dataset("grade_retention")
 el_access = load_dataset("el_access")
+discipline = load_dataset("discipline_disaggregated")
 
 if enrollment.empty:
     st.info("Data is temporarily unavailable. Please check back later.")
@@ -238,11 +241,17 @@ else:
         if sub.empty:
             st.info(f"No data for {subject_label}")
             continue
+        # Insert explicit NaN rows for skipped years (2020 COVID gap) so the
+        # line BREAKS there instead of drawing straight across it.
+        sub_g = with_year_gaps(
+            sub, "M_PLUS_E_PCT", group_col="School", years=span_years(sub)
+        )
         fig = px.line(
-            sub, x="SY", y="M_PLUS_E_PCT", color="School",
+            sub_g, x="SY", y="M_PLUS_E_PCT", color="School",
             color_discrete_map={NAME_OVERRIDES[code]: SIBLING_COLORS[code] for code in NAME_OVERRIDES},
             markers=True,
         )
+        fig.update_traces(connectgaps=False)
         fig.update_layout(
             **DEFAULT_LAYOUT,
             yaxis_tickformat=".0%",
@@ -287,12 +296,19 @@ if _missing_grad:
 if grad_lynn.empty:
     st.info("No graduation data yet.")
 else:
+    # Explicit NaN rows for skipped cohort years so each school's line breaks
+    # at a reporting gap instead of bridging it.
+    grad_g = with_year_gaps(
+        grad_lynn.sort_values("SY"), "GRAD_PCT",
+        group_col="School", years=span_years(grad_lynn),
+    )
     fig = px.line(
-        grad_lynn.sort_values("SY"),
+        grad_g,
         x="SY", y="GRAD_PCT", color="School",
         color_discrete_map={NAME_OVERRIDES[code]: SIBLING_COLORS[code] for code in NAME_OVERRIDES},
         markers=True,
     )
+    fig.update_traces(connectgaps=False)
     fig.update_layout(
         **DEFAULT_LAYOUT,
         yaxis_tickformat=".0%",
@@ -526,6 +542,90 @@ else:
     )
 
 # ---------------------------------------------------------------------------
+# Discipline context — suspension rates per Lynn high school
+# ---------------------------------------------------------------------------
+
+st.header("Discipline Context — Suspension Rates by School")
+
+disc_lynn = pd.DataFrame()
+if not discipline.empty:
+    disc_lynn = discipline[
+        (discipline["ORG_CODE"].isin(SIBLING_CODES))
+        & (discipline["DIM"] == "all")
+        & (discipline["GROUP"] == "All Students")
+        & (discipline["INDICATOR"].isin(
+            ["In-School Suspension Rate", "Out-of-School Suspension Rate"]))
+    ].dropna(subset=["VALUE"]).copy()
+
+if disc_lynn.empty:
+    st.info("No suspension-rate data for the Lynn high schools yet.")
+else:
+    # Latest year with a published value per school (schools can lag a year).
+    _disc_latest_sy = disc_lynn.groupby("ORG_CODE")["SY"].transform("max")
+    disc_cur = disc_lynn[disc_lynn["SY"] == _disc_latest_sy]
+    disc_wide = disc_cur.pivot_table(
+        index=["ORG_CODE", "SY"], columns="INDICATOR", values="VALUE",
+        aggfunc="last",
+    ).reset_index()
+    for _ind in ["In-School Suspension Rate", "Out-of-School Suspension Rate"]:
+        if _ind not in disc_wide.columns:
+            disc_wide[_ind] = pd.NA
+
+    # N = total enrollment in the same school year, for denominator context.
+    disc_wide = disc_wide.merge(
+        enrollment[["ORG_CODE", "SY", "TOTAL_CNT"]].drop_duplicates(
+            subset=["ORG_CODE", "SY"]),
+        on=["ORG_CODE", "SY"], how="left",
+    )
+    disc_wide["School"] = disc_wide["ORG_CODE"].map(NAME_OVERRIDES)
+    disc_wide = disc_wide.sort_values("TOTAL_CNT", ascending=False)
+
+    _fmt_rate = lambda x: f"{x:.1%}" if pd.notna(x) else "—"
+    disc_tbl = pd.DataFrame({
+        "School": disc_wide.apply(
+            lambda r: _mark_small(r["School"], r["ORG_CODE"]), axis=1),
+        "Year": disc_wide["SY"].map(sy_label),
+        "Enrollment (N)": disc_wide["TOTAL_CNT"].map(
+            lambda x: f"{int(x):,}" if pd.notna(x) else "—"),
+        "In-School Suspension Rate":
+            disc_wide["In-School Suspension Rate"].map(_fmt_rate),
+        "Out-of-School Suspension Rate":
+            disc_wide["Out-of-School Suspension Rate"].map(_fmt_rate),
+    })
+
+    def _highlight_lehs_disc(row):
+        if str(row["School"]).startswith("Lynn English"):
+            return ["background-color: #FFF4D6"] * len(row)
+        return [""] * len(row)
+
+    st.dataframe(disc_tbl.style.apply(_highlight_lehs_disc, axis=1),
+                 use_container_width=True, hide_index=True)
+
+    # Name any sibling school with no published rate rather than letting it
+    # silently vanish from the table.
+    _missing_disc = [
+        NAME_OVERRIDES[c] for c in SIBLING_CODES
+        if c not in set(disc_wide["ORG_CODE"])
+    ]
+    _missing_clause = (
+        "DESE publishes no suspension rate for **"
+        + ", ".join(_missing_disc) + "** in the years covered. "
+        if _missing_disc else ""
+    )
+    st.caption(
+        "Each rate is the share of enrolled students receiving at least one "
+        "suspension of that type in the year shown (DESE student-discipline "
+        "data; N = total enrollment that year). " + _missing_clause +
+        "Rates reflect both each school's discipline practices and "
+        "differences in the student populations the schools serve, so read "
+        "them as context rather than a ranking; the dagger (†) marks the "
+        "small alternative academies, where one or two students move the "
+        "rate by several points. Federally-collected discipline detail "
+        "(by race/ethnicity, referrals, days missed) is on the "
+        "[Civil Rights Data](/Federal_CRDC?embed=true) page."
+    )
+
+# ---------------------------------------------------------------------------
 # Small-cohort footnote (applies to the cohort-based charts above)
 # ---------------------------------------------------------------------------
 
@@ -557,4 +657,7 @@ data_downloads_panel({
     "AP participation": ap_part,
     "Grade retention": retention,
     "EL ACCESS outcomes": el_access,
+    "Discipline rates (disaggregated)": discipline,
 })
+
+page_footer()
