@@ -127,6 +127,30 @@ ENROLLMENT_EARLIEST = 1994    # demographic file goes back furthest
 # Student groups (standardized DESE labels)
 # ---------------------------------------------------------------------------
 
+# Accountability GROUP label -> the STU_GRP label used by the multi-year trend
+# parquets (graduation_rates / dropout / student_attendance /
+# advanced_course_completion / mcas_achievement / el_access). "English Learners"
+# is the nearest *published* trend series for the combined EL+Former-EL
+# accountability group — a proxy, not an identity; callers should note that in a
+# caption. mcas_achievement also carries an NBSP variant of the combined label,
+# so normalize STU_GRP with .str.replace("\xa0", " ") before matching.
+# "Lowest Performing" is intentionally absent: it is an accountability-internal
+# construct with no trend series anywhere.
+ACCT_GROUP_TO_STU_GRP = {
+    "All Students": "All Students",
+    "English Learners and Former English Learners": "English Learners",
+    "Low Income": "Low Income",
+    "Students with Disabilities": "Students with Disabilities",
+    "High Needs": "High Needs",
+    "Hispanic or Latino": "Hispanic or Latino",
+    "Black or African American": "Black or African American",
+    "Asian": "Asian",
+    "White": "White",
+    "Multi-Race, Not Hispanic or Latino": "Multi-Race, Not Hispanic or Latino",
+    "American Indian or Alaska Native": "American Indian or Alaska Native",
+    "Native Hawaiian or Other Pacific Islander": "Native Hawaiian or Other Pacific Islander",
+}
+
 STUDENT_GROUPS = [
     "All Students",
     "Female", "Male",
