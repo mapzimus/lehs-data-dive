@@ -30,7 +30,7 @@ def csv_download(df: pd.DataFrame, filename: str, label: str | None = None,
         file_name=filename,
         mime="text/csv",
         key=key,
-        use_container_width=False,
+        width="content",
     )
 
 

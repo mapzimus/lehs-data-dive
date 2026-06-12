@@ -1,4 +1,4 @@
-﻿"""Section 11 — Gateway Peer Comparison: LEHS vs. 25 gateway-city main HS."""
+"""Section 11 — Gateway Peer Comparison: LEHS vs. 25 gateway-city main HS."""
 
 import json
 from pathlib import Path
@@ -451,7 +451,7 @@ def highlight_lehs_row(row):
     return [""] * len(row)
 
 st.dataframe(display.style.apply(highlight_lehs_row, axis=1),
-             use_container_width=True, hide_index=True)
+             width="stretch", hide_index=True)
 st.caption(
     f"School year {latest_enr_year}. LEHS row highlighted in gold; Lynn "
     "Classical, Lynn Tech, and the LPS-district aggregate are tinted "
@@ -610,7 +610,7 @@ if not scatter_df.empty:
         _lynn_scatter(scatter_df, "$ Per Pupil", "4yr Grad Rate",
                        "$ per pupil", "4-year graduation rate",
                        "$,.0f", ".0%"),
-        use_container_width=True,
+        width="stretch",
     )
 
 st.subheader("English-learner share vs. 4-year graduation rate")
@@ -620,7 +620,7 @@ if not scatter_df2.empty:
         _lynn_scatter(scatter_df2, "% English Learner(s)", "4yr Grad Rate",
                        "% English Learners", "4-year graduation rate",
                        ".0%", ".0%"),
-        use_container_width=True,
+        width="stretch",
     )
 
 st.divider()
@@ -691,7 +691,7 @@ if (
             show[col] = show[col].apply(lambda x: f"{x:.0%}" if pd.notna(x) else "—")
     show["Enrollment"] = show["Enrollment"].apply(lambda x: f"{int(x):,}" if pd.notna(x) else "—")
     st.dataframe(show.style.apply(highlight_lehs_row, axis=1),
-                 use_container_width=True, hide_index=True)
+                 width="stretch", hide_index=True)
 
     # Plain-language explanation of who landed in the top-5
     others = closest_full[closest_full["ORG_CODE"] != LEHS_SCHOOL_CODE]["City"].tolist()

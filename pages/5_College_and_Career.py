@@ -1,4 +1,4 @@
-﻿"""Section 4 — College & Career Readiness."""
+"""Section 4 — College & Career Readiness."""
 
 import pandas as pd
 import plotly.express as px
@@ -118,7 +118,7 @@ if not ap_lehs.empty:
         fig = px.bar(cat, x="SUBJ_CAT", y="TESTS_TAKEN",
                      color_discrete_sequence=[LEHS_NAVY])
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Tests taken", xaxis_title="")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     # Score distribution for All Subjects
     st.subheader("AP score distribution — All Subjects")
@@ -140,7 +140,7 @@ if not ap_lehs.empty:
             color_discrete_map=AP_SCORE_COLORS,
         )
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Tests")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         st.caption("Scores 3, 4, 5 are typically considered 'passing' / college-credit-eligible.")
 
 # AP equity: who's in AP?
@@ -170,7 +170,7 @@ if not ap_groups.empty:
     ))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Tests taken (latest year)",
                       title="AP tests taken by student group at LEHS")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     # AP pass rate (PCT_3_5) by subgroup — the equity story access alone misses.
     # Access = how many students sat for an exam. Pass rate = how many of those
@@ -198,7 +198,7 @@ if not ap_groups.empty:
             xaxis_tickformat=".0%", xaxis_title="% of exams scoring 3+ (college-credit-eligible)",
             yaxis_title="", height=max(360, 28 * len(pass_by_grp)),
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         st.caption(
             "Pass rate (scoring 3 or higher) is what makes an AP exam count for "
             "college credit. The DESE subgroup label \"Economically Disadvantaged\" "
@@ -234,7 +234,7 @@ if not ap_groups.empty:
                 yaxis_title="", legend_title="Subject area",
                 height=max(360, 24 * len(ap_subj_latest)),
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
 # ---------------------------------------------------------------------------
 # AP access vs. success — who is *in the room* vs. who *succeeds*. For each
@@ -346,7 +346,7 @@ else:
                     yaxis_title="Share", xaxis_title="",
                     title=f"Who's in the AP room vs. who's enrolled — SY {sy_label(eq_year)}",
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
                 st.caption(
                     "A bar where *share of AP test-takers* (navy) sits below "
                     "*share of enrollment* (gold) flags a group under-represented "
@@ -379,7 +379,7 @@ else:
                         height=max(320, 32 * len(succ)),
                         title=f"AP success by group — SY {sy_label(eq_year)}",
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
                     # Wilson CIs + gap test vs All Students. Add the All-Students
                     # reference row so the gap test has a baseline to compare to.
@@ -452,7 +452,7 @@ else:
         fig.update_layout(**DEFAULT_LAYOUT,
                           title="AP participation at Lynn English over time",
                           yaxis_title="Students / exams", xaxis_title="School Year")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -534,7 +534,7 @@ def _course_access_block(name: str, pct_col: str, area_label: str,
             xaxis_tickformat=".0%", xaxis_title=x_axis_label,
             yaxis_title="", height=max(340, 30 * len(grp)),
         )
-        st.plotly_chart(fig, use_container_width=True, key=f"ca_grp_{key_slug}")
+        st.plotly_chart(fig, width="stretch", key=f"ca_grp_{key_slug}")
 
     # Short trend — LEHS vs Massachusetts, All Students, when >1 year exists.
     lehs_all = (
@@ -564,7 +564,7 @@ def _course_access_block(name: str, pct_col: str, area_label: str,
                 yaxis_title=f"% taking any {area_label.lower()} course",
                 xaxis_title="School Year",
             )
-            st.plotly_chart(fig, use_container_width=True, key=f"ca_trend_{key_slug}")
+            st.plotly_chart(fig, width="stretch", key=f"ca_trend_{key_slug}")
 
 
 col_cs, col_arts = st.columns(2)
@@ -673,7 +673,7 @@ if not adv.empty:
                 yaxis_title="% of 11–12 graders completing an advanced course",
                 xaxis_title="School Year",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         # By subject area — where is LEHS rigor strong vs weak?
         SUBJ_AREA_COLS = {
@@ -703,7 +703,7 @@ if not adv.empty:
                 xaxis_title="% of 11–12 graders completing an advanced course in that area",
                 yaxis_title="",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
             st.caption(
                 "A student can complete advanced courses in multiple subject areas, "
                 "so the per-area percentages don't sum to the overall completion rate."
@@ -753,7 +753,7 @@ if not mc_groups.empty:
     fig.update_traces(connectgaps=False)
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                        yaxis_title="MassCore Completion Rate")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     st.caption(
         "The near-zero dips in SY 2020-21 (0.2%) and SY 2022-23 (5.5%) reflect "
         "pandemic-era disruption to MassCore course completion and reporting, "
@@ -876,7 +876,7 @@ if not sat_perf.empty:
                     xaxis_title="School Year",
                     yaxis_range=[300, 650],
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
         # Subgroup breakdown — latest year
         sub = sat_perf[
@@ -917,7 +917,7 @@ if not sat_perf.empty:
                 xaxis_range=[200, 800],
                 height=max(380, 28 * sub_long["STU_GRP"].nunique()),
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         st.caption(sat_methodology_note())
 
@@ -978,7 +978,7 @@ if not pathways.empty:
                 **DEFAULT_LAYOUT, yaxis_title="Students enrolled",
                 xaxis_title="School Year", legend_title="Pathway",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
             st.caption(
                 "Counts are students enrolled in each designated pathway. Early "
                 "College is by far the largest at LEHS and has roughly doubled "
@@ -1024,7 +1024,7 @@ if not ec_part.empty:
                 **DEFAULT_LAYOUT, yaxis_title="Students participating",
                 xaxis_title="School Year", legend_title="Partner college",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
             st.caption(
                 "Lynn English partners with North Shore Community College and "
                 "Salem State University so students can earn college credit "
@@ -1086,7 +1086,7 @@ if not early_credits.empty:
                 yaxis_title="",
                 coloraxis_colorbar=dict(title="Pass rate"),
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 else:
     st.info("Early-college credit data not available yet.")
 
@@ -1157,7 +1157,7 @@ if not cco.empty:
                 showlegend=False,
                 height=380,
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
             missing_pct = float(
                 itemized.loc[itemized["OUTCOME_TYPE"] == "Total Missing", "pct_of_cohort"].iloc[0]
@@ -1220,7 +1220,7 @@ else:
             display[c] = display[c].apply(
                 lambda x: f"${x:,.0f}" if pd.notna(x) and isinstance(x, (int, float)) else "—"
             )
-    st.dataframe(display, use_container_width=True, hide_index=True, height=420)
+    st.dataframe(display, width="stretch", hide_index=True, height=420)
 
 st.divider()
 

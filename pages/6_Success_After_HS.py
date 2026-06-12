@@ -106,7 +106,7 @@ if cohort_n:
         )
     )
     fig.update_layout(**DEFAULT_LAYOUT, height=360)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     st.markdown(
         f"**The headline number:** of every 100 LEHS 9th-graders, "
@@ -206,7 +206,7 @@ if not g_focus.empty:
         **DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="4-Year Grad Rate",
         xaxis_title="Cohort Year",
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 crosslink_callout(
     "Graduation and dropout are core ESSA accountability indicators — they feed "
@@ -276,7 +276,7 @@ if not prog.empty and latest_cohort is not None:
             yaxis_title="",
             legend_title="",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         # Surface the widest gap
         if not sub_groups["pers_pct"].dropna().empty:
@@ -327,7 +327,7 @@ if not g_both.empty:
     )
     fig.update_traces(connectgaps=False)
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Grad Rate")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -368,7 +368,7 @@ if not pathway.empty:
     fig.update_traces(connectgaps=False)
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="% of cohort",
                        yaxis_ticksuffix="%", yaxis_range=[0, 100])
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     st.caption(
         "**Indicator definitions** — "
         "**Any college (immediate)**: % of HS graduates who enrolled in any "
@@ -416,7 +416,7 @@ if not plans_lehs.empty:
         groupnorm=None,
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share of seniors")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -468,7 +468,7 @@ if not lehs_y2_all.empty:
     )
     if not trend_long.empty:
         fig.update_yaxes(range=[0, max(trend_long["pct"].max() * 1.1, 1.0)])
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     # ---------------------------------------------------------------------------
     # Six-year degree completion
@@ -505,7 +505,7 @@ if not lehs_y2_all.empty:
                 yaxis_title="Share of cohort obtaining a degree",
                 xaxis_title="Cohort year",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
     else:
         st.caption("6-year degree-completion data not available for LEHS yet.")
 
@@ -561,7 +561,7 @@ if not earnings.empty:
                 yaxis_title="Average wages in grad year",
                 xaxis_title="High-school graduation cohort",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
     if not e_lynn.empty:
         latest_year_e = e_lynn["HS_GRAD_YEAR"].max()
@@ -598,7 +598,7 @@ if not earnings.empty:
                 coloraxis_colorbar=dict(title="Avg $/yr"),
                 height=400,
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 else:
     st.caption("Earnings data not yet loaded.")
 
@@ -645,7 +645,7 @@ if not chain_df.empty:
     fig.update_traces(connectgaps=False)
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Rate (%)",
                        yaxis_ticksuffix="%", yaxis_range=[0, 100])
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 with st.expander("How to read this page · methodology"):
     st.markdown(

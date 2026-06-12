@@ -225,7 +225,7 @@ with tab_city:
         fig.update_layout(**DEFAULT_LAYOUT,
                           yaxis_title="Total population",
                           xaxis_title="Decennial Census year")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
         # 3. Age pyramid
@@ -254,7 +254,7 @@ with tab_city:
             ticktext = [f"{abs(v):,}" for v in tickvals]
             fig.update_xaxes(tickvals=tickvals, ticktext=ticktext,
                              range=[-step * (n + 0.2), step * (n + 0.2)])
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
         # 4. Race + ethnicity
@@ -280,7 +280,7 @@ with tab_city:
                          color_discrete_sequence=px.colors.qualitative.Bold)
             fig.update_layout(**DEFAULT_LAYOUT, showlegend=False,
                               yaxis_title="", xaxis_title="People")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
             st.caption(
                 "Census reports race and Hispanic origin separately, so people may "
                 "appear in multiple bars (e.g., Hispanic + White-alone). The "
@@ -317,7 +317,7 @@ with tab_city:
             fig.update_layout(**DEFAULT_LAYOUT, showlegend=False, height=520,
                               yaxis_title="", xaxis_title="Foreign-born residents",
                               coloraxis_showscale=False)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
             st.caption(
                 "Lynn's Dominican community is the largest single national-origin group. "
                 "Central American (Guatemalan, Salvadoran, Honduran) and Cambodian "
@@ -345,7 +345,7 @@ with tab_city:
                               yaxis_title="", xaxis_title="Speakers")
             if lang_total:
                 st.caption(f"Population age 5+: {lang_total:,}")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
             if lang_total:
                 eng = lang_show[lang_show["language"].str.contains("English", case=False, na=False)]["count"].sum()
@@ -433,7 +433,7 @@ with tab_city:
             fig.update_layout(**DEFAULT_LAYOUT, height=480, showlegend=False,
                               yaxis_title="", xaxis_title="Lynn residents employed",
                               coloraxis_showscale=False)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
             st.caption(
                 "Largest single sector: **educational services + healthcare + social "
                 "assistance** — characteristic of urban New England economies. "
@@ -453,7 +453,7 @@ with tab_city:
             ("KIPP Academy Lynn Collegiate", "K-12 charter school", "~150"),
             ("Eastern Bank", "Regional bank HQ vicinity", "varies"),
         ], columns=["Employer", "Sector", "Approx Lynn employees"])
-        st.dataframe(employers, use_container_width=True, hide_index=True)
+        st.dataframe(employers, width="stretch", hide_index=True)
         st.caption(
             "Sources: GE Aerospace public reporting, Lynn Public Schools workforce reports, "
             "MGB system filings, City of Lynn HR. Counts are approximate point-in-time as of "
@@ -526,7 +526,7 @@ with tab_city:
                           color="units", color_continuous_scale="Blues")
             fig.update_layout(**DEFAULT_LAYOUT, showlegend=False, coloraxis_showscale=False,
                               yaxis_title="Housing units", xaxis_title="")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
             pre1940 = yr_df[yr_df["era"] == "Built 1939 or earlier"]["units"].sum()
             total = yr_df["units"].sum()
             if total:
@@ -603,7 +603,7 @@ with tab_city:
                     legend_title="",
                     title="Home values — Lynn vs. Massachusetts vs. United States",
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
             # ZORI trend (Lynn + US only — ZORI is not published at state level)
             if not zori.empty:
@@ -623,7 +623,7 @@ with tab_city:
                     legend_title="",
                     title="Rents — Lynn vs. United States",
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
             st.caption(
                 "Source: Zillow Research public CSVs. **ZHVI** (Zillow Home Value Index) "
@@ -650,7 +650,7 @@ with tab_city:
                              title="Commute mode (% of workers age 16+)")
                 fig.update_layout(**DEFAULT_LAYOUT, showlegend=False, coloraxis_showscale=False,
                                   xaxis_title="% of workers", yaxis_title="")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
         st.caption(
             "**Transit:** Lynn is served by the MBTA Newburyport/Rockport commuter rail line "
@@ -676,7 +676,7 @@ with tab_city:
             ("Incorporated as city",    "1850"),
             ("Government",              "Mayor–council (Plan B charter, 11-member city council)"),
         ], columns=["Feature", "Detail"])
-        st.dataframe(geo_rows, use_container_width=True, hide_index=True)
+        st.dataframe(geo_rows, width="stretch", hide_index=True)
 
         st.subheader("Neighborhoods (commonly recognized)")
         nbhds = pd.DataFrame([
@@ -690,7 +690,7 @@ with tab_city:
             ("Lynn Common area",         "Historic Lynn Common (1630s), surrounded by civic + church buildings"),
             ("Pine Hill",                "Western residential"),
         ], columns=["Neighborhood", "Notes"])
-        st.dataframe(nbhds, use_container_width=True, hide_index=True)
+        st.dataframe(nbhds, width="stretch", hide_index=True)
 
         # -------------------------------------------------------------------
         # 12. Education context
@@ -907,7 +907,7 @@ with tab_nbhds:
                     fig.update_layout(xaxis_tickformat=".0%")
                 elif col == "median_household_income":
                     fig.update_layout(xaxis_tickformat="$,.0f")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
             # -------------------------------------------------------------------
             # Languages spoken at home — the linguistic landscape
@@ -936,7 +936,7 @@ with tab_nbhds:
                 )
                 fig.update_traces(textinfo="percent+label", textfont_size=12)
                 fig.update_layout(**DEFAULT_LAYOUT, height=380)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
         # Map link
@@ -987,7 +987,7 @@ indicators (where data is available at scale).
                 fig.update_layout(**DEFAULT_LAYOUT, height=480,
                                   xaxis_title="Index (higher = more burden)",
                                   yaxis_title="", coloraxis_showscale=False)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
         else:
             st.info(
                 "EPA EJScreen data not yet populated — the ingest tries 3 known EPA "
@@ -1023,7 +1023,7 @@ indicators (where data is available at scale).
                                   title="Asthma + mental distress by Lynn tract")
                     fig.update_layout(**DEFAULT_LAYOUT, height=520,
                                       xaxis_title="% prevalence", yaxis_title="")
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
         else:
             st.info("CDC PLACES data did not populate — check scripts/12_download_community_health.py.")
 

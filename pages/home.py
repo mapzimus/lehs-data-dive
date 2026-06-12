@@ -328,7 +328,7 @@ with s_col:
     st.page_link(
         "pages/1_School_Profile.py",
         label="Open School Profile →",
-        use_container_width=True,
+        width="stretch",
     )
 
 with d_col:
@@ -367,7 +367,7 @@ with d_col:
     st.page_link(
         "pages/Lynn_District.py",
         label="Open District →",
-        use_container_width=True,
+        width="stretch",
     )
 
 with c_col:
@@ -408,7 +408,7 @@ with c_col:
     st.page_link(
         "pages/Lynn_City.py",
         label="Open Lynn City →",
-        use_container_width=True,
+        width="stretch",
     )
 
 # Visual break between the three scope cards (data-heavy) and the
@@ -430,7 +430,7 @@ with maps_col:
     st.page_link(
         "pages/Maps.py",
         label="Open Maps →",
-        use_container_width=True,
+        width="stretch",
     )
 
 with learn_col:
@@ -446,7 +446,7 @@ with learn_col:
     st.page_link(
         "pages/Data_Literacy.py",
         label="Open Data 101 →",
-        use_container_width=True,
+        width="stretch",
     )
 
 st.divider()

@@ -64,7 +64,7 @@ def _show(slug: str, caption: str = "") -> None:
     if not path.exists():
         st.caption(f"_(image not yet generated: {slug}.png)_")
         return
-    st.image(str(path), caption=caption, use_container_width=True)
+    st.image(str(path), caption=caption, width="stretch")
 
 
 st.header("Residential Density of LEHS Students")
@@ -168,7 +168,7 @@ if _TRACTS_PATH.exists():
             # Values are already in percent units (e.g. asthma_pct = 12.3);
             # render as a number with a % suffix.
             fig.update_layout(xaxis_ticksuffix="%")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     c1, c2 = st.columns(2)
     with c1:

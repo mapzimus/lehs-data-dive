@@ -1,4 +1,4 @@
-﻿"""Section 8 — Discipline, Climate & Safety."""
+"""Section 8 — Discipline, Climate & Safety."""
 
 from pathlib import Path
 
@@ -99,7 +99,7 @@ if not susp_lehs.empty:
             yaxis_title="% suspended at least once",
             yaxis_ticksuffix="%",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -149,7 +149,7 @@ if not all_stu.empty:
                       line=dict(dash="dot", width=2))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                       yaxis_title="% Chronically Absent (10%+ missed)")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 # By subgroup — LEHS only (LCHS comparison on subgroups would clutter the chart)
 priority = ["All Students", "English Learners", "Hispanic or Latino",
@@ -177,7 +177,7 @@ if not sub_g.empty:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                        yaxis_title="% Chronically Absent")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     # ---------------------------------------------------------------------------
     # Latest year — chronic absence rates with 95% Wilson CIs by subgroup
@@ -289,7 +289,7 @@ def _research_image(slug: str, caption: str = "") -> None:
     if not path.exists():
         st.caption(f"_(image not yet generated: {slug}.png)_")
         return
-    st.image(str(path), caption=caption, use_container_width=True)
+    st.image(str(path), caption=caption, width="stretch")
 
 
 st.subheader("Does distance from school predict absence?")
@@ -406,7 +406,7 @@ if not att_rate.empty:
                       line=dict(dash="dot", width=2))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                       yaxis_title="Attendance rate")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -487,7 +487,7 @@ if not mobility.empty:
                     **DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                     yaxis_title=f"% {metric.lower()}", xaxis_title="School Year",
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
         # Subgroup breakdown — latest year, sorted by churn descending
         sub = mobility[
@@ -512,7 +512,7 @@ if not mobility.empty:
                 xaxis_tickformat=".0%", xaxis_title="% who left mid-year",
                 yaxis_title="", height=max(360, 28 * len(sub)),
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         st.caption(
             "**About these rates:** churn includes any student who was enrolled at "
@@ -582,7 +582,7 @@ else:
             yaxis_title="% suspended out-of-school",
             xaxis_title="School Year",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         st.caption(
             "LEHS ran far above both its district and the state for years — "
@@ -649,7 +649,7 @@ else:
             xaxis_title="",
             showlegend=False,
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         st.caption(
             "The school-wide rate hides large gaps. **Students with disabilities "
@@ -747,7 +747,7 @@ else:
         fig.add_hline(y=1.0, line_dash="dash", line_color="#444",
                       annotation_text="All-students baseline")
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Risk ratio (vs. all students)")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -762,7 +762,7 @@ if not crdc.empty:
         "Biennial federal Civil Rights Data Collection. Captures what DESE doesn't: "
         "school-based arrests, law-enforcement referrals, restraint/seclusion."
     )
-    st.dataframe(crdc.head(50), use_container_width=True)
+    st.dataframe(crdc.head(50), width="stretch")
 else:
     st.caption(
         "_Federal CRDC school-level discipline data (arrests, law-enforcement "
@@ -840,7 +840,7 @@ else:
             yaxis_title="Annual dropout rate",
             xaxis_title="School Year",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         st.caption(
             "LEHS's annual dropout rate has run consistently above both the Lynn "
@@ -877,7 +877,7 @@ else:
                 yaxis_title="Annual dropout rate",
                 xaxis_title="",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
             st.caption(
                 "Dropout risk is not spread evenly across grades — it typically "
                 "concentrates in the upper grades, where students who have fallen "
@@ -947,7 +947,7 @@ else:
             xaxis_title="",
             showlegend=False,
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         st.caption(
             "The school-wide rate averages over groups that drop out at very "
             "different rates. English learners and students with disabilities "
@@ -1028,7 +1028,7 @@ else:
                 yaxis_title="% of all enrolled students",
                 xaxis_title="Instructional days lost to discipline",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
             # Composition among only the disciplined students (bands / discipline rate).
             band_total = bdf["Pct"].sum()
@@ -1049,7 +1049,7 @@ else:
                     yaxis_title="% of disciplined students",
                     xaxis_title="Instructional days lost to discipline",
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
                 st.caption(
                     "Re-based to the disciplined students only, this shows the "
                     "severity mix: most discipline at LEHS costs a small number "

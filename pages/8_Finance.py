@@ -1,4 +1,4 @@
-﻿"""Section 7 — Finance & Resource Allocation."""
+"""Section 7 — Finance & Resource Allocation."""
 
 import pandas as pd
 import plotly.express as px
@@ -139,7 +139,7 @@ if not total_exp.empty:
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="$,.0f",
                       yaxis_title="$ per pupil", xaxis_title="Fiscal Year")
     with c2:
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         if gw_med_pp is not None:
             st.caption(
                 "The **26-gateway-city median** line is the median *district* "
@@ -249,7 +249,7 @@ if not breakdown.empty:
     fig.update_traces(textposition="outside")
     fig.update_layout(**DEFAULT_LAYOUT, xaxis_tickformat="$,.0f",
                        xaxis_title="$ per pupil", yaxis_title="")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -276,7 +276,7 @@ if not fund_summary.empty:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="$,.0f",
                        yaxis_title="$ per pupil", xaxis_title="Fiscal Year")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -341,7 +341,7 @@ if not salary.empty:
                                      line=dict(color=LVTI_COLOR, width=2, dash="dot")))
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="$,.0f",
                           yaxis_title="Average salary")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 if not teach_per_100.empty:
     latest_r = teach_per_100.iloc[-1]
@@ -373,7 +373,7 @@ if not teach_per_100.empty:
                                      mode="lines+markers", name="Lynn Tech",
                                      line=dict(color=LVTI_COLOR, width=2, dash="dot")))
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Teachers per 100 students")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -465,7 +465,7 @@ if not dist_exp.empty:
             showlegend=False,
             height=max(420, 22 * len(ranked)),
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         # Trend — Lynn vs peer median over time
         peer_trend = (
@@ -497,7 +497,7 @@ if not dist_exp.empty:
                 xaxis_title="Fiscal Year",
                 legend_title="",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         st.caption(
             "Average teacher salary reflects the joint effect of pay scale and "
@@ -528,7 +528,7 @@ if not dist_exp.empty:
             )[["IND_CAT", "IND_SUBCAT", "$"]].rename(columns={
                 "IND_CAT": "Category", "IND_SUBCAT": "Indicator",
             }),
-            use_container_width=True, hide_index=True,
+            width="stretch", hide_index=True,
         )
 
 st.divider()
@@ -636,7 +636,7 @@ else:
             xaxis_title="School Year",
             legend_title="",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         st.caption(
             "The Student Opportunity Act of 2019 substantially increased the "
             "foundation budget formula's weight for low-income and ELL students "
@@ -688,7 +688,7 @@ else:
                 showlegend=False,
                 height=max(420, 22 * len(peers_ch70)),
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
             # Honest caption: not every gateway city clears the floor. Name the
             # districts under 100% and surface Lynn's own shortfall if it is one.
@@ -834,12 +834,12 @@ else:
 
             st.plotly_chart(
                 _scatter("GRAD_PCT", "4-Year Adjusted Graduation Rate", True),
-                use_container_width=True,
+                width="stretch",
             )
             if joined["DRPOUT_PCT"].notna().any():
                 st.plotly_chart(
                     _scatter("DRPOUT_PCT", "Dropout Rate", False),
-                    use_container_width=True,
+                    width="stretch",
                 )
 
             # Quick numeric: spread of per-pupil and outcome ranks for Lynn

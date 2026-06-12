@@ -1,4 +1,4 @@
-﻿"""
+"""
 Section 3 — English Learners.
 
 The central narrative thread: tracking English Learner outcomes from initial
@@ -80,7 +80,7 @@ fig.update_layout(
     yaxis_title="% English Learner",
     xaxis_title="School Year",
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 st.caption(
     "The EL share at LEHS has more than doubled since the early 2000s — a "
@@ -145,7 +145,7 @@ if wida_path.exists():
         annotation_position="bottom right",
         annotation_font=dict(size=11, color="gray"),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     st.caption(
         "Bars show the **average score in each domain**. The dashed line marks "
         "the **4.2 overall-composite** cutoff DESE uses for reclassification — a "
@@ -219,7 +219,7 @@ else:
             yaxis_title="% making progress",
             xaxis_title="School Year",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         # ----- Honest callout: LEHS RE1 sits far below district + state -----
         # Pull the most recent year shared across all three series.
@@ -306,7 +306,7 @@ else:
                         yaxis_range=[0, max(_bar_df["RE1_PCT"].max() * 1.25, 0.1)],
                         xaxis_title="",
                     )
-                    st.plotly_chart(fig_hero, use_container_width=True)
+                    st.plotly_chart(fig_hero, width="stretch")
                     _lehs_re1_hs = _bar_df.loc[
                         _bar_df["Scope"] == "Lynn English", "RE1_PCT"
                     ]
@@ -358,7 +358,7 @@ else:
                             connector=dict(line=dict(color="#B0BEC5", width=1)),
                         ))
                         fig_fn.update_layout(**DEFAULT_LAYOUT, height=320)
-                        st.plotly_chart(fig_fn, use_container_width=True)
+                        st.plotly_chart(fig_fn, width="stretch")
                         st.caption(
                             "RE3 (exited) tracks attainment rather than the much larger "
                             "'making progress' pool — most ELs who clear the overall "
@@ -387,7 +387,7 @@ else:
                     yaxis_title="% attaining proficiency",
                     xaxis_title="School Year",
                 )
-                st.plotly_chart(fig2, use_container_width=True)
+                st.plotly_chart(fig2, width="stretch")
                 st.caption(
                     "RE2 — the share **attaining** proficiency outright — is a "
                     "higher bar than RE1 and runs lower everywhere. LEHS trails "
@@ -447,7 +447,7 @@ for subject_code, subject_label in [("ELA", "English Language Arts"), ("MATH", "
     # movement is interpretable; readers can click it on in the legend.
     fig.update_traces(visible="legendonly",
                       selector=dict(name="Former English Learners"))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     st.caption(
         "**Former English Learners is hidden by default — click it in the "
         "legend to show it.** That subgroup is small (n ≈ 12-25 each year) and "
@@ -537,7 +537,7 @@ if fmr_path.exists():
                     yaxis_title="% Meeting + Exceeding",
                     xaxis_title="Years since exiting EL status (All = combined)",
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
         else:
             st.info("No FormerEL records found in Lynn data.")
 else:

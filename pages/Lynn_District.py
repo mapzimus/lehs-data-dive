@@ -228,7 +228,7 @@ with tab_snapshot:
         fig = px.line(district, x="SY", y="TOTAL_CNT", markers=True)
         fig.update_traces(line=dict(color=LEHS_NAVY, width=3))
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Students", xaxis_title="School Year")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         st.header("Selected Populations Trend (District-wide)")
         long = district.melt(
@@ -255,7 +255,7 @@ with tab_snapshot:
             },
         )
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
         # District MCAS performance
@@ -279,7 +279,7 @@ with tab_snapshot:
                 )
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                    yaxis_title="% Meeting + Exceeding")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
             elem_mcas = district_mcas[
                 district_mcas["TEST_GRADE"].astype(str).isin(
@@ -296,7 +296,7 @@ with tab_snapshot:
                 )
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                    yaxis_title="Avg % M+E across grades")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
         # District graduation
@@ -316,7 +316,7 @@ with tab_snapshot:
             fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                yaxis_title="4-yr Graduation Rate",
                                xaxis_title="Cohort Year")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
         # District attendance / chronic absence
@@ -338,7 +338,7 @@ with tab_snapshot:
             fig.update_traces(line=dict(color="#F57C00", width=3))
             fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                yaxis_title="% Chronically Absent (10%+ missed)")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
         # District finance
@@ -364,7 +364,7 @@ with tab_snapshot:
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="$,.0f",
                                    yaxis_title="$ per pupil", xaxis_title="Fiscal Year")
                 with c2:
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
         # Lynn middle schools (LEHS feeders)
@@ -427,7 +427,7 @@ with tab_snapshot:
             ms_table["Enrollment"] = ms_table["Enrollment"].apply(
                 lambda x: f"{int(x):,}" if pd.notna(x) else "—"
             )
-            st.dataframe(ms_table, use_container_width=True, hide_index=True)
+            st.dataframe(ms_table, width="stretch", hide_index=True)
             st.caption(f"School year {ms_latest_year}. Sources: enrollment_demographics + mcas_achievement parquets.")
 
         # -------------------------------------------------------------------
@@ -502,7 +502,7 @@ with tab_snapshot:
                             xaxis_title="",
                             legend_title="",
                         )
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
                         st.caption(
                             "The gap between the two groups is one of DESE's most "
                             "tracked indicators for SpEd program effectiveness."
@@ -534,7 +534,7 @@ with tab_snapshot:
                             yaxis_title="",
                             height=max(280, 28 * len(post_latest)),
                         )
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
         # Lynn vs. Gateway median vs. State median — small multiples
@@ -567,7 +567,7 @@ with tab_snapshot:
             )
             if fig:
                 with col_a:
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
         if not attendance.empty:
             a = attendance[(attendance["ORG_TYPE"] == "District")
@@ -577,7 +577,7 @@ with tab_snapshot:
                                   state_df=attendance, state_period="End of Year")
             if fig:
                 with col_b:
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
         if not mcas.empty:
             m_g10 = mcas[(mcas["TEST_GRADE"].astype(str) == "10")
@@ -596,7 +596,7 @@ with tab_snapshot:
             )
             if fig:
                 with col_a:
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
         if not mcas.empty:
             m_g10m = mcas[(mcas["TEST_GRADE"].astype(str) == "10")
@@ -615,7 +615,7 @@ with tab_snapshot:
             )
             if fig:
                 with col_b:
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
 
     st.divider()
@@ -653,7 +653,7 @@ with tab_snapshot:
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".1%",
                                   yaxis_title="% of Lynn residents", xaxis_title="School Year",
                                   legend_title="Leaving via")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
                 # Plain-language callout: charter outflow has roughly doubled.
                 charter_ts = out[out["ENR_REASON"] == "Charter School"].copy()
@@ -715,7 +715,7 @@ with tab_snapshot:
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                   yaxis_title="% kindergartners in full-day",
                                   xaxis_title="School Year")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
                 if not fdk_glitch.empty:
                     _gy = ", ".join(f"SY{int(y)}" for y in sorted(fdk_glitch["SY"]))
                     st.caption(
@@ -758,7 +758,7 @@ with tab_snapshot:
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                   yaxis_title="% of students with disabilities",
                                   xaxis_title="", legend_title="")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
                 st.caption(f"School year {latest_pl}.")
 
 
@@ -903,7 +903,7 @@ with tab_all_schools:
 
         st.dataframe(
             display.sort_values("School").style.apply(highlight_lehs, axis=1),
-            use_container_width=True, hide_index=True, height=500,
+            width="stretch", hide_index=True, height=500,
             column_config={
                 "DESE profile": st.column_config.LinkColumn(
                     "DESE profile", display_text="profile ↗",
@@ -939,7 +939,7 @@ with tab_all_schools:
             **DEFAULT_LAYOUT, yaxis_tickformat=".0%",
             xaxis_title="Enrollment", yaxis_title="% English Learner(s)",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
         # Performance comparison
@@ -1042,7 +1042,7 @@ with tab_all_schools:
             return [""] * len(row)
 
         st.dataframe(perf_display.sort_values("School").style.apply(highlight_lehs_perf, axis=1),
-                     use_container_width=True, hide_index=True, height=500)
+                     width="stretch", hide_index=True, height=500)
 
         # Filtered callout listing the flagged schools, with enrollment n so
         # small-school volatility is visible next to each flag.

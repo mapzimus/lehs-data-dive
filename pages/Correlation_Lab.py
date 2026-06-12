@@ -1,4 +1,4 @@
-﻿"""
+"""
 Section 12 — Cross-Topic Explorer: correlation discovery across domains.
 
 The novel analytical layer no DESE tool provides.
@@ -405,7 +405,7 @@ else:
             "Direction & strength": _top_pairs["r"].map(interpret_r),
             "n (schools)": _top_pairs["n"].astype(int).to_numpy(),
         }),
-        use_container_width=True, hide_index=True,
+        width="stretch", hide_index=True,
     )
     st.caption(
         "Excluded as trivial: self pairs, same-instrument subject pairs "
@@ -460,7 +460,7 @@ for x, y, label in curated_pairs:
             xaxis_title=axis_label(x), yaxis_title=axis_label(y),
             xaxis_tickformat=axis_tickformat(x), yaxis_tickformat=axis_tickformat(y),
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         st.caption(
             f"Pearson r = {stats['r']:+.3f} (p = {stats['p']:.3f}, n = {stats['n']}). "
             f"**Caveat:** correlation across {stats['n']} gateway-city high schools "
@@ -515,7 +515,7 @@ if len(data) >= 3:
         xaxis_title=axis_label(x_var), yaxis_title=axis_label(y_var),
         xaxis_tickformat=axis_tickformat(x_var), yaxis_tickformat=axis_tickformat(y_var),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     # Download exactly what's plotted: one row per point with the school
     # label(s) and the two selected metrics (plus SY in panel scope).
@@ -619,7 +619,7 @@ if len(lagged) >= 5:
         xaxis_tickformat=axis_tickformat(x_var_lag),
         yaxis_tickformat=axis_tickformat(y_var_lag),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     stats_lag = pearson(lagged, "x_val", "y_val")
     reg_lag = regression_line(lagged, "x_val", "y_val")
@@ -702,7 +702,7 @@ if total_weight > 0:
         return ["background-color: #FFF4D6" if row["City"] == "Lynn — LEHS" else "" for _ in row]
 
     st.dataframe(ranked.style.apply(highlight_lehs_row, axis=1),
-                 use_container_width=True, hide_index=True)
+                 width="stretch", hide_index=True)
 
     lehs_row = ranked[ranked["City"] == "Lynn — LEHS"]
     if not lehs_row.empty:

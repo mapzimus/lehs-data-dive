@@ -1,4 +1,4 @@
-﻿"""Section 6 — Teachers & Workforce."""
+"""Section 6 — Teachers & Workforce."""
 
 import pandas as pd
 import plotly.express as px
@@ -136,7 +136,7 @@ if not teachers.empty and not enr.empty:
                          y=diversity_df["LEHS Teachers"], marker_color=LEHS_NAVY))
     fig.update_layout(**DEFAULT_LAYOUT, barmode="group", yaxis_tickformat=".0%",
                        yaxis_title="Share")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     # Representation gap callout
     hl_gap = diversity_df.loc[diversity_df["Group"] == "Hispanic/Latino", "LEHS Students"].iloc[0] - \
@@ -176,7 +176,7 @@ if not key_roles.empty:
     fig = px.bar(role_summary, x="FTE_TOTAL", y="JOBCLASS_CAT", orientation="h",
                  color_discrete_sequence=[LEHS_NAVY])
     fig.update_layout(**DEFAULT_LAYOUT, xaxis_title="FTE", yaxis_title="")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -262,7 +262,7 @@ if support_rows and not el_lehs.empty:
                     showgrid=False),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     st.caption(
         "Left axis: support-staff FTE (navy / slate). Right axis: EL students "
         "enrolled (gold). These job categories are **not** EL-specific — DESE's "
@@ -316,7 +316,7 @@ if not teachers_all_years.empty:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                        yaxis_title="Share of teachers")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -366,7 +366,7 @@ if not retention.empty:
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                           yaxis_title="% teachers returning the next year")
         with c2:
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
     # LEHS-specific Teachers vs. Principals retention trend (2009-2026). The
     # school-level rows let us see whether building leadership turns over more or
@@ -402,7 +402,7 @@ if not retention.empty:
             yaxis_title="% returning the next year", xaxis_title="School Year",
             legend_title="Staff group",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         st.caption(
             "Both series are computed from the underlying retained / total counts. "
             "LEHS has a single principal in most years, so the principal line is a "
@@ -454,7 +454,7 @@ else:
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                           yaxis_title="Attendance rate", xaxis_title="",
                           yaxis_range=[0.8, 1.0])
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -505,7 +505,7 @@ if not teacher_data.empty:
         )
         fig.update_traces(textposition="top center")
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         # Plain-language callout: the experienced-teacher share has fallen sharply.
         exp_series = td_lynn.dropna(subset=["EXP_TCHR_PCT"]).sort_values("SY")
@@ -573,7 +573,7 @@ if not teacher_data.empty:
                         legend_title="",
                     )
                     fig.update_xaxes(range=[0, 110])
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
         # In-field by SUBJECT (LEHS-level if rows exist). Pin to the latest year
         # that actually has non-null subject rows — the global max SY often has
@@ -601,7 +601,7 @@ if not teacher_data.empty:
                                   xaxis_range=[0, 1.12],
                                   xaxis_title="% teachers with subject licensure",
                                   yaxis_title="")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
         else:
             st.caption(
                 "DESE does not publish a school-level in-field rate broken out by "
@@ -651,7 +651,7 @@ if not class_size.empty:
             fig.update_layout(**DEFAULT_LAYOUT, xaxis_title="Avg class size",
                               yaxis_title="")
             with c2:
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -678,7 +678,7 @@ else:
             if c in crdc_staff.columns]
     if cols:
         st.dataframe(crdc_staff[["SCHOOL_NAME", "STUDENT_ENROLLMENT"] + cols].head(30),
-                     use_container_width=True)
+                     width="stretch")
 
 # ---------------------------------------------------------------------------
 # Educator age profile (educators_by_age, a4b4-k49f) — workforce aging / pipeline
@@ -777,7 +777,7 @@ else:
                 **DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                 yaxis_title="Share of educator FTE", xaxis_title="Age band",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
             st.caption(
                 "Gold bars are the near-retirement bands (57-64 and 65+)."
             )

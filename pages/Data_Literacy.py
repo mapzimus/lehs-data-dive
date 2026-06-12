@@ -72,7 +72,7 @@ demo_dataset = pd.DataFrame(
         "% Low Income": ["72%", "74%", "75%"],
     }
 )
-st.dataframe(demo_dataset, hide_index=True, use_container_width=True)
+st.dataframe(demo_dataset, hide_index=True, width="stretch")
 
 st.markdown(
     """
@@ -119,7 +119,7 @@ fig = px.bar(
 )
 fig.update_traces(textposition="outside")
 fig.update_layout(**DEFAULT_LAYOUT, height=320, showlegend=False)
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 st.markdown(
     """
@@ -155,7 +155,7 @@ fig = px.line(
     color_discrete_map={"ELA": LEHS_NAVY, "Math": LEHS_GOLD},
 )
 fig.update_layout(**DEFAULT_LAYOUT, height=320, yaxis_tickformat=".0%")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 st.markdown(
     """
@@ -182,7 +182,7 @@ fig = px.histogram(
     x="Test Score", nbins=20, color_discrete_sequence=[LEHS_NAVY],
 )
 fig.update_layout(**DEFAULT_LAYOUT, height=320, yaxis_title="# of students")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 st.markdown(
     """
@@ -226,7 +226,7 @@ fig = px.scatter(
 )
 fig.update_layout(**DEFAULT_LAYOUT, height=350,
                    xaxis_tickformat=".0%", yaxis_tickformat=".0%")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 st.markdown(
     """
@@ -295,7 +295,7 @@ fig = go.Figure(
 )
 fig.update_layout(**DEFAULT_LAYOUT, height=280, xaxis_title="Grade",
                    yaxis_title="Subject")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 st.markdown(
     """

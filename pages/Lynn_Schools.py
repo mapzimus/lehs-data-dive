@@ -163,7 +163,7 @@ def highlight_lehs_sib(row):
     return [""] * len(row)
 
 
-st.dataframe(scorecard.style.apply(highlight_lehs_sib, axis=1), use_container_width=True)
+st.dataframe(scorecard.style.apply(highlight_lehs_sib, axis=1), width="stretch")
 st.caption(f"School year {latest_year_sib}. LEHS highlighted in gold.")
 
 # ---------------------------------------------------------------------------
@@ -179,7 +179,7 @@ fig = px.line(
     markers=True,
 )
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Students", xaxis_title="School Year")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 st.caption(
     "Lynn English is by far the largest of the Lynn high schools, followed "
@@ -211,7 +211,7 @@ fig = px.bar(
     color_discrete_map={NAME_OVERRIDES[code]: SIBLING_COLORS[code] for code in NAME_OVERRIDES},
 )
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", xaxis_title="")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 st.caption(
     "Each Lynn HS serves a slightly different student population. Lynn Tech "
@@ -258,7 +258,7 @@ else:
             yaxis_title="% Meeting + Exceeding",
             xaxis_title="School Year",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 # ---------------------------------------------------------------------------
 # Graduation rates
@@ -315,7 +315,7 @@ else:
         yaxis_title="4-Year Graduation Rate",
         xaxis_title="Cohort Year",
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     latest_grad_year = int(grad_lynn["SY"].max())
     st.subheader(f"Cohort {latest_grad_year} — Outcome Breakdown")
@@ -336,7 +336,7 @@ else:
         x="School", y="Pct", color="Outcome", barmode="stack",
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", xaxis_title="")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 # ---------------------------------------------------------------------------
 # Advanced Placement participation
@@ -379,7 +379,7 @@ else:
         **DEFAULT_LAYOUT, yaxis_title="Students taking ≥1 AP exam",
         xaxis_title="", showlegend=False,
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     st.subheader(f"Exams Per Test-Taker ({sy_label(ap_year)})")
     fig = px.bar(
@@ -393,7 +393,7 @@ else:
         **DEFAULT_LAYOUT, yaxis_title="AP exams per student",
         xaxis_title="", showlegend=False,
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     # Plain-language read of the two charts.
     _lehs_ap = ap_cur[ap_cur["ORG_CODE"] == "01630510"]
@@ -464,7 +464,7 @@ else:
         **DEFAULT_LAYOUT, yaxis_tickformat=".0%",
         yaxis_title="% held back a grade", xaxis_title="", showlegend=False,
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     st.caption(
         "Retention is rare at the high-school level, so these figures are "
@@ -516,7 +516,7 @@ else:
         yaxis_title="% making expected ACCESS progress (RE1)",
         xaxis_title="", showlegend=False,
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     _lehs_el = ela_cur[ela_cur["ORG_CODE"] == "01630510"]
     _el_msg = ""
@@ -599,7 +599,7 @@ else:
         return [""] * len(row)
 
     st.dataframe(disc_tbl.style.apply(_highlight_lehs_disc, axis=1),
-                 use_container_width=True, hide_index=True)
+                 width="stretch", hide_index=True)
 
     # Name any sibling school with no published rate rather than letting it
     # silently vanish from the table.

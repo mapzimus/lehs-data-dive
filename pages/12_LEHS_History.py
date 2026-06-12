@@ -58,7 +58,7 @@ _hero_l, _hero_r = st.columns([2, 1], gap="medium")
 with _hero_l:
     st.image(
         str(IMAGES_DIR / "lehs-building.jpg"),
-        use_container_width=True,
+        width="stretch",
         caption=(
             "The 1931 Classical-Revival main entrance on Goodridge Street — "
             "the third Lynn English building since the school's 1892 founding."
@@ -306,7 +306,7 @@ still played every Thanksgiving on **Manning Bowl** — see the
             yaxis_title="Students enrolled",
             showlegend=False,
         )
-        st.plotly_chart(_fig_enr, use_container_width=True)
+        st.plotly_chart(_fig_enr, width="stretch")
         st.caption(
             f"LEHS total enrollment, SY {sy_label(_first_sy)} through "
             f"SY {sy_label(_last_sy)} (DESE enrollment file). The waves track "
@@ -489,7 +489,7 @@ with _tab_athletics:
                 st.image(
                     str(IMAGES_DIR / img_name),
                     caption=v.get("image_caption", ""),
-                    use_container_width=True,
+                    width="stretch",
                 )
             facts = [(k, v.get(k)) for k in ("capacity_orig", "architect", "cost") if v.get(k)]
             if facts:
@@ -725,7 +725,7 @@ with _f_r:
     st.page_link(
         "pages/1_School_Profile.py",
         label="Open School Profile →",
-        use_container_width=True,
+        width="stretch",
     )
 
 page_footer()

@@ -178,7 +178,7 @@ if _gender_rows:
         xaxis_title="", showlegend=False, yaxis_range=[0, 1.05],
         title="All-time MaxPreps win percentage by gender",
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     if not _girls.empty and not _boys.empty:
         g = _girls.iloc[0]
@@ -241,7 +241,7 @@ _bowl_img = IMAGES_DIR / "manning-bowl.jpg"
 if _bowl_img.exists():
     st.image(
         str(_bowl_img),
-        use_container_width=True,
+        width="stretch",
         caption=(
             "Manning Bowl, Lynn (c. 1940s). The 21,000-seat stadium opened in "
             "1937 and hosted the Thanksgiving rivalry until it closed after the "
@@ -283,7 +283,7 @@ table = (
 )
 st.dataframe(
     table.style.format({"Win %": "{:.1%}"}),
-    use_container_width=True, hide_index=True,
+    width="stretch", hide_index=True,
     column_config={"MaxPreps": st.column_config.LinkColumn("MaxPreps", display_text="page")},
 )
 
@@ -319,7 +319,7 @@ fig.update_layout(
     xaxis_type="category",
     title=f"{selected_team} — win percentage by season",
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 st.divider()
 
@@ -342,7 +342,7 @@ if coaches:
          "Since": c.get("since", "") or "—"}
         for c in coaches
     ])
-    st.dataframe(roster, use_container_width=True, hide_index=True)
+    st.dataframe(roster, width="stretch", hide_index=True)
 
 st.caption(
     "Hall of Fame, legacy coaches, the full Manning Bowl history, and notable "

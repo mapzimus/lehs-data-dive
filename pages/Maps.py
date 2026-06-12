@@ -108,7 +108,7 @@ def _preview_or_placeholder(
                 unsafe_allow_html=True,
             )
         else:
-            st.image(str(path), use_container_width=True)
+            st.image(str(path), width="stretch")
     else:
         st.markdown(
             f"""
@@ -159,7 +159,7 @@ with c_lynn:
         "Open Lynn Maps  ↗",
         "https://maxwellhowegis.com/Lynn-data-dive/maps/",
         type="primary",
-        use_container_width=True,
+        width="stretch",
     )
 
     st.caption(
@@ -218,7 +218,7 @@ with c_atlas:
         "Open MA Atlas  ↗",
         "https://maxwellhowegis.com/ma-atlas/",
         type="primary",
-        use_container_width=True,
+        width="stretch",
     )
 
     st.caption(

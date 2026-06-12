@@ -129,7 +129,7 @@ if not staffing.empty:
         fig.update_layout(**DEFAULT_LAYOUT,
                           title="Students per school counselor — Lynn high schools",
                           xaxis_title="Students per counselor FTE")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 else:
     st.info("Support-staff data is unavailable in the current build.")
 
@@ -182,7 +182,7 @@ if not offerings.empty:
         fig.update_layout(**DEFAULT_LAYOUT,
                           title="Students enrolled in AP — Lynn high schools (2021-22)",
                           xaxis_title="AP-enrolled students")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     # Offering matrix (Yes/No) for the schools that offer any advanced course.
     flag_cols = ["AP_OFFERED", "IB_OFFERED", "CALC_OFFERED", "PHYSICS_OFFERED",
@@ -196,7 +196,7 @@ if not offerings.empty:
                 "ALGEBRA_II_OFFERED": "Algebra II"}
         show = matrix[["SCHOOL_NAME"] + have_flags].rename(columns={"SCHOOL_NAME": "School", **nice})
         st.markdown("**Advanced-course offering matrix**")
-        st.dataframe(show, use_container_width=True, hide_index=True)
+        st.dataframe(show, width="stretch", hide_index=True)
 else:
     st.info("Course-offering data is unavailable in the current build.")
 
@@ -237,7 +237,7 @@ if not discipline.empty:
         fig.update_layout(**DEFAULT_LAYOUT, barmode="stack",
                           title="LEHS out-of-school suspensions by race/ethnicity (2021-22)",
                           xaxis_title="Students")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     # All-students summary across discipline measures (LEHS).
     tot = lehs_d[lehs_d["GROUP_DIM"] == "total"]
@@ -254,7 +254,7 @@ if not discipline.empty:
              "LEHS students (all groups)": [row.get(k) for k in labels]}
         )
         st.markdown("**LEHS discipline summary — all students**")
-        st.dataframe(summary, use_container_width=True, hide_index=True)
+        st.dataframe(summary, width="stretch", hide_index=True)
 
     # --- Disparate-impact check ------------------------------------------
     # CRDC publishes suspension COUNTS only, so rate denominators come from
@@ -345,7 +345,7 @@ if not discipline.empty:
                 )
 
     with st.expander("Full discipline table (all schools × student groups)"):
-        st.dataframe(disc, use_container_width=True, height=400)
+        st.dataframe(disc, width="stretch", height=400)
 
     st.markdown(
         "**Keep going:** state-reported discipline rates, days missed, and "
