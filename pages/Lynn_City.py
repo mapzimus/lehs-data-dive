@@ -24,6 +24,7 @@ from utils.branding import crosslink_callout, page_footer, sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, data_downloads_panel
 from utils.constants import LEHS_SCHOOL_CODE, PROCESSED_DIR
 from utils.data_loader import load_dataset
+from utils.geo_loader import tract_display_label
 
 st.set_page_config(
     page_title="Lynn City | LEHS", page_icon="🏙️", layout="wide",
@@ -822,6 +823,11 @@ with tab_nbhds:
             if col in tracts.columns:
                 tracts[col] = pd.to_numeric(tracts[col], errors="coerce")
 
+        # Residents think in neighborhoods, not tract numbers — label every
+        # tract chart "West Lynn (Tract 2057)" via the curated crosswalk.
+        # Assignments are approximate; low-confidence ones say "approx."
+        tracts["hood_label"] = tracts["NAMELSAD"].map(tract_display_label)
+
         acs_cols = ["median_household_income", "foreign_born_pct",
                     "bachelors_or_higher_pct", "non_english_pct"]
         has_acs = any(c in tracts.columns for c in acs_cols)
@@ -892,7 +898,7 @@ with tab_nbhds:
 
                 st.subheader(label)
                 fig = px.bar(
-                    sub, y="NAMELSAD", x=col, orientation="h",
+                    sub, y="hood_label", x=col, orientation="h",
                     text="label", color=col, color_continuous_scale=palette,
                 )
                 fig.update_traces(textposition="outside")
@@ -981,7 +987,7 @@ indicators (where data is available at scale).
                         st.metric(f"Lynn mean — {label}", f"{val:.1f}")
             if "ENV_INDEX" in tracts.columns and tracts["ENV_INDEX"].notna().any():
                 ej_sub = tracts.dropna(subset=["ENV_INDEX"]).sort_values("ENV_INDEX")
-                fig = px.bar(ej_sub, y="NAMELSAD", x="ENV_INDEX", orientation="h",
+                fig = px.bar(ej_sub, y="hood_label", x="ENV_INDEX", orientation="h",
                              color="ENV_INDEX", color_continuous_scale="Reds",
                              title="Environmental burden index by Lynn tract")
                 fig.update_layout(**DEFAULT_LAYOUT, height=480,
@@ -1013,12 +1019,12 @@ indicators (where data is available at scale).
                         st.metric(f"Lynn mean — {label}", f"{val:.1f}%")
             leaders = [c for c, _ in pl_present if c in ("asthma_pct", "mental_distress_pct")]
             if leaders:
-                long = tracts[["NAMELSAD"] + leaders].melt(
-                    id_vars="NAMELSAD", var_name="metric", value_name="pct")
+                long = tracts[["hood_label"] + leaders].melt(
+                    id_vars="hood_label", var_name="metric", value_name="pct")
                 long["pct"] = pd.to_numeric(long["pct"], errors="coerce")
                 long = long.dropna(subset=["pct"])
                 if not long.empty:
-                    fig = px.bar(long.sort_values("pct"), y="NAMELSAD", x="pct",
+                    fig = px.bar(long.sort_values("pct"), y="hood_label", x="pct",
                                   color="metric", barmode="group", orientation="h",
                                   title="Asthma + mental distress by Lynn tract")
                     fig.update_layout(**DEFAULT_LAYOUT, height=520,
