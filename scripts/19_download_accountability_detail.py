@@ -50,6 +50,10 @@ HEADERS = {"User-Agent": USER_AGENT}
 STEMS = [
     "accountability-data",
     "criterion-referenced-percentage",
+    # Research files — the layer beneath the determination:
+    "accountability-targets",          # per-school x group baselines + 2026/27 targets & increments
+    "school-percentile",               # statewide percentile build-up (All Students)
+    "student-group-percentile",        # statewide percentile build-up, per student group
 ]
 
 # Determination years to attempt, newest first. A 404 just means that year is
