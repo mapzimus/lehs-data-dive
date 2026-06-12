@@ -20,7 +20,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from utils.branding import sidebar_attribution
+from utils.branding import crosslink_callout, page_footer, sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, data_downloads_panel
 from utils.constants import LEHS_SCHOOL_CODE, PROCESSED_DIR
 from utils.data_loader import load_dataset
@@ -38,6 +38,51 @@ st.markdown(
     "housing, history). **Neighborhoods** drops to Lynn's 22 census tracts "
     "and the environmental + health layers that vary across them."
 )
+
+# ---------------------------------------------------------------------------
+# Massachusetts statewide ACS benchmarks (page-local, curated).
+#
+# `lynn_city_stats` is a one-row Lynn-only ACS profile with no statewide
+# columns, so the MA comparison values are curated here from published ACS
+# 2019–2023 5-year tables — the same vintage as Lynn's profile. Each entry
+# carries the ACS table it comes from; values are approximate published
+# figures and are labeled "ACS 2023 5-yr" wherever they render.
+# ---------------------------------------------------------------------------
+
+MA_ACS_VINTAGE = "ACS 2023 5-yr"
+MA_BENCHMARKS = {
+    "median_household_income": {"value": 99_858, "table": "DP03",
+                                "label": "Median household income"},
+    "poverty_rate_pct":        {"value": 10.4,   "table": "S1701",
+                                "label": "Poverty rate"},
+    "median_age":              {"value": 39.9,   "table": "DP05",
+                                "label": "Median age"},
+    "foreign_born_pct":        {"value": 18.1,   "table": "DP02",
+                                "label": "% foreign-born"},
+    "bachelors_plus_pct":      {"value": 46.6,   "table": "S1501",
+                                "label": "% bachelor's or higher (age 25+)"},
+    "median_gross_rent":       {"value": 1_667,  "table": "B25064",
+                                "label": "Median gross rent"},
+    "renter_occupied_pct":     {"value": 37.8,   "table": "B25003",
+                                "label": "% renter-occupied"},
+    "unemployment_rate_pct":   {"value": 4.9,    "table": "DP03",
+                                "label": "Unemployment rate"},
+}
+
+
+def _ma_value(key: str):
+    """Statewide benchmark value, or None if the key isn't curated."""
+    entry = MA_BENCHMARKS.get(key)
+    return entry["value"] if entry else None
+
+
+def _ma_cite(*keys: str) -> str:
+    """Citation fragment: 'ACS tables DP03, DP05 · 2019–2023 5-year'."""
+    tables = ", ".join(dict.fromkeys(
+        MA_BENCHMARKS[k]["table"] for k in keys if k in MA_BENCHMARKS
+    ))
+    return f"ACS tables {tables} · 2019–2023 5-year estimates"
+
 
 tab_city, tab_nbhds = st.tabs(["Citywide", "Neighborhoods"])
 
@@ -106,6 +151,53 @@ with tab_city:
             "Founded 1629 — the fifth-oldest city in Massachusetts. Home to GE Aerospace's "
             "Lynn River Works (jet engines) and one of the largest municipal parks in the US "
             "(Lynn Woods Reservation, 2,200 acres)."
+        )
+
+        # --- Massachusetts statewide comparison (curated benchmarks) -------
+        st.subheader(f"How Lynn compares to Massachusetts ({MA_ACS_VINTAGE})")
+        ma1, ma2, ma3, ma4 = st.columns(4)
+        with ma1:
+            _ma_mhi = _ma_value("median_household_income")
+            _lynn_mhi = _num("median_household_income")
+            st.metric(
+                "MA median household income", _fmt_money(_ma_mhi),
+                delta=(f"Lynn {_lynn_mhi - _ma_mhi:+,.0f}"
+                       if _lynn_mhi is not None and _ma_mhi else None),
+                delta_color="off",
+            )
+        with ma2:
+            _ma_age = _ma_value("median_age")
+            _lynn_age = _num("median_age")
+            st.metric(
+                "MA median age", f"{_ma_age:.1f}",
+                delta=(f"Lynn {_lynn_age - _ma_age:+.1f} yrs"
+                       if _lynn_age is not None else None),
+                delta_color="off",
+            )
+        with ma3:
+            _ma_fb = _ma_value("foreign_born_pct")
+            _lynn_fb_pct = (
+                (_num("foreign_born_total") or 0) / (_num("pop_total") or 1) * 100
+            )
+            st.metric(
+                "MA % foreign-born", f"{_ma_fb:.1f}%",
+                delta=f"Lynn {_lynn_fb_pct - _ma_fb:+.1f} pp",
+                delta_color="off",
+            )
+        with ma4:
+            _ma_un = _ma_value("unemployment_rate_pct")
+            _lynn_un = _num("unemployment_rate")
+            st.metric(
+                "MA unemployment rate", f"{_ma_un:.1f}%",
+                delta=(f"Lynn {_lynn_un - _ma_un:+.1f} pp"
+                       if _lynn_un is not None else None),
+                delta_color="off",
+            )
+        st.caption(
+            f"Massachusetts figures are curated approximations of published "
+            f"statewide values ({_ma_cite('median_household_income', 'median_age', 'foreign_born_pct', 'unemployment_rate_pct')}) "
+            f"— the same vintage as Lynn's profile above. Deltas read Lynn "
+            f"minus Massachusetts."
         )
 
         # -------------------------------------------------------------------
@@ -291,6 +383,38 @@ with tab_city:
             st.metric("Civilian labor force", f"{int(lf):,}",
                       delta=f"Unemployed: {int(unemp):,}", delta_color="off")
 
+        # --- Massachusetts comparison for income + poverty -----------------
+        ma_i1, ma_i2, ma_i3 = st.columns(3)
+        with ma_i1:
+            _ma_pov = _ma_value("poverty_rate_pct")
+            _lynn_pov = _num("pov_rate_all_pct")
+            st.metric(
+                f"MA poverty rate ({MA_ACS_VINTAGE})", f"{_ma_pov:.1f}%",
+                delta=(f"Lynn {_lynn_pov - _ma_pov:+.1f} pp"
+                       if _lynn_pov is not None else None),
+                delta_color="off",
+            )
+        with ma_i2:
+            _ma_mhi2 = _ma_value("median_household_income")
+            _lynn_mhi2 = _num("median_household_income")
+            st.metric(
+                f"MA median HH income ({MA_ACS_VINTAGE})", _fmt_money(_ma_mhi2),
+                delta=(f"Lynn {_lynn_mhi2 - _ma_mhi2:+,.0f}"
+                       if _lynn_mhi2 is not None and _ma_mhi2 else None),
+                delta_color="off",
+            )
+        with ma_i3:
+            st.metric(
+                f"MA % bachelor's or higher ({MA_ACS_VINTAGE})",
+                f"{_ma_value('bachelors_plus_pct'):.1f}%",
+                help="Adults age 25+. Lynn's tract-level equivalent is in the "
+                     "Neighborhoods tab.",
+            )
+        st.caption(
+            f"Statewide comparison values: "
+            f"{_ma_cite('poverty_rate_pct', 'median_household_income', 'bachelors_plus_pct')}."
+        )
+
         st.caption(
             "**Compared to MA state averages** (ACS 2023): MA median household income "
             "~$97,000 · MA poverty rate ~10% · MA child poverty ~12%. Lynn sits below "
@@ -353,6 +477,31 @@ with tab_city:
             st.metric("Median home value", _fmt_money(_num("median_home_value")))
         with c4:
             st.metric("Median gross rent", _fmt_money(_num("median_gross_rent")))
+
+        # --- Massachusetts comparison for housing ---------------------------
+        ma_h1, ma_h2, _ma_h3, _ma_h4 = st.columns(4)
+        with ma_h1:
+            _ma_rent = _ma_value("median_gross_rent")
+            _lynn_rent = _num("median_gross_rent")
+            st.metric(
+                f"MA median gross rent ({MA_ACS_VINTAGE})", _fmt_money(_ma_rent),
+                delta=(f"Lynn {_lynn_rent - _ma_rent:+,.0f}"
+                       if _lynn_rent is not None and _ma_rent else None),
+                delta_color="off",
+            )
+        with ma_h2:
+            _ma_renter = _ma_value("renter_occupied_pct")
+            _lynn_renter = (rent / total_occ * 100) if total_occ else None
+            st.metric(
+                f"MA % renter-occupied ({MA_ACS_VINTAGE})", f"{_ma_renter:.1f}%",
+                delta=(f"Lynn {_lynn_renter - _ma_renter:+.1f} pp"
+                       if _lynn_renter is not None else None),
+                delta_color="off",
+            )
+        st.caption(
+            f"Statewide comparison values: "
+            f"{_ma_cite('median_gross_rent', 'renter_occupied_pct')}."
+        )
 
         year_cols = [
             ("Built 2014 or later",    _num("built_2014_or_later")),
@@ -649,6 +798,15 @@ with tab_nbhds:
         with c3: st.metric("% Low Income",                 f"{latest['LI_PCT']:.0%}")
         with c4: st.metric("% English Learner",            f"{latest['EL_PCT']:.0%}")
 
+    crosslink_callout(
+        "**See these neighborhoods through LEHS students' addresses.** "
+        "Maxwell's original geospatial study overlays where LEHS students "
+        "actually live (aggregated) with chronic-absence patterns on the same "
+        "Lynn geography as the tract maps below.",
+        "Where_Students_Live",
+        "Where Students Live →",
+    )
+
     st.divider()
 
     # -----------------------------------------------------------------------
@@ -872,3 +1030,5 @@ indicators (where data is available at scale).
         data_downloads_panel({
             "Enrollment & demographics": enrollment,
         })
+
+page_footer()

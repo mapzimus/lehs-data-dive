@@ -10,7 +10,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from utils.branding import sidebar_attribution
+from utils.branding import page_footer, sidebar_attribution
 from utils.charts import (
     DEFAULT_LAYOUT,
     LEHS_GOLD,
@@ -39,6 +39,7 @@ st.markdown(
     "headline rates, the full achievement-level distribution, multi-year subgroup "
     "gaps, growth percentiles, and benchmarks vs. Lynn district and Massachusetts."
 )
+st.markdown("These assessments feed the state accountability determination — see [State Accountability](/Accountability).")
 
 st.divider()
 st.header("📊 MCAS Results — Grade 10")
@@ -1237,3 +1238,5 @@ try:
     })
 except NameError:
     pass
+
+page_footer()

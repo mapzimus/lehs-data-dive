@@ -12,7 +12,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from utils.branding import AUTHOR_NAME, AUTHOR_SITE, sidebar_attribution
+from utils.branding import AUTHOR_NAME, AUTHOR_SITE, page_footer, sidebar_attribution
 from utils.constants import (
     IMAGES_DIR,
     LEHS_GOLD,
@@ -293,6 +293,35 @@ with s_col:
             f"{float(lehs_grad_row['GRAD_PCT']):.0%}",
             help=f"Most recent cohort: SY {sy_label(int(lehs_grad_row['SY']))}",
         )
+    # State accountability teaser — DESE's annual determination for LEHS.
+    # PERCENTILE is the school's 1-99 rank among all MA schools on the
+    # accountability formula; CLASSIFICATION is the headline label.
+    acct_df = load_dataset("accountability_summary")
+    if not acct_df.empty and "ORG_CODE" in acct_df.columns:
+        lehs_acct = acct_df[
+            acct_df["ORG_CODE"].astype(str).str.zfill(8) == LEHS_SCHOOL_CODE
+        ]
+        if "SY" in lehs_acct.columns:
+            lehs_acct = lehs_acct.sort_values("SY")
+        if not lehs_acct.empty:
+            acct_row = lehs_acct.iloc[-1]
+            acct_cls = str(acct_row.get("CLASSIFICATION") or "").strip()
+            acct_pctl = pd.to_numeric(acct_row.get("PERCENTILE"), errors="coerce")
+            if pd.notna(acct_pctl):
+                st.metric(
+                    "State percentile",
+                    f"{int(acct_pctl)} of 99",
+                    help=(
+                        f"DESE accountability percentile vs. all MA schools, "
+                        f"SY {sy_label(int(acct_row['SY']))}. "
+                        f"Classification: {acct_cls or '—'}."
+                    ),
+                )
+            elif acct_cls:
+                st.metric("State classification", acct_cls)
+            st.markdown(
+                "[Why? → State Accountability](/Accountability)"
+            )
     # st.page_link navigates within the multipage app (no new tab),
     # whereas st.link_button always opens externally. For internal
     # routes we want to keep visitors in the same tab/iframe.
@@ -564,6 +593,22 @@ st.markdown(
 """
 )
 
+# FAQ — plain-language answers to the terms visitors hit first.
+with st.expander("FAQ: What does “requiring assistance or intervention” mean?"):
+    st.markdown(
+        "It's the classification Massachusetts DESE assigns to schools whose "
+        "accountability results place them among those the state monitors most "
+        "closely — a state determination, not a federal one. The call rests on "
+        "the school's **criterion-referenced target percentage** (a 0–100 score "
+        "for progress toward improvement targets across MCAS achievement, "
+        "growth, chronic absence, graduation, and English-learner progress) and "
+        "on whether the school falls in the **lowest-performing 10%** of schools "
+        "statewide. Schools in this status can also carry the federal **CSI** "
+        "designation — Comprehensive Support and Improvement — which requires a "
+        "state-monitored improvement plan. The indicator-by-indicator breakdown "
+        "for LEHS is on the [State Accountability](/Accountability) page."
+    )
+
 st.divider()
 
 # ---------------------------------------------------------------------------
@@ -625,3 +670,5 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+page_footer()
