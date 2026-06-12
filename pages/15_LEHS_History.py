@@ -19,11 +19,20 @@ sources — the recent-leadership controversy that lived on School
 Profile before is omitted entirely.
 """
 
+import pandas as pd
+import plotly.express as px
 import streamlit as st
 import yaml
 
-from utils.branding import sidebar_attribution
-from utils.constants import ASSETS_DIR, IMAGES_DIR, LYNN_DISTRICT_CODE
+from utils.branding import page_footer, sidebar_attribution
+from utils.charts import DEFAULT_LAYOUT
+from utils.constants import (
+    ASSETS_DIR,
+    IMAGES_DIR,
+    LEHS_NAVY,
+    LEHS_SCHOOL_CODE,
+    LYNN_DISTRICT_CODE,
+)
 from utils.data_loader import load_dataset
 from utils.interpret import sy_label
 
@@ -265,6 +274,55 @@ still played every Thanksgiving on **Manning Bowl** — see the
 **[Athletics](/Athletics?embed=true)** page for that thread.
         """
     )
+
+    # --- LEHS by the numbers — enrollment since the early 1990s ----------
+    st.subheader("📈 LEHS by the numbers")
+
+    _hist_enr = load_dataset("enrollment_demographics")
+    _lehs_trend = pd.DataFrame()
+    if not _hist_enr.empty and {"ORG_CODE", "SY", "TOTAL_CNT"} <= set(_hist_enr.columns):
+        _lehs_trend = _hist_enr[_hist_enr["ORG_CODE"] == LEHS_SCHOOL_CODE].copy()
+        _lehs_trend["TOTAL_CNT"] = pd.to_numeric(
+            _lehs_trend["TOTAL_CNT"], errors="coerce"
+        )
+        _lehs_trend = (
+            _lehs_trend.dropna(subset=["TOTAL_CNT"])
+            .sort_values("SY")[["SY", "TOTAL_CNT"]]
+        )
+
+    if not _lehs_trend.empty:
+        _first_sy = int(_lehs_trend.iloc[0]["SY"])
+        _last_sy = int(_lehs_trend.iloc[-1]["SY"])
+        _fig_enr = px.area(
+            _lehs_trend,
+            x="SY",
+            y="TOTAL_CNT",
+            color_discrete_sequence=[LEHS_NAVY],
+        )
+        _fig_enr.update_layout(
+            **DEFAULT_LAYOUT,
+            height=320,
+            xaxis_title="School year (spring)",
+            yaxis_title="Students enrolled",
+            showlegend=False,
+        )
+        st.plotly_chart(_fig_enr, use_container_width=True)
+        st.caption(
+            f"LEHS total enrollment, SY {sy_label(_first_sy)} through "
+            f"SY {sy_label(_last_sy)} (DESE enrollment file). The waves track "
+            "the eras in these tabs: the steady ~1,300-student school of the "
+            "1990s, the climb through the 2000s as Lynn's immigrant population "
+            "grew, the post-2011 refugee-wave surge that pushed the building "
+            "past 2,100 students (see the *Lynn as a school city* tab), and "
+            "the recent step down as the district opened new high-school "
+            "options like Frederick Douglass Collegiate Academy."
+        )
+    else:
+        st.caption(
+            "_Enrollment trend unavailable — `enrollment_demographics.parquet` "
+            "is missing or carries no LEHS totals. Re-run the data refresh "
+            "pipeline to regenerate it._"
+        )
 
 # --- Tab 4: Notable alumni & faculty ----------------------------------------
 with _tab_alumni:
@@ -669,3 +727,5 @@ with _f_r:
         label="Open School Profile →",
         use_container_width=True,
     )
+
+page_footer()

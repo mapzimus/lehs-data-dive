@@ -19,7 +19,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from utils.branding import sidebar_attribution
+from utils.branding import page_footer, sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY
 
 st.set_page_config(
@@ -129,6 +129,9 @@ st.markdown(
   big the gaps are between bars.
 - **In this dashboard:** every page that ranks schools, subjects, or
   subgroups uses a bar chart.
+
+👀 **See it in action:** the [Lynn Schools](/Lynn_Schools?embed=true) page is
+wall-to-wall bar charts comparing LEHS to its four sibling high schools.
 """
 )
 
@@ -162,6 +165,9 @@ st.markdown(
   the missing 2020 point above, when COVID cancelled MCAS).
 - **In this dashboard:** MCAS trends, enrollment over decades,
   graduation rates by cohort year.
+
+👀 **See it in action:** [Academic Performance](/Academic_Performance?embed=true)
+opens with multi-year MCAS line charts — including that real 2020 gap.
 """
 )
 
@@ -234,6 +240,10 @@ st.markdown(
 - **In this dashboard:** the [Cross-Topic Explorer](/Correlation_Lab?embed=true)
   is built entirely around scatter plots — pick any two metrics across
   MA's 26 Gateway cities and see if they move together.
+
+👀 **See it in action:** head to the
+[Cross-Topic Explorer](/Correlation_Lab?embed=true) and build your own
+scatter plot with two metrics you're curious about.
 """
 )
 
@@ -254,6 +264,9 @@ You'll see two flavors on this dashboard:
 - **State-scale:** all 351 MA municipalities shaded by school
   performance, demographics, or finance — on the standalone
   [MA Education Atlas](https://maxwellhowegis.com/ma-atlas/).
+
+👀 **See it in action:** the [Maps](/Maps?embed=true) page is the launch pad
+for both interactive maps — try shading Lynn's tracts by a metric you care about.
 """
 )
 
@@ -417,6 +430,10 @@ underlying sample is small or noisy, so the "real" value could be
 anywhere in that range. **If two confidence intervals overlap, the
 two numbers might actually be the same** — don't read too much into
 the difference between them.
+
+👀 **See it in action:** the MCAS trend charts on
+[Academic Performance](/Academic_Performance?embed=true) are where to
+practice telling a real trend from year-to-year noise.
 """
     )
 
@@ -452,3 +469,5 @@ st.caption(
     "still confusing or want a chart type covered that isn't here, let "
     "Maxwell know via the GitHub link in the footer."
 )
+
+page_footer()

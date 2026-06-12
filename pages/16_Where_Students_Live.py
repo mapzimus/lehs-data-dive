@@ -113,7 +113,7 @@ import json  # noqa: E402
 import pandas as pd  # noqa: E402
 import plotly.express as px  # noqa: E402
 
-from utils.charts import DEFAULT_LAYOUT  # noqa: E402
+from utils.charts import DEFAULT_LAYOUT, csv_download  # noqa: E402
 
 _TRACTS_PATH = PROCESSED_DIR / "lynn_tracts.geojson"
 
@@ -215,6 +215,15 @@ if _TRACTS_PATH.exists():
         "severe_burden_pct",
         "% of households cost-burdened (30%+ of income on housing)",
         "{:.0%}", "Oranges",
+    )
+
+    # One-click export of the tract table behind the four charts above —
+    # same attribute set the maps carry (ACS + CDC PLACES per tract).
+    csv_download(
+        _tracts_df,
+        "lynn_tracts.csv",
+        label="⬇ Download the Lynn census-tract table (CSV)",
+        key="dl_lynn_tracts",
     )
 else:
     st.info(
