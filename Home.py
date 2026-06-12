@@ -31,7 +31,12 @@ nav = {
     ],
     "The School (LEHS)": [
         st.Page("pages/1_School_Profile.py", title="School Profile", url_path="School_Profile"),
-        st.Page("pages/2_Academic_Performance.py", title="Academic Performance", url_path="Academic_Performance"),
+        # url_path stays "Academic_Performance" so existing public links keep
+        # working — only the display title changed when the page went MCAS-only.
+        st.Page("pages/2_Academic_Performance.py", title="MCAS", url_path="Academic_Performance"),
+        # Non-MCAS academics (G9 passing, course access, AP, SAT, retention)
+        # split out of the old Academic Performance page.
+        st.Page("pages/2b_Courses_and_Academics.py", title="Courses & Academics", url_path="Courses_and_Academics"),
         # DESE determination breakdown — the page admins check first, so it
         # sits directly under Academic Performance rather than at the end.
         st.Page("pages/3_Accountability.py", title="State Accountability", url_path="Accountability"),

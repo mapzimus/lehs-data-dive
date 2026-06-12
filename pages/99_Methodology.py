@@ -188,7 +188,7 @@ home so the rest of the pages can stay LEHS-focused:
    **[Cross-Topic Explorer](/Correlation_Lab?embed=true)**. This is the
    across-cities benchmark.
 
-LEHS-focused pages (School Profile, Academic Performance, English
+LEHS-focused pages (School Profile, MCAS, Courses & Academics, English
 Learners, College & Career, Success After HS, Teachers & Workforce,
 Finance, Discipline & Climate, Where Students Live)
 lead with LEHS's own story. School-to-school comparison lives on the

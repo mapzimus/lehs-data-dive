@@ -166,7 +166,7 @@ st.markdown(
 - **In this dashboard:** MCAS trends, enrollment over decades,
   graduation rates by cohort year.
 
-👀 **See it in action:** [Academic Performance](/Academic_Performance?embed=true)
+👀 **See it in action:** [MCAS](/Academic_Performance?embed=true)
 opens with multi-year MCAS line charts — including that real 2020 gap.
 """
 )
@@ -432,7 +432,7 @@ two numbers might actually be the same** — don't read too much into
 the difference between them.
 
 👀 **See it in action:** the MCAS trend charts on
-[Academic Performance](/Academic_Performance?embed=true) are where to
+[MCAS](/Academic_Performance?embed=true) are where to
 practice telling a real trend from year-to-year noise.
 """
     )
@@ -452,7 +452,7 @@ places to practice:
 
 - **[School Profile](/School_Profile?embed=true)** — bar charts and trend lines
   showing who attends LEHS. Compare year-over-year.
-- **[Academic Performance](/Academic_Performance?embed=true)** — MCAS line
+- **[MCAS](/Academic_Performance?embed=true)** — MCAS line
   charts with confidence intervals. Look for trend vs. noise.
 - **[Cross-Topic Explorer](/Correlation_Lab?embed=true)** — scatter plots across
   26 MA gateway cities. Pick any two metrics and look for
