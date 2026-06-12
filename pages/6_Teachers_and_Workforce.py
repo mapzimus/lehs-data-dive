@@ -5,9 +5,17 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from utils.branding import sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
-from utils.constants import LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
+from utils.branding import crosslink_callout, page_footer, sidebar_attribution
+from utils.charts import (
+    DEFAULT_LAYOUT,
+    LEHS_GOLD,
+    LEHS_NAVY,
+    SUBGROUP_PALETTE,
+    data_downloads_panel,
+    span_years,
+    with_year_gaps,
+)
+from utils.constants import LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE, STATE_COLOR
 from utils.data_loader import load_dataset
 from utils.interpret import sy_label
 
@@ -173,6 +181,108 @@ if not key_roles.empty:
 st.divider()
 
 # ---------------------------------------------------------------------------
+# Who supports English Learners — a capacity PROXY, not an EL-specialist count.
+# DESE's staffing file has no school-level ESL/bilingual-licensure FTE, so we
+# overlay the role categories most likely to carry EL support load
+# (Paraprofessionals + Instructional Support Staff) against LEHS's EL enrollment
+# growth. The honest read: as the EL population has surged, has support-staff
+# capacity kept pace?
+# ---------------------------------------------------------------------------
+
+st.header("Who supports English Learners?")
+st.caption(
+    "DESE publishes **no school-level ESL- or bilingual-licensure FTE count**, "
+    "so there is no clean way to report \"how many EL specialists work at LEHS.\" "
+    "What we *can* show is a **capacity proxy**: the support-staff roles "
+    "(paraprofessionals and instructional-support staff) that most often carry "
+    "English-Learner support, plotted against LEHS's rising EL enrollment. Read "
+    "it as \"is support capacity keeping pace with EL growth?\", not as a count "
+    "of dedicated EL educators."
+)
+
+# Support-staff FTE trends from the staffing file (already LEHS-scoped).
+support_staff = lehs_staff.copy()
+support_staff["SY"] = pd.to_numeric(support_staff["SY"], errors="coerce")
+support_staff["_F"] = pd.to_numeric(support_staff["FTE_TOTAL"], errors="coerce")
+support_cats = {
+    "Paraprofessional": "Paraprofessionals",
+    "Instructional Support Staff": "Instructional support staff",
+}
+support_rows = []
+for cat, label in support_cats.items():
+    sub = support_staff[support_staff["JOBCLASS_CAT"] == cat]
+    if sub.empty:
+        continue
+    by_year = sub.groupby("SY", as_index=False)["_F"].sum().rename(columns={"_F": "FTE"})
+    by_year = by_year.dropna(subset=["SY"])
+    by_year["Series"] = label
+    support_rows.append(by_year)
+
+# EL enrollment growth from the demographics file.
+el_lehs = enrollment[enrollment["ORG_CODE"] == LEHS_SCHOOL_CODE].copy()
+el_lehs["SY"] = pd.to_numeric(el_lehs["SY"], errors="coerce")
+el_lehs["EL_CNT"] = pd.to_numeric(el_lehs["EL_CNT"], errors="coerce")
+el_lehs = el_lehs.dropna(subset=["SY", "EL_CNT"])
+
+if support_rows and not el_lehs.empty:
+    support_df = pd.concat(support_rows, ignore_index=True)
+    # Restrict to the EL-growth era so the chart reads cleanly (and the COVID
+    # gap is in-window). Both series share the staffing span.
+    span_lo = max(int(support_df["SY"].min()), int(el_lehs["SY"].min()), 2014)
+    support_df = support_df[support_df["SY"] >= span_lo]
+    el_win = el_lehs[el_lehs["SY"] >= span_lo][["SY", "EL_CNT"]].sort_values("SY")
+
+    yrs = span_years(support_df)
+    fig = go.Figure()
+    el_gap = with_year_gaps(el_win, "EL_CNT", years=yrs)
+    fig.add_trace(go.Scatter(
+        x=el_gap["SY"], y=el_gap["EL_CNT"], name="EL students enrolled",
+        mode="lines+markers", line=dict(color=LEHS_GOLD, width=3),
+        connectgaps=False, yaxis="y2",
+    ))
+    support_colors = {
+        "Paraprofessionals": LEHS_NAVY,
+        "Instructional support staff": STATE_COLOR,
+    }
+    for label, color in support_colors.items():
+        s = support_df[support_df["Series"] == label][["SY", "FTE"]].sort_values("SY")
+        if s.empty:
+            continue
+        s_gap = with_year_gaps(s, "FTE", years=yrs)
+        fig.add_trace(go.Scatter(
+            x=s_gap["SY"], y=s_gap["FTE"], name=f"{label} (FTE)",
+            mode="lines+markers", line=dict(color=color, width=2.5),
+            connectgaps=False, yaxis="y1",
+        ))
+    fig.update_layout(
+        **DEFAULT_LAYOUT,
+        xaxis_title="School Year",
+        yaxis=dict(title="Support-staff FTE"),
+        yaxis2=dict(title="EL students enrolled", overlaying="y", side="right",
+                    showgrid=False),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        "Left axis: support-staff FTE (navy / slate). Right axis: EL students "
+        "enrolled (gold). These job categories are **not** EL-specific — DESE's "
+        "school-level staffing file carries no ESL/bilingual-licensure breakout, "
+        "so this is a capacity proxy. A widening gap between rising EL enrollment "
+        "and flat support FTE would suggest thinning per-student support; the "
+        "reverse would suggest the school is staffing up to meet EL demand."
+    )
+
+crosslink_callout(
+    "Whether this support capacity is enough shows up downstream in how quickly "
+    "English Learners make progress and exit EL status — the EL pipeline view "
+    "traces that journey from entry to reclassification.",
+    "ELL_Pipeline",
+    "See the EL Pipeline page",
+)
+
+st.divider()
+
+# ---------------------------------------------------------------------------
 # Teacher diversity trend over time
 # ---------------------------------------------------------------------------
 
@@ -257,6 +367,49 @@ if not retention.empty:
                           yaxis_title="% teachers returning the next year")
         with c2:
             st.plotly_chart(fig, use_container_width=True)
+
+    # LEHS-specific Teachers vs. Principals retention trend (2009-2026). The
+    # school-level rows let us see whether building leadership turns over more or
+    # less than the teaching staff it supervises.
+    lehs_ret = retention[
+        (retention["ORG_CODE"] == LEHS_SCHOOL_CODE)
+        & (retention["STAFF_DESC"].astype(str).isin(["Teachers", "Principals"]))
+    ].copy()
+    lehs_ret["SY"] = pd.to_numeric(lehs_ret["SY"], errors="coerce")
+    lehs_ret["RETND_CNT"] = pd.to_numeric(lehs_ret["RETND_CNT"], errors="coerce")
+    lehs_ret["TOT_CNT"] = pd.to_numeric(lehs_ret["TOT_CNT"], errors="coerce")
+    lehs_ret = lehs_ret.dropna(subset=["SY", "RETND_CNT", "TOT_CNT"])
+    lehs_ret = lehs_ret[lehs_ret["TOT_CNT"] > 0]
+    # Precise rate from counts (DESE's RETND_PCT is rounded to one decimal).
+    lehs_ret["RETND_RATE"] = lehs_ret["RETND_CNT"] / lehs_ret["TOT_CNT"]
+
+    if not lehs_ret.empty:
+        st.subheader("LEHS retention — teachers vs. principals over time")
+        # Break any skipped year (incl. the 2020 COVID year if absent) instead of
+        # drawing across it.
+        ret_plot = with_year_gaps(
+            lehs_ret[["SY", "STAFF_DESC", "RETND_RATE"]],
+            "RETND_RATE", group_col="STAFF_DESC", years=span_years(lehs_ret),
+        )
+        fig = px.line(
+            ret_plot.sort_values(["STAFF_DESC", "SY"]),
+            x="SY", y="RETND_RATE", color="STAFF_DESC", markers=True,
+            color_discrete_map={"Teachers": LEHS_NAVY, "Principals": LEHS_GOLD},
+        )
+        fig.update_traces(connectgaps=False)
+        fig.update_layout(
+            **DEFAULT_LAYOUT, yaxis_tickformat=".0%",
+            yaxis_title="% returning the next year", xaxis_title="School Year",
+            legend_title="Staff group",
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        st.caption(
+            "Both series are computed from the underlying retained / total counts. "
+            "LEHS has a single principal in most years, so the principal line is a "
+            "0%-or-100% step (one departure swings it the whole way) — read it as a "
+            "leadership-continuity flag, not a rate. The teacher line, drawn from "
+            "100-plus staff, is the stable signal."
+        )
 
 st.divider()
 
@@ -653,17 +806,18 @@ else:
 
 st.divider()
 
-# >>> auto: csv downloads <<<
-try:
-    from utils.charts import data_downloads_panel as _dl
-    _dl({
-        'Staffing (race/gender)': staffing,
-        'Enrollment & demographics': enrollment,
-        'Staff attendance': load_dataset("teacher_attendance"),
-        'Educators by age': load_dataset("educators_by_age"),
-        'CRDC staffing': crdc_staff,
-    })
-except NameError:
-    # one of the dataset variables wasn't defined on this run
-    pass
+# ---------------------------------------------------------------------------
+# Downloads + footer
+# ---------------------------------------------------------------------------
+
+data_downloads_panel({
+    "Staffing (race/gender)": staffing,
+    "Enrollment & demographics": enrollment,
+    "Staff retention": retention,
+    "Staff attendance": load_dataset("teacher_attendance"),
+    "Educators by age": load_dataset("educators_by_age"),
+    "CRDC staffing": crdc_staff,
+})
+
+page_footer()
 

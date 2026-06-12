@@ -5,11 +5,21 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from utils.branding import sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, STATE_COLOR, SUBGROUP_PALETTE
-from utils.constants import LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
+from utils.branding import crosslink_callout, page_footer, sidebar_attribution
+from utils.charts import (
+    DEFAULT_LAYOUT,
+    LEHS_GOLD,
+    LEHS_NAVY,
+    STATE_COLOR,
+    SUBGROUP_PALETTE,
+    data_downloads_panel,
+    span_years,
+    with_year_gaps,
+)
+from utils.constants import AP_SCORE_COLORS, LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
 from utils.data_loader import get_dart_indicator, load_dataset
 from utils.interpret import sat_methodology_note, sy_label
+from utils.stats import subgroup_summary_md
 
 st.set_page_config(page_title="College & Career | LEHS", page_icon="🎓", layout="wide")
 sidebar_attribution()
@@ -127,10 +137,7 @@ if not ap_lehs.empty:
         fig = px.bar(
             score_long, x="SY", y="Count", color="Score", barmode="stack",
             category_orders={"Score": ["1", "2", "3", "4", "5"]},
-            color_discrete_map={
-                "1": "#DEEBF7", "2": "#9ECAE1", "3": "#6BAED6",
-                "4": "#3182BD", "5": "#08519C",
-            },
+            color_discrete_map=AP_SCORE_COLORS,
         )
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Tests")
         st.plotly_chart(fig, use_container_width=True)
@@ -229,6 +236,183 @@ if not ap_groups.empty:
             )
             st.plotly_chart(fig, use_container_width=True)
 
+# ---------------------------------------------------------------------------
+# AP access vs. success — who is *in the room* vs. who *succeeds*. For each
+# student group, contrast the group's share of AP test-takers with its share of
+# overall enrollment (a representation gap), and overlay the group's % scoring
+# 3+. Test-taker counts come from ap_participation; group enrollment from
+# enrollment_demographics (race groups via PCT × total, EL/Low-Income/SWD via
+# their published _CNT columns); pass rate from ap_performance PCT_3_5.
+# ---------------------------------------------------------------------------
+
+st.subheader("AP access vs. success — who's in the room, and who succeeds")
+st.caption(
+    "Two different equity questions sit side by side here. **Access**: does a "
+    "group take AP exams in proportion to its share of the school? A group whose "
+    "share of test-takers trails its share of enrollment is under-represented in "
+    "AP. **Success**: of the exams a group does sit, how many score 3+ "
+    "(college-credit-eligible)? Closing the access gap and the success gap are "
+    "distinct levers."
+)
+
+ap_part_eq = load_dataset("ap_participation")
+enr_eq = load_dataset("enrollment_demographics")
+if ap_part_eq.empty or enr_eq.empty:
+    st.info("AP-participation or enrollment data is temporarily unavailable.")
+else:
+    ap_part_lehs = ap_part_eq[ap_part_eq["ORG_CODE"] == LEHS_SCHOOL_CODE].copy()
+    ap_part_lehs["STU_GRP"] = ap_part_lehs["STU_GRP"].astype(str).str.replace("\xa0", " ")
+    ap_part_lehs["SY"] = pd.to_numeric(ap_part_lehs["SY"], errors="coerce")
+    ap_part_lehs["TEST_TAKERS_CNT"] = pd.to_numeric(ap_part_lehs["TEST_TAKERS_CNT"], errors="coerce")
+
+    enr_lehs = enr_eq[enr_eq["ORG_CODE"] == LEHS_SCHOOL_CODE].copy()
+    enr_lehs["SY"] = pd.to_numeric(enr_lehs["SY"], errors="coerce")
+
+    if not ap_part_lehs.dropna(subset=["SY"]).empty and not enr_lehs.dropna(subset=["SY"]).empty:
+        # Pin to the latest year that exists in BOTH files so shares are
+        # apples-to-apples (the enrollment file can lead AP participation by a year).
+        eq_year = int(min(ap_part_lehs["SY"].max(), enr_lehs["SY"].max()))
+        part_y = ap_part_lehs[ap_part_lehs["SY"] == eq_year]
+        enr_y = enr_lehs[enr_lehs["SY"] == eq_year]
+
+        all_takers = part_y[part_y["STU_GRP"] == "All Students"]["TEST_TAKERS_CNT"]
+        total_takers = float(all_takers.iloc[0]) if not all_takers.empty and pd.notna(all_takers.iloc[0]) else None
+
+        if total_takers and total_takers > 0 and not enr_y.empty:
+            enr_row = enr_y.iloc[0]
+            total_enr = pd.to_numeric(enr_row.get("TOTAL_CNT"), errors="coerce")
+
+            # Group → (test-taker STU_GRP label, enrollment count). Race groups
+            # derive a count from PCT × total; population groups use their _CNT.
+            def _enr_cnt(pct_col=None, cnt_col=None):
+                if cnt_col is not None:
+                    return pd.to_numeric(enr_row.get(cnt_col), errors="coerce")
+                p = pd.to_numeric(enr_row.get(pct_col), errors="coerce")
+                if pd.isna(p) or pd.isna(total_enr):
+                    return float("nan")
+                return p * total_enr
+
+            EQ_GROUPS = [
+                ("Hispanic or Latino",          _enr_cnt(pct_col="HL_PCT")),
+                ("Black or African American",   _enr_cnt(pct_col="BAA_PCT")),
+                ("Asian",                       _enr_cnt(pct_col="AS_PCT")),
+                ("White",                       _enr_cnt(pct_col="WH_PCT")),
+                ("English Learners",            _enr_cnt(cnt_col="EL_CNT")),
+                ("Low Income",                  _enr_cnt(cnt_col="LI_CNT")),
+                ("Students with Disabilities",  _enr_cnt(cnt_col="SWD_CNT")),
+            ]
+
+            # Pass rate (PCT_3_5) per group, All Subjects, same year — reuse the
+            # already-loaded ap performance frame.
+            pass_lookup = ap[
+                (ap["ORG_CODE"] == LEHS_SCHOOL_CODE)
+                & (ap["SUBJ"] == "All Subjects")
+                & (pd.to_numeric(ap["SY"], errors="coerce") == eq_year)
+            ].copy()
+            pass_lookup["STU_GRP"] = pass_lookup["STU_GRP"].astype(str).str.replace("\xa0", " ")
+            pass_lookup["PCT_3_5"] = pd.to_numeric(pass_lookup["PCT_3_5"], errors="coerce")
+
+            eq_rows = []
+            for grp, enr_cnt in EQ_GROUPS:
+                takers = part_y[part_y["STU_GRP"] == grp]["TEST_TAKERS_CNT"]
+                takers_n = float(takers.iloc[0]) if not takers.empty and pd.notna(takers.iloc[0]) else None
+                if takers_n is None or pd.isna(enr_cnt) or float(enr_cnt) <= 0:
+                    continue
+                pr = pass_lookup[pass_lookup["STU_GRP"] == grp]["PCT_3_5"]
+                pr_val = float(pr.iloc[0]) if not pr.empty and pd.notna(pr.iloc[0]) else None
+                eq_rows.append({
+                    "Group": grp,
+                    "Share of AP test-takers": takers_n / total_takers,
+                    "Share of enrollment": float(enr_cnt) / float(total_enr) if pd.notna(total_enr) and total_enr else float("nan"),
+                    "Test-takers (n)": int(takers_n),
+                    "Pass rate (3+)": pr_val,
+                })
+
+            eq_df = pd.DataFrame(eq_rows)
+            if not eq_df.empty:
+                # Access view: share of test-takers vs share of enrollment.
+                eq_share = eq_df.sort_values("Share of enrollment", ascending=True)
+                fig = go.Figure()
+                fig.add_trace(go.Bar(
+                    name="Share of enrollment", x=eq_share["Group"],
+                    y=eq_share["Share of enrollment"], marker_color=LEHS_GOLD,
+                ))
+                fig.add_trace(go.Bar(
+                    name="Share of AP test-takers", x=eq_share["Group"],
+                    y=eq_share["Share of AP test-takers"], marker_color=LEHS_NAVY,
+                ))
+                fig.update_layout(
+                    **DEFAULT_LAYOUT, barmode="group", yaxis_tickformat=".0%",
+                    yaxis_title="Share", xaxis_title="",
+                    title=f"Who's in the AP room vs. who's enrolled — SY {sy_label(eq_year)}",
+                )
+                st.plotly_chart(fig, use_container_width=True)
+                st.caption(
+                    "A bar where *share of AP test-takers* (navy) sits below "
+                    "*share of enrollment* (gold) flags a group under-represented "
+                    "among AP test-takers. Shares of test-takers are of unique "
+                    "students sitting ≥1 AP exam; group enrollment counts for race "
+                    "groups are derived from DESE's rounded percentage of total "
+                    "enrollment, so treat them as close approximations."
+                )
+
+                # Success view: % scoring 3+ per group, with N shown and small-n
+                # caution. Use the Wilson-CI subgroup summary so the reader sees
+                # how wide the uncertainty is for the smaller groups.
+                succ = eq_df.dropna(subset=["Pass rate (3+)"]).copy()
+                if not succ.empty:
+                    succ = succ.sort_values("Pass rate (3+)", ascending=True)
+                    succ["label"] = succ.apply(
+                        lambda r: f"{r['Pass rate (3+)']:.0%} (n={int(r['Test-takers (n)'])})",
+                        axis=1,
+                    )
+                    fig = px.bar(
+                        succ, x="Pass rate (3+)", y="Group", orientation="h",
+                        text="label",
+                    )
+                    fig.update_traces(marker_color=LEHS_NAVY, textposition="outside",
+                                      cliponaxis=False)
+                    fig.update_layout(
+                        **DEFAULT_LAYOUT, xaxis_tickformat=".0%",
+                        xaxis_title="% of exams scoring 3+ (college-credit-eligible)",
+                        yaxis_title="", xaxis_range=[0, 1.12],
+                        height=max(320, 32 * len(succ)),
+                        title=f"AP success by group — SY {sy_label(eq_year)}",
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+
+                    # Wilson CIs + gap test vs All Students. Add the All-Students
+                    # reference row so the gap test has a baseline to compare to.
+                    all_pr = pass_lookup[pass_lookup["STU_GRP"] == "All Students"]["PCT_3_5"]
+                    summ = succ[["Group", "Pass rate (3+)", "Test-takers (n)"]].rename(
+                        columns={"Group": "STU_GRP", "Pass rate (3+)": "pct",
+                                 "Test-takers (n)": "n"}
+                    )
+                    if not all_pr.empty and pd.notna(all_pr.iloc[0]):
+                        summ = pd.concat([
+                            pd.DataFrame([{
+                                "STU_GRP": "All Students",
+                                "pct": float(all_pr.iloc[0]),
+                                "n": int(total_takers),
+                            }]),
+                            summ,
+                        ], ignore_index=True)
+                    md = subgroup_summary_md(
+                        summ, group_col="STU_GRP", pct_col="pct", n_col="n",
+                        reference_group="All Students",
+                        title=f"AP pass rate (3+) with 95% Wilson CIs — SY {sy_label(eq_year)}",
+                    )
+                    if md:
+                        st.markdown(md)
+                    st.caption(
+                        "Confidence intervals widen sharply for groups with only a "
+                        "handful of test-takers (e.g. English Learners, Students "
+                        "with Disabilities), so read those point estimates with "
+                        "care — n is shown on every bar. Pass rate here is exam-"
+                        "weighted (% of *exams* scoring 3+), while n is unique "
+                        "test-takers."
+                    )
+
 st.divider()
 
 # ---------------------------------------------------------------------------
@@ -259,8 +443,12 @@ else:
                          var_name="Measure", value_name="Count")
         m["Measure"] = m["Measure"].map({"TEST_TAKERS_CNT": "Test-takers",
                                          "TESTS_TAKEN_CNT": "Exams taken"})
+        # Break the line across any skipped year (notably 2020) instead of
+        # interpolating a smooth segment across the COVID gap.
+        m = with_year_gaps(m, "Count", group_col="Measure", years=span_years(lehs_ap))
         fig = px.line(m, x="SY", y="Count", color="Measure", markers=True,
                       color_discrete_map={"Test-takers": LEHS_NAVY, "Exams taken": LEHS_GOLD})
+        fig.update_traces(connectgaps=False)
         fig.update_layout(**DEFAULT_LAYOUT,
                           title="AP participation at Lynn English over time",
                           yaxis_title="Students / exams", xaxis_title="School Year")
@@ -420,6 +608,14 @@ st.caption(
     "across all 11th and 12th graders."
 )
 
+crosslink_callout(
+    "Advanced-coursework completion is one of the indicators DESE rolls into a "
+    "school's accountability score, so the access and pass-rate gaps above feed "
+    "directly into how LEHS is rated.",
+    "Accountability",
+    "See the Accountability page",
+)
+
 adv = load_dataset("advanced_course_completion")
 if not adv.empty:
     lehs_adv = adv[
@@ -469,7 +665,7 @@ if not adv.empty:
             fig = px.line(
                 trend_df.sort_values(["Scope", "SY"]),
                 x="SY", y="ADV_COMP_PCT", color="Scope", markers=True, text="label",
-                color_discrete_map={"LEHS": LEHS_GOLD, "Lynn District": LEHS_NAVY, "Massachusetts": "#455A64"},
+                color_discrete_map={"LEHS": LEHS_GOLD, "Lynn District": LEHS_NAVY, "Massachusetts": STATE_COLOR},
             )
             fig.update_traces(textposition="top center", textfont=dict(size=10))
             fig.update_layout(
@@ -534,8 +730,15 @@ mc_groups = mc[mc["STU_GRP"].isin([
 ])].copy()
 
 if not mc_groups.empty:
+    # Insert explicit NaN rows for any skipped year (esp. the 2020 COVID gap) so
+    # the lines BREAK there rather than drawing straight across — paired with
+    # connectgaps=False below.
+    mc_plot = with_year_gaps(
+        mc_groups, "PCT_COMPL_MASSCORE", group_col="STU_GRP",
+        years=span_years(mc_groups),
+    )
     fig = px.line(
-        mc_groups.sort_values("SY"), x="SY", y="PCT_COMPL_MASSCORE",
+        mc_plot.sort_values("SY"), x="SY", y="PCT_COMPL_MASSCORE",
         color="STU_GRP", markers=True,
         color_discrete_map={
             "All Students":               LEHS_NAVY,
@@ -547,6 +750,7 @@ if not mc_groups.empty:
             "High Needs":                 SUBGROUP_PALETTE["High Needs"],
         },
     )
+    fig.update_traces(connectgaps=False)
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                        yaxis_title="MassCore Completion Rate")
     st.plotly_chart(fig, use_container_width=True)
@@ -654,11 +858,18 @@ if not sat_perf.empty:
                 if sub_trend.empty:
                     continue
                 st.markdown(f"**{subj} — trend by scope**")
+                # Reindex per scope so any skipped year (incl. 2020) is an
+                # explicit NaN and the line breaks rather than spanning the gap.
+                sub_trend = with_year_gaps(
+                    sub_trend, "Score", group_col="Scope",
+                    years=span_years(sub_trend),
+                )
                 fig = px.line(
                     sub_trend.sort_values(["Scope", "SY"]),
                     x="SY", y="Score", color="Scope", markers=True,
-                    color_discrete_map={"LEHS": LEHS_GOLD, "Lynn District": LEHS_NAVY, "Massachusetts": "#455A64"},
+                    color_discrete_map={"LEHS": LEHS_GOLD, "Lynn District": LEHS_NAVY, "Massachusetts": STATE_COLOR},
                 )
+                fig.update_traces(connectgaps=False)
                 fig.update_layout(
                     **DEFAULT_LAYOUT,
                     yaxis_title=f"Mean {subj} score",
@@ -1011,20 +1222,23 @@ else:
             )
     st.dataframe(display, use_container_width=True, hide_index=True, height=420)
 
-# >>> auto: csv downloads <<<
-try:
-    from utils.charts import data_downloads_panel as _dl
-    _dl({
-        'AP performance': ap,
-        'AP participation': load_dataset("ap_participation"),
-        'MassCore completion': masscore,
-        'Pathways enrollment': pathways,
-        'Early College participation': ec_part,
-        'DLCS (computer science) course taking': load_dataset("dlcs_course_taking"),
-        'Arts course taking': load_dataset("arts_course_taking"),
-        'IPEDS destinations': ipeds,
-    })
-except NameError:
-    # one of the dataset variables wasn't defined on this run
-    pass
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Downloads + footer
+# ---------------------------------------------------------------------------
+
+data_downloads_panel({
+    "AP performance": ap,
+    "AP participation": load_dataset("ap_participation"),
+    "Enrollment & demographics": load_dataset("enrollment_demographics"),
+    "MassCore completion": masscore,
+    "Pathways enrollment": pathways,
+    "Early College participation": ec_part,
+    "DLCS (computer science) course taking": load_dataset("dlcs_course_taking"),
+    "Arts course taking": load_dataset("arts_course_taking"),
+    "IPEDS destinations": ipeds,
+})
+
+page_footer()
 
