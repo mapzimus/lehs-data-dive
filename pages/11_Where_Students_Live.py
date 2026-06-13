@@ -114,6 +114,8 @@ import pandas as pd  # noqa: E402
 import plotly.express as px  # noqa: E402
 
 from utils.charts import DEFAULT_LAYOUT, csv_download  # noqa: E402
+from utils.constants import LEHS_GOLD, LEHS_NAVY  # noqa: E402
+from utils.data_loader import load_dataset  # noqa: E402
 
 _TRACTS_PATH = PROCESSED_DIR / "lynn_tracts.geojson"
 
@@ -230,6 +232,93 @@ else:
         "`data/processed/lynn_tracts.geojson` not found — community context "
         "overlay is unavailable. Re-run the refresh pipeline to regenerate."
     )
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Housing affordability — what it costs to live where these students live
+# ---------------------------------------------------------------------------
+
+st.header("Housing affordability")
+st.markdown(
+    "Where students live is shaped by what housing costs. Lynn's home values "
+    "and rents are the economic backdrop behind the residence maps above. "
+    "(This is affordability only — building-permit and zoning data, which would "
+    "show housing *supply*, aren't in this pipeline; see "
+    "[What We Don't Know](/Data_Gaps).)"
+)
+
+_housing = load_dataset("lynn_housing_trend")
+if not _housing.empty:
+    zhvi = _housing[(_housing["scope"] == "Lynn") & (_housing["metric"] == "ZHVI")].copy()
+    zhvi["date"] = pd.to_datetime(zhvi["date"], errors="coerce")
+    zhvi["value"] = pd.to_numeric(zhvi["value"], errors="coerce")
+    zhvi = zhvi.dropna(subset=["date", "value"]).sort_values("date")
+    if not zhvi.empty:
+        fig = px.line(zhvi, x="date", y="value",
+                      labels={"date": "", "value": "Typical home value"})
+        fig.update_traces(line=dict(color=LEHS_NAVY, width=2.5))
+        fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickprefix="$", yaxis_tickformat=",.0f",
+                          title="Lynn typical home value, 2000–present (Zillow ZHVI)")
+        st.plotly_chart(fig, width="stretch")
+        first, latest = zhvi.iloc[0], zhvi.iloc[-1]
+        st.caption(
+            f"Zillow's typical Lynn home value rose from about "
+            f"${first['value']:,.0f} in {first['date']:%Y} to "
+            f"${latest['value']:,.0f} in {latest['date']:%Y}. Source: Zillow "
+            "Home Value Index (ZHVI), all homes, smoothed."
+        )
+
+_city = load_dataset("lynn_city_stats")
+if not _city.empty:
+    row = _city.iloc[0]
+
+    def _num(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+
+    occ = _num(row.get("occupied_housing_units"))
+    owner = _num(row.get("owner_occupied"))
+    mhv = _num(row.get("median_home_value"))
+    rent = _num(row.get("median_gross_rent"))
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Median home value", f"${mhv:,.0f}" if mhv else "—")
+    c2.metric("Median gross rent", f"${rent:,.0f}/mo" if rent else "—")
+    if occ and owner:
+        c3.metric("Owner-occupied", f"{owner / occ:.0%}")
+        c4.metric("Renter-occupied", f"{1 - owner / occ:.0%}")
+
+    # Age of the housing stock — Lynn's is notably old (a maintenance-cost and
+    # lead-paint signal), so show the year-built distribution.
+    built = {
+        "2014+": "built_2014_or_later", "2010–13": "built_2010_to_2013",
+        "2000–09": "built_2000_to_2009", "1990–99": "built_1990_to_1999",
+        "1980–89": "built_1980_to_1989", "1970–79": "built_1970_to_1979",
+        "1960–69": "built_1960_to_1969", "1950–59": "built_1950_to_1959",
+        "1940–49": "built_1940_to_1949", "≤1939": "built_1939_or_earlier",
+    }
+    bdf = pd.DataFrame(
+        [{"Era": k, "Units": _num(row.get(v))} for k, v in built.items()]
+    ).dropna(subset=["Units"])
+    if not bdf.empty:
+        fig = px.bar(bdf, x="Era", y="Units", text="Units")
+        fig.update_traces(marker_color=LEHS_GOLD, texttemplate="%{text:,.0f}",
+                          textposition="outside", cliponaxis=False)
+        fig.update_layout(**DEFAULT_LAYOUT, xaxis_title="Decade built",
+                          yaxis_title="Housing units",
+                          title="When Lynn's housing was built")
+        st.plotly_chart(fig, width="stretch")
+        acs_yr = row.get("acs_year")
+        st.caption(
+            "Lynn's housing stock skews old — the largest single group predates "
+            "1939 — which tends to mean higher maintenance costs and more "
+            "lead-paint risk in the homes these students live in."
+            + (f" Source: ACS {int(acs_yr)} 5-year estimates." if acs_yr else
+               " Source: ACS 5-year estimates.")
+        )
 
 st.divider()
 
