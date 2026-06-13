@@ -1333,6 +1333,7 @@ function addLayers() {
         const name = feat.properties.town_display
             || feat.properties.TOWN
             || feat.properties.DIST_NAME
+            || feat.properties.tract_display
             || feat.properties.NAMELSAD
             || "Feature";
         tooltip.innerHTML = `
@@ -1416,7 +1417,7 @@ function closeFeaturePanel() {
 
 function featureName(p, kind) {
     if (kind === "school")   return p.NAME || "School";
-    if (kind === "tract")    return p.NAMELSAD || "Census Tract";
+    if (kind === "tract")    return p.tract_display || p.NAMELSAD || "Census Tract";
     if (kind === "muni")     return p.town_display || p.TOWN || "Municipality";
     if (kind === "district") return p.dist_display || p.DIST_NAME || "District";
     return "Feature";
@@ -1517,6 +1518,7 @@ function buildPanelHtml(p, kind) {
     if (kind === "tract") {
         return `
             <div class="feature-panel-section">
+                ${p.neighborhood ? `<div class="feature-panel-row"><span class="label">Neighborhood</span><span class="value">${p.neighborhood}${p.nbhd_confidence === "low" ? " (approx.)" : ""}</span></div>` : ""}
                 <div class="feature-panel-row"><span class="label">GEOID</span><span class="value">${p.GEOID}</span></div>
                 ${fpRow("Population (age 5+)", p.lang_total, "num")}
             </div>
@@ -2928,7 +2930,7 @@ function featuresToCsv(features, primaryMetric) {
     if (!features || !features.length) return "";
     const idCols = ["DIST_CODE", "DIST_NAME", "dist_display",
                      "ORG8CODE", "ORG_NAME", "TOWN", "town_display",
-                     "GEOID", "NAMELSAD", "TYPE", "NAME"];
+                     "GEOID", "NAMELSAD", "neighborhood", "tract_display", "TYPE", "NAME"];
     const seen = new Set();
     const cols = [];
     idCols.forEach(c => {

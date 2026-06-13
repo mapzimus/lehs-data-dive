@@ -31,6 +31,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from utils.constants import (  # noqa: E402
+    ASSETS_DIR,
     GATEWAY_CITIES,
     LEHS_SCHOOL_CODE,
     LYNN_DISTRICT_CODE,
@@ -233,6 +234,76 @@ def join_acs_to_tracts(tracts: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     return out
 
 
+# ---------------------------------------------------------------------------
+# Census tract → neighborhood crosswalk (curated).
+#
+# Vernacular Lynn neighborhoods don't line up with tract boundaries, so each
+# tract carries the *dominant* neighborhood name plus a confidence flag. The
+# same CSV powers the City dashboard page (via
+# utils.geo_loader.tract_display_label); baking the label into the GeoJSON here
+# lets the standalone MapLibre map (maps/app.js) show the same human label
+# instead of a raw "Census Tract 2057".
+#
+# Source: assets/curated/lynn_tract_neighborhoods.csv
+# ---------------------------------------------------------------------------
+
+
+def _format_tract_label(tract_num, neighborhood, confidence) -> str:
+    """'West Lynn (Tract 2057)'; low-confidence rows get ', approx.'.
+
+    Mirrors utils.geo_loader.tract_display_label so the public map and the City
+    page read identically — keep the two in sync if the wording ever changes.
+    Tracts absent from the crosswalk fall back to a bare 'Tract <n>' so nothing
+    ever renders as a raw NAMELSAD string.
+    """
+    if neighborhood is None or (isinstance(neighborhood, float) and pd.isna(neighborhood)):
+        return f"Tract {tract_num}"
+    if str(confidence).lower() == "low":
+        return f"{neighborhood}, approx. (Tract {tract_num})"
+    return f"{neighborhood} (Tract {tract_num})"
+
+
+def join_neighborhoods_to_tracts(tracts: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Attach the curated neighborhood name + display label to each Lynn tract.
+
+    Adds three properties consumed by maps/app.js:
+      - neighborhood    : dominant vernacular neighborhood (e.g. 'West Lynn')
+      - nbhd_confidence : 'high' | 'medium' | 'low'
+      - tract_display   : public label, e.g. 'West Lynn (Tract 2057)'
+
+    Joined on GEOID (11-char FIPS, kept as str — an int cast would silently drop
+    leading digits and break the join). Bare tract number for the label comes
+    from the tract's own NAME column ('2057').
+    """
+    out = tracts.copy()
+    out["GEOID"] = out["GEOID"].astype(str)
+
+    xwalk_path = ASSETS_DIR / "curated" / "lynn_tract_neighborhoods.csv"
+    if not xwalk_path.exists():
+        print(f"  [!] crosswalk missing ({xwalk_path.name}); tracts keep bare labels")
+        out["neighborhood"] = None
+        out["nbhd_confidence"] = None
+        out["tract_display"] = [f"Tract {n}" for n in out["NAME"]]
+        return out
+
+    xwalk = pd.read_csv(xwalk_path, dtype={"GEOID": str, "TRACTCE": str})
+    xwalk = xwalk.rename(columns={"confidence": "nbhd_confidence"})
+    out = out.merge(
+        xwalk[["GEOID", "neighborhood", "nbhd_confidence"]], on="GEOID", how="left",
+    )
+    out["tract_display"] = [
+        _format_tract_label(num, hood, conf)
+        for num, hood, conf in zip(out["NAME"], out["neighborhood"], out["nbhd_confidence"])
+    ]
+
+    matched = int(out["neighborhood"].notna().sum())
+    print(f"  neighborhood crosswalk: {matched}/{len(out)} tracts matched")
+    missing = out.loc[out["neighborhood"].isna(), "GEOID"].tolist()
+    if missing:
+        print(f"  [!] {len(missing)} tract(s) not in crosswalk: {missing}")
+    return out
+
+
 def load_lynn_tracts(lynn_town: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     """Census tracts whose centroid falls inside Lynn town boundary, with ACS data joined."""
     tracts = gpd.read_file(TRACTS_SHP).to_crs(WEB_CRS)
@@ -243,8 +314,9 @@ def load_lynn_tracts(lynn_town: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     essex["_centroid"] = essex_projected.geometry.centroid
     mask = essex["_centroid"].within(lynn_poly)
     essex_in_lynn = essex[mask].drop(columns=["_centroid"]).copy()
-    # Attach ACS data
+    # Attach ACS data, then the curated neighborhood crosswalk
     essex_in_lynn = join_acs_to_tracts(essex_in_lynn)
+    essex_in_lynn = join_neighborhoods_to_tracts(essex_in_lynn)
     return essex_in_lynn
 
 
