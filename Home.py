@@ -28,6 +28,9 @@ nav = {
     "": [
         st.Page("pages/home.py", title="Home", default=True, url_path=""),
         st.Page("pages/Maps.py", title="Maps", url_path="Maps"),
+        # Site-wide search across page titles + section headings — kept at the
+        # top so it's always one click away regardless of section.
+        st.Page("pages/Search.py", title="Search", url_path="Search"),
     ],
     "The School (LEHS)": [
         st.Page("pages/1_School_Profile.py", title="School Profile", url_path="School_Profile"),
