@@ -67,15 +67,25 @@ nav = {
         # tab) so all peer-comparison views — same-district siblings, gateway
         # cities, cross-topic correlations — share one section of the sidebar.
         st.Page("pages/Lynn_Schools.py", title="Lynn Schools", url_path="Lynn_Schools"),
+        # Family-facing side-by-side of the Lynn public high schools a student
+        # actually chooses between (LEHS, Classical, LVTI, Douglass).
+        st.Page("pages/Lynn_HS_Options.py", title="Lynn HS Options", url_path="Lynn_HS_Options"),
         st.Page("pages/Gateway_Peer_Comparison.py", title="Gateway Cities", url_path="Gateway_Peer_Comparison"),
         # Renamed for the public audience — "Correlation Lab" reads as jargon.
         st.Page("pages/Correlation_Lab.py", title="Cross-Topic Explorer", url_path="Correlation_Lab"),
     ],
     "About": [
+        # "What changed this year" — the living-document overview for returning
+        # visitors; sits in About with the other reference/transparency pages.
+        st.Page("pages/What_Changed.py", title="What Changed This Year", url_path="What_Changed"),
         # Data 101 sits in About because it's an explainer/reference,
         # not analytical content — same family as Methodology.
         st.Page("pages/Data_Literacy.py", title="Data 101", url_path="Data_101"),
         st.Page("pages/99_Methodology.py", title="Methodology", url_path="Methodology"),
+        # Transparency pair: the honest limits of the data, and the audit log of
+        # any corrections shipped.
+        st.Page("pages/Data_Gaps.py", title="What We Don't Know", url_path="Data_Gaps"),
+        st.Page("pages/Corrections.py", title="Corrections", url_path="Corrections"),
     ],
 }
 

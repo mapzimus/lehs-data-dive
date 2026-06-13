@@ -1,0 +1,26 @@
+# Corrections log for the LEHS Data Dive.
+# Append a new entry whenever a published number, label, or chart is corrected.
+# Newest entries first. Keep it factual and specific. Fields:
+#   date:    ISO date the fix shipped (YYYY-MM-DD)
+#   page:    which dashboard page/section
+#   change:  what was wrong and what it is now
+#   reason:  why (source update, parsing bug, definition change, etc.)
+#   source:  optional citation/PR link
+corrections:
+  - date: 2026-06-05
+    page: Academic Performance (MCAS Grade 10)
+    change: "Restored 2017 and 2018 to the Grade-10 MCAS trend; the line previously started at 2019, silently dropping the two earliest years."
+    reason: "Charting helper reindexed to a year range that began at 2019; widened to cover the full assessed span."
+    source: "internal chart-helper fix"
+
+  - date: 2026-05-26
+    page: Site-wide (chart palette)
+    change: "Shifted brand chart colors to muted pastel variants for WCAG-legible contrast against the off-white plot background."
+    reason: "Accessibility — original saturated navy/gold lines were low-contrast as thin lines."
+    source: "design pass"
+
+  - date: 2026-06-09
+    page: Discipline & Climate / Lynn maps (chronic absenteeism)
+    change: "Chronic-absenteeism and attendance figures that had been rendering empty are now populated; two build scripts were filtering the attendance period on \"FY\", which matches zero rows, instead of the dataset's actual full-year label \"End of Year\"."
+    reason: "Parsing bug — DESE's student-attendance dataset labels its full-year reporting period \"End of Year\" (the only other value is \"March\"), never \"FY\"."
+    source: "PR #68"
