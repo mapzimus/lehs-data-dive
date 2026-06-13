@@ -16,6 +16,7 @@ import streamlit as st
 from utils.branding import crosslink_callout, page_footer, sidebar_attribution
 from utils.charts import (
     DEFAULT_LAYOUT,
+    GATEWAY_PEER_COLOR,
     LEHS_GOLD,
     LEHS_NAVY,
     STATE_COLOR,
@@ -31,6 +32,19 @@ from utils.stats import subgroup_summary_md
 
 st.set_page_config(page_title="Courses & Academics | LEHS", page_icon="📚", layout="wide")
 sidebar_attribution()
+
+# Federal CRDC matches on SCHOOL_NAME (string) — the CRDC public-use file has
+# no DESE ORG_CODE. These constants + helper drive the advanced-course-
+# offerings section (rolled in from the former Civil Rights Data page).
+LEHS_CRDC_NAME = "Lynn English High"
+
+
+def _lehs_row(df: pd.DataFrame) -> "pd.Series | None":
+    if df.empty or "SCHOOL_NAME" not in df.columns:
+        return None
+    hit = df[df["SCHOOL_NAME"].astype(str).str.strip() == LEHS_CRDC_NAME]
+    return hit.iloc[0] if not hit.empty else None
+
 
 st.title("Courses & Academics")
 st.markdown(
@@ -866,6 +880,82 @@ else:
 st.divider()
 
 # ---------------------------------------------------------------------------
+# Advanced course offerings & access (federal CRDC) — what each Lynn school
+# actually OFFERS (AP/IB/gatekeeper courses) is a civil-rights measure of
+# equitable access. Rolled in from the former Civil Rights Data page.
+# ---------------------------------------------------------------------------
+
+st.header("Advanced course offerings & access")
+st.caption(
+    "Whether each Lynn school offers AP, IB, and gatekeeper advanced courses, "
+    "plus how many students are enrolled in AP, from the 2021-22 federal CRDC "
+    "(U.S. Dept. of Education, Office for Civil Rights — civilrightsdata.ed.gov). "
+    "What a school *offers* is a civil-rights measure of equitable access to "
+    "college-level coursework. **Caveat:** the CRDC public-use file applies "
+    "small random perturbations and suppresses very small cells to protect "
+    "student privacy, so counts are approximate."
+)
+
+crdc_offerings = load_dataset("crdc_offerings")
+if crdc_offerings.empty:
+    st.info("Course-offering (CRDC) data is unavailable in the current build.")
+else:
+    off = crdc_offerings.copy()
+    for c in ("AP_COURSE_COUNT", "AP_ENROLLED_TOTAL"):
+        if c in off.columns:
+            off[c] = pd.to_numeric(off[c], errors="coerce")
+
+    lehs_o = _lehs_row(off)
+    if lehs_o is not None:
+        c1, c2, c3 = st.columns(3)
+        ap_courses = lehs_o.get("AP_COURSE_COUNT")
+        ap_enr = lehs_o.get("AP_ENROLLED_TOTAL")
+        c1.metric("LEHS — distinct AP courses",
+                  f"{int(ap_courses)}" if pd.notna(ap_courses) else "—")
+        c2.metric("LEHS — students enrolled in AP",
+                  f"{int(ap_enr):,}" if pd.notna(ap_enr) else "—")
+        offered = [lbl for lbl, col in (("IB", "IB_OFFERED"), ("Calculus", "CALC_OFFERED"),
+                                        ("Physics", "PHYSICS_OFFERED"),
+                                        ("Geometry", "GEO_OFFERED"),
+                                        ("Algebra II", "ALGEBRA_II_OFFERED"))
+                   if str(lehs_o.get(col)).strip().lower() == "yes"]
+        c3.metric("LEHS — advanced courses offered",
+                  f"{len(offered) + (1 if str(lehs_o.get('AP_OFFERED')).lower() == 'yes' else 0)}")
+
+    # AP enrollment across the district's high schools.
+    ap_df = off[off["AP_ENROLLED_TOTAL"].notna() & (off["AP_ENROLLED_TOTAL"] > 0)].copy()
+    if not ap_df.empty:
+        ap_df = ap_df.sort_values("AP_ENROLLED_TOTAL", ascending=True)
+        colors = [LEHS_NAVY if n == LEHS_CRDC_NAME else GATEWAY_PEER_COLOR
+                  for n in ap_df["SCHOOL_NAME"]]
+        fig = go.Figure(go.Bar(
+            x=ap_df["AP_ENROLLED_TOTAL"], y=ap_df["SCHOOL_NAME"], orientation="h",
+            marker_color=colors,
+            text=[f"{int(v):,}" for v in ap_df["AP_ENROLLED_TOTAL"]],
+            textposition="auto",
+        ))
+        fig.update_layout(**DEFAULT_LAYOUT,
+                          title="Students enrolled in AP — Lynn high schools (2021-22)",
+                          xaxis_title="AP-enrolled students")
+        st.plotly_chart(fig, width="stretch")
+
+    # Offering matrix (Yes/No) for the schools that offer any advanced course.
+    flag_cols = ["AP_OFFERED", "IB_OFFERED", "CALC_OFFERED", "PHYSICS_OFFERED",
+                 "GEO_OFFERED", "ALGEBRA_II_OFFERED"]
+    have_flags = [c for c in flag_cols if c in off.columns]
+    matrix = off[off[have_flags].apply(
+        lambda r: (r.astype(str).str.lower() == "yes").any(), axis=1)]
+    if not matrix.empty:
+        nice = {"AP_OFFERED": "AP", "IB_OFFERED": "IB", "CALC_OFFERED": "Calculus",
+                "PHYSICS_OFFERED": "Physics", "GEO_OFFERED": "Geometry",
+                "ALGEBRA_II_OFFERED": "Algebra II"}
+        show = matrix[["SCHOOL_NAME"] + have_flags].rename(columns={"SCHOOL_NAME": "School", **nice})
+        st.markdown("**Advanced-course offering matrix**")
+        st.dataframe(show, width="stretch", hide_index=True)
+
+st.divider()
+
+# ---------------------------------------------------------------------------
 # SAT — full performance dataset (takers, RW, Math) for LEHS + Lynn + state.
 # Lynn shifted to school-day SAT in SY 2024-25, which spikes the takers count
 # and depresses average scores because the testing pool now includes
@@ -1082,6 +1172,7 @@ data_downloads_panel({
     "Enrollment & demographics": load_dataset("enrollment_demographics"),
     "SAT performance": sat_perf,
     "Grade retention": retention_g,
+    "CRDC offerings": crdc_offerings,
 })
 
 page_footer()

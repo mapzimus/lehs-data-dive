@@ -8,6 +8,7 @@ import streamlit as st
 from utils.branding import crosslink_callout, page_footer, sidebar_attribution
 from utils.charts import (
     DEFAULT_LAYOUT,
+    GATEWAY_PEER_COLOR,
     LEHS_GOLD,
     LEHS_NAVY,
     SUBGROUP_PALETTE,
@@ -26,6 +27,22 @@ from utils.interpret import sy_label
 
 st.set_page_config(page_title="Teachers & Workforce | LEHS", page_icon="👩‍🏫", layout="wide")
 sidebar_attribution()
+
+# Federal CRDC matches on SCHOOL_NAME (string) — the CRDC public-use file has
+# no DESE ORG_CODE. These constants + helper drive the support-staff-ratio
+# section near the end of the page (rolled in from the former Civil Rights
+# Data page).
+LEHS_CRDC_NAME = "Lynn English High"
+SIBLING_NAMES = ["Lynn English High", "Classical High",
+                 "Lynn Vocational Technical Institute"]
+
+
+def _lehs_row(df: pd.DataFrame) -> "pd.Series | None":
+    if df.empty or "SCHOOL_NAME" not in df.columns:
+        return None
+    hit = df[df["SCHOOL_NAME"].astype(str).str.strip() == LEHS_CRDC_NAME]
+    return hit.iloc[0] if not hit.empty else None
+
 
 st.title("Teachers & Workforce")
 st.markdown(
@@ -656,29 +673,81 @@ if not class_size.empty:
 st.divider()
 
 # ---------------------------------------------------------------------------
-# CRDC support-staff ratios (counselors, nurses, social workers, psychologists)
+# Support-staff ratios (federal CRDC) — counselors, nurses, social workers,
+# psychologists per student vs. the ASCA 250:1 benchmark, plus a same-district
+# counselor-load bar. Rolled in from the former Civil Rights Data page.
 # ---------------------------------------------------------------------------
 
-st.header("Support-staff ratios (federal CRDC)")
+st.header("Support-staff ratios")
 st.caption(
-    "Counselor / nurse / social-worker / psychologist FTE per 100 students. "
-    "Source: federal CRDC, most recent release at script-write was SY 2017-18. "
-    "Compare against ASCA recommendation of 1 counselor per 250 students."
+    "Full-time-equivalent (FTE) school counselors, nurses, social workers, and "
+    "psychologists, from the 2021-22 federal CRDC (U.S. Dept. of Education, "
+    "Office for Civil Rights — civilrightsdata.ed.gov). The American School "
+    "Counselor Association recommends one counselor for every 250 students. "
+    "**Caveat:** the CRDC public-use file applies small random perturbations "
+    "and suppresses very small cells to protect student privacy, so counts are "
+    "approximate."
 )
 
 crdc_staff = load_dataset("crdc_staffing")
 if crdc_staff.empty:
-    st.info(
-        "CRDC staffing data not yet wired in — bulk archive is at "
-        "data/raw/crdc/, parsing is a follow-up. See scripts/04_download_crdc.py."
-    )
+    st.info("Support-staff (CRDC) data is unavailable in the current build.")
 else:
-    cols = [c for c in ["COUNSELOR_FTE", "NURSE_FTE", "SOCIAL_WORKER_FTE",
-                         "PSYCHOLOGIST_FTE", "LAW_ENFORCEMENT_FTE"]
-            if c in crdc_staff.columns]
-    if cols:
-        st.dataframe(crdc_staff[["SCHOOL_NAME", "STUDENT_ENROLLMENT"] + cols].head(30),
-                     width="stretch")
+    staff = crdc_staff.copy()
+    for c in ("COUNSELOR_FTE", "NURSE_FTE", "SOCIAL_WORKER_FTE",
+              "PSYCHOLOGIST_FTE", "LAW_ENFORCEMENT_FTE", "TEACHER_FTE",
+              "STUDENT_ENROLLMENT"):
+        if c in staff.columns:
+            staff[c] = pd.to_numeric(staff[c], errors="coerce")
+
+    lehs = _lehs_row(staff)
+    if lehs is not None and pd.notna(lehs.get("STUDENT_ENROLLMENT")) and lehs["STUDENT_ENROLLMENT"] > 0:
+        enr_crdc = float(lehs["STUDENT_ENROLLMENT"])
+        c1, c2, c3, c4 = st.columns(4)
+
+        def _ratio(fte):
+            return f"{enr_crdc / fte:,.0f} : 1" if pd.notna(fte) and fte else "—"
+
+        c1.metric("Students per counselor", _ratio(lehs.get("COUNSELOR_FTE")),
+                  help="ASCA recommends 250 : 1.")
+        c2.metric("Students per nurse", _ratio(lehs.get("NURSE_FTE")))
+        c3.metric("Students per social worker", _ratio(lehs.get("SOCIAL_WORKER_FTE")))
+        c4.metric("Students per psychologist", _ratio(lehs.get("PSYCHOLOGIST_FTE")))
+
+        # Spell the counselor load out against the ASCA benchmark so the
+        # 250:1 reference line below has an explicit takeaway.
+        _cfte = lehs.get("COUNSELOR_FTE")
+        if pd.notna(_cfte) and float(_cfte) > 0:
+            _per_counselor = enr_crdc / float(_cfte)
+            st.markdown(
+                f"**LEHS's counselor load is {_per_counselor / 250:.1f}× the "
+                f"recommended 250 : 1** — {_per_counselor:,.0f} students per "
+                f"counselor FTE against the American School Counselor "
+                f"Association benchmark."
+            )
+
+    # Same-district comparison: students per counselor at the three big HS.
+    sib = staff[staff["SCHOOL_NAME"].isin(SIBLING_NAMES)].copy()
+    sib = sib[(sib["STUDENT_ENROLLMENT"] > 0) & (sib["COUNSELOR_FTE"] > 0)]
+    if not sib.empty:
+        sib["per_counselor"] = sib["STUDENT_ENROLLMENT"] / sib["COUNSELOR_FTE"]
+        sib = sib.sort_values("per_counselor")
+        colors = [LEHS_NAVY if n == LEHS_CRDC_NAME else GATEWAY_PEER_COLOR
+                  for n in sib["SCHOOL_NAME"]]
+        fig = go.Figure(go.Bar(
+            x=sib["per_counselor"], y=sib["SCHOOL_NAME"], orientation="h",
+            marker_color=colors,
+            text=[f"{v:,.0f} : 1" for v in sib["per_counselor"]],
+            textposition="auto",
+        ))
+        fig.add_vline(x=250, line_dash="dash", line_color=LEHS_GOLD,
+                      annotation_text="ASCA 250:1", annotation_position="top")
+        fig.update_layout(**DEFAULT_LAYOUT,
+                          title="Students per school counselor — Lynn high schools",
+                          xaxis_title="Students per counselor FTE")
+        st.plotly_chart(fig, width="stretch")
+
+st.divider()
 
 # ---------------------------------------------------------------------------
 # Educator age profile (educators_by_age, a4b4-k49f) — workforce aging / pipeline

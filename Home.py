@@ -50,15 +50,13 @@ nav = {
         st.Page("pages/7_Teachers_and_Workforce.py", title="Teachers & Workforce", url_path="Teachers_and_Workforce"),
         st.Page("pages/8_Finance.py", title="Finance", url_path="Finance"),
         st.Page("pages/9_Discipline_and_Climate.py", title="Discipline & Climate", url_path="Discipline_and_Climate"),
-        st.Page("pages/10_Athletics.py", title="Athletics", url_path="Athletics"),
         st.Page("pages/11_Where_Students_Live.py", title="Where Students Live", url_path="Where_Students_Live"),
+        st.Page("pages/10_Athletics.py", title="Athletics", url_path="Athletics"),
         # Narrative page — sits at the end of "The School (LEHS)" group
         # since it's still LEHS-specific, just historical rather than
         # analytical. Moved out of School Profile so the Profile can be
         # data-only.
         st.Page("pages/12_LEHS_History.py", title="LEHS History", url_path="LEHS_History"),
-        # Federal CRDC (civil rights data) — ingest shipped (2021-22), page live.
-        st.Page("pages/13_Federal_CRDC.py", title="Civil Rights Data", url_path="Federal_CRDC"),
     ],
     "Lynn": [
         st.Page("pages/Lynn_District.py", title="District", url_path="Lynn_District"),

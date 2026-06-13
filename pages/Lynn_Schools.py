@@ -622,7 +622,7 @@ else:
         "small alternative academies, where one or two students move the "
         "rate by several points. Federally-collected discipline detail "
         "(by race/ethnicity, referrals, days missed) is on the "
-        "[Civil Rights Data](/Federal_CRDC?embed=true) page."
+        "[Discipline & Climate](/Discipline_and_Climate?embed=true) page."
     )
 
 # ---------------------------------------------------------------------------
