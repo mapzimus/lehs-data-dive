@@ -61,17 +61,45 @@ from utils.constants import (
     SUBGROUP_PALETTE,
 )
 
-DEFAULT_LAYOUT = dict(
-    template="simple_white",
-    # Font color lifted to match the new pastel LEHS_NAVY token in constants.
-    font=dict(family="sans-serif", size=13, color="#3F4D66"),
-    # Margins tightened per UI audit — every chart gains ~3-5% vertical
-    # real estate.
-    margin=dict(l=30, r=10, t=30, b=30),
-    plot_bgcolor="#FAFBFD",
-    paper_bgcolor="rgba(0,0,0,0)",
-    hoverlabel=dict(bgcolor="white", font_size=12),
-)
+from collections.abc import Mapping
+
+from utils.theme import chart_tokens
+
+
+class _ThemedLayout(Mapping):
+    """A drop-in for the old ``DEFAULT_LAYOUT`` dict whose colors resolve from
+    the active theme at access time.
+
+    Because every call site uses ``**DEFAULT_LAYOUT`` / ``{**DEFAULT_LAYOUT}``
+    (which go through ``keys()`` + ``__getitem__``), making this a live Mapping
+    re-themes all ~180 charts with zero per-page edits. Margins/template/font
+    family are constant; only the background and font colors follow the theme.
+    """
+
+    def _resolved(self) -> dict:
+        t = chart_tokens()
+        return dict(
+            template=t["template"],
+            font=dict(family="sans-serif", size=13, color=t["font_color"]),
+            # Margins tightened per UI audit — every chart gains ~3-5% vertical
+            # real estate.
+            margin=dict(l=30, r=10, t=30, b=30),
+            plot_bgcolor=t["plot_bgcolor"],
+            paper_bgcolor=t["paper_bgcolor"],
+            hoverlabel=dict(bgcolor=t["hover_bgcolor"], font_size=12),
+        )
+
+    def __getitem__(self, key):
+        return self._resolved()[key]
+
+    def __iter__(self):
+        return iter(self._resolved())
+
+    def __len__(self):
+        return len(self._resolved())
+
+
+DEFAULT_LAYOUT = _ThemedLayout()
 
 
 # MCAS Grade-10 results exist for 2017, 2018, 2019, (no 2020 — COVID), 2021-2025
