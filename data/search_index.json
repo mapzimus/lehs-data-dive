@@ -1,0 +1,448 @@
+[
+  {
+    "title": "Home",
+    "url_path": "",
+    "sections": [
+      "Where do you want to start?",
+      "Or pick by role",
+      "What is this dashboard?",
+      "Questions you can answer here",
+      "All sections",
+      "Lynn English High School",
+      "Data Dive"
+    ]
+  },
+  {
+    "title": "Maps",
+    "url_path": "Maps",
+    "sections": [
+      "🗺️ Maps",
+      "📖 Reading these maps",
+      "🏙️ Lynn Maps",
+      "🏛️ MA Education Atlas"
+    ]
+  },
+  {
+    "title": "School Profile",
+    "url_path": "School_Profile",
+    "sections": [
+      "Lynn English High School — Profile",
+      "How LEHS has changed since 1992",
+      "Total Enrollment Over Time",
+      "Student–teacher ratio over time",
+      "Gender Breakdown Over Time",
+      "Selected Populations Over Time",
+      "State accountability status",
+      "Where LEHS students live",
+      "📜 Want the story behind the numbers?",
+      "Student mobility",
+      "Student attrition",
+      "Attendance & Chronic Absenteeism"
+    ]
+  },
+  {
+    "title": "Feeder Schools",
+    "url_path": "Feeder_Middle_Schools",
+    "sections": [
+      "🎒 Feeder Middle Schools & Enrollment Outlook",
+      "Feeder middle schools — latest snapshot",
+      "LEHS enrollment over time",
+      "LEHS enrollment projection",
+      "How the projection works"
+    ]
+  },
+  {
+    "title": "MCAS",
+    "url_path": "Academic_Performance",
+    "sections": [
+      "MCAS",
+      "📊 MCAS Results — Grade 10",
+      "Subgroup Performance",
+      "🌱 Growth — Student Growth Percentile (SGP)",
+      "Reading These Results — Participation, Cohort Size & Ranking",
+      "🧩 MCAS Alternate Assessment",
+      "% Meeting or Exceeding — Trend by Subject"
+    ]
+  },
+  {
+    "title": "Courses & Academics",
+    "url_path": "Courses_and_Academics",
+    "sections": [
+      "Courses & Academics",
+      "📗 Grade 9 On-Track — Course Passing",
+      "Opportunity & Course Access",
+      "Advanced Course Completion",
+      "MassCore Completion Rate",
+      "Advanced Placement Performance",
+      "AP Participation",
+      "Advanced course offerings & access",
+      "SAT Performance",
+      "Grade Retention",
+      "Computer science (DLCS)",
+      "Arts",
+      "AP Access by Student Group",
+      "AP access vs. success — who's in the room, and who succeeds",
+      "AP score distribution — All Subjects"
+    ]
+  },
+  {
+    "title": "State Accountability",
+    "url_path": "Accountability",
+    "sections": [
+      "State Accountability",
+      "Where the points are won and lost",
+      "Where LEHS sits statewide",
+      "The path out — what next year has to look like",
+      "Indicator trends — the long view",
+      "Indicator detail",
+      "One indicator, every group",
+      "LEHS vs Lynn district vs Massachusetts",
+      "How LEHS compares"
+    ]
+  },
+  {
+    "title": "English Learners",
+    "url_path": "ELL_Pipeline",
+    "sections": [
+      "English Learners",
+      "How big is the EL population at LEHS?",
+      "WIDA ACCESS — Statewide Context (2025)",
+      "ACCESS for ELLs — Lynn & LEHS outcomes",
+      "MCAS Grade 10 — EL Pipeline at LEHS",
+      "Former English Learners — by Year Since Exit (Lynn District)",
+      "Why this matters"
+    ]
+  },
+  {
+    "title": "College & Career",
+    "url_path": "College_and_Career",
+    "sections": [
+      "College & Career Readiness",
+      "Headline Metrics",
+      "Pathway Programs",
+      "Early College Credits — Lynn District",
+      "What happens to Lynn graduates? — Outcome breakdown",
+      "Where Lynn grads land — destination college profiles",
+      "Early College participation — by partner college",
+      "LEHS students in designated pathways, by year"
+    ]
+  },
+  {
+    "title": "Success After HS",
+    "url_path": "Success_After_HS",
+    "sections": [
+      "Success After High School",
+      "Headline Pipeline Metrics",
+      "4-Year Graduation Rate by Student Group",
+      "4-Year vs. 5-Year Cohort Graduation",
+      "Where do LEHS graduates go?",
+      "Self-Reported Plans of Graduates",
+      "Earnings of Lynn HS Graduates — Industry View",
+      "Early Warning Chain",
+      "Pipeline Trend — Multiple 9th-grade Cohorts",
+      "Degree Completion — 6-Year View"
+    ]
+  },
+  {
+    "title": "Teachers & Workforce",
+    "url_path": "Teachers_and_Workforce",
+    "sections": [
+      "Teachers & Workforce",
+      "Staff Headcount (FTE)",
+      "Teacher Diversity vs. Student Body",
+      "Staff Composition by Role",
+      "Who supports English Learners?",
+      "Teacher Diversity Trend Over Time",
+      "Teacher Retention Rate",
+      "Staff Attendance",
+      "Experienced + In-Field Teachers — Lynn District",
+      "Average Class Size at LEHS — by Subject",
+      "Support-staff ratios",
+      "Educator Age Profile",
+      "LEHS retention — teachers vs. principals over time"
+    ]
+  },
+  {
+    "title": "Finance",
+    "url_path": "Finance",
+    "sections": [
+      "Finance & Resource Allocation",
+      "Total Per-Pupil Expenditure",
+      "Spending Breakdown by Category",
+      "Funding Source — Federal vs. State & Local",
+      "Teacher Compensation",
+      "Teacher Pay vs. Gateway-City Peers",
+      "Lynn Public Schools — District Context",
+      "Chapter 70 — State Aid & Required Spending",
+      "Spending vs. Outcomes — Gateway-City Districts"
+    ]
+  },
+  {
+    "title": "Discipline & Climate",
+    "url_path": "Discipline_and_Climate",
+    "sections": [
+      "Discipline, Climate & Safety",
+      "Out-of-School Suspension Rate",
+      "Chronic Absenteeism",
+      "Where the Absence Comes From — Geographic Analysis",
+      "Does distance from school predict absence?",
+      "Geographic absenteeism hotspots",
+      "Attendance Rate",
+      "Student Mobility — Churn, Intake, Stability",
+      "Out-of-School Suspension — Trend and Who It Falls On",
+      "Disproportionality view",
+      "Discipline, disaggregated (federal CRDC)",
+      "Annual Dropout Rate",
+      "Instructional Days Lost to Discipline"
+    ]
+  },
+  {
+    "title": "Student Wellbeing",
+    "url_path": "Wellbeing",
+    "sections": [
+      "🌱 Student & Community Wellbeing",
+      "Engagement proxy — chronic absenteeism",
+      "School support staff",
+      "Community health context",
+      "Massachusetts youth mental health (statewide)"
+    ]
+  },
+  {
+    "title": "Where Students Live",
+    "url_path": "Where_Students_Live",
+    "sections": [
+      "Where Our Students Live",
+      "Residential Density of LEHS Students",
+      "Cross-Reference: Community Context",
+      "Housing affordability",
+      "Housing-cost burden by tract",
+      "% Foreign-born (ACS)",
+      "Median household income (ACS)",
+      "CDC PLACES — % adults with asthma",
+      "CDC PLACES — % adults with mental distress"
+    ]
+  },
+  {
+    "title": "Athletics",
+    "url_path": "Athletics",
+    "sections": [
+      "Girls' and Boys' Athletics",
+      "All Teams — This Season's Standings",
+      "Season-by-Season Records",
+      "Who Runs the Program",
+      "Lynn English Athletics",
+      "Banners in the gym"
+    ]
+  },
+  {
+    "title": "LEHS History",
+    "url_path": "LEHS_History",
+    "sections": [
+      "📜 A history of Lynn English",
+      "Founding and the first Essex Street building",
+      "The 1916 James Street addition",
+      "City context — Lynn at the turn of the century",
+      "March 29, 1924 — the fire",
+      "Same-year rebuild",
+      "National Register listing",
+      "1931 — the move to Goodridge Street",
+      "The Lincoln Foyer",
+      "The 1934 name parade",
+      "Today",
+      "📈 LEHS by the numbers",
+      "🎓 Tom Whelan — faculty *and* alumnus",
+      "⚾ Major-league baseball",
+      "🏀 Basketball & beyond",
+      "🎵 Music · 🎬 Acting · 🎓 Academia",
+      "👩 Women who made LEHS history",
+      "Current principal",
+      "Recent principals — short list",
+      "Historical leadership note",
+      "The district around LEHS",
+      "Three district moments that shaped LEHS",
+      "Why LEHS is the dashboard's center of gravity",
+      "🏟️ Manning Bowl — the venue that *is* Lynn HS football",
+      "🏅 Athletics & Distinguished Alumni Hall of Fame",
+      "🧢 Legacy coaches — eras that defined the program",
+      "⭐ Notable athlete-alumni"
+    ]
+  },
+  {
+    "title": "District",
+    "url_path": "Lynn_District",
+    "sections": [
+      "Lynn Public Schools — District",
+      "Where Lynn Students Enroll",
+      "Early Education — Pre-K & Kindergarten",
+      "Placement settings — how students with disabilities are educated",
+      "District Enrollment Over Time",
+      "Selected Populations Trend (District-wide)",
+      "Lynn District MCAS Performance",
+      "Lynn District Graduation Rate",
+      "Lynn District Attendance",
+      "Lynn District Finance",
+      "Lynn Middle Schools — Profile of LEHS's Feeders",
+      "Special Education Program — Lynn District",
+      "Lynn vs. Gateway districts vs. Massachusetts",
+      "Lynn schools — Enrollment vs. % English Learner(s)",
+      "Performance comparison — attendance + MCAS proficiency",
+      "District totals",
+      "Grade 10 — All Students, by Subject",
+      "Grades 3-8 — Average % M+E (across grades)"
+    ]
+  },
+  {
+    "title": "City",
+    "url_path": "Lynn_City",
+    "sections": [
+      "Lynn, Massachusetts — City",
+      "LEHS — Student Composition (as a community mirror)",
+      "Headline numbers",
+      "Population over time",
+      "Age + sex structure",
+      "Race + ethnicity",
+      "Foreign-born population — origins",
+      "Languages spoken at home",
+      "Income, poverty, and inequality",
+      "Employment by industry",
+      "Top employers in Lynn (curated, not exhaustive)",
+      "Housing",
+      "How Lynn gets to work",
+      "Geography + neighborhoods",
+      "Neighborhoods (commonly recognized)",
+      "Education context",
+      "History highlights",
+      "Where to go next",
+      "Census ACS — Lynn's 22 Census Tracts",
+      "See the same data geographically",
+      "Environmental justice + community health",
+      "Housing market — Lynn vs. MA vs. US trend",
+      "Variation Across Lynn's Census Tracts",
+      "EPA EJScreen — environmental burden",
+      "CDC PLACES — chronic-disease prevalence",
+      "Linguistic Landscape"
+    ]
+  },
+  {
+    "title": "Lynn Schools",
+    "url_path": "Lynn_Schools",
+    "sections": [
+      "Lynn Schools — Side by Side",
+      "Lynn High Schools — Side by Side",
+      "Latest Year Scorecard",
+      "Enrollment Trends",
+      "MCAS Grade 10 — Lynn HS Comparison",
+      "4-Year Graduation Rates — Lynn HS Comparison",
+      "Advanced Placement — Who Takes AP, and How Many Exams",
+      "Grade Retention — Students Held Back",
+      "English Learners — ACCESS Progress by School",
+      "Discipline Context — Suspension Rates by School",
+      "Key Analytical Question"
+    ]
+  },
+  {
+    "title": "Lynn HS Options",
+    "url_path": "Lynn_HS_Options",
+    "sections": [
+      "🏫 Lynn High School Options",
+      "Scorecard",
+      "Headline metrics"
+    ]
+  },
+  {
+    "title": "Gateway Cities",
+    "url_path": "Gateway_Peer_Comparison",
+    "sections": [
+      "Gateway Peer Comparison",
+      "Latest-Year Scorecard",
+      "Where does LEHS fall? Per-Pupil Spending vs. Outcomes",
+      "Per-pupil spending vs. 4-year graduation rate",
+      "English-learner share vs. 4-year graduation rate",
+      "Demographically-Similar Peers"
+    ]
+  },
+  {
+    "title": "Cross-Topic Explorer",
+    "url_path": "Correlation_Lab",
+    "sections": [
+      "Cross-Topic Explorer",
+      "Strongest Relationships Right Now",
+      "Curated Correlations",
+      "Custom Correlation Explorer",
+      "Time-Lagged Correlations — Does X today predict Y N years later?",
+      "Composite Indices",
+      "Adjust weights"
+    ]
+  },
+  {
+    "title": "What Changed This Year",
+    "url_path": "What_Changed",
+    "sections": [
+      "🆕 What Changed This Year",
+      "Biggest movers, latest year over prior year",
+      "Year-over-year change by metric"
+    ]
+  },
+  {
+    "title": "Stories",
+    "url_path": "Stories",
+    "sections": [
+      "📖 Stories"
+    ]
+  },
+  {
+    "title": "Data 101",
+    "url_path": "Data_101",
+    "sections": [
+      "Data 101 — Reading the Charts",
+      "1. What is a dataset?",
+      "2. Chart types and what each one is for",
+      "📊 Bar chart — *comparing categories*",
+      "📈 Line chart — *change over time*",
+      "📉 Histogram — *how things are distributed*",
+      "🔵 Scatter plot — *relationship between two things*",
+      "🗺️ Choropleth map — *geography*",
+      "🔥 Heatmap — *patterns across two dimensions*",
+      "3. How to read a percentage",
+      "4. Common pitfalls — what to watch for",
+      "5. Try it yourself"
+    ]
+  },
+  {
+    "title": "Methodology",
+    "url_path": "Methodology",
+    "sections": [
+      "Methodology & Data Sources",
+      "Data sources",
+      "DESE accountability workbooks",
+      "Naming conventions",
+      "Field glossary — the columns you'll meet",
+      "Peer cohort framework",
+      "Important caveats",
+      "How to reproduce / refresh"
+    ]
+  },
+  {
+    "title": "What We Don't Know",
+    "url_path": "Data_Gaps",
+    "sections": [
+      "What We Still Don't Know",
+      "1. Student wellbeing & mental health",
+      "2. Charter schools (e.g. KIPP Academy Lynn)",
+      "3. Housing supply — permits & zoning",
+      "4. Following one cohort over time",
+      "5. Census geography ≠ the LEHS attendance area",
+      "6. Small-group suppression",
+      "7. Lagging & paused data series",
+      "8. Environmental-justice indicators (EJScreen)",
+      "At a glance"
+    ]
+  },
+  {
+    "title": "Corrections",
+    "url_path": "Corrections",
+    "sections": [
+      "Corrections"
+    ]
+  }
+]
