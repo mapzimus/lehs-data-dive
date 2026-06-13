@@ -4,6 +4,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from utils.i18n import language_toggle, t
+from utils.theme import theme_css, theme_toggle
 
 
 AUTHOR_NAME = "Maxwell Howe"
@@ -240,13 +241,20 @@ def sidebar_attribution() -> None:
     # interaction, but the style tag idempotently overrides).
     st.markdown(_MOBILE_CSS, unsafe_allow_html=True)
 
+    # Dark-theme chrome stylesheet — empty string in light mode, so the default
+    # look is untouched. Must come after the mobile CSS so dark overrides win.
+    dark = theme_css()
+    if dark:
+        st.markdown(dark, unsafe_allow_html=True)
+
     # Collapse non-active sidebar nav sections on first load. height=0
     # keeps the helper iframe invisible.
     components.html(_NAV_COLLAPSE_JS, height=0)
 
-    # Sidebar control rail — language switcher (theme toggle + search join here
-    # in later phases). Rendered once per page since this runs on every page.
+    # Sidebar control rail — language + theme switchers. Rendered once per page
+    # since this runs on every page. (Search joins here in a later phase.)
     language_toggle()
+    theme_toggle()
 
     st.sidebar.markdown(
         f"""
