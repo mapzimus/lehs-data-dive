@@ -19,6 +19,7 @@ from utils.branding import crosslink_callout, page_footer, sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, data_downloads_panel
 from utils.constants import ASSETS_DIR, GENDER_PALETTE, IMAGES_DIR
 from utils.data_loader import load_dataset
+from utils.url_state import qp_selectbox
 
 st.set_page_config(page_title="Athletics | LEHS", page_icon="🐶", layout="wide")
 sidebar_attribution()
@@ -296,7 +297,8 @@ st.caption("Pick a team to see its full MaxPreps win-percentage history.")
 team_options = sorted(ath["team"].unique())
 # Default to the longest-history team (most rows) so the chart looks meaningful.
 default_team = ath.groupby("team").size().sort_values(ascending=False).index[0]
-selected_team = st.selectbox("Team", team_options, index=team_options.index(default_team))
+selected_team = qp_selectbox("Team", team_options, index=team_options.index(default_team),
+                             key="team")
 
 team_df = ath[ath["team"] == selected_team].sort_values("_year_num").copy()
 team_df["W-L"] = team_df.apply(

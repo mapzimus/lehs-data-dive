@@ -1,7 +1,7 @@
 # Runtime dependencies for the Streamlit dashboard.
 # (Local-only / data-prep dependencies live in dev/environment.yml.)
 #
-# deploy-kick nonce: 2026-06-13-1 (restore public deploy) — bump this comment to force Streamlit Cloud
+# deploy-kick nonce: 2026-06-13-2 (phase A — URL permalink state) — bump this comment to force Streamlit Cloud
 # to fully rebuild + restart the app (dependency-file changes restart the
 # process; plain code commits only hot-reload, which can leave stale modules
 # in memory after merges that touch utils/).

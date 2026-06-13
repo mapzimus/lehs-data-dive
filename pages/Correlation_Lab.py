@@ -23,6 +23,7 @@ from utils.charts import (
 from utils.constants import PROCESSED_DIR
 from utils.correlations import interpret_r, pearson, regression_line
 from utils.data_loader import load_dataset
+from utils.url_state import qp_radio, qp_selectbox
 
 st.set_page_config(page_title="Cross-Topic Explorer | LEHS", page_icon="🔬", layout="wide")
 sidebar_attribution()
@@ -478,16 +479,17 @@ st.markdown("Pick any two metrics from the panel.")
 
 c1, c2 = st.columns(2)
 with c1:
-    x_var = st.selectbox("X variable", options=NUMERIC_COLS,
-                          index=NUMERIC_COLS.index("PerPupil") if "PerPupil" in NUMERIC_COLS else 0)
+    x_var = qp_selectbox("X variable", NUMERIC_COLS, key="corr_x",
+                         index=NUMERIC_COLS.index("PerPupil") if "PerPupil" in NUMERIC_COLS else 0)
 with c2:
-    y_var = st.selectbox("Y variable", options=NUMERIC_COLS,
-                          index=NUMERIC_COLS.index("GradRate_4yr") if "GradRate_4yr" in NUMERIC_COLS else 1)
+    y_var = qp_selectbox("Y variable", NUMERIC_COLS, key="corr_y",
+                         index=NUMERIC_COLS.index("GradRate_4yr") if "GradRate_4yr" in NUMERIC_COLS else 1)
 
-scope = st.radio(
+scope = qp_radio(
     "Scope",
-    options=["Gateway HS (cross-section, latest year)",
-             "All gateway HS x all years (panel)"],
+    ["Gateway HS (cross-section, latest year)",
+     "All gateway HS x all years (panel)"],
+    key="corr_scope",
     horizontal=True,
 )
 

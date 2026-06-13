@@ -28,6 +28,7 @@ from utils.constants import (
 )
 from utils.data_loader import get_dart_indicator, load_dataset
 from utils.interpret import sy_label
+from utils.url_state import qp_selectbox
 
 # Same-district contrast: LEHS, LCHS, and LVTI (Lynn Tech) are Lynn's three
 # largest comprehensive high schools. Comparing them isolates school-level
@@ -738,8 +739,8 @@ else:
         format_func=lambda r: r["ORG_NAME"],
         key="disp_org",
     )
-    ind_pick = st.selectbox(
-        "Indicator", options=sorted(disp["INDICATOR"].dropna().unique()), key="disp_ind",
+    ind_pick = qp_selectbox(
+        "Indicator", sorted(disp["INDICATOR"].dropna().unique()), key="disp_ind",
     )
     sub = disp[(disp["ORG_CODE"] == org_pick["ORG_CODE"])
                & (disp["INDICATOR"] == ind_pick)
