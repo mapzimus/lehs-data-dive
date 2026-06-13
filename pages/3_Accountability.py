@@ -41,6 +41,7 @@ from utils.interpret import (
     sgp_methodology_note,
     sy_label,
 )
+from utils.url_state import qp_selectbox
 
 st.set_page_config(page_title="Accountability | LEHS", page_icon="🏛️", layout="wide")
 sidebar_attribution()
@@ -452,7 +453,7 @@ st.divider()
 st.header("Indicator detail")
 groups_present = [g for g in dict.fromkeys(lehs_ind["GROUP"]) if isinstance(g, str)]
 default_idx = groups_present.index("All Students") if "All Students" in groups_present else 0
-group_pick = st.selectbox("Student group", groups_present, index=default_idx, key="detail_grp")
+group_pick = qp_selectbox("Student group", groups_present, index=default_idx, key="detail_grp")
 gd = lehs_ind[lehs_ind["GROUP"] == group_pick].copy()
 
 # Benchmarks for this group
@@ -512,7 +513,7 @@ st.markdown(
     "and compare each group's current value against its DESE target, with state and "
     "district reference lines."
 )
-ind_pick = st.selectbox("Indicator", ind_order, index=0, key="equity_ind")
+ind_pick = qp_selectbox("Indicator", ind_order, index=0, key="equity_ind")
 idf = lehs_ind[lehs_ind["INDICATOR"] == ind_pick].copy()
 unit = idf["UNIT"].iloc[0] if not idf.empty else "pct"
 roll_ups = {"All Students", "Lowest Performing", "High Needs"}
