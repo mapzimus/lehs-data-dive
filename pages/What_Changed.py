@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.branding import crosslink_callout, page_footer, sidebar_attribution
+from utils.briefing import build_briefing_pdf
 from utils.charts import DEFAULT_LAYOUT, csv_download, data_downloads_panel
 from utils.constants import LEHS_SCHOOL_CODE, LEHS_NAVY, LEHS_GOLD, STATE_COLOR
 from utils.data_loader import load_dataset
@@ -177,6 +178,15 @@ st.markdown(
     "different datasets update on different schedules, the \"latest year\" is "
     "**not the same for every metric** — each row is labeled with its own year."
 )
+
+with st.container(border=True):
+    st.markdown("**📄 School Committee briefing** — a one-page PDF of LEHS's headline numbers.")
+    try:
+        st.download_button("⬇ Download briefing (PDF)", data=build_briefing_pdf(),
+                           file_name="lehs_briefing.pdf", mime="application/pdf",
+                           key="dl_briefing")
+    except Exception as e:
+        st.caption(f"Briefing PDF temporarily unavailable: {e}")
 
 movers = build_movers()
 
