@@ -3,6 +3,8 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
+from utils.i18n import language_toggle, t
+
 
 AUTHOR_NAME = "Maxwell Howe"
 AUTHOR_SITE = "maxwellhowegis.com"
@@ -242,11 +244,15 @@ def sidebar_attribution() -> None:
     # keeps the helper iframe invisible.
     components.html(_NAV_COLLAPSE_JS, height=0)
 
+    # Sidebar control rail — language switcher (theme toggle + search join here
+    # in later phases). Rendered once per page since this runs on every page.
+    language_toggle()
+
     st.sidebar.markdown(
         f"""
         ---
         **LEHS Data Dive**
-        Built by **{AUTHOR_NAME}**
+        {t("Built by")} **{AUTHOR_NAME}**
         [{AUTHOR_SITE}](https://{AUTHOR_SITE})
         """
     )
@@ -256,9 +262,9 @@ def page_footer() -> None:
     """Standard footer for every page."""
     st.divider()
     st.caption(
-        f"Built by {AUTHOR_NAME} · "
-        f"Data: MA DESE E2C Hub, profiles.doe.mass.edu, US Census, "
-        f"US Dept of Education · See Methodology for full citations."
+        t("Built by {author} · Data: MA DESE E2C Hub, profiles.doe.mass.edu, "
+          "US Census, US Dept of Education · See Methodology for full citations.",
+          author=AUTHOR_NAME)
     )
 
 

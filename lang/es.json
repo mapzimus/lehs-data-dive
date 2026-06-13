@@ -1,0 +1,8 @@
+{
+  "_meta": {
+    "status": "draft — pending native-speaker review",
+    "note": "Spanish UI catalog. Keys are the English source strings from utils/i18n.t(). Keep {placeholders} identical to the English. Run scripts/20_extract_i18n.py to see coverage and missing keys."
+  },
+  "Built by": "Creado por",
+  "Built by {author} · Data: MA DESE E2C Hub, profiles.doe.mass.edu, US Census, US Dept of Education · See Methodology for full citations.": "Creado por {author} · Datos: MA DESE E2C Hub, profiles.doe.mass.edu, Censo de EE. UU., Departamento de Educación de EE. UU. · Consulte Metodología para las citas completas."
+}
