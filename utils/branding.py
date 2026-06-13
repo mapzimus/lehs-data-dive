@@ -4,6 +4,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from utils.i18n import language_toggle, t
+from utils.pwa import inject_pwa
 from utils.theme import theme_css, theme_toggle
 
 
@@ -246,6 +247,10 @@ def sidebar_attribution() -> None:
     dark = theme_css()
     if dark:
         st.markdown(dark, unsafe_allow_html=True)
+
+    # Make the app installable (PWA) — best-effort manifest injection into the
+    # real page head. No-op if the browser ignores it.
+    inject_pwa()
 
     # Collapse non-active sidebar nav sections on first load. height=0
     # keeps the helper iframe invisible.

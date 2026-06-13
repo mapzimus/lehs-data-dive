@@ -1,0 +1,28 @@
+# Dashboard update log — drives the RSS feed (updates/feed.xml) and changelog
+# (updates/CHANGELOG.md) built by scripts/23_build_updates_feed.py.
+#
+# Append a new entry whenever something visitor-facing ships. Newest first.
+# Fields:
+#   date:   ISO date (YYYY-MM-DD)
+#   title:  short headline
+#   body:   one or two sentences, plain language
+updates:
+  - date: 2026-06-13
+    title: "New pages: Lynn HS Options, Wellbeing, Feeder Schools, and more"
+    body: >
+      A big additions release: a side-by-side of Lynn's public high schools, a
+      student & community wellbeing page, feeder-middle-school profiles with an
+      enrollment projection, a "what changed this year" overview, a data-gaps
+      and corrections log, Stories, and a housing-affordability section.
+  - date: 2026-06-13
+    title: "Accessibility & convenience: dark mode, Spanish switcher, search, shareable links"
+    body: >
+      The dashboard now has a dark theme, a Spanish/English language switcher,
+      site-wide search, shareable URLs that remember your filter selections, and
+      a one-click School Committee PDF briefing.
+  - date: 2026-06-12
+    title: "State Accountability deep-dive"
+    body: >
+      The State Accountability page now breaks down how the determination is
+      built, where LEHS sits statewide by percentile, what next year's targets
+      require, and the long-run trend behind each indicator.
