@@ -36,6 +36,12 @@ from utils.interpret import sy_label
 LVTI_SCHOOL_CODE = "01630605"
 LCHS_COLOR = LEHS_GOLD
 
+# Federal CRDC matches on SCHOOL_NAME (string) — the CRDC public-use file has
+# no DESE ORG_CODE. Used by the "Discipline, disaggregated (federal CRDC)"
+# section near the end of this page (rolled in from the former Civil Rights
+# Data page).
+LEHS_CRDC_NAME = "Lynn English High"
+
 st.set_page_config(page_title="Discipline & Climate | LEHS", page_icon="⚖️", layout="wide")
 sidebar_attribution()
 
@@ -752,32 +758,162 @@ else:
 st.divider()
 
 # ---------------------------------------------------------------------------
-# Federal CRDC indicators
+# Discipline, disaggregated (federal CRDC) — out-of-school suspension counts by
+# race, an all-students discipline summary, a disparate-impact check (CRDC
+# counts ÷ DESE enrollment denominators), and the full discipline table.
+# Rolled in from the former Civil Rights Data page. The CRDC's signature
+# feature is its race / disability / English-learner breakdown, captured here.
 # ---------------------------------------------------------------------------
 
-crdc = load_dataset("crdc_discipline")
-if not crdc.empty:
-    st.header("Federal CRDC indicators")
-    st.caption(
-        "Biennial federal Civil Rights Data Collection. Captures what DESE doesn't: "
-        "school-based arrests, law-enforcement referrals, restraint/seclusion."
-    )
-    st.dataframe(crdc.head(50), width="stretch")
-else:
-    st.caption(
-        "_Federal CRDC school-level discipline data (arrests, law-enforcement "
-        "referrals, restraint/seclusion) isn't yet wired in._"
-    )
-
-crosslink_callout(
-    "**Federal civil-rights lens on discipline.** The U.S. Department of "
-    "Education's Civil Rights Data Collection (CRDC) captures measures DESE "
-    "does not — school-based arrests, law-enforcement referrals, and "
-    "restraint/seclusion — disaggregated by race, sex, and disability. See the "
-    "*Civil Rights Data* page for the full federal view.",
-    url_path="Federal_CRDC",
-    label="Civil Rights Data (CRDC) →",
+st.header("Discipline, disaggregated (federal CRDC)")
+st.caption(
+    "Out-of-school suspension counts at Lynn English High by student group, "
+    "from the 2021-22 federal CRDC (U.S. Dept. of Education, Office for Civil "
+    "Rights — civilrightsdata.ed.gov). The federal collection's signature "
+    "feature is its race / disability / English-learner breakdown, and it "
+    "captures measures DESE does not — school-based arrests, law-enforcement "
+    "referrals, restraint/seclusion. **Small-n caution:** these are raw, "
+    "privacy-perturbed counts (not rates); the public-use file applies small "
+    "random perturbations and suppresses very small cells, so subgroup figures "
+    "are approximate and may not sum exactly to totals."
 )
+
+crdc = load_dataset("crdc_discipline")
+if crdc.empty:
+    st.info("Discipline (CRDC) data is unavailable in the current build.")
+else:
+    disc = crdc.copy()
+    metric_cols = ["ISS_COUNT", "OSS_SINGLE_COUNT", "OSS_MULTIPLE_COUNT",
+                   "EXPULSION_COUNT", "ARREST_COUNT", "LE_REFERRAL_COUNT",
+                   "RESTRAINT_PHYSICAL", "SECLUSION_COUNT"]
+    for c in metric_cols:
+        if c in disc.columns:
+            disc[c] = pd.to_numeric(disc[c], errors="coerce")
+
+    lehs_d = disc[disc["SCHOOL_NAME"].astype(str).str.strip() == LEHS_CRDC_NAME]
+    race = lehs_d[(lehs_d["GROUP_DIM"] == "race")].copy()
+    race["TOTAL_OSS"] = race[["OSS_SINGLE_COUNT", "OSS_MULTIPLE_COUNT"]].sum(axis=1, min_count=1)
+    race = race[race["TOTAL_OSS"].fillna(0) > 0].sort_values("TOTAL_OSS")
+    if not race.empty:
+        fig = go.Figure()
+        fig.add_trace(go.Bar(name="Suspended once",
+                             x=race["OSS_SINGLE_COUNT"], y=race["GROUP"],
+                             orientation="h", marker_color=LEHS_NAVY))
+        fig.add_trace(go.Bar(name="Suspended more than once",
+                             x=race["OSS_MULTIPLE_COUNT"], y=race["GROUP"],
+                             orientation="h", marker_color=LEHS_GOLD))
+        fig.update_layout(**DEFAULT_LAYOUT, barmode="stack",
+                          title="LEHS out-of-school suspensions by race/ethnicity (2021-22)",
+                          xaxis_title="Students")
+        st.plotly_chart(fig, width="stretch")
+
+    # All-students summary across discipline measures (LEHS).
+    tot = lehs_d[lehs_d["GROUP_DIM"] == "total"]
+    if not tot.empty:
+        row = tot.iloc[0]
+        labels = {"ISS_COUNT": "In-school suspension",
+                  "OSS_SINGLE_COUNT": "Out-of-school (once)",
+                  "OSS_MULTIPLE_COUNT": "Out-of-school (multiple)",
+                  "EXPULSION_COUNT": "Expulsions",
+                  "ARREST_COUNT": "School-based arrests",
+                  "LE_REFERRAL_COUNT": "Referrals to law enforcement"}
+        summary = pd.DataFrame(
+            {"Measure": list(labels.values()),
+             "LEHS students (all groups)": [row.get(k) for k in labels]}
+        )
+        st.markdown("**LEHS discipline summary — all students**")
+        st.dataframe(summary, width="stretch", hide_index=True)
+
+    # --- Disparate-impact check ------------------------------------------
+    # CRDC publishes suspension COUNTS only, so rate denominators come from
+    # the DESE enrollment file for the same school year (SY 2022 = 2021-22).
+    # Estimated subgroup enrollment = DESE share × total enrollment, so the
+    # resulting rates and ratios are approximate (see the perturbation
+    # caveat at the top of the page). Flag any group whose out-of-school
+    # suspension rate is at least 2× the school-wide rate.
+    _GROUP_ENR_COLS = {
+        "Hispanic/Latino": "HL_PCT",
+        "Asian": "AS_PCT",
+        "Black/African American": "BAA_PCT",
+        "White": "WH_PCT",
+        "Two or More Races": "MNHL_PCT",
+        "Native Hawaiian/Pacific Islander": "NHPI_PCT",
+        "American Indian/Alaska Native": "AIAN_PCT",
+        "English Learner": "EL_PCT",
+        "Students w/ Disabilities": "SWD_PCT",
+    }
+    _MIN_GROUP_N = 20  # below this, a one-student swing moves the rate too much
+
+    _enr22 = load_dataset("enrollment_demographics")
+    _lehs_enr22 = pd.DataFrame()
+    if not _enr22.empty and {"ORG_CODE", "SY"} <= set(_enr22.columns):
+        _lehs_enr22 = _enr22[
+            (_enr22["ORG_CODE"].astype(str) == LEHS_SCHOOL_CODE)
+            & (pd.to_numeric(_enr22["SY"], errors="coerce") == 2022)
+        ]
+
+    _oss_cols_ok = {"OSS_SINGLE_COUNT", "OSS_MULTIPLE_COUNT"} <= set(disc.columns)
+    if not tot.empty and not _lehs_enr22.empty and _oss_cols_ok:
+        _e = _lehs_enr22.iloc[0]
+        _total_n = pd.to_numeric(_e.get("TOTAL_CNT"), errors="coerce")
+        _tot_oss = pd.to_numeric(
+            tot.iloc[0][["OSS_SINGLE_COUNT", "OSS_MULTIPLE_COUNT"]],
+            errors="coerce",
+        ).sum(min_count=1)
+        if pd.notna(_total_n) and _total_n > 0 and pd.notna(_tot_oss) and _tot_oss > 0:
+            _school_rate = float(_tot_oss) / float(_total_n)
+            _flags: list[str] = []
+            _checked = 0
+            _sub = lehs_d[lehs_d["GROUP_DIM"] != "total"]
+            for _, _r in _sub.iterrows():
+                _col = _GROUP_ENR_COLS.get(str(_r.get("GROUP", "")).strip())
+                if not _col or _col not in _lehs_enr22.columns:
+                    continue
+                _share = pd.to_numeric(_e.get(_col), errors="coerce")
+                if pd.isna(_share):
+                    continue
+                if _share > 1.5:  # stored as 0-100 rather than a 0-1 fraction
+                    _share = _share / 100.0
+                _grp_n = float(_share) * float(_total_n)
+                if _grp_n < _MIN_GROUP_N:
+                    continue  # too small for a stable rate
+                _grp_oss = pd.to_numeric(
+                    _r[["OSS_SINGLE_COUNT", "OSS_MULTIPLE_COUNT"]],
+                    errors="coerce",
+                ).sum(min_count=1)
+                if pd.isna(_grp_oss):
+                    continue
+                _checked += 1
+                _ratio_vs_school = (float(_grp_oss) / _grp_n) / _school_rate
+                if _ratio_vs_school >= 2.0:
+                    _flags.append(
+                        f"**{_r['GROUP']}** — {int(_grp_oss)} students suspended "
+                        f"out of ≈{_grp_n:,.0f} enrolled "
+                        f"(≈{float(_grp_oss) / _grp_n:.1%}), "
+                        f"{_ratio_vs_school:.1f}× the school-wide rate"
+                    )
+            if _flags:
+                st.warning(
+                    "**Disparate-impact check (2021-22).** The school-wide "
+                    f"out-of-school suspension rate was ≈{_school_rate:.1%} "
+                    f"({int(_tot_oss)} of {int(_total_n):,} students). The "
+                    "following group(s) were suspended at **2× or more** that "
+                    "rate:\n\n- " + "\n- ".join(_flags) + "\n\n"
+                    "Counts are privacy-perturbed and denominators are "
+                    "estimated from DESE enrollment shares, so treat these "
+                    "ratios as approximate."
+                )
+            elif _checked:
+                st.caption(
+                    f"Disparate-impact check (2021-22): no student group's "
+                    f"out-of-school suspension rate exceeds 2× the school-wide "
+                    f"rate of ≈{_school_rate:.1%} in this snapshot "
+                    f"(groups with fewer than {_MIN_GROUP_N} estimated "
+                    f"students are excluded as too small to rate)."
+                )
+
+    with st.expander("Full discipline table (all schools × student groups)"):
+        st.dataframe(disc, width="stretch", height=400)
 
 st.divider()
 

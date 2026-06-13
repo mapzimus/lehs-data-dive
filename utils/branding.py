@@ -177,6 +177,9 @@ _NAV_COLLAPSE_JS = """
     headers.forEach((h) => {
       const section = h.closest('[data-testid="stSidebarNavItems"] > div');
       if (section === activeSection) return;  // keep current page's section open
+      // Always keep "The School (LEHS)" expanded — it's the dashboard's core
+      // section, so it stays open even when the active page is elsewhere.
+      if ((h.textContent || '').trim() === 'The School (LEHS)') return;
       collapseSection(h);
     });
 

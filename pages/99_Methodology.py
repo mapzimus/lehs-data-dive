@@ -208,7 +208,7 @@ st.markdown(
 - **Earnings data paused**: Average Earnings of HS Graduates by Industry — DESE paused updates in 2025 due to a methodology issue affecting students who didn't attend MA public postsecondary institutions.
 - **VOCAL participation**: not all schools participate every year — LEHS coverage is noted where it appears.
 - **ACS geography**: We use whole-city Lynn ACS rather than a precise LEHS catchment area. The catchment is roughly the eastern half of the city but exact boundaries are not published.
-- **CRDC frequency**: Federal CRDC data is biennial. The latest public-use release reflects the **2021-22** school year — a pandemic-recovery year — and is shown on the live [Civil Rights Data](/Federal_CRDC?embed=true) page. The public-use file applies small random perturbations to protect privacy, so counts are approximate.
+- **CRDC frequency**: Federal CRDC data is biennial. The latest public-use release reflects the **2021-22** school year — a pandemic-recovery year. Its support-staff ratios live on [Teachers & Workforce](/Teachers_and_Workforce?embed=true), advanced-course offerings on [Courses & Academics](/Courses_and_Academics?embed=true), and disaggregated discipline on [Discipline & Climate](/Discipline_and_Climate?embed=true). The public-use file applies small random perturbations to protect privacy, so counts are approximate.
 - **Correlation ≠ causation**: The Correlation Lab surfaces patterns. Confirming cause-and-effect requires more than this dashboard can show.
 """
 )
