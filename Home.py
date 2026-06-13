@@ -31,6 +31,9 @@ nav = {
     ],
     "The School (LEHS)": [
         st.Page("pages/1_School_Profile.py", title="School Profile", url_path="School_Profile"),
+        # Feeder middle schools + a grade-progression enrollment projection —
+        # sits next to the Profile since it's enrollment/pipeline context.
+        st.Page("pages/Feeder_Middle_Schools.py", title="Feeder Schools", url_path="Feeder_Middle_Schools"),
         # url_path stays "Academic_Performance" so existing public links keep
         # working — only the display title changed when the page went MCAS-only.
         st.Page("pages/2_Academic_Performance.py", title="MCAS", url_path="Academic_Performance"),
@@ -50,6 +53,9 @@ nav = {
         st.Page("pages/7_Teachers_and_Workforce.py", title="Teachers & Workforce", url_path="Teachers_and_Workforce"),
         st.Page("pages/8_Finance.py", title="Finance", url_path="Finance"),
         st.Page("pages/9_Discipline_and_Climate.py", title="Discipline & Climate", url_path="Discipline_and_Climate"),
+        # Student & community wellbeing — sits beside Discipline/Climate; uses
+        # statewide YRBS context plus honest proxy signals (no Lynn student survey).
+        st.Page("pages/Wellbeing.py", title="Student Wellbeing", url_path="Wellbeing"),
         st.Page("pages/11_Where_Students_Live.py", title="Where Students Live", url_path="Where_Students_Live"),
         st.Page("pages/10_Athletics.py", title="Athletics", url_path="Athletics"),
         # Narrative page — sits at the end of "The School (LEHS)" group
@@ -78,6 +84,8 @@ nav = {
         # "What changed this year" — the living-document overview for returning
         # visitors; sits in About with the other reference/transparency pages.
         st.Page("pages/What_Changed.py", title="What Changed This Year", url_path="What_Changed"),
+        # Short, factual narrative reads grounded in the dashboard's data.
+        st.Page("pages/Stories.py", title="Stories", url_path="Stories"),
         # Data 101 sits in About because it's an explainer/reference,
         # not analytical content — same family as Methodology.
         st.Page("pages/Data_Literacy.py", title="Data 101", url_path="Data_101"),
