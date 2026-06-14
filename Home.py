@@ -34,9 +34,6 @@ nav = {
     ],
     "The School (LEHS)": [
         st.Page("pages/1_School_Profile.py", title="School Profile", url_path="School_Profile"),
-        # Feeder middle schools + a grade-progression enrollment projection —
-        # sits next to the Profile since it's enrollment/pipeline context.
-        st.Page("pages/Feeder_Middle_Schools.py", title="Feeder Schools", url_path="Feeder_Middle_Schools"),
         # url_path stays "Academic_Performance" so existing public links keep
         # working — only the display title changed when the page went MCAS-only.
         st.Page("pages/2_Academic_Performance.py", title="MCAS", url_path="Academic_Performance"),
@@ -60,6 +57,10 @@ nav = {
         # statewide YRBS context plus honest proxy signals (no Lynn student survey).
         st.Page("pages/Wellbeing.py", title="Student Wellbeing", url_path="Wellbeing"),
         st.Page("pages/11_Where_Students_Live.py", title="Where Students Live", url_path="Where_Students_Live"),
+        # Feeder middle schools + the grade-progression enrollment projection.
+        # Sits near the end with the other "context" pages — it's pipeline
+        # background, not a headline metric a principal opens first.
+        st.Page("pages/Feeder_Middle_Schools.py", title="Feeder Schools", url_path="Feeder_Middle_Schools"),
         st.Page("pages/10_Athletics.py", title="Athletics", url_path="Athletics"),
         # Narrative page — sits at the end of "The School (LEHS)" group
         # since it's still LEHS-specific, just historical rather than

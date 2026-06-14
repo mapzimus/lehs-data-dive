@@ -40,7 +40,9 @@ FEEDER_COLORS = {
 HS_GRADES = ["G9_CNT", "G10_CNT", "G11_CNT", "G12_CNT"]
 PROJ_YEARS = 3        # roll the model forward this many school years
 RATIO_PAIRS = 4       # average progression over this many recent year-pairs
-BAND = 0.10           # ±10% illustrative uncertainty band
+# Uncertainty cone: zero width at the last KNOWN year (we aren't guessing a
+# number we already have), widening to ±MAX_BAND by the final projected year.
+MAX_BAND = 0.20       # ±20% at the far end of the projection
 
 
 def _num(series: pd.Series) -> pd.Series:
@@ -313,15 +315,21 @@ else:
 
     proj_x = [last_year] + list(proj_table["SY"])
     proj_y = [hist.loc[last_year, "TOTAL_CNT"]] + list(proj_table["Projected total"])
-    band_hi = [v * (1 + BAND) for v in proj_y]
-    band_lo = [v * (1 - BAND) for v in proj_y]
+    # Cone, not a constant band: the first point is the last KNOWN year, so its
+    # half-width is 0 (no uncertainty on a number we already have); each year
+    # out widens linearly to ±MAX_BAND at the final projected year.
+    n_steps = len(proj_table)
+    half = [MAX_BAND * i / n_steps if n_steps else 0.0 for i in range(len(proj_x))]
+    band_hi = [v * (1 + h) for v, h in zip(proj_y, half)]
+    band_lo = [v * (1 - h) for v, h in zip(proj_y, half)]
 
     fig_p = go.Figure()
-    # Shaded ±band (drawn first so lines sit on top).
+    # Shaded uncertainty cone (drawn first so lines sit on top).
     fig_p.add_trace(go.Scatter(
         x=proj_x + proj_x[::-1], y=band_hi + band_lo[::-1], fill="toself",
         fillcolor="rgba(92,116,166,0.15)", line=dict(width=0),
-        name=f"±{int(BAND*100)}% illustrative band", hoverinfo="skip",
+        name=f"Uncertainty range (0 now → ±{int(MAX_BAND*100)}% by {int(proj_x[-1])})",
+        hoverinfo="skip",
     ))
     fig_p.add_trace(go.Scatter(
         x=hist_recent["SY"], y=hist_recent["TOTAL_CNT"], mode="lines+markers",
@@ -337,8 +345,10 @@ else:
     st.plotly_chart(fig_p, width="stretch")
     st.caption(
         f"Solid line: actual LEHS total enrollment. Dashed line: grade-progression "
-        f"projection. The shaded ±{int(BAND*100)}% band is an **illustrative** sensitivity "
-        "range, not a statistical confidence interval."
+        f"projection. The shaded cone is pinned at the known {sy_label(int(last_year))} "
+        f"enrollment and widens to **±{int(MAX_BAND*100)}%** by {int(proj_x[-1])} — an "
+        "**illustrative** sensitivity range that grows with distance, not a statistical "
+        "confidence interval."
     )
 
     # Projection ratios + incoming assumption, stated plainly.
