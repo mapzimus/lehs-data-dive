@@ -116,6 +116,7 @@ import plotly.express as px  # noqa: E402
 from utils.charts import DEFAULT_LAYOUT, csv_download  # noqa: E402
 from utils.constants import LEHS_GOLD, LEHS_NAVY  # noqa: E402
 from utils.data_loader import load_dataset  # noqa: E402
+from utils.geo_loader import tract_display_label  # noqa: E402
 
 _TRACTS_PATH = PROCESSED_DIR / "lynn_tracts.geojson"
 
@@ -125,11 +126,9 @@ if _TRACTS_PATH.exists():
     _rows = [feat["properties"] for feat in _fc.get("features", []) if feat.get("properties")]
     _tracts_df = pd.DataFrame(_rows)
 
-    # Short-name tract label (last 6 digits of GEOID for compactness)
+    # Public-facing neighborhood label, e.g. "West Lynn (Tract 2057)".
     if "NAMELSAD" in _tracts_df.columns:
-        _tracts_df["tract_label"] = _tracts_df["NAMELSAD"].astype(str).str.replace(
-            "Census Tract ", "Tract ", regex=False
-        )
+        _tracts_df["tract_label"] = _tracts_df["NAMELSAD"].map(tract_display_label)
     elif "GEOID" in _tracts_df.columns:
         _tracts_df["tract_label"] = "Tract " + _tracts_df["GEOID"].astype(str).str[-6:]
 
@@ -205,7 +204,7 @@ if _TRACTS_PATH.exists():
         "statewide-comparison view of these same indicators."
     )
 
-    st.subheader("Housing-cost burden by tract")
+    st.subheader("Housing-cost burden by Lynn neighborhood")
     st.caption(
         "Share of households spending 30%+ of their income on housing "
         "(5-year ACS, severe + moderate cost burden). A high burden squeezes "
@@ -224,7 +223,7 @@ if _TRACTS_PATH.exists():
     csv_download(
         _tracts_df,
         "lynn_tracts.csv",
-        label="⬇ Download the Lynn census-tract table (CSV)",
+        label="⬇ Download the Lynn neighborhood table (CSV)",
         key="dl_lynn_tracts",
     )
 else:
