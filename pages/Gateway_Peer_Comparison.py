@@ -5,17 +5,12 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
 
 from utils.branding import crosslink_callout, page_footer, sidebar_attribution
 from utils.charts import (
-    DEFAULT_LAYOUT,
-    GATEWAY_PEER_COLOR,
-    LEHS_GOLD,
-    LEHS_NAVY,
     data_downloads_panel,
+    peer_dot_scatter,
 )
 from utils.constants import (
     LCHS_SCHOOL_CODE,
@@ -531,85 +526,22 @@ st.divider()
 
 st.header("Where does LEHS fall? Per-Pupil Spending vs. Outcomes")
 
-# Color + marker per role. LEHS = gold star (biggest), LCHS = gold-outlined
-# navy circle, LVTI = teal diamond, LPS-district = navy square; the 25 other
-# gateway main-HS share the pale-grey cloud.
-ROLE_STYLE = {
-    "LEHS":             dict(color=LEHS_GOLD, symbol="star",          size=20, line_color=LEHS_NAVY, line_width=2),
-    "Lynn Classical":   dict(color=LEHS_NAVY, symbol="circle",        size=14, line_color=LEHS_GOLD, line_width=2),
-    "Lynn Tech":        dict(color="#26A69A", symbol="diamond",       size=14, line_color=LEHS_NAVY, line_width=1),
-    "LPS district":     dict(color=LEHS_NAVY, symbol="square",        size=14, line_color="#FFFFFF", line_width=1),
-    "Other Gateway HS": dict(color=GATEWAY_PEER_COLOR, symbol="circle", size=9, line_color="#FFFFFF", line_width=0),
-}
-ROLE_ORDER = ["Other Gateway HS", "LPS district", "Lynn Tech", "Lynn Classical", "LEHS"]
-
-
-def _lynn_scatter(df: pd.DataFrame, x_col: str, y_col: str,
-                  x_title: str, y_title: str,
-                  x_tickformat: str, y_tickformat: str) -> go.Figure:
-    """Scatter with one trace per lynn_role so each Lynn dot can have its own
-    marker shape/size, plus an OLS trendline fit to ALL points."""
-    fig = go.Figure()
-    # Plot Other first so Lynn dots paint on top
-    for role in ROLE_ORDER:
-        sub = df[df["lynn_role"] == role]
-        if sub.empty:
-            continue
-        style = ROLE_STYLE[role]
-        # Show city labels for the four Lynn points; suppress for the 25
-        # other cities (they declutter into the trendline).
-        is_lynn = role != "Other Gateway HS"
-        fig.add_trace(go.Scatter(
-            x=sub[x_col], y=sub[y_col],
-            mode="markers+text" if is_lynn else "markers",
-            name=role,
-            marker=dict(
-                color=style["color"], symbol=style["symbol"], size=style["size"],
-                line=dict(color=style["line_color"], width=style["line_width"]),
-            ),
-            text=sub["City"] if is_lynn else None,
-            textposition="top center", textfont=dict(size=10, color=LEHS_NAVY),
-            hovertemplate=(
-                "<b>%{text}</b><br>" + x_title + ": %{x}<br>" + y_title + ": %{y}<extra></extra>"
-                if is_lynn else
-                "<b>%{customdata}</b><br>" + x_title + ": %{x}<br>" + y_title + ": %{y}<extra></extra>"
-            ),
-            customdata=sub["City"] if not is_lynn else None,
-        ))
-    # Trendline fit to ALL points
-    try:
-        valid = df.dropna(subset=[x_col, y_col])
-        if len(valid) >= 3:
-            xs = pd.to_numeric(valid[x_col], errors="coerce")
-            ys = pd.to_numeric(valid[y_col], errors="coerce")
-            m, b = np.polyfit(xs, ys, 1)
-            x_fit = pd.Series([xs.min(), xs.max()])
-            fig.add_trace(go.Scatter(
-                x=x_fit, y=m * x_fit + b,
-                mode="lines", name="OLS fit",
-                line=dict(color="#90A4AE", width=2, dash="dash"),
-                showlegend=False, hoverinfo="skip",
-            ))
-    except (TypeError, ValueError):
-        pass
-    fig.update_layout(
-        **DEFAULT_LAYOUT,
-        xaxis_tickformat=x_tickformat,
-        yaxis_tickformat=y_tickformat,
-        xaxis_title=x_title,
-        yaxis_title=y_title,
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    )
-    return fig
-
+# The four named Lynn dots + grey gateway cloud are drawn by the shared
+# `peer_dot_scatter` helper (utils/charts.py) — one implementation across this
+# page and the Correlation Lab. It keys off a per-row role column; here that's
+# `lynn_role` ("LEHS" / "Lynn Classical" / "Lynn Tech" / "LPS district" /
+# "Other Gateway HS"), with the per-point label coming from `City`.
 
 st.subheader("Per-pupil spending vs. 4-year graduation rate")
 scatter_df = scorecard.dropna(subset=["$ Per Pupil", "4yr Grad Rate"]).copy()
 if not scatter_df.empty:
     st.plotly_chart(
-        _lynn_scatter(scatter_df, "$ Per Pupil", "4yr Grad Rate",
-                       "$ per pupil", "4-year graduation rate",
-                       "$,.0f", ".0%"),
+        peer_dot_scatter(
+            scatter_df, "$ Per Pupil", "4yr Grad Rate",
+            role_col="lynn_role", label_col="City",
+            x_label="$ per pupil", y_label="4-year graduation rate",
+            x_tickformat="$,.0f", y_tickformat=".0%",
+        ),
         width="stretch",
     )
 
@@ -617,9 +549,12 @@ st.subheader("English-learner share vs. 4-year graduation rate")
 scatter_df2 = scorecard.dropna(subset=["% English Learner(s)", "4yr Grad Rate"]).copy()
 if not scatter_df2.empty:
     st.plotly_chart(
-        _lynn_scatter(scatter_df2, "% English Learner(s)", "4yr Grad Rate",
-                       "% English Learners", "4-year graduation rate",
-                       ".0%", ".0%"),
+        peer_dot_scatter(
+            scatter_df2, "% English Learner(s)", "4yr Grad Rate",
+            role_col="lynn_role", label_col="City",
+            x_label="% English Learners", y_label="4-year graduation rate",
+            x_tickformat=".0%", y_tickformat=".0%",
+        ),
         width="stretch",
     )
 

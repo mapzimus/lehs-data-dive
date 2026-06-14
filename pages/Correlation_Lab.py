@@ -6,19 +6,13 @@ The novel analytical layer no DESE tool provides.
 
 import json
 
-import numpy as np
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
 
 from utils.branding import page_footer, sidebar_attribution
 from utils.charts import (
-    DEFAULT_LAYOUT,
-    GATEWAY_PEER_COLOR,
-    LEHS_GOLD,
-    LEHS_NAVY,
     csv_download,
+    peer_dot_scatter,
 )
 from utils.constants import PROCESSED_DIR
 from utils.correlations import interpret_r, pearson, regression_line
@@ -33,7 +27,11 @@ st.markdown(
     "Because every dataset lives in the same data model joined on (school, year), "
     "we can ask questions DESE's siloed tools can't. Pick any two metrics "
     "below to explore relationships across the 26 gateway-city high schools "
-    "(one main high school per city, with Lynn English representing Lynn)."
+    "(one main high school per city, with Lynn English representing Lynn). "
+    "The scatter plots break Lynn out into four colored dots — **LEHS** "
+    "(gold star), **Lynn Classical**, **Lynn Tech**, and **Lynn Public Schools "
+    "as a district** — against the grey gateway-peer cloud, so you can see how "
+    "LEHS lands next to its same-city siblings and the district aggregate."
 )
 
 st.caption(
@@ -54,28 +52,63 @@ st.caption(
 # Build the master panel: one row per (school, year) with key indicators
 # ---------------------------------------------------------------------------
 
+# ORG_CODEs for Lynn's same-city rows shown as their own colored dots in every
+# scatter (Change: peer-dot scatters). LEHS is the focus, LCHS/LVTI are the
+# same-district sibling high schools, and the Lynn district aggregate gets a
+# synthetic row built from district-level files (see _build_lps_district_row).
+LVTI_SCHOOL_CODE = "01630605"          # Lynn Vocational Technical Institute (Lynn Tech)
+LYNN_DISTRICT_ROW_KEY = "01630000_DIST"  # synthetic ORG_CODE for the LPS-district row
+
+
+def _peer_role(org_code: str) -> str:
+    """Map an ORG_CODE to the role label peer_dot_scatter colors on."""
+    from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE
+    if org_code == LEHS_SCHOOL_CODE:
+        return "LEHS"
+    if org_code == LCHS_SCHOOL_CODE:
+        return "Lynn Classical"
+    if org_code == LVTI_SCHOOL_CODE:
+        return "Lynn Tech"
+    if org_code == LYNN_DISTRICT_ROW_KEY:
+        return "Lynn district"
+    return "Other Gateway HS"
+
+
 @st.cache_data(show_spinner=False)
 def build_master_panel() -> pd.DataFrame:
-    """Wide panel: rows = (school_code, year), cols = key metrics from all sources."""
-    from utils.constants import LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE
+    """Wide panel: rows = (school_code, year), cols = key metrics from all sources.
+
+    Beyond the 25 other gateway-city main HS + LEHS (Lynn's representative point),
+    the panel ALSO carries Lynn Classical (LCHS), Lynn Tech (LVTI), and a
+    synthetic Lynn-district aggregate row so every scatter can show all four Lynn
+    dots against the gateway-peer cloud. A `peer_role` column tags each row.
+    """
+    from utils.constants import (
+        LCHS_SCHOOL_CODE,
+        LEHS_SCHOOL_CODE,
+        LYNN_DISTRICT_CODE,
+    )
     peers = json.loads((PROCESSED_DIR / "_peer_schools.json").read_text())
     gateway_codes = [
         info["school_code"] for info in peers["gateway_main_hs"].values()
         if info.get("school_code")
     ]
-    # Represent Lynn with LEHS (one school per city). The manifest's "Lynn"
-    # slot is Classical (01630505) — it only edged out LEHS on cumulative
-    # enrollment — so swap it for LEHS here. Keeping both would double-count
-    # Lynn: every scatter would show a Classical dot AND a LEHS dot, and the
-    # "26 gateway-city HS" claim would actually be 27 points. Drop Classical,
-    # add LEHS, so Lynn contributes exactly one (correctly-labeled) point.
+    # The manifest's "Lynn" slot is Classical (01630505) — it only edged out LEHS
+    # on cumulative enrollment. Swap it for LEHS so LEHS is the gateway-cloud
+    # member representing Lynn; Classical/Tech/district are then ADDED back as
+    # their own separately-colored dots (not part of the "one HS per city" cloud).
     gateway_codes = [c for c in gateway_codes if c != LCHS_SCHOOL_CODE]
     if LEHS_SCHOOL_CODE not in gateway_codes:
         gateway_codes.append(LEHS_SCHOOL_CODE)
+    # School-level codes we pull real (SY, ORG_CODE) rows for: the gateway cloud
+    # plus Lynn's two sibling HS. The district aggregate is synthesized separately.
+    school_codes = list(dict.fromkeys(
+        gateway_codes + [LCHS_SCHOOL_CODE, LVTI_SCHOOL_CODE]
+    ))
 
     # 1) Enrollment + demographics
     enr = load_dataset("enrollment_demographics")
-    enr = enr[enr["ORG_CODE"].isin(gateway_codes)].copy()
+    enr = enr[enr["ORG_CODE"].isin(school_codes)].copy()
     enr_cols = ["SY", "ORG_CODE", "ORG_NAME", "DIST_NAME",
                 "TOTAL_CNT", "EL_PCT", "LI_PCT", "SWD_PCT", "HN_PCT",
                 "HL_PCT", "BAA_PCT", "AS_PCT", "WH_PCT", "FLNE_PCT"]
@@ -90,7 +123,7 @@ def build_master_panel() -> pd.DataFrame:
 
     # 2) DART indicators (long → wide)
     dart = load_dataset("dart_success_after_hs")
-    dart = dart[(dart["ORG_CODE"].isin(gateway_codes)) & (dart["STU_GRP"] == "All Students")].copy()
+    dart = dart[(dart["ORG_CODE"].isin(school_codes)) & (dart["STU_GRP"] == "All Students")].copy()
     dart["VALUE"] = pd.to_numeric(dart["VALUE"], errors="coerce")
 
     # NOTE: "4-year cohort graduation rate" and "Jr/Sr AP test takers scoring 3
@@ -147,7 +180,7 @@ def build_master_panel() -> pd.DataFrame:
 
     # 3) Finance: per-pupil + teacher salary
     sp = load_dataset("school_expenditures")
-    sp = sp[sp["ORG_CODE"].isin(gateway_codes)].copy()
+    sp = sp[sp["ORG_CODE"].isin(school_codes)].copy()
     sp["IND_VALUE"] = pd.to_numeric(sp["IND_VALUE"], errors="coerce")
     pp = sp[(sp["IND_CAT"] == "Total A+B+C") & (sp["IND_SUBCAT"] == "Total Expenditures")] \
             [["SY", "ORG_CODE", "IND_VALUE"]].rename(columns={"IND_VALUE": "PerPupil"})
@@ -163,7 +196,7 @@ def build_master_panel() -> pd.DataFrame:
     grad = load_dataset("graduation_rates")
     if not grad.empty:
         gr = grad[
-            (grad["ORG_CODE"].isin(gateway_codes))
+            (grad["ORG_CODE"].isin(school_codes))
             & (grad["ORG_TYPE"] == "School")
             & (grad["STU_GRP"] == "All Students")
             & (grad["GRAD_RATE_TYPE"] == "4-Year Adjusted Cohort Graduation Rate")
@@ -180,7 +213,7 @@ def build_master_panel() -> pd.DataFrame:
     ap = load_dataset("ap_performance")
     if not ap.empty:
         apx = ap[
-            (ap["ORG_CODE"].isin(gateway_codes))
+            (ap["ORG_CODE"].isin(school_codes))
             & (ap["SUBJ"] == "All Subjects")
             & (ap["STU_GRP"] == "All Students")
         ].copy()
@@ -196,7 +229,88 @@ def build_master_panel() -> pd.DataFrame:
     panel = panel.merge(pp, on=["SY", "ORG_CODE"], how="left")
     panel = panel.merge(sal, on=["SY", "ORG_CODE"], how="left")
     panel = panel.merge(t_ratio, on=["SY", "ORG_CODE"], how="left")
+
+    # 6) Synthetic Lynn-district aggregate rows — one per SY — built from the
+    # DISTRICT-grain files (enrollment_demographics ORG_TYPE=="District",
+    # graduation_rates ORG_TYPE=="District", district_expenditures). This is the
+    # same approach Gateway_Peer_Comparison._build_lps_district_row uses, lifted
+    # to a multi-year panel so the district point appears in every scatter. DART
+    # indicators are SCHOOL-grain only in our extract, so the district rows leave
+    # those metrics NaN rather than fabricating values.
+    dist_rows = _build_lynn_district_rows(LYNN_DISTRICT_CODE)
+    if dist_rows is not None and not dist_rows.empty:
+        panel = pd.concat([panel, dist_rows], ignore_index=True)
+
+    # Tag every row with its peer role (drives the colored dots in scatters).
+    panel["peer_role"] = panel["ORG_CODE"].apply(_peer_role)
     return panel
+
+
+@st.cache_data(show_spinner=False)
+def _build_lynn_district_rows(lynn_district_code: str) -> pd.DataFrame:
+    """Multi-year synthetic Lynn-district rows matching the panel column shape.
+
+    Demographics from enrollment_demographics (District grain), the 4-Year
+    Adjusted Cohort grad rate from graduation_rates (District grain), and
+    per-pupil from district_expenditures. Everything DART-only is left NaN.
+    Returns an empty frame if the district enrollment rows aren't present.
+    """
+    enr = load_dataset("enrollment_demographics")
+    dist_enr = enr[
+        (enr["DIST_CODE"] == lynn_district_code)
+        & (enr["ORG_TYPE"] == "District")
+    ].copy()
+    if dist_enr.empty:
+        return pd.DataFrame()
+
+    rows = dist_enr.rename(columns={
+        "TOTAL_CNT": "Enrollment",
+        "EL_PCT": "ELL_pct", "LI_PCT": "LowIncome_pct",
+        "SWD_PCT": "SPED_pct", "HN_PCT": "HighNeeds_pct",
+        "HL_PCT": "Hispanic_pct", "BAA_PCT": "Black_pct",
+        "AS_PCT": "Asian_pct", "WH_PCT": "White_pct",
+        "FLNE_PCT": "FirstLangNotEnglish_pct",
+    })
+    keep = ["SY", "Enrollment", "ELL_pct", "LowIncome_pct", "SPED_pct",
+            "HighNeeds_pct", "Hispanic_pct", "Black_pct", "Asian_pct",
+            "White_pct", "FirstLangNotEnglish_pct"]
+    rows = rows[[c for c in keep if c in rows.columns]].copy()
+    rows["ORG_CODE"] = LYNN_DISTRICT_ROW_KEY
+    rows["ORG_NAME"] = "Lynn Public Schools"
+    rows["DIST_NAME"] = "Lynn"
+
+    # District 4-Year Adjusted Cohort grad rate (official, 0-1), per year.
+    grad = load_dataset("graduation_rates")
+    if not grad.empty:
+        g = grad[
+            (grad["DIST_CODE"] == lynn_district_code)
+            & (grad["ORG_TYPE"] == "District")
+            & (grad["STU_GRP"] == "All Students")
+            & (grad["GRAD_RATE_TYPE"] == "4-Year Adjusted Cohort Graduation Rate")
+        ].copy()
+        if not g.empty:
+            g["GradRate_4yr"] = pd.to_numeric(g["GRAD_PCT"], errors="coerce")
+            rows = rows.merge(
+                g[["SY", "GradRate_4yr"]].dropna(subset=["GradRate_4yr"]),
+                on="SY", how="left",
+            )
+
+    # District per-pupil (district_expenditures has its own Per Pupil rows). NOTE
+    # this is district-level all-in spending, several $k higher than the school-
+    # level PerPupil on the HS rows — read the district dot as the district total.
+    de = load_dataset("district_expenditures")
+    if not de.empty:
+        d = de[
+            (de["DIST_CODE"] == lynn_district_code)
+            & (de["IND_CAT"].astype(str).str.contains("Per Pupil", case=False, na=False))
+            & (de["IND_SUBCAT"].astype(str).str.contains("Total Expenditures", case=False, na=False))
+        ].copy()
+        if not d.empty:
+            d["PerPupil"] = pd.to_numeric(d["IND_VALUE"], errors="coerce")
+            d = d.groupby("SY", as_index=False)["PerPupil"].mean()
+            rows = rows.merge(d, on="SY", how="left")
+
+    return rows
 
 
 panel = build_master_panel()
@@ -295,7 +409,7 @@ def _latest_per_school(p: pd.DataFrame) -> pd.DataFrame:
     """For each (school, column), take the most recent year that has a value.
     Avoids dropping schools where the very latest row happens to be NaN for
     the indicator of interest."""
-    static_cols = ["ORG_CODE", "ORG_NAME", "DIST_NAME"]
+    static_cols = ["ORG_CODE", "ORG_NAME", "DIST_NAME", "peer_role"]
     metric_cols = [c for c in p.columns if c not in static_cols + ["SY"]]
     rows = []
     for org_code, grp in p.groupby("ORG_CODE"):
@@ -315,13 +429,29 @@ def _latest_per_school(p: pd.DataFrame) -> pd.DataFrame:
 latest = _latest_per_school(panel)
 latest["City"] = latest["DIST_NAME"]
 latest["is_lehs"] = latest["ORG_CODE"] == "01630510"
-# Disambiguate Lynn-the-district from LEHS-the-school in chart labels.
-# `City` is the district name (used in tables); `School` is the unambiguous
-# display label used on scatter text + tooltips.
+if "peer_role" not in latest.columns:
+    latest["peer_role"] = latest["ORG_CODE"].apply(_peer_role)
+
+# Disambiguate the four Lynn rows from each other and from "Lynn" the district
+# name in chart labels. `City` is the district name (used in tables); `School`
+# is the unambiguous per-point display label used on scatter text + tooltips.
+_ROLE_LABEL = {
+    "LEHS": "Lynn English",
+    "Lynn Classical": "Lynn Classical",
+    "Lynn Tech": "Lynn Tech",
+    "Lynn district": "Lynn (district)",
+}
 latest["School"] = latest.apply(
-    lambda r: "Lynn English" if r["is_lehs"] else r["City"],
+    lambda r: _ROLE_LABEL.get(r["peer_role"], r["City"]),
     axis=1,
 )
+
+# One-HS-per-city cross-section (LEHS standing in for Lynn) for the statistics-
+# only "Strongest Relationships" scan. The extra Lynn rows — Classical, Tech,
+# the district aggregate — are shown as their own DOTS in the scatters below but
+# excluded from this scan so they don't triple-weight Lynn or break the
+# "26 gateway-city HS" framing the scan reports.
+latest_gateway = latest[latest["peer_role"].isin(["LEHS", "Other Gateway HS"])].copy()
 
 # ---------------------------------------------------------------------------
 # Strongest relationships right now — an O(k²) scan over every numeric metric
@@ -394,7 +524,7 @@ def strongest_pairs(
     return out.reindex(out["r"].abs().sort_values(ascending=False).index).head(top_k)
 
 
-_top_pairs = strongest_pairs(latest, tuple(NUMERIC_COLS))
+_top_pairs = strongest_pairs(latest_gateway, tuple(NUMERIC_COLS))
 if _top_pairs.empty:
     st.info("No metric pair clears |r| ≥ 0.40 on the current panel.")
 else:
@@ -428,44 +558,70 @@ st.caption(
     "the most recent year for which both metrics are available per school."
 )
 
+# Each tuple: (x_col, y_col, question, "why a principal cares" caption).
+# Deliberately picks *non-obvious* cross-domain questions — the goal is to
+# surface relationships that aren't near-tautologies (FAFSA → immediate college)
+# and that a principal could actually act on. Every column is verified to exist
+# in the panel below; a pair referencing a missing column is skipped, not fatal.
 curated_pairs = [
-    ("PerPupil", "GradRate_4yr", "Does per-pupil spending correlate with graduation?"),
-    ("PerPupil", "MCAS_G10_Math", "Does per-pupil spending correlate with grade-10 math?"),
-    ("ELL_pct", "GradRate_4yr", "How does ELL share relate to graduation?"),
-    ("ChronicAbsence", "GradRate_4yr", "Chronic absence vs. graduation"),
-    ("Promotion_9to10", "GradRate_4yr", "9-to-10 promotion vs. graduation"),
-    ("AP_Enrolled", "ImmediateCollege", "AP enrollment vs. immediate college enrollment"),
-    ("FAFSA", "ImmediateCollege", "FAFSA completion vs. immediate college"),
-    ("LowIncome_pct", "MCAS_G10_ELA", "Low income share vs. grade-10 ELA"),
-    ("AvgTeacherSalary", "GradRate_4yr", "Teacher salary vs. graduation"),
+    ("PerPupil", "GradRate_4yr",
+     "Does per-pupil spending move graduation?",
+     "If the dots are a flat cloud, spending more per student barely predicts "
+     "who graduates — outcomes ride on how money is used, not how much there is."),
+    ("PerPupil", "SGP_Math",
+     "Does per-pupil spending buy faster math growth?",
+     "Growth percentiles ask whether students gain ground year to year. A flat "
+     "cloud says extra dollars alone don't accelerate learning."),
+    ("ELL_pct", "SGP_ELA",
+     "Do schools with more English learners show weaker ELA growth?",
+     "Growth (not raw scores) controls for starting point — if it's flat, "
+     "high-ELL schools are growing students just as fast despite lower snapshots."),
+    ("ChronicAbsence", "SGP_Math",
+     "Does chronic absence track with slower math growth?",
+     "Kids who aren't in the room can't gain ground — a downward slope says "
+     "attendance is an academic-growth lever, not just a compliance number."),
+    ("Promotion_9to10", "College_4yr",
+     "Does getting 9th graders to 10th grade predict 4-year college enrollment?",
+     "9th grade is the make-or-break year; this asks whether keeping freshmen "
+     "on track pays off all the way to a four-year college seat."),
+    ("AP_exams_3plus", "College_4yr",
+     "Do strong AP exam results track with 4-year college enrollment?",
+     "AP *exams scoring 3+* is real college-level mastery, not just sitting in "
+     "the class — a steep slope says rigor up front feeds four-year enrollment."),
+    ("LowIncome_pct", "MassCore",
+     "Do higher-poverty schools enroll fewer students in the full college-prep course load?",
+     "MassCore is the course sequence colleges expect. A downward slope flags an "
+     "access gap a principal can close with scheduling and counseling."),
+    ("Suspension_pct", "Dropout",
+     "Does the suspension rate track with the dropout rate?",
+     "The discipline-to-dropout pipeline in one chart: where more students are "
+     "suspended, do more eventually leave? An upward slope is a retention warning."),
+    ("AvgTeacherSalary", "GradRate_4yr",
+     "Does paying teachers more track with higher graduation?",
+     "Tests whether teacher pay — a budget lever districts control — shows up in "
+     "graduation outcomes across comparable urban schools."),
 ]
 
-for x, y, label in curated_pairs:
+for x, y, question, why in curated_pairs:
     if x not in latest.columns or y not in latest.columns:
         continue
-    sub = latest[["City", "School", x, y, "is_lehs"]].dropna()
+    sub = latest[["City", "School", "peer_role", x, y]].dropna(subset=[x, y])
     if len(sub) < 5:
         continue
     stats = pearson(sub, x, y)
-    with st.expander(f"{label}  ·  r = {stats['r']:+.2f}  ({interpret_r(stats['r'])})"):
-        sub["highlight"] = sub["is_lehs"].map({True: "LEHS", False: "Other Gateway HS"})
-        fig = px.scatter(
-            sub, x=x, y=y, text="School", color="highlight",
-            color_discrete_map={"LEHS": LEHS_GOLD, "Other Gateway HS": GATEWAY_PEER_COLOR},
-            trendline="ols",
-            hover_data={"City": True, "School": False, "highlight": False},
-        )
-        fig.update_traces(textposition="top center", textfont_size=10)
-        fig.update_layout(
-            **DEFAULT_LAYOUT,
-            xaxis_title=axis_label(x), yaxis_title=axis_label(y),
-            xaxis_tickformat=axis_tickformat(x), yaxis_tickformat=axis_tickformat(y),
+    with st.expander(f"{question}  ·  r = {stats['r']:+.2f}  ({interpret_r(stats['r'])})"):
+        st.caption(f"**Why a principal cares:** {why}")
+        fig = peer_dot_scatter(
+            sub, x, y,
+            role_col="peer_role", label_col="School",
+            x_label=axis_label(x), y_label=axis_label(y),
+            x_tickformat=axis_tickformat(x), y_tickformat=axis_tickformat(y),
         )
         st.plotly_chart(fig, width="stretch")
         st.caption(
             f"Pearson r = {stats['r']:+.3f} (p = {stats['p']:.3f}, n = {stats['n']}). "
             f"**Caveat:** correlation across {stats['n']} gateway-city high schools "
-            f"doesn't establish cause."
+            f"(plus Lynn's sibling schools and district) doesn't establish cause."
         )
 
 st.divider()
@@ -494,28 +650,25 @@ scope = qp_radio(
 )
 
 if scope.startswith("Gateway HS (cross"):
-    data = latest[["ORG_CODE", "City", "School", x_var, y_var, "is_lehs"]].dropna()
+    data = latest[["ORG_CODE", "City", "School", "peer_role", x_var, y_var]].dropna(
+        subset=[x_var, y_var]
+    )
 else:
-    data = panel[["SY", "ORG_CODE", "DIST_NAME", x_var, y_var]].dropna()
+    data = panel[["SY", "ORG_CODE", "DIST_NAME", "peer_role", x_var, y_var]].dropna(
+        subset=[x_var, y_var]
+    ).copy()
     data["City"] = data["DIST_NAME"]
-    data["is_lehs"] = data["ORG_CODE"] == "01630510"
     data["School"] = data.apply(
-        lambda r: "Lynn English" if r["is_lehs"] else r["City"],
+        lambda r: _ROLE_LABEL.get(r["peer_role"], r["City"]),
         axis=1,
     )
 
 if len(data) >= 3:
-    data["highlight"] = data["is_lehs"].map({True: "LEHS", False: "Other"})
-    fig = px.scatter(
-        data, x=x_var, y=y_var, color="highlight",
-        color_discrete_map={"LEHS": LEHS_GOLD, "Other": GATEWAY_PEER_COLOR},
-        trendline="ols",
-        hover_data={"School": True, "City": True, "highlight": False},
-    )
-    fig.update_layout(
-        **DEFAULT_LAYOUT,
-        xaxis_title=axis_label(x_var), yaxis_title=axis_label(y_var),
-        xaxis_tickformat=axis_tickformat(x_var), yaxis_tickformat=axis_tickformat(y_var),
+    fig = peer_dot_scatter(
+        data, x_var, y_var,
+        role_col="peer_role", label_col="School",
+        x_label=axis_label(x_var), y_label=axis_label(y_var),
+        x_tickformat=axis_tickformat(x_var), y_tickformat=axis_tickformat(y_var),
     )
     st.plotly_chart(fig, width="stretch")
 
@@ -581,7 +734,7 @@ with c3:
 panel_for_lag = panel.dropna(subset=["SY", "ORG_CODE"]).copy()
 panel_for_lag["SY"] = pd.to_numeric(panel_for_lag["SY"], errors="coerce").astype("Int64")
 
-x_side = panel_for_lag[["SY", "ORG_CODE", "ORG_NAME", "DIST_NAME", x_var_lag]].rename(
+x_side = panel_for_lag[["SY", "ORG_CODE", "ORG_NAME", "DIST_NAME", "peer_role", x_var_lag]].rename(
     columns={x_var_lag: "x_val"}
 ).dropna(subset=["x_val", "SY"])
 y_side = panel_for_lag[["SY", "ORG_CODE", y_var_lag]].rename(
@@ -591,35 +744,25 @@ y_side = panel_for_lag[["SY", "ORG_CODE", y_var_lag]].rename(
 # join condition: y_side.SY_target == x_side.SY + lag
 x_side["SY_target"] = x_side["SY"] + lag_years
 lagged = x_side.merge(y_side, on=["SY_target", "ORG_CODE"], how="inner")
-lagged["is_lehs"] = lagged["ORG_CODE"] == "01630510"
-lagged["highlight"] = lagged["is_lehs"].map({True: "LEHS", False: "Other"})
-# Use "Lynn English" for LEHS rows so the tooltip doesn't read just "Lynn"
-# (which would be ambiguous with Lynn the district).
-lagged["pair_label"] = (
+# Per-point label disambiguates the four Lynn rows and shows the year jump.
+# Named-role points (the Lynn dots) get this drawn on the chart; the grey
+# gateway cloud only shows it on hover (peer_dot_scatter handles that).
+lagged["School"] = (
     lagged.apply(
-        lambda r: ("Lynn English" if r["is_lehs"] else (r["DIST_NAME"] or "")),
+        lambda r: _ROLE_LABEL.get(r["peer_role"], (r["DIST_NAME"] or "")),
         axis=1,
     )
     + " " + lagged["SY"].astype(str) + " -> " + lagged["SY_target"].astype(str)
 )
 
 if len(lagged) >= 5:
-    fig = px.scatter(
-        lagged, x="x_val", y="y_val", color="highlight",
-        color_discrete_map={"LEHS": LEHS_GOLD, "Other": GATEWAY_PEER_COLOR},
-        trendline="ols",
-        hover_data=["pair_label"],
-        labels={
-            "x_val": f"{axis_label(x_var_lag)} — year Y",
-            "y_val": f"{axis_label(y_var_lag)} — year Y + {lag_years}",
-        },
-    )
-    fig.update_layout(
-        **DEFAULT_LAYOUT,
-        xaxis_title=f"{axis_label(x_var_lag)} — year Y",
-        yaxis_title=f"{axis_label(y_var_lag)} — year Y + {lag_years}",
-        xaxis_tickformat=axis_tickformat(x_var_lag),
-        yaxis_tickformat=axis_tickformat(y_var_lag),
+    fig = peer_dot_scatter(
+        lagged, "x_val", "y_val",
+        role_col="peer_role", label_col="School",
+        x_label=f"{axis_label(x_var_lag)} — year Y",
+        y_label=f"{axis_label(y_var_lag)} — year Y + {lag_years}",
+        x_tickformat=axis_tickformat(x_var_lag),
+        y_tickformat=axis_tickformat(y_var_lag),
     )
     st.plotly_chart(fig, width="stretch")
 
@@ -658,43 +801,157 @@ st.divider()
 # ---------------------------------------------------------------------------
 
 st.header("Composite Indices")
-st.caption("Combine multiple indicators into a single ranked score.")
+st.caption(
+    "Combine multiple indicators into a single ranked score. Each slider weights "
+    "one metric; weights are normalized so only their *relative* sizes matter. "
+    "Metrics where lower is better (chronic absence, suspension, dropout) are "
+    "framed as positive sliders — turning one up rewards schools with *less* of "
+    "it. Ranked across the one-main-HS-per-city gateway set, with LEHS standing "
+    "in for Lynn."
+)
+
+# Metric registry for the composite index. Each entry: a slider label, the panel
+# column, the +1/-1 DIRECTION (-1 = lower-is-better, so the z-score is negated so
+# the slider still *feels* positive), the grouping expander, and a preset-key
+# default weight per preset. Only metrics whose column exists in the panel are
+# offered, so SAT/MassCore/etc. degrade gracefully if a column is ever absent.
+# MCAS ELA and MCAS Math are SEPARATE entries — the owner's explicit ask.
+COMPOSITE_GROUPS = [
+    "Academic achievement",
+    "Growth",
+    "Persistence & engagement",
+    "College & career",
+]
+# (key, label, column, direction, group)
+COMPOSITE_METRICS = [
+    ("mcas_ela",   "MCAS ELA (meeting/exceeding)", "MCAS_G10_ELA",  +1, "Academic achievement"),
+    ("mcas_math",  "MCAS Math (meeting/exceeding)", "MCAS_G10_Math", +1, "Academic achievement"),
+    ("sat_math",   "SAT Math",                     "SAT_Math",      +1, "Academic achievement"),
+    ("sat_read",   "SAT Reading",                  "SAT_Reading",   +1, "Academic achievement"),
+    ("sgp_ela",    "Growth (SGP) — ELA",           "SGP_ELA",       +1, "Growth"),
+    ("sgp_math",   "Growth (SGP) — Math",          "SGP_Math",      +1, "Growth"),
+    ("chronic",    "Low chronic absence",          "ChronicAbsence", -1, "Persistence & engagement"),
+    ("attend",     "High attendance",              "AttendanceRate", +1, "Persistence & engagement"),
+    ("suspend",    "Low suspension",               "Suspension_pct", -1, "Persistence & engagement"),
+    ("dropout",    "Low dropout",                  "Dropout",        -1, "Persistence & engagement"),
+    ("grad",       "4-year graduation",            "GradRate_4yr",   +1, "College & career"),
+    ("masscore",   "MassCore completion",          "MassCore",       +1, "College & career"),
+    ("ap3",        "AP exams scoring 3+",          "AP_exams_3plus", +1, "College & career"),
+    ("fafsa",      "FAFSA completion",             "FAFSA",          +1, "College & career"),
+    ("immediate",  "Immediate college",            "ImmediateCollege", +1, "College & career"),
+    ("col4yr",     "4-year college enrollment",    "College_4yr",    +1, "College & career"),
+    ("persist",    "College persistence",          "CollegePersist", +1, "College & career"),
+]
+# Drop metrics whose column isn't in the panel (graceful degradation).
+COMPOSITE_METRICS = [m for m in COMPOSITE_METRICS if m[2] in latest_gateway.columns]
+
+# Presets seed slider defaults. Keys are metric keys; any metric not listed in a
+# preset defaults to 0. "Balanced" mirrors the old five-slider default intent.
+COMPOSITE_PRESETS: dict[str, dict[str, float]] = {
+    "Balanced": {
+        "grad": 0.30, "persist": 0.20, "mcas_math": 0.15, "mcas_ela": 0.15,
+        "chronic": 0.10, "ap3": 0.10,
+    },
+    "Academic only": {
+        "mcas_ela": 0.30, "mcas_math": 0.30, "sat_math": 0.20, "sat_read": 0.20,
+    },
+    "Equity-weighted (growth)": {
+        "sgp_ela": 0.40, "sgp_math": 0.40, "chronic": 0.10, "attend": 0.10,
+    },
+    "College-going": {
+        "grad": 0.20, "masscore": 0.15, "ap3": 0.15, "fafsa": 0.10,
+        "immediate": 0.15, "col4yr": 0.15, "persist": 0.10,
+    },
+    "Engagement & climate": {
+        "chronic": 0.30, "attend": 0.25, "suspend": 0.25, "dropout": 0.20,
+    },
+}
+
+_preset = st.radio(
+    "Preset", list(COMPOSITE_PRESETS.keys()), horizontal=True,
+    key="composite_preset",
+    help="Pick a starting point, then fine-tune the sliders below.",
+)
+
+# When the preset changes, reseed every slider's session_state so the sliders
+# below pick up the preset's defaults. We track the last-applied preset so a
+# manual slider tweak isn't immediately overwritten on the next rerun.
+_slider_keys = {m[0]: f"composite_w_{m[0]}" for m in COMPOSITE_METRICS}
+if st.session_state.get("_composite_last_preset") != _preset:
+    preset_weights = COMPOSITE_PRESETS[_preset]
+    for mkey, skey in _slider_keys.items():
+        st.session_state[skey] = float(preset_weights.get(mkey, 0.0))
+    st.session_state["_composite_last_preset"] = _preset
 
 st.subheader("Adjust weights")
-c1, c2, c3, c4, c5 = st.columns(5)
-with c1: w_grad = st.slider("Grad rate", 0.0, 1.0, 0.3, 0.05)
-with c2: w_persist = st.slider("College persist", 0.0, 1.0, 0.2, 0.05)
-with c3: w_mcas = st.slider("MCAS Math", 0.0, 1.0, 0.2, 0.05)
-with c4: w_chronic = st.slider("Low chronic absence", 0.0, 1.0, 0.15, 0.05)
-with c5: w_ap = st.slider("AP enroll", 0.0, 1.0, 0.15, 0.05)
+weights: dict[str, float] = {}
+_metrics_by_group = {g: [m for m in COMPOSITE_METRICS if m[4] == g] for g in COMPOSITE_GROUPS}
+for group in COMPOSITE_GROUPS:
+    group_metrics = _metrics_by_group[group]
+    if not group_metrics:
+        continue
+    # Expand the group that the active preset actually weights, so the user sees
+    # where its weight lives without hunting.
+    any_weighted = any(
+        st.session_state.get(_slider_keys[m[0]], 0.0) > 0 for m in group_metrics
+    )
+    with st.expander(group, expanded=any_weighted):
+        cols = st.columns(min(len(group_metrics), 4))
+        for i, (mkey, label, col, direction, _grp) in enumerate(group_metrics):
+            with cols[i % len(cols)]:
+                weights[mkey] = st.slider(
+                    label, 0.0, 1.0, step=0.05, key=_slider_keys[mkey],
+                )
 
-total_weight = w_grad + w_persist + w_mcas + w_chronic + w_ap
+total_weight = sum(weights.values())
+st.metric("Total weight (before normalizing)", f"{total_weight:.2f}")
+
 if total_weight > 0:
-    def z(col):
-        if col not in latest.columns:
-            return pd.Series(0.0, index=latest.index)
-        x = latest[col].dropna()
+    _direction = {m[0]: m[3] for m in COMPOSITE_METRICS}
+    _column = {m[0]: m[2] for m in COMPOSITE_METRICS}
+    active = {k: w for k, w in weights.items() if w > 0}
+
+    def z(col: str) -> pd.Series:
+        """Z-score a panel column over the one-HS-per-city cross-section."""
+        if col not in latest_gateway.columns:
+            return pd.Series(0.0, index=latest_gateway.index)
+        x = latest_gateway[col].dropna()
         if x.std() == 0 or len(x) < 2:
-            return pd.Series(0.0, index=latest.index)
-        return (latest[col] - x.mean()) / x.std()
+            return pd.Series(0.0, index=latest_gateway.index)
+        return (latest_gateway[col] - x.mean()) / x.std()
 
-    latest["SuccessIndex"] = (
-        w_grad * z("GradRate_4yr").fillna(0)
-        + w_persist * z("CollegePersist").fillna(0)
-        + w_mcas * z("MCAS_G10_Math").fillna(0)
-        - w_chronic * z("ChronicAbsence").fillna(0)  # NEGATIVE: low absence = higher score
-        + w_ap * z("AP_Enrolled").fillna(0)
-    ) / total_weight
+    # Weighted z-sum. Each metric's z-score is multiplied by its direction so
+    # lower-is-better metrics (chronic absence, suspension, dropout) contribute
+    # positively when the school has LESS of them. Missing values are tracked so
+    # we can exclude schools missing >25% of the weighted metrics.
+    idx = latest_gateway.index
+    score = pd.Series(0.0, index=idx)
+    missing_weight = pd.Series(0.0, index=idx)
+    for mkey, w in active.items():
+        col = _column[mkey]
+        zc = z(col) * _direction[mkey]
+        present = latest_gateway[col].notna() if col in latest_gateway.columns else pd.Series(False, index=idx)
+        score = score + w * zc.fillna(0)
+        missing_weight = missing_weight + w * (~present).astype(float)
 
-    # The "Lynn" row in this gateway-cities table represents LEHS (the city's
-    # main comprehensive HS in the gateway_main_hs manifest). Disambiguate in
-    # the display so the row label can't be confused with the Lynn district.
-    ranked_src = latest[["City", "ORG_NAME", "SuccessIndex", "is_lehs"]].dropna(
+    active_total = sum(active.values())
+    latest_gateway = latest_gateway.copy()
+    latest_gateway["SuccessIndex"] = score / active_total
+    # Exclude schools missing more than 25% of the weighted metrics (by weight)
+    # — ranking them on a quarter-empty score would mislead. They render as "—".
+    _missing_frac = missing_weight / active_total
+    latest_gateway.loc[_missing_frac > 0.25, "SuccessIndex"] = pd.NA
+
+    n_excluded = int((_missing_frac > 0.25).sum())
+
+    # LEHS is the gateway-cloud member representing Lynn; label its row so it
+    # can't be confused with the Lynn district.
+    ranked_src = latest_gateway[["City", "ORG_NAME", "SuccessIndex", "peer_role"]].dropna(
         subset=["SuccessIndex"]
     ).sort_values("SuccessIndex", ascending=False).reset_index(drop=True)
     ranked_src["Rank"] = ranked_src.index + 1
     ranked_src["City"] = ranked_src.apply(
-        lambda r: "Lynn — LEHS" if r["is_lehs"] else r["City"],
+        lambda r: "Lynn — LEHS" if r["peer_role"] == "LEHS" else r["City"],
         axis=1,
     )
     ranked = ranked_src[["Rank", "City", "ORG_NAME", "SuccessIndex"]].copy()
@@ -706,12 +963,24 @@ if total_weight > 0:
     st.dataframe(ranked.style.apply(highlight_lehs_row, axis=1),
                  width="stretch", hide_index=True)
 
+    _bits = [
+        f"**{len(active)} metric(s) weighted** ({', '.join(m[1] for m in COMPOSITE_METRICS if m[0] in active)})."
+    ]
+    if n_excluded:
+        _bits.append(
+            f"{n_excluded} school(s) missing more than 25% of the weighted "
+            f"metrics were excluded (shown as — / dropped from the ranking)."
+        )
+    st.caption(" ".join(_bits))
+
     lehs_row = ranked[ranked["City"] == "Lynn — LEHS"]
     if not lehs_row.empty:
         st.success(
             f"**LEHS ranks #{int(lehs_row.iloc[0]['Rank'])} of {len(ranked)} "
             f"gateway-city main HS** on this composite index."
         )
+else:
+    st.info("Set at least one slider above 0 to build a composite score.")
 
 # >>> auto: csv downloads <<<
 try:
