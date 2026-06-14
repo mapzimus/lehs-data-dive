@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -56,6 +57,7 @@ from utils.constants import (
     GATEWAY_PEER_COLOR,
     LEHS_NAVY,
     LEHS_GOLD,
+    LVTI_COLOR,
     LYNN_SIBLING_COLOR,
     STATE_COLOR,
     SUBGROUP_PALETTE,
@@ -100,6 +102,128 @@ class _ThemedLayout(Mapping):
 
 
 DEFAULT_LAYOUT = _ThemedLayout()
+
+
+# ---------------------------------------------------------------------------
+# Peer-dot scatter — the shared LEHS / Lynn-siblings / Lynn-district vs.
+# gateway-cloud scatter used by the Gateway Peer Comparison page AND the
+# Correlation Lab. One implementation so the four named Lynn dots look the same
+# everywhere: LEHS = gold star (biggest), Lynn Classical = navy circle, Lynn
+# Tech = teal diamond, Lynn district = navy square, all other gateway main HS =
+# the pale-grey cloud, with an OLS trendline fit to ALL points.
+#
+# The role names below are the canonical labels callers must put in their
+# `role_col`. Two spellings of the district row are accepted ("Lynn district"
+# and the legacy "LPS district") so both pages can share this without renaming
+# their data.
+# ---------------------------------------------------------------------------
+PEER_ROLE_STYLE = {
+    "LEHS":             dict(color=LEHS_GOLD, symbol="star",            size=20, line_color=LEHS_NAVY, line_width=2),
+    "Lynn Classical":   dict(color=LEHS_NAVY, symbol="circle",          size=14, line_color=LEHS_GOLD, line_width=2),
+    "Lynn Tech":        dict(color=LVTI_COLOR, symbol="diamond",        size=14, line_color=LEHS_NAVY, line_width=1),
+    "Lynn district":    dict(color=LEHS_NAVY, symbol="square",          size=14, line_color="#FFFFFF", line_width=1),
+    "LPS district":     dict(color=LEHS_NAVY, symbol="square",          size=14, line_color="#FFFFFF", line_width=1),
+    "Other Gateway HS": dict(color=GATEWAY_PEER_COLOR, symbol="circle", size=9,  line_color="#FFFFFF", line_width=0),
+}
+# Plot the grey cloud first, then the district, then the siblings, then LEHS —
+# so the named Lynn dots always paint on top of the cloud and LEHS on top of
+# everything.
+PEER_ROLE_ORDER = [
+    "Other Gateway HS", "Lynn district", "LPS district",
+    "Lynn Tech", "Lynn Classical", "LEHS",
+]
+
+
+def peer_dot_scatter(
+    df: pd.DataFrame,
+    x: str,
+    y: str,
+    *,
+    role_col: str = "peer_role",
+    label_col: str = "School",
+    x_label: str | None = None,
+    y_label: str | None = None,
+    x_tickformat: str | None = None,
+    y_tickformat: str | None = None,
+    title: str | None = None,
+    trendline: bool = True,
+    **layout,
+) -> go.Figure:
+    """Scatter with one trace per peer role so each Lynn dot gets its own marker
+    shape/size/color, plus an OLS trendline fit to ALL points.
+
+    `df` must have `x`, `y`, `role_col` (values drawn from PEER_ROLE_STYLE), and
+    `label_col` (the per-point text/hover label). Roles not in PEER_ROLE_STYLE
+    fall back to the "Other Gateway HS" style. Reuses DEFAULT_LAYOUT so colors
+    follow the active theme.
+    """
+    x_title = x_label or x
+    y_title = y_label or y
+    fig = go.Figure()
+
+    present_roles = set(df[role_col].dropna().unique()) if role_col in df.columns else set()
+    ordered = [r for r in PEER_ROLE_ORDER if r in present_roles]
+    # Any role the caller used that isn't in our fixed order gets appended so it
+    # still renders (with the fallback style) rather than vanishing.
+    ordered += [r for r in present_roles if r not in PEER_ROLE_ORDER]
+
+    for role in ordered:
+        sub = df[df[role_col] == role]
+        if sub.empty:
+            continue
+        style = PEER_ROLE_STYLE.get(role, PEER_ROLE_STYLE["Other Gateway HS"])
+        is_named = role != "Other Gateway HS"
+        labels = sub[label_col] if label_col in sub.columns else None
+        fig.add_trace(go.Scatter(
+            x=sub[x], y=sub[y],
+            mode="markers+text" if is_named else "markers",
+            name=role,
+            marker=dict(
+                color=style["color"], symbol=style["symbol"], size=style["size"],
+                line=dict(color=style["line_color"], width=style["line_width"]),
+            ),
+            # Show labels for the named Lynn dots; suppress for the grey cloud so
+            # it declutters into the trendline.
+            text=labels if is_named else None,
+            textposition="top center", textfont=dict(size=10, color=LEHS_NAVY),
+            customdata=labels,
+            hovertemplate=(
+                "<b>%{customdata}</b><br>"
+                + x_title + ": %{x}<br>" + y_title + ": %{y}<extra></extra>"
+            ),
+        ))
+
+    if trendline:
+        try:
+            valid = df.dropna(subset=[x, y])
+            if len(valid) >= 3:
+                xs = pd.to_numeric(valid[x], errors="coerce")
+                ys = pd.to_numeric(valid[y], errors="coerce")
+                ok = xs.notna() & ys.notna()
+                xs, ys = xs[ok], ys[ok]
+                if len(xs) >= 3:
+                    m, b = np.polyfit(xs, ys, 1)
+                    x_fit = pd.Series([xs.min(), xs.max()])
+                    fig.add_trace(go.Scatter(
+                        x=x_fit, y=m * x_fit + b,
+                        mode="lines", name="OLS fit",
+                        line=dict(color="#90A4AE", width=2, dash="dash"),
+                        showlegend=False, hoverinfo="skip",
+                    ))
+        except (TypeError, ValueError):
+            pass
+
+    merged_layout = {**DEFAULT_LAYOUT, **layout}
+    fig.update_layout(
+        **merged_layout,
+        xaxis_title=x_title,
+        yaxis_title=y_title,
+        xaxis_tickformat=x_tickformat,
+        yaxis_tickformat=y_tickformat,
+        title=title,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+    return fig
 
 
 # MCAS Grade-10 results exist for 2017, 2018, 2019, (no 2020 — COVID), 2021-2025
