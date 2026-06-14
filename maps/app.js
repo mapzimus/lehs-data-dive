@@ -97,21 +97,21 @@ const METRICS = [
     { id:"teacher_retention_pct",   label:"Teacher Retention Rate",    cat:"Workforce", levels:["district"], palette:"Greens",  format:"pct" },
 
     // Tract — ACS (Lynn only)
-    { id:"non_english_pct",          label:"% non-English at home",      cat:"Tract — Census ACS", levels:["tract"], palette:"Greens",  format:"pct" },
-    { id:"median_household_income",  label:"Median Household Income",    cat:"Tract — Census ACS", levels:["tract"], palette:"Viridis", format:"usd" },
-    { id:"foreign_born_pct",         label:"% Foreign-born",             cat:"Tract — Census ACS", levels:["tract"], palette:"Purples", format:"pct" },
-    { id:"bachelors_or_higher_pct",  label:"% Bachelor's or higher",     cat:"Tract — Census ACS", levels:["tract"], palette:"Blues",   format:"pct" },
-    { id:"severe_burden_pct",        label:"% Severely Rent-Burdened",   cat:"Tract — Census ACS", levels:["tract"], palette:"Reds",    format:"pct" },
+    { id:"non_english_pct",          label:"% non-English at home",      cat:"Lynn neighborhood — Census ACS", levels:["tract"], palette:"Greens",  format:"pct" },
+    { id:"median_household_income",  label:"Median Household Income",    cat:"Lynn neighborhood — Census ACS", levels:["tract"], palette:"Viridis", format:"usd" },
+    { id:"foreign_born_pct",         label:"% Foreign-born",             cat:"Lynn neighborhood — Census ACS", levels:["tract"], palette:"Purples", format:"pct" },
+    { id:"bachelors_or_higher_pct",  label:"% Bachelor's or higher",     cat:"Lynn neighborhood — Census ACS", levels:["tract"], palette:"Blues",   format:"pct" },
+    { id:"severe_burden_pct",        label:"% Severely Rent-Burdened",   cat:"Lynn neighborhood — Census ACS", levels:["tract"], palette:"Reds",    format:"pct" },
 
     // Tract — Community Health (CDC PLACES model-based adult prevalence; values
     // are already on a 0-100 scale, so format:"pctnum" — NOT "pct" which ×100s).
-    { id:"obesity_pct",          label:"% Adults: obesity",                  cat:"Tract — Community Health", levels:["tract"], palette:"Reds",    format:"pctnum" },
-    { id:"diabetes_pct",         label:"% Adults: diabetes",                 cat:"Tract — Community Health", levels:["tract"], palette:"Reds",    format:"pctnum" },
-    { id:"high_bp_pct",          label:"% Adults: high blood pressure",      cat:"Tract — Community Health", levels:["tract"], palette:"Reds",    format:"pctnum" },
-    { id:"asthma_pct",           label:"% Adults: current asthma",           cat:"Tract — Community Health", levels:["tract"], palette:"Oranges", format:"pctnum" },
-    { id:"smoking_pct",          label:"% Adults: smoking",                  cat:"Tract — Community Health", levels:["tract"], palette:"Oranges", format:"pctnum" },
-    { id:"mental_distress_pct",  label:"% Adults: frequent mental distress", cat:"Tract — Community Health", levels:["tract"], palette:"Purples", format:"pctnum" },
-    { id:"no_leisure_phys_pct",  label:"% Adults: no leisure phys. activity",cat:"Tract — Community Health", levels:["tract"], palette:"Oranges", format:"pctnum" },
+    { id:"obesity_pct",          label:"% Adults: obesity",                  cat:"Lynn neighborhood — Community Health", levels:["tract"], palette:"Reds",    format:"pctnum" },
+    { id:"diabetes_pct",         label:"% Adults: diabetes",                 cat:"Lynn neighborhood — Community Health", levels:["tract"], palette:"Reds",    format:"pctnum" },
+    { id:"high_bp_pct",          label:"% Adults: high blood pressure",      cat:"Lynn neighborhood — Community Health", levels:["tract"], palette:"Reds",    format:"pctnum" },
+    { id:"asthma_pct",           label:"% Adults: current asthma",           cat:"Lynn neighborhood — Community Health", levels:["tract"], palette:"Oranges", format:"pctnum" },
+    { id:"smoking_pct",          label:"% Adults: smoking",                  cat:"Lynn neighborhood — Community Health", levels:["tract"], palette:"Oranges", format:"pctnum" },
+    { id:"mental_distress_pct",  label:"% Adults: frequent mental distress", cat:"Lynn neighborhood — Community Health", levels:["tract"], palette:"Purples", format:"pctnum" },
+    { id:"no_leisure_phys_pct",  label:"% Adults: no leisure phys. activity",cat:"Lynn neighborhood — Community Health", levels:["tract"], palette:"Oranges", format:"pctnum" },
 ];
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
@@ -1417,7 +1417,7 @@ function closeFeaturePanel() {
 
 function featureName(p, kind) {
     if (kind === "school")   return p.NAME || "School";
-    if (kind === "tract")    return p.tract_display || p.NAMELSAD || "Census Tract";
+    if (kind === "tract")    return p.tract_display || p.NAMELSAD || "Lynn neighborhood";
     if (kind === "muni")     return p.town_display || p.TOWN || "Municipality";
     if (kind === "district") return p.dist_display || p.DIST_NAME || "District";
     return "Feature";
@@ -1519,7 +1519,6 @@ function buildPanelHtml(p, kind) {
         return `
             <div class="feature-panel-section">
                 ${p.neighborhood ? `<div class="feature-panel-row"><span class="label">Neighborhood</span><span class="value">${p.neighborhood}${p.nbhd_confidence === "low" ? " (approx.)" : ""}</span></div>` : ""}
-                <div class="feature-panel-row"><span class="label">GEOID</span><span class="value">${p.GEOID}</span></div>
                 ${fpRow("Population (age 5+)", p.lang_total, "num")}
             </div>
             ${fpSection("Census ACS — economic", [

@@ -832,7 +832,7 @@ with tab_nbhds:
                     "bachelors_or_higher_pct", "non_english_pct"]
         has_acs = any(c in tracts.columns for c in acs_cols)
 
-        st.header("Census ACS — Lynn's 22 Census Tracts")
+        st.header("Census ACS — Lynn's 22 Neighborhoods")
         st.caption(
             "5-year ACS estimates (2019–2023). Lynn has 22 census tracts; each is a "
             "neighborhood-scale unit of ~3–6K residents. Variation across these "
@@ -876,8 +876,8 @@ with tab_nbhds:
             # -------------------------------------------------------------------
             # Distribution of each variable across the 22 tracts
             # -------------------------------------------------------------------
-            st.header("Variation Across Lynn's Census Tracts")
-            st.caption("Each row is one census tract. Bars show how much spread there is across the city.")
+            st.header("Variation Across Lynn's Neighborhoods")
+            st.caption("Each row is one neighborhood (Lynn census tract). Bars show how much spread there is across the city.")
 
             metrics = [
                 ("median_household_income", "Median household income", "${:,.0f}", "Greens"),
