@@ -95,6 +95,57 @@ st.markdown(
 st.divider()
 
 # ---------------------------------------------------------------------------
+# Which neighborhoods the density covers — and who that makes the student body.
+# The density maps above are pre-rendered surfaces (no per-tract residence
+# counts are published), so the neighborhood read is an honest interpretation
+# of the maps, paired with LEHS's real demographic profile from DESE.
+# ---------------------------------------------------------------------------
+
+import pandas as pd  # noqa: E402
+
+from utils.constants import LEHS_SCHOOL_CODE  # noqa: E402
+from utils.data_loader import load_dataset  # noqa: E402
+from utils.interpret import sy_label  # noqa: E402
+
+st.subheader("Which neighborhoods — and who that makes the student body")
+st.markdown(
+    "Reading the density maps above, the deepest concentrations of LEHS "
+    "students sit in **central and western Lynn** — the blocks around "
+    "**Lynn Common and Central Square (downtown)**, spreading west into "
+    "**West Lynn** (where the school itself sits, on O'Callaghan Way) and "
+    "north into the **Brickyard**. The pattern thins toward the coastal "
+    "**Diamond District** and the **Highlands and Wyoma** to the north. "
+    "Because Lynn runs no neighborhood-school zoning for high school, this "
+    "*is* the school's community — so the people who live in those central "
+    "blocks are, in effect, the people the school serves."
+)
+
+_enr = load_dataset("enrollment_demographics")
+if not _enr.empty:
+    _lehs = _enr[_enr["ORG_CODE"].astype(str) == LEHS_SCHOOL_CODE].sort_values("SY")
+    if not _lehs.empty:
+        _cur = _lehs.iloc[-1]
+
+        def _pct(v):
+            return f"{v:.0%}" if pd.notna(v) else "—"
+
+        st.markdown(f"**Who that makes the student body — LEHS, {sy_label(int(_cur['SY']))}:**")
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Hispanic / Latino", _pct(_cur.get("HL_PCT")))
+        m2.metric("English Learners", _pct(_cur.get("EL_PCT")))
+        m3.metric("Low income", _pct(_cur.get("LI_PCT")))
+        m4.metric("High needs", _pct(_cur.get("HN_PCT")))
+        st.caption(
+            "“High needs” counts a student in at least one of: English Learner, "
+            "low income, or students with disabilities (DESE definition). "
+            "Compare these against the tract indicators below to see how the "
+            "neighborhoods the density map covers line up on income, "
+            "foreign-born share, and health."
+        )
+
+st.divider()
+
+# ---------------------------------------------------------------------------
 # Cross-reference: census tracts (placeholder + roadmap)
 # ---------------------------------------------------------------------------
 
