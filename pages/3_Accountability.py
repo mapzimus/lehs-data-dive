@@ -85,8 +85,9 @@ bench = load_dataset("accountability_benchmarks")
 st.title("State Accountability")
 st.markdown(
     "Every Massachusetts school gets an annual **accountability determination** "
-    "from DESE — a classification, a 1–99 percentile, and a *criterion-referenced "
-    "target percentage* that rolls up roughly a dozen indicators. This page breaks "
+    "from DESE — a classification, a 1–99 percentile, and a *target-progress "
+    "percentage* (how far the school has moved toward its state-set goals, on a "
+    "0–100% scale) that rolls up roughly a dozen indicators. This page breaks "
     "that down to the indicator-and-student-group level: how the score is built, "
     "where LEHS sits statewide, what next year's targets require, the long-run "
     "trend behind each indicator, and how LEHS compares to its district and the state."
@@ -157,7 +158,9 @@ st.caption(
 with st.expander("How the score is built — weights, the 75% bar, and LEHS's math"):
     st.markdown(
         "DESE scores each indicator **0–4 points**, weights them, and converts the "
-        "weighted total into a *criterion-referenced target percentage* (0–100%). "
+        "weighted total into a *target-progress percentage* — how far the school has "
+        "moved toward its state-set goals, measured against fixed criteria rather than "
+        "ranked against other schools (0–100%). "
         "Two populations are scored separately and the school takes the **higher** "
         "of the two as its annual figure:"
     )
@@ -174,7 +177,7 @@ with st.expander("How the score is built — weights, the 75% bar, and LEHS's ma
         f"- A school reaching a **cumulative ≥ 75%** is considered to be *meeting "
         f"targets*. LEHS is at **{row['CRIT_CUMULATIVE']:.0f}%**, which — combined "
         f"with sitting among the lowest-performing 10% of schools — is why it "
-        f"carries the **{fed or 'CSI'}** designation."
+        f"carries the **{fed or 'Comprehensive Support and Improvement (CSI)'}** designation."
     )
 
 st.divider()
@@ -344,9 +347,9 @@ _TREND_SOURCES = {
     "Math Achievement":    dict(ds="mcas_achievement", val="AVG_SCALED_SCORE", scale="score",
                                 subj="MATH", grade="10", by_group=True, ytitle="Avg scaled score", note=None),
     "ELA Growth":          dict(ds="mcas_achievement", val="AVG_SGP", scale="sgp",
-                                subj="ELA", grade="10", by_group=True, ytitle="Mean SGP", note="sgp"),
+                                subj="ELA", grade="10", by_group=True, ytitle="Mean Student Growth Percentile (SGP)", note="sgp"),
     "Math Growth":         dict(ds="mcas_achievement", val="AVG_SGP", scale="sgp",
-                                subj="MATH", grade="10", by_group=True, ytitle="Mean SGP", note="sgp"),
+                                subj="MATH", grade="10", by_group=True, ytitle="Mean Student Growth Percentile (SGP)", note="sgp"),
     "4-Year Graduation":   dict(ds="graduation_rates", val="GRAD_PCT", scale="frac",
                                 grad_type="4-Year Adjusted Cohort Graduation Rate", by_group=True,
                                 ytitle="% graduating", note=None),
@@ -358,7 +361,9 @@ _TREND_SOURCES = {
     "Advanced Coursework": dict(ds="advanced_course_completion", val="ADV_COMP_PCT", scale="frac",
                                 by_group=True, ytitle="% completing", note=None),
     "ELP Progress":        dict(ds="el_access", val="RE1_PCT", scale="frac",
-                                grade="HS", by_group=False, ytitle="% making progress (RE1)", note=None),
+                                grade="HS", by_group=False,
+                                ytitle="% of English Learners making progress toward proficiency (ACCESS step RE1)",
+                                note=None),
 }
 
 
@@ -404,7 +409,8 @@ if tg_spec["by_group"]:
 else:
     tc2.markdown("&nbsp;")
     tgrp = "All Students"
-    tc2.caption("This indicator (ACCESS) is reported for English Learners only, not by subgroup.")
+    tc2.caption("This indicator (the ACCESS English-proficiency test) is reported for "
+                "English Learners only, not by subgroup.")
 
 tdf = _load_trend(ti, tgrp)
 if tdf.empty:

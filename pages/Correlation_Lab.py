@@ -636,10 +636,12 @@ st.markdown("Pick any two metrics from the panel.")
 c1, c2 = st.columns(2)
 with c1:
     x_var = qp_selectbox("X variable", NUMERIC_COLS, key="corr_x",
-                         index=NUMERIC_COLS.index("PerPupil") if "PerPupil" in NUMERIC_COLS else 0)
+                         index=NUMERIC_COLS.index("PerPupil") if "PerPupil" in NUMERIC_COLS else 0,
+                         format_func=axis_label)
 with c2:
     y_var = qp_selectbox("Y variable", NUMERIC_COLS, key="corr_y",
-                         index=NUMERIC_COLS.index("GradRate_4yr") if "GradRate_4yr" in NUMERIC_COLS else 1)
+                         index=NUMERIC_COLS.index("GradRate_4yr") if "GradRate_4yr" in NUMERIC_COLS else 1,
+                         format_func=axis_label)
 
 scope = qp_radio(
     "Scope",
@@ -718,6 +720,7 @@ with c1:
         options=NUMERIC_COLS,
         index=NUMERIC_COLS.index("ChronicAbsence") if "ChronicAbsence" in NUMERIC_COLS else 0,
         key="lag_x",
+        format_func=axis_label,
     )
 with c2:
     y_var_lag = st.selectbox(
@@ -725,6 +728,7 @@ with c2:
         options=NUMERIC_COLS,
         index=NUMERIC_COLS.index("GradRate_4yr") if "GradRate_4yr" in NUMERIC_COLS else 1,
         key="lag_y",
+        format_func=axis_label,
     )
 with c3:
     lag_years = st.slider("Lag (years)", 0, 6, 3, key="lag_n")
@@ -789,9 +793,9 @@ if len(lagged) >= 5:
     )
 else:
     st.info(
-        f"Not enough (school, year) pairs where both {x_var_lag} (year Y) and "
-        f"{y_var_lag} (year Y + {lag_years}) are populated. Try a smaller lag "
-        f"or different metrics."
+        f"Not enough (school, year) pairs where both {axis_label(x_var_lag)} "
+        f"(year Y) and {axis_label(y_var_lag)} (year Y + {lag_years}) are "
+        f"populated. Try a smaller lag or different metrics."
     )
 
 st.divider()

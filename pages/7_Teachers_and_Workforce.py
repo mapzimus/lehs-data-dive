@@ -185,13 +185,28 @@ key_roles = latest[latest["JOBCLASS_CAT"].isin([
 ])].copy()
 
 if not key_roles.empty:
+    # Plain-language labels for the DESE job-classification categories so the
+    # y-axis reads in everyday terms rather than raw DESE category strings.
+    role_labels = {
+        "Administrators": "Administrators",
+        "Instructional Staff": "Teachers",
+        "Instructional Support Staff": "Instructional support staff",
+        "Instructional Support and Special Education Shared Staff":
+            "Special education & instructional support",
+        "Medical/Health Services": "Nurses & health services",
+        "Office/Clerical/Administrative Support": "Office & clerical staff",
+        "Paraprofessional": "Paraprofessionals",
+    }
     role_summary = (
         key_roles.groupby("JOBCLASS_CAT")["FTE_TOTAL"]
         .apply(lambda x: pd.to_numeric(x, errors="coerce").sum())
         .reset_index()
         .sort_values("FTE_TOTAL", ascending=True)
     )
-    fig = px.bar(role_summary, x="FTE_TOTAL", y="JOBCLASS_CAT", orientation="h",
+    role_summary["Role"] = role_summary["JOBCLASS_CAT"].map(role_labels).fillna(
+        role_summary["JOBCLASS_CAT"]
+    )
+    fig = px.bar(role_summary, x="FTE_TOTAL", y="Role", orientation="h",
                  color_discrete_sequence=[LEHS_NAVY])
     fig.update_layout(**DEFAULT_LAYOUT, xaxis_title="FTE", yaxis_title="")
     st.plotly_chart(fig, width="stretch")

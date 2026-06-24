@@ -207,7 +207,8 @@ st.header("Early College Credits — Lynn District")
 st.caption(
     "Above is *participation* (any rows = participating). This section is the "
     "*credit volume*: how many college credits Lynn HS students actually "
-    "earn each year, broken out by partner CEEB college. Source: "
+    "earn each year, broken out by partner college (identified by its "
+    "College Board / CEEB code). Source: "
     "*Early College Credits* dataset."
 )
 

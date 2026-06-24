@@ -293,7 +293,7 @@ with tab_snapshot:
                 )
             ].copy()
             if not elem_mcas.empty:
-                st.subheader("Grades 3-8 — Average % M+E (across grades)")
+                st.subheader("Grades 3-8 — Average % Meeting + Exceeding (across grades)")
                 avg = elem_mcas.groupby(["SY", "SUBJECT_CODE"])["M_PLUS_E_PCT"].mean().reset_index()
                 fig = px.line(
                     avg, x="SY", y="M_PLUS_E_PCT", color="SUBJECT_CODE",
@@ -301,7 +301,7 @@ with tab_snapshot:
                     color_discrete_map=SUBJECT_PALETTE,
                 )
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
-                                   yaxis_title="Avg % M+E across grades")
+                                   yaxis_title="Avg % Meeting + Exceeding across grades")
                 year_axis(fig)
                 st.plotly_chart(fig, width="stretch")
 
@@ -423,13 +423,13 @@ with tab_snapshot:
                 "LI_PCT":    "% Low Income",
                 "HN_PCT":    "% High Needs",
                 "HL_PCT":    "% Hispanic/Latino",
-                "G8_ELA_ME": "G8 ELA % M+E",
-                "G8_MATH_ME":"G8 Math % M+E",
+                "G8_ELA_ME": "G8 ELA % Meeting + Exceeding",
+                "G8_MATH_ME":"G8 Math % Meeting + Exceeding",
             })
             ms_table = ms_table.drop(columns=["ORG_CODE"])
 
             for col in ["% English Learner(s)", "% Low Income", "% High Needs", "% Hispanic/Latino",
-                         "G8 ELA % M+E", "G8 Math % M+E"]:
+                         "G8 ELA % Meeting + Exceeding", "G8 Math % Meeting + Exceeding"]:
                 if col in ms_table.columns:
                     ms_table[col] = ms_table[col].apply(
                         lambda x: f"{x:.0%}" if pd.notna(x) else "—"
@@ -599,7 +599,7 @@ with tab_snapshot:
             if m_g10["M_PLUS_E_PCT"].max() and m_g10["M_PLUS_E_PCT"].max() > 1.5:
                 m_g10["M_PLUS_E_PCT"] = m_g10["M_PLUS_E_PCT"] / 100.0
             fig = _small_multiple(
-                m_g10, "M_PLUS_E_PCT", "MCAS Grade 10 ELA — % M+E",
+                m_g10, "M_PLUS_E_PCT", "MCAS Grade 10 ELA — % Meeting + Exceeding",
                 state_df=mcas, state_period_col=None,
                 state_filters={"TEST_GRADE": "10", "SUBJECT_CODE": "ELA",
                                "STU_GRP": "All Students"},
@@ -618,7 +618,7 @@ with tab_snapshot:
             if m_g10m["M_PLUS_E_PCT"].max() and m_g10m["M_PLUS_E_PCT"].max() > 1.5:
                 m_g10m["M_PLUS_E_PCT"] = m_g10m["M_PLUS_E_PCT"] / 100.0
             fig = _small_multiple(
-                m_g10m, "M_PLUS_E_PCT", "MCAS Grade 10 Math — % M+E",
+                m_g10m, "M_PLUS_E_PCT", "MCAS Grade 10 Math — % Meeting + Exceeding",
                 state_df=mcas, state_period_col=None,
                 state_filters={"TEST_GRADE": "10", "SUBJECT_CODE": "MATH",
                                "STU_GRP": "All Students"},
@@ -864,10 +864,10 @@ with tab_all_schools:
             "TOTAL_CNT": "Enrollment",
             "EL_PCT": "% English Learner(s)",
             "LI_PCT": "% Low Income",
-            "SWD_PCT": "% SPED",
-            "HN_PCT": "% High Needs",
+            "SWD_PCT": "% Students w/ Disabilities (SPED)",
+            "HN_PCT": "% High Needs (low-income, EL, or disability)",
             "HL_PCT": "% Hispanic/Latino",
-            "BAA_PCT": "% Black/AA",
+            "BAA_PCT": "% Black/African American",
             "AS_PCT": "% Asian",
             "WH_PCT": "% White",
         })
@@ -1046,6 +1046,10 @@ with tab_all_schools:
         perf_display = perf_display.drop(columns=["ORG_CODE"]).rename(columns={
             "ATTEND_RATE": "Attendance",
             "PCT_CHRON_ABS_10": "Chronic Absent",
+            "MCAS G10 ELA M+E%": "MCAS G10 ELA % Meeting + Exceeding",
+            "MCAS G10 Math M+E%": "MCAS G10 Math % Meeting + Exceeding",
+            "MCAS 3-8 ELA M+E%": "MCAS 3-8 ELA % Meeting + Exceeding",
+            "MCAS 3-8 Math M+E%": "MCAS 3-8 Math % Meeting + Exceeding",
         })
 
         def highlight_lehs_perf(row):

@@ -278,8 +278,8 @@ fig.update_layout(
 )
 st.plotly_chart(fig, width="stretch")
 st.caption(
-    f"Navy = favorable move · gold = unfavorable move · grey = context metric "
-    f"({STATE_COLOR} demographic share, no inherent good/bad direction). "
+    "Navy = favorable move · gold = unfavorable move · grey = context metric "
+    "(demographic share, no inherent good/bad direction). "
     "Percentage-based metrics are in points; counts are raw numbers."
 )
 

@@ -164,7 +164,7 @@ for code in SCHOOLS:  # dict preserves insertion order → LEHS first
     row["Enrollment"] = f"{int(_num(e['TOTAL_CNT']).iloc[0]):,}" if not e.empty and pd.notna(_num(e["TOTAL_CNT"]).iloc[0]) else DASH
     row["% English Learners"] = _pct(_num(e["EL_PCT"]).iloc[0]) if not e.empty else DASH
     row["% Low Income"] = _pct(_num(e["LI_PCT"]).iloc[0]) if not e.empty else DASH
-    row["% SWD"] = _pct(_num(e["SWD_PCT"]).iloc[0]) if not e.empty else DASH
+    row["% Students with Disabilities"] = _pct(_num(e["SWD_PCT"]).iloc[0]) if not e.empty else DASH
 
     ac = acct_sub[acct_sub["ORG_CODE"].astype(str) == code]
     row["State classification"] = str(ac["CLASSIFICATION"].iloc[0]) if not ac.empty and pd.notna(ac["CLASSIFICATION"].iloc[0]) else DASH
@@ -174,8 +174,8 @@ for code in SCHOOLS:  # dict preserves insertion order → LEHS first
     mm = mcas_g10[mcas_g10["ORG_CODE"].astype(str) == code]
     ela = mm[mm["SUBJECT_CODE"] == "ELA"]["M_PLUS_E_PCT"]
     mat = mm[mm["SUBJECT_CODE"] == "MATH"]["M_PLUS_E_PCT"]
-    row["MCAS ELA % M+E"] = _pct(ela.iloc[0]) if not ela.empty else DASH
-    row["MCAS Math % M+E"] = _pct(mat.iloc[0]) if not mat.empty else DASH
+    row["MCAS ELA % meeting/exceeding"] = _pct(ela.iloc[0]) if not ela.empty else DASH
+    row["MCAS Math % meeting/exceeding"] = _pct(mat.iloc[0]) if not mat.empty else DASH
 
     gg = grad_latest[grad_latest["ORG_CODE"].astype(str) == code]
     row["4-yr Grad %"] = _pct(_num(gg["GRAD_PCT"]).iloc[0]) if not gg.empty else DASH
@@ -246,7 +246,7 @@ with c1:
                      text=md["Pct"].map("{:.0f}%".format))
         fig.update_traces(textposition="outside", cliponaxis=False)
         fig.update_layout(**DEFAULT_LAYOUT, height=330, xaxis_title=None,
-                          yaxis_title="% M+E", legend_title_text="")
+                          yaxis_title="% meeting/exceeding", legend_title_text="")
         st.plotly_chart(fig, width="stretch")
     else:
         st.caption("No grade-10 MCAS data available.")
@@ -274,7 +274,7 @@ with c3:
         ed = enr_latest.copy()
         ed["School"] = ed["ORG_CODE"].astype(str).map(SCHOOLS)
         long = []
-        for label, col in [("% English Learners", "EL_PCT"), ("% Low Income", "LI_PCT"), ("% SWD", "SWD_PCT")]:
+        for label, col in [("% English Learners", "EL_PCT"), ("% Low Income", "LI_PCT"), ("% Students with Disabilities", "SWD_PCT")]:
             for _, r in ed.iterrows():
                 long.append({"School": r["School"], "Measure": label, "Pct": _num(pd.Series([r[col]])).iloc[0] * 100})
         ld = _ordered(pd.DataFrame(long))

@@ -332,8 +332,8 @@ with tab_city:
         # -------------------------------------------------------------------
         st.header("Languages spoken at home")
         st.caption(
-            "Census ACS C16001 — population age 5+. Lynn's language diversity directly "
-            "feeds the LEHS English Learner pipeline (see the ELL Pipeline page)."
+            "Census language survey (ACS table C16001) — population age 5+. Lynn's language "
+            "diversity directly feeds the LEHS English Learner pipeline (see the ELL Pipeline page)."
         )
         if not languages.empty:
             lang_total_row = languages[languages["language"].str.contains("Total", case=False, na=False)]
@@ -535,8 +535,8 @@ with tab_city:
                 st.caption(
                     f"**{pre1940 / total:.0%} of Lynn's housing stock predates 1940** — "
                     f"a leading indicator of legacy lead-paint exposure risk. "
-                    f"This pattern shows up in EJScreen's `PRE1960_HOUSING` indicator "
-                    f"in the *Neighborhoods* tab."
+                    f"This pattern shows up in EJScreen's pre-1960 housing "
+                    f"(lead-paint era) indicator in the *Neighborhoods* tab."
                 )
 
         # -------------------------------------------------------------------
@@ -765,11 +765,11 @@ with tab_city:
 
         data_downloads_panel({
             "Lynn city headline stats (ACS)": city,
-            "Birthplaces (B05006)": birthplaces,
-            "Languages spoken at home (C16001)": languages,
-            "Employment by industry (S2403)": industries,
-            "Commute mode (S0801)": commute,
-            "Age × sex (S0101)": age_pyramid,
+            "Birthplaces (ACS table B05006)": birthplaces,
+            "Languages spoken at home (ACS table C16001)": languages,
+            "Employment by industry (ACS table S2403)": industries,
+            "Commute mode (ACS table S0801)": commute,
+            "Age × sex (ACS table S0101)": age_pyramid,
             "Decadal population 1790–2020": decadal,
         })
 

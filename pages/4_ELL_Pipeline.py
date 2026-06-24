@@ -236,7 +236,8 @@ else:
         if None not in (lehs_re1, lynn_re1, state_re1):
             yr_lbl = sy_label(lehs_yr)
             st.warning(
-                f"**LEHS's RE1 runs far below its district and the state, every "
+                f"**LEHS's progress-toward-proficiency rate (RE1) runs far below "
+                f"its district and the state, every "
                 f"year on record.** In SY {yr_lbl} only **{lehs_re1:.0%}** of "
                 f"LEHS English Learners were credited with making progress toward "
                 f"proficiency, against **{lynn_re1:.0%}** district-wide and "

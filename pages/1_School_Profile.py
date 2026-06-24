@@ -382,7 +382,7 @@ st.divider()
 st.subheader("Student–teacher ratio over time")
 st.caption(
     "DESE's reported student-to-teacher ratio for LEHS, computed from the "
-    "'All Teachers' FTE total. Lower is better (smaller classes)."
+    "'All Teachers' FTE total. Fewer students per teacher means smaller classes."
 )
 
 _td = load_dataset("teacher_data")

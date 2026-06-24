@@ -142,9 +142,9 @@ latest_year_sib = int(siblings["SY"].max())
 latest_sib = siblings[siblings["SY"] == latest_year_sib].set_index("School")
 scorecard_cols = {
     "TOTAL_CNT": "Total Enrollment",
-    "EL_PCT": "% ELL",
+    "EL_PCT": "% English Learners (ELL)",
     "LI_PCT": "% Low Income",
-    "SWD_PCT": "% SPED",
+    "SWD_PCT": "% Students with Disabilities (SPED)",
     "HN_PCT": "% High Needs",
     "HL_PCT": "% Hispanic/Latino",
     "FE_PCT": "% Female",
@@ -164,7 +164,11 @@ def highlight_lehs_sib(row):
 
 
 st.dataframe(scorecard.style.apply(highlight_lehs_sib, axis=1), width="stretch")
-st.caption(f"School year {latest_year_sib}. LEHS highlighted in gold.")
+st.caption(
+    f"School year {latest_year_sib}. LEHS highlighted in gold. "
+    "High Needs counts any student who is low-income, an English learner, "
+    "or a student with disabilities."
+)
 
 # ---------------------------------------------------------------------------
 # Enrollment trends
@@ -194,9 +198,9 @@ st.subheader(f"Demographic Composition ({latest_year_sib})")
 
 demo_cols = ["EL_PCT", "LI_PCT", "SWD_PCT", "HL_PCT", "BAA_PCT"]
 demo_labels = {
-    "EL_PCT": "% ELL",
+    "EL_PCT": "% English Learners (ELL)",
     "LI_PCT": "% Low Income",
-    "SWD_PCT": "% SPED",
+    "SWD_PCT": "% Students with Disabilities (SPED)",
     "HL_PCT": "% Hispanic/Latino",
     "BAA_PCT": "% Black/African American",
 }

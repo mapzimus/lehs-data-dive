@@ -47,7 +47,7 @@ sources = [
     ("E2C Hub", "educationtocareer.data.mass.gov",
      "Socrata-hosted DESE open data — MCAS, graduation, AP, enrollment, attendance, finance, staffing, plans, pathways, postsecondary"),
     ("DESE Profiles statereport", "profiles.doe.mass.edu/statereport/",
-     "Bulk CSVs — discipline, VOCAL climate, accountability, ACCESS for ELLs, detailed staffing"),
+     "Bulk CSVs — discipline, VOCAL climate, accountability, ACCESS for ELLs (the state English-proficiency test for English Learners), detailed staffing"),
     ("DESE accountability workbooks", "doe.mass.edu/accountability/lists-tools",
      "Five annual xlsx workbooks behind the State Accountability page — determinations, criterion-referenced indicator detail, targets, and percentile research files (full breakdown below)"),
     ("Civil Rights Data Collection (CRDC)", "civilrightsdata.ed.gov",
@@ -67,7 +67,7 @@ sources = [
     ("MaxPreps", "maxpreps.com",
      "Season-by-season Athletics records (team results, standings) powering the Athletics page — complemented by a hand-curated history file (assets/curated/lehs_athletics_history.yaml: Hall of Fame, Manning Bowl, legacy coaches)"),
     ("DESE local files", "—",
-     "reporting-element4.xlsx (former-EL MCAS), state.docx (WIDA ACCESS 2025)"),
+     "reporting-element4.xlsx (former-EL MCAS), state.docx (the WIDA ACCESS 2025 English-proficiency test results)"),
 ]
 
 for name, url, desc in sources:
@@ -93,7 +93,7 @@ The **[State Accountability](/Accountability?embed=true)** page is built from
 2. **`criterion-referenced-percentage-{year}.xlsx`** — every indicator ×
    student group, with prior and current value, change, target, N, points
    earned, rating, and the rating reason. The HS sheet carries schools →
-   `accountability_indicators.parquet`; the MSHS sheet carries the state and
+   `accountability_indicators.parquet`; the middle/high-school (MSHS) sheet carries the state and
    district rows used as benchmarks → `accountability_benchmarks.parquet`.
 3. **`accountability-targets-{year}.xlsx`** — baselines plus this-year and
    next-year targets with annual increments, per school × student group →
@@ -108,8 +108,8 @@ The **[State Accountability](/Accountability?embed=true)** page is built from
 **How DESE scores it (the short version).** Each indicator earns **0–4
 points** per student group. Points are weighted by category — for *All
 Students*: Achievement 40, Growth 20, HS completion 20, English-language
-proficiency 10, Additional indicators 10; for the *Lowest Performing* group:
-67.5 / 22.5 / 10 (no HS-completion or ELP weight). The **annual**
+proficiency (ELP) 10, Additional indicators 10; for the *Lowest Performing* group:
+67.5 / 22.5 / 10 (no HS-completion or English-language-proficiency weight). The **annual**
 criterion-referenced percentage is the weighted share of possible points;
 the **cumulative** figure blends prior year × 40% with current year × 60%;
 a cumulative percentage of **75% or higher reads as "meeting targets."**

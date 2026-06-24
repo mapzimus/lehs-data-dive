@@ -302,8 +302,9 @@ st.divider()
 
 st.header("4-Year vs. 5-Year Cohort Graduation")
 st.caption(
-    "The 5-year rate gives students an extra year — for ELL and SPED students "
-    "especially, this often shows meaningful additional graduations."
+    "The 5-year rate gives students an extra year — for English Learner (ELL) "
+    "and students with disabilities (SPED) especially, this often shows "
+    "meaningful additional graduations."
 )
 
 g_both = grad[
