@@ -33,6 +33,10 @@ nav = {
         st.Page("pages/Search.py", title="Search", url_path="Search"),
     ],
     "The School (LEHS)": [
+        # "What changed this year" — the living-document overview for returning
+        # visitors. Lives in the LEHS section (not About) per owner direction so
+        # it sits with the school content, not buried with reference pages.
+        st.Page("pages/What_Changed.py", title="What Changed This Year", url_path="What_Changed"),
         st.Page("pages/1_School_Profile.py", title="School Profile", url_path="School_Profile"),
         # url_path stays "Academic_Performance" so existing public links keep
         # working — only the display title changed when the page went MCAS-only.
@@ -85,9 +89,6 @@ nav = {
         st.Page("pages/Correlation_Lab.py", title="Cross-Topic Explorer", url_path="Correlation_Lab"),
     ],
     "About": [
-        # "What changed this year" — the living-document overview for returning
-        # visitors; sits in About with the other reference/transparency pages.
-        st.Page("pages/What_Changed.py", title="What Changed This Year", url_path="What_Changed"),
         # Short, factual narrative reads grounded in the dashboard's data.
         st.Page("pages/Stories.py", title="Stories", url_path="Stories"),
         # Data 101 sits in About because it's an explainer/reference,

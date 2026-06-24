@@ -21,8 +21,8 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.branding import crosslink_callout, page_footer, sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, data_downloads_panel
-from utils.constants import LEHS_SCHOOL_CODE, PROCESSED_DIR
+from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, data_downloads_panel, year_axis
+from utils.constants import LEHS_SCHOOL_CODE, PROCESSED_DIR, SEQ_BRAND, SUBGROUP_PALETTE
 from utils.data_loader import load_dataset
 from utils.geo_loader import tract_display_label
 
@@ -223,9 +223,21 @@ with tab_city:
         fig.add_trace(go.Scatter(x=decadal["year"], y=decadal["population"],
                                   mode="lines+markers", line=dict(color=LEHS_NAVY, width=3),
                                   marker=dict(size=7)))
+        # Mark the early-1930s peak the narrative above calls out, so the
+        # cited "peaked around 1930" claim is visible on the line itself.
+        _peak_idx = decadal["population"].idxmax()
+        _peak_year = int(decadal.loc[_peak_idx, "year"])
+        _peak_pop = int(decadal.loc[_peak_idx, "population"])
+        fig.add_annotation(
+            x=_peak_year, y=_peak_pop,
+            text=f"Peak: {_peak_year} ({_peak_pop:,})",
+            showarrow=True, arrowhead=2, ax=0, ay=-40,
+            font=dict(color=LEHS_GOLD), arrowcolor=LEHS_GOLD,
+        )
         fig.update_layout(**DEFAULT_LAYOUT,
                           yaxis_title="Total population",
                           xaxis_title="Decennial Census year")
+        year_axis(fig)
         st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
@@ -278,7 +290,7 @@ with tab_city:
             race_df = race_df.sort_values("count", ascending=True)
             fig = px.bar(race_df, y="group", x="count", orientation="h",
                          color="group",
-                         color_discrete_sequence=px.colors.qualitative.Bold)
+                         color_discrete_sequence=list(SUBGROUP_PALETTE.values()))
             fig.update_layout(**DEFAULT_LAYOUT, showlegend=False,
                               yaxis_title="", xaxis_title="People")
             st.plotly_chart(fig, width="stretch")
@@ -314,7 +326,7 @@ with tab_city:
             specific = birthplaces[~is_roll & (birthplaces["country"] != "Foreign-born total")]
             specific = specific.sort_values("count", ascending=True).tail(15)
             fig = px.bar(specific, y="country", x="count", orientation="h",
-                         color="count", color_continuous_scale="Blues")
+                         color="count", color_continuous_scale=SEQ_BRAND)
             fig.update_layout(**DEFAULT_LAYOUT, showlegend=False, height=520,
                               yaxis_title="", xaxis_title="Foreign-born residents",
                               coloraxis_showscale=False)
@@ -331,8 +343,8 @@ with tab_city:
         # -------------------------------------------------------------------
         st.header("Languages spoken at home")
         st.caption(
-            "Census ACS C16001 — population age 5+. Lynn's language diversity directly "
-            "feeds the LEHS English Learner pipeline (see the ELL Pipeline page)."
+            "Census language survey (ACS table C16001) — population age 5+. Lynn's language "
+            "diversity directly feeds the LEHS English Learner pipeline (see the ELL Pipeline page)."
         )
         if not languages.empty:
             lang_total_row = languages[languages["language"].str.contains("Total", case=False, na=False)]
@@ -430,7 +442,7 @@ with tab_city:
         if not industries.empty:
             ind_sorted = industries.sort_values("employed", ascending=True)
             fig = px.bar(ind_sorted, y="industry", x="employed", orientation="h",
-                         color="employed", color_continuous_scale="Blues")
+                         color="employed", color_continuous_scale=SEQ_BRAND)
             fig.update_layout(**DEFAULT_LAYOUT, height=480, showlegend=False,
                               yaxis_title="", xaxis_title="Lynn residents employed",
                               coloraxis_showscale=False)
@@ -524,7 +536,7 @@ with tab_city:
                                             ordered=True)
             yr_df = yr_df.sort_values("era")
             fig = px.bar(yr_df, x="era", y="units",
-                          color="units", color_continuous_scale="Blues")
+                          color="units", color_continuous_scale=SEQ_BRAND)
             fig.update_layout(**DEFAULT_LAYOUT, showlegend=False, coloraxis_showscale=False,
                               yaxis_title="Housing units", xaxis_title="")
             st.plotly_chart(fig, width="stretch")
@@ -534,8 +546,8 @@ with tab_city:
                 st.caption(
                     f"**{pre1940 / total:.0%} of Lynn's housing stock predates 1940** — "
                     f"a leading indicator of legacy lead-paint exposure risk. "
-                    f"This pattern shows up in EJScreen's `PRE1960_HOUSING` indicator "
-                    f"in the *Neighborhoods* tab."
+                    f"This pattern shows up in EJScreen's pre-1960 housing "
+                    f"(lead-paint era) indicator in the *Neighborhoods* tab."
                 )
 
         # -------------------------------------------------------------------
@@ -764,11 +776,11 @@ with tab_city:
 
         data_downloads_panel({
             "Lynn city headline stats (ACS)": city,
-            "Birthplaces (B05006)": birthplaces,
-            "Languages spoken at home (C16001)": languages,
-            "Employment by industry (S2403)": industries,
-            "Commute mode (S0801)": commute,
-            "Age × sex (S0101)": age_pyramid,
+            "Birthplaces (ACS table B05006)": birthplaces,
+            "Languages spoken at home (ACS table C16001)": languages,
+            "Employment by industry (ACS table S2403)": industries,
+            "Commute mode (ACS table S0801)": commute,
+            "Age × sex (ACS table S0101)": age_pyramid,
             "Decadal population 1790–2020": decadal,
         })
 
@@ -880,12 +892,23 @@ with tab_nbhds:
             st.caption("Each row is one neighborhood (Lynn census tract). Bars show how much spread there is across the city.")
 
             metrics = [
-                ("median_household_income", "Median household income", "${:,.0f}", "Greens"),
-                ("foreign_born_pct",        "% Foreign-born",          "{:.0%}",   "Purples"),
-                ("non_english_pct",         "% Non-English at home",   "{:.0%}",   "Greens"),
-                ("bachelors_or_higher_pct", "% Bachelor's or higher",  "{:.0%}",   "Blues"),
-                ("severe_burden_pct",       "% Severely rent-burdened","{:.0%}",   "Reds"),
+                ("median_household_income", "Median household income", "${:,.0f}", SEQ_BRAND),
+                ("foreign_born_pct",        "% Foreign-born",          "{:.0%}",   SEQ_BRAND),
+                ("non_english_pct",         "% Non-English at home",   "{:.0%}",   SEQ_BRAND),
+                ("bachelors_or_higher_pct", "% Bachelor's or higher",  "{:.0%}",   SEQ_BRAND),
+                ("severe_burden_pct",       "% Severely rent-burdened","{:.0%}",   SEQ_BRAND),
             ]
+
+            # Massachusetts statewide reference values, on the same scale as the
+            # tract columns (fractions for the *_pct bars). These match the
+            # state-average figures cited in the caption just above. No
+            # published MA figure for severe rent-burden, so it gets no line.
+            ma_tract_ref = {
+                "median_household_income": 96_500,
+                "foreign_born_pct":        0.17,
+                "non_english_pct":         0.26,
+                "bachelors_or_higher_pct": 0.46,
+            }
 
             for col, label, fmt, palette in metrics:
                 if col not in tracts.columns:
@@ -909,6 +932,15 @@ with tab_nbhds:
                     coloraxis_showscale=False,
                     height=480,
                 )
+                _ma_ref = ma_tract_ref.get(col)
+                if _ma_ref is not None:
+                    fig.add_vline(
+                        x=_ma_ref, line_dash="dash", line_color=LEHS_NAVY,
+                        line_width=2,
+                        annotation_text=f"MA avg {fmt.format(_ma_ref)}",
+                        annotation_position="top",
+                        annotation_font_color=LEHS_NAVY,
+                    )
                 if "_pct" in col:
                     fig.update_layout(xaxis_tickformat=".0%")
                 elif col == "median_household_income":
@@ -988,7 +1020,7 @@ indicators (where data is available at scale).
             if "ENV_INDEX" in tracts.columns and tracts["ENV_INDEX"].notna().any():
                 ej_sub = tracts.dropna(subset=["ENV_INDEX"]).sort_values("ENV_INDEX")
                 fig = px.bar(ej_sub, y="hood_label", x="ENV_INDEX", orientation="h",
-                             color="ENV_INDEX", color_continuous_scale="Reds",
+                             color="ENV_INDEX", color_continuous_scale=SEQ_BRAND,
                              title="Environmental burden index by Lynn tract")
                 fig.update_layout(**DEFAULT_LAYOUT, height=480,
                                   xaxis_title="Index (higher = more burden)",

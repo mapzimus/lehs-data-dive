@@ -617,7 +617,7 @@ for x, y, question, why in curated_pairs:
             x_label=axis_label(x), y_label=axis_label(y),
             x_tickformat=axis_tickformat(x), y_tickformat=axis_tickformat(y),
         )
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, width="stretch", key=f"corr_curated_{x}_{y}")
         st.caption(
             f"Pearson r = {stats['r']:+.3f} (p = {stats['p']:.3f}, n = {stats['n']}). "
             f"**Caveat:** correlation across {stats['n']} gateway-city high schools "
@@ -636,10 +636,12 @@ st.markdown("Pick any two metrics from the panel.")
 c1, c2 = st.columns(2)
 with c1:
     x_var = qp_selectbox("X variable", NUMERIC_COLS, key="corr_x",
-                         index=NUMERIC_COLS.index("PerPupil") if "PerPupil" in NUMERIC_COLS else 0)
+                         index=NUMERIC_COLS.index("PerPupil") if "PerPupil" in NUMERIC_COLS else 0,
+                         format_func=axis_label)
 with c2:
     y_var = qp_selectbox("Y variable", NUMERIC_COLS, key="corr_y",
-                         index=NUMERIC_COLS.index("GradRate_4yr") if "GradRate_4yr" in NUMERIC_COLS else 1)
+                         index=NUMERIC_COLS.index("GradRate_4yr") if "GradRate_4yr" in NUMERIC_COLS else 1,
+                         format_func=axis_label)
 
 scope = qp_radio(
     "Scope",
@@ -670,7 +672,7 @@ if len(data) >= 3:
         x_label=axis_label(x_var), y_label=axis_label(y_var),
         x_tickformat=axis_tickformat(x_var), y_tickformat=axis_tickformat(y_var),
     )
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, width="stretch", key="corr_custom_explorer")
 
     # Download exactly what's plotted: one row per point with the school
     # label(s) and the two selected metrics (plus SY in panel scope).
@@ -718,6 +720,7 @@ with c1:
         options=NUMERIC_COLS,
         index=NUMERIC_COLS.index("ChronicAbsence") if "ChronicAbsence" in NUMERIC_COLS else 0,
         key="lag_x",
+        format_func=axis_label,
     )
 with c2:
     y_var_lag = st.selectbox(
@@ -725,6 +728,7 @@ with c2:
         options=NUMERIC_COLS,
         index=NUMERIC_COLS.index("GradRate_4yr") if "GradRate_4yr" in NUMERIC_COLS else 1,
         key="lag_y",
+        format_func=axis_label,
     )
 with c3:
     lag_years = st.slider("Lag (years)", 0, 6, 3, key="lag_n")
@@ -764,7 +768,7 @@ if len(lagged) >= 5:
         x_tickformat=axis_tickformat(x_var_lag),
         y_tickformat=axis_tickformat(y_var_lag),
     )
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, width="stretch", key="corr_lagged")
 
     stats_lag = pearson(lagged, "x_val", "y_val")
     reg_lag = regression_line(lagged, "x_val", "y_val")
@@ -789,9 +793,9 @@ if len(lagged) >= 5:
     )
 else:
     st.info(
-        f"Not enough (school, year) pairs where both {x_var_lag} (year Y) and "
-        f"{y_var_lag} (year Y + {lag_years}) are populated. Try a smaller lag "
-        f"or different metrics."
+        f"Not enough (school, year) pairs where both {axis_label(x_var_lag)} "
+        f"(year Y) and {axis_label(y_var_lag)} (year Y + {lag_years}) are "
+        f"populated. Try a smaller lag or different metrics."
     )
 
 st.divider()

@@ -45,12 +45,23 @@ def _series(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
     return out.drop_duplicates(subset=["SY"], keep="last").sort_values("SY")
 
 
-def _mcas(subject: str) -> pd.DataFrame:
+# Statewide figures live in the same DESE parquets under ORG_TYPE == "State"
+# (ORG_CODE "00000000"). Passing scope="state" reuses the identical filters so
+# the LEHS series and the MA series are always like-for-like.
+def _org_mask(df: pd.DataFrame, scope: str) -> pd.Series:
+    if scope == "state":
+        # Restrict to the real statewide total, not the collaborative-only row
+        # ("09990999") DESE also tags ORG_TYPE == "State".
+        return (df["ORG_TYPE"] == "State") & (df["ORG_CODE"] == "00000000")
+    return df["ORG_CODE"] == LEHS_SCHOOL_CODE
+
+
+def _mcas(subject: str, scope: str = "school") -> pd.DataFrame:
     df = load_dataset("mcas_achievement")
     if df.empty:
         return pd.DataFrame(columns=["SY", "value"])
     sub = df[
-        (df["ORG_CODE"] == LEHS_SCHOOL_CODE)
+        _org_mask(df, scope)
         & (df["TEST_GRADE"] == "10")
         & (df["SUBJECT_CODE"] == subject)
         & (_norm(df["STU_GRP"]) == "All Students")
@@ -58,75 +69,96 @@ def _mcas(subject: str) -> pd.DataFrame:
     return _series(sub, "M_PLUS_E_PCT")
 
 
-def _grad() -> pd.DataFrame:
+def _grad(scope: str = "school") -> pd.DataFrame:
     df = load_dataset("graduation_rates")
     if df.empty:
         return pd.DataFrame(columns=["SY", "value"])
     # Exact match on the standard 4-year rate: "contains 4" would also pull the
     # 4-Year Adjusted Cohort rate and double every year.
     sub = df[
-        (df["ORG_CODE"] == LEHS_SCHOOL_CODE)
+        _org_mask(df, scope)
         & (df["GRAD_RATE_TYPE"] == "4-Year Graduation Rate")
         & (_norm(df["STU_GRP"]) == "All Students")
     ]
     return _series(sub, "GRAD_PCT")
 
 
-def _chronic_abs() -> pd.DataFrame:
+def _chronic_abs(scope: str = "school") -> pd.DataFrame:
     df = load_dataset("student_attendance")
     if df.empty:
         return pd.DataFrame(columns=["SY", "value"])
     sub = df[
-        (df["ORG_CODE"] == LEHS_SCHOOL_CODE)
+        _org_mask(df, scope)
         & (df["ATTEND_PERIOD"] == "End of Year")
         & (_norm(df["STU_GRP"]) == "All Students")
     ]
     return _series(sub, "PCT_CHRON_ABS_10")
 
 
-def _ap_takers() -> pd.DataFrame:
+def _ap_takers(scope: str = "school") -> pd.DataFrame:
     df = load_dataset("ap_participation")
     if df.empty:
         return pd.DataFrame(columns=["SY", "value"])
     sub = df[
-        (df["ORG_CODE"] == LEHS_SCHOOL_CODE)
+        _org_mask(df, scope)
         & (_norm(df["STU_GRP"]) == "All Students")
     ]
     return _series(sub, "TEST_TAKERS_CNT")
 
 
-def _dropout() -> pd.DataFrame:
+def _dropout(scope: str = "school") -> pd.DataFrame:
     df = load_dataset("dropout")
     if df.empty:
         return pd.DataFrame(columns=["SY", "value"])
     sub = df[
-        (df["ORG_CODE"] == LEHS_SCHOOL_CODE)
+        _org_mask(df, scope)
         & (_norm(df["STU_GRP"]) == "All Students")
     ]
     return _series(sub, "DRPOUT_PCT_ALL")
 
 
-def _enroll(value_col: str) -> pd.DataFrame:
+def _enroll(value_col: str, scope: str = "school") -> pd.DataFrame:
     df = load_dataset("enrollment_demographics")
     if df.empty:
         return pd.DataFrame(columns=["SY", "value"])
-    sub = df[df["ORG_CODE"] == LEHS_SCHOOL_CODE]
+    sub = df[_org_mask(df, scope)]
     return _series(sub, value_col)
 
 
-# (label, loader, unit, is_pct, good_direction)
+# (label, loader, unit, is_pct, good_direction). Each loader takes scope=
+# "school" (default) or "state"; lambdas forward it so the same filter logic
+# serves both the LEHS series and the statewide reference.
 METRICS = [
-    ("MCAS Gr.10 ELA — % meeting/exceeding", lambda: _mcas("ELA"), "pts", True, +1),
-    ("MCAS Gr.10 Math — % meeting/exceeding", lambda: _mcas("MATH"), "pts", True, +1),
-    ("MCAS Gr.10 Science — % meeting/exceeding", lambda: _mcas("SCI"), "pts", True, +1),
+    ("MCAS Gr.10 ELA — % meeting/exceeding", lambda scope="school": _mcas("ELA", scope), "pts", True, +1),
+    ("MCAS Gr.10 Math — % meeting/exceeding", lambda scope="school": _mcas("MATH", scope), "pts", True, +1),
+    ("MCAS Gr.10 Science — % meeting/exceeding", lambda scope="school": _mcas("SCI", scope), "pts", True, +1),
     ("4-year graduation rate", _grad, "pts", True, +1),
     ("Chronic absenteeism (≥10% of days)", _chronic_abs, "pts", True, -1),
     ("AP test takers", _ap_takers, "students", False, +1),
     ("Dropout rate", _dropout, "pts", True, -1),
-    ("Total enrollment", lambda: _enroll("TOTAL_CNT"), "students", False, +1),
-    ("English learners (% of enrollment)", lambda: _enroll("EL_PCT"), "pts", True, 0),
-    ("Low-income (% of enrollment)", lambda: _enroll("LI_PCT"), "pts", True, 0),
+    ("Total enrollment", lambda scope="school": _enroll("TOTAL_CNT", scope), "students", False, +1),
+    ("English learners (% of enrollment)", lambda scope="school": _enroll("EL_PCT", scope), "pts", True, 0),
+    ("Low-income (% of enrollment)", lambda scope="school": _enroll("LI_PCT", scope), "pts", True, 0),
 ]
+
+
+def _state_latest_for(loader, is_pct: bool, lehs_year: int):
+    """Statewide value for the same latest year as LEHS (or the newest state
+    year available). Returns None when no comparable state figure exists.
+
+    Only percentage metrics get a state benchmark: a statewide *count* (e.g.
+    ~65k AP takers, ~900k enrolled) is not a per-school reference, so comparing
+    it to LEHS would be misleading. Those are left as None on purpose.
+    """
+    if not is_pct:
+        return None
+    s = loader("state")
+    if s.empty:
+        return None
+    scale = 100.0
+    match = s[s["SY"] == lehs_year]
+    row = match.iloc[-1] if not match.empty else s.iloc[-1]
+    return float(row["value"]) * scale
 
 
 def build_movers() -> pd.DataFrame:
@@ -154,6 +186,7 @@ def build_movers() -> pd.DataFrame:
                 "Latest": latest_val,
                 "Prior": prior_val,
                 "Change": delta,
+                "State": _state_latest_for(loader, is_pct, int(latest["SY"])),
                 "unit": unit,
                 "is_pct": is_pct,
                 "favorable": favorable,
@@ -218,12 +251,22 @@ def _direction_label(row) -> str:
 
 st.subheader("Biggest movers, latest year over prior year")
 
+def _fmt_state(v, is_pct: bool) -> str:
+    # State benchmark only carried for percentage metrics; counts show "—".
+    if v is None or pd.isna(v):
+        return "—"
+    return _fmt_val(v, is_pct)
+
+
 table = pd.DataFrame(
     {
         "Metric": movers["Metric"],
         "Latest year": movers["latest_year"].map(sy_label),
         "Latest": [
             _fmt_val(v, p) for v, p in zip(movers["Latest"], movers["is_pct"])
+        ],
+        "MA (same yr)": [
+            _fmt_state(v, p) for v, p in zip(movers["State"], movers["is_pct"])
         ],
         "Prior": [
             _fmt_val(v, p) for v, p in zip(movers["Prior"], movers["is_pct"])
@@ -236,6 +279,12 @@ table = pd.DataFrame(
     }
 )
 st.dataframe(table, width="stretch", hide_index=True)
+st.caption(
+    "**MA (same yr)** is the statewide figure for the same latest year, so you "
+    "can see whether LEHS's *level* (not just its move) sits above or below the "
+    "state. Shown only for rate metrics — a statewide *count* (e.g. AP takers, "
+    "total enrollment) is not a per-school benchmark, so those read “—”."
+)
 
 # Plain-language line for the single largest move.
 _top = movers.iloc[0]
@@ -278,8 +327,8 @@ fig.update_layout(
 )
 st.plotly_chart(fig, width="stretch")
 st.caption(
-    f"Navy = favorable move · gold = unfavorable move · grey = context metric "
-    f"({STATE_COLOR} demographic share, no inherent good/bad direction). "
+    "Navy = favorable move · gold = unfavorable move · grey = context metric "
+    "(demographic share, no inherent good/bad direction). "
     "Percentage-based metrics are in points; counts are raw numbers."
 )
 

@@ -6,8 +6,8 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.branding import crosslink_callout, page_footer, sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, csv_download, data_downloads_panel, with_year_gaps, span_years
-from utils.constants import LEHS_SCHOOL_CODE, LEHS_NAVY, LEHS_GOLD, STATE_COLOR
+from utils.charts import DEFAULT_LAYOUT, csv_download, data_downloads_panel, with_year_gaps, span_years, year_axis
+from utils.constants import LEHS_SCHOOL_CODE, LEHS_NAVY, LEHS_GOLD, STATE_COLOR, SUBGROUP_PALETTE
 from utils.data_loader import load_dataset
 from utils.interpret import sy_label
 
@@ -72,9 +72,11 @@ if not youth.empty:
             tot.sort_values("SY"), x="SY", y="VALUE", color="TOPIC", markers=True,
             labels={"SY": "Survey year", "VALUE": "% of MA high-schoolers",
                     "TOPIC": "Indicator"},
+            color_discrete_sequence=list(SUBGROUP_PALETTE.values()),
         )
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_ticksuffix="%",
                           title="MA high-school students reporting each indicator (YRBS, biennial)")
+        year_axis(fig)
         st.plotly_chart(fig, width="stretch")
         src = str(youth["SOURCE"].iloc[0]) if "SOURCE" in youth.columns else ""
         st.caption(f"Source: {src}. The survey runs every two years (2019, 2021, 2023).")
@@ -128,6 +130,7 @@ if not abs_lehs.empty:
             yaxis_title="% chronically absent (10%+ missed)",
             xaxis_title="School year (ending)",
         )
+        year_axis(fig)
         st.plotly_chart(fig, width="stretch")
     st.caption(
         "Line breaks at the 2020 COVID gap rather than drawing across it. "

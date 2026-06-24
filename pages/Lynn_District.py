@@ -22,13 +22,16 @@ from utils.charts import (
     DEFAULT_LAYOUT,
     LEHS_GOLD,
     LEHS_NAVY,
+    STATE_COLOR,
     SUBGROUP_PALETTE,
     data_downloads_panel,
+    year_axis,
 )
 from utils.constants import (
     GATEWAY_CITIES,
     IMAGES_DIR,
     LYNN_DISTRICT_CODE,
+    SUBJECT_PALETTE,
 )
 from utils.data_loader import load_dataset
 from utils.interpret import sy_label
@@ -178,6 +181,7 @@ def _small_multiple(
                               line=dict(color=LEHS_NAVY, width=3)))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=ytick,
                       title=title, yaxis_title="", xaxis_title="SY")
+    year_axis(fig)
     return fig
 
 
@@ -228,6 +232,7 @@ with tab_snapshot:
         fig = px.line(district, x="SY", y="TOTAL_CNT", markers=True)
         fig.update_traces(line=dict(color=LEHS_NAVY, width=3))
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Students", xaxis_title="School Year")
+        year_axis(fig)
         st.plotly_chart(fig, width="stretch")
 
         st.header("Selected Populations Trend (District-wide)")
@@ -255,6 +260,7 @@ with tab_snapshot:
             },
         )
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share")
+        year_axis(fig)
         st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
@@ -275,11 +281,33 @@ with tab_snapshot:
                 fig = px.line(
                     g10, x="SY", y="M_PLUS_E_PCT", color="SUBJECT_CODE",
                     markers=True,
-                    color_discrete_map={"ELA": "#1976D2", "MATH": "#D32F2F", "SCI": "#388E3C"},
+                    color_discrete_map=SUBJECT_PALETTE,
                 )
+                # Real DESE statewide reference (ORG_TYPE=='State') per subject,
+                # so a reader can see whether Lynn sits above or below MA at the
+                # point of the chart instead of only Lynn-on-Lynn.
+                for _subj in g10["SUBJECT_CODE"].dropna().unique():
+                    _sl = _state_line(
+                        mcas, "M_PLUS_E_PCT",
+                        extra_filters={"TEST_GRADE": "10", "SUBJECT_CODE": _subj,
+                                       "STU_GRP": "All Students"},
+                        period_col=None,
+                    )
+                    if _sl is not None and not _sl.empty:
+                        fig.add_trace(go.Scatter(
+                            x=_sl["SY"], y=_sl["M_PLUS_E_PCT"], mode="lines",
+                            name=f"MA statewide — {_subj}",
+                            line=dict(color=STATE_COLOR, width=2, dash="dot"),
+                        ))
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                    yaxis_title="% Meeting + Exceeding")
+                year_axis(fig)
                 st.plotly_chart(fig, width="stretch")
+                st.caption(
+                    "Dotted grey lines are the real DESE statewide figure for "
+                    "each subject (ORG_TYPE = State), shown so Lynn's trend has a "
+                    "\"is this typical?\" anchor in-chart."
+                )
 
             elem_mcas = district_mcas[
                 district_mcas["TEST_GRADE"].astype(str).isin(
@@ -287,15 +315,16 @@ with tab_snapshot:
                 )
             ].copy()
             if not elem_mcas.empty:
-                st.subheader("Grades 3-8 — Average % M+E (across grades)")
+                st.subheader("Grades 3-8 — Average % Meeting + Exceeding (across grades)")
                 avg = elem_mcas.groupby(["SY", "SUBJECT_CODE"])["M_PLUS_E_PCT"].mean().reset_index()
                 fig = px.line(
                     avg, x="SY", y="M_PLUS_E_PCT", color="SUBJECT_CODE",
                     markers=True,
-                    color_discrete_map={"ELA": "#1976D2", "MATH": "#D32F2F", "SCI": "#388E3C"},
+                    color_discrete_map=SUBJECT_PALETTE,
                 )
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
-                                   yaxis_title="Avg % M+E across grades")
+                                   yaxis_title="Avg % Meeting + Exceeding across grades")
+                year_axis(fig)
                 st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
@@ -316,7 +345,13 @@ with tab_snapshot:
             fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                yaxis_title="4-yr Graduation Rate",
                                xaxis_title="Cohort Year")
+            year_axis(fig)
             st.plotly_chart(fig, width="stretch")
+            st.caption(
+                "Lynn only — DESE publishes no statewide 4-year cohort "
+                "graduation row in this dataset, so no MA reference line is "
+                "drawn here. See the Gateway-districts comparison below for a peer anchor."
+            )
 
         # -------------------------------------------------------------------
         # District attendance / chronic absence
@@ -335,9 +370,24 @@ with tab_snapshot:
                 district_att["PCT_CHRON_ABS_10"], errors="coerce"
             )
             fig = px.line(district_att, x="SY", y="PCT_CHRON_ABS_10", markers=True)
-            fig.update_traces(line=dict(color="#F57C00", width=3))
+            fig.update_traces(line=dict(color=LEHS_GOLD, width=3),
+                              name="Lynn district", showlegend=True)
+            # Real DESE statewide chronic-absence line (ORG_TYPE=='State') so the
+            # Lynn trend has an "is this high?" anchor in-chart.
+            _att_state = _state_line(
+                attendance, "PCT_CHRON_ABS_10",
+                period_col="ATTEND_PERIOD", period="End of Year",
+                extra_filters={"STU_GRP": "All Students"},
+            )
+            if _att_state is not None and not _att_state.empty:
+                fig.add_trace(go.Scatter(
+                    x=_att_state["SY"], y=_att_state["PCT_CHRON_ABS_10"],
+                    mode="lines", name="Massachusetts (statewide)",
+                    line=dict(color=STATE_COLOR, width=2, dash="dot"),
+                ))
             fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                yaxis_title="% Chronically Absent (10%+ missed)")
+            year_axis(fig)
             st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
@@ -363,6 +413,7 @@ with tab_snapshot:
                 fig.update_traces(line=dict(color=LEHS_NAVY, width=3))
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="$,.0f",
                                    yaxis_title="$ per pupil", xaxis_title="Fiscal Year")
+                year_axis(fig)
                 with c2:
                     st.plotly_chart(fig, width="stretch")
 
@@ -413,13 +464,13 @@ with tab_snapshot:
                 "LI_PCT":    "% Low Income",
                 "HN_PCT":    "% High Needs",
                 "HL_PCT":    "% Hispanic/Latino",
-                "G8_ELA_ME": "G8 ELA % M+E",
-                "G8_MATH_ME":"G8 Math % M+E",
+                "G8_ELA_ME": "G8 ELA % Meeting + Exceeding",
+                "G8_MATH_ME":"G8 Math % Meeting + Exceeding",
             })
             ms_table = ms_table.drop(columns=["ORG_CODE"])
 
             for col in ["% English Learner(s)", "% Low Income", "% High Needs", "% Hispanic/Latino",
-                         "G8 ELA % M+E", "G8 Math % M+E"]:
+                         "G8 ELA % Meeting + Exceeding", "G8 Math % Meeting + Exceeding"]:
                 if col in ms_table.columns:
                     ms_table[col] = ms_table[col].apply(
                         lambda x: f"{x:.0%}" if pd.notna(x) else "—"
@@ -488,7 +539,7 @@ with tab_snapshot:
                             snap, x="Subject", y="IND_PCT", color="STU_GRP",
                             barmode="group",
                             color_discrete_map={
-                                "Students with Disabilities":    "#D32F2F",
+                                "Students with Disabilities":    "#C2A99E",
                                 "Students without Disabilities": LEHS_NAVY,
                             },
                             text=snap["IND_PCT"].round(1).astype(str) + "%",
@@ -504,8 +555,12 @@ with tab_snapshot:
                         )
                         st.plotly_chart(fig, width="stretch")
                         st.caption(
-                            "The gap between the two groups is one of DESE's most "
-                            "tracked indicators for SpEd program effectiveness."
+                            "The two bars are the in-chart benchmark: Lynn's "
+                            "students with disabilities compared against Lynn's "
+                            "students without disabilities. The gap between them "
+                            "is one of DESE's most tracked indicators for SpEd "
+                            "program effectiveness. (No separate statewide SWD/"
+                            "non-SWD reference is drawn here.)"
                         )
 
                 post = sped_lynn[
@@ -589,7 +644,7 @@ with tab_snapshot:
             if m_g10["M_PLUS_E_PCT"].max() and m_g10["M_PLUS_E_PCT"].max() > 1.5:
                 m_g10["M_PLUS_E_PCT"] = m_g10["M_PLUS_E_PCT"] / 100.0
             fig = _small_multiple(
-                m_g10, "M_PLUS_E_PCT", "MCAS Grade 10 ELA — % M+E",
+                m_g10, "M_PLUS_E_PCT", "MCAS Grade 10 ELA — % Meeting + Exceeding",
                 state_df=mcas, state_period_col=None,
                 state_filters={"TEST_GRADE": "10", "SUBJECT_CODE": "ELA",
                                "STU_GRP": "All Students"},
@@ -608,7 +663,7 @@ with tab_snapshot:
             if m_g10m["M_PLUS_E_PCT"].max() and m_g10m["M_PLUS_E_PCT"].max() > 1.5:
                 m_g10m["M_PLUS_E_PCT"] = m_g10m["M_PLUS_E_PCT"] / 100.0
             fig = _small_multiple(
-                m_g10m, "M_PLUS_E_PCT", "MCAS Grade 10 Math — % M+E",
+                m_g10m, "M_PLUS_E_PCT", "MCAS Grade 10 Math — % Meeting + Exceeding",
                 state_df=mcas, state_period_col=None,
                 state_filters={"TEST_GRADE": "10", "SUBJECT_CODE": "MATH",
                                "STU_GRP": "All Students"},
@@ -653,6 +708,7 @@ with tab_snapshot:
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".1%",
                                   yaxis_title="% of Lynn residents", xaxis_title="School Year",
                                   legend_title="Leaving via")
+                year_axis(fig)
                 st.plotly_chart(fig, width="stretch")
 
                 # Plain-language callout: charter outflow has roughly doubled.
@@ -715,6 +771,7 @@ with tab_snapshot:
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                   yaxis_title="% kindergartners in full-day",
                                   xaxis_title="School Year")
+                year_axis(fig)
                 st.plotly_chart(fig, width="stretch")
                 if not fdk_glitch.empty:
                     _gy = ", ".join(f"SY{int(y)}" for y in sorted(fdk_glitch["SY"]))
@@ -852,10 +909,10 @@ with tab_all_schools:
             "TOTAL_CNT": "Enrollment",
             "EL_PCT": "% English Learner(s)",
             "LI_PCT": "% Low Income",
-            "SWD_PCT": "% SPED",
-            "HN_PCT": "% High Needs",
+            "SWD_PCT": "% Students w/ Disabilities (SPED)",
+            "HN_PCT": "% High Needs (low-income, EL, or disability)",
             "HL_PCT": "% Hispanic/Latino",
-            "BAA_PCT": "% Black/AA",
+            "BAA_PCT": "% Black/African American",
             "AS_PCT": "% Asian",
             "WH_PCT": "% White",
         })
@@ -1034,6 +1091,10 @@ with tab_all_schools:
         perf_display = perf_display.drop(columns=["ORG_CODE"]).rename(columns={
             "ATTEND_RATE": "Attendance",
             "PCT_CHRON_ABS_10": "Chronic Absent",
+            "MCAS G10 ELA M+E%": "MCAS G10 ELA % Meeting + Exceeding",
+            "MCAS G10 Math M+E%": "MCAS G10 Math % Meeting + Exceeding",
+            "MCAS 3-8 ELA M+E%": "MCAS 3-8 ELA % Meeting + Exceeding",
+            "MCAS 3-8 Math M+E%": "MCAS 3-8 Math % Meeting + Exceeding",
         })
 
         def highlight_lehs_perf(row):

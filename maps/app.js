@@ -116,11 +116,12 @@ const METRICS = [
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
 const state = {
-    // Open on the muni level so visitors land on a metric-rich view (~25 metrics)
-    // instead of the tract level (only 5 ACS metrics) and immediately see the
-    // Lynn-vs-gateway-vs-neighbors comparison this tool exists for.
-    level: "muni",
-    metric: "EL_PCT",                  // % English Learner — Lynn's defining demographic
+    // Owner direction: land on the census-tract (Lynn neighborhood) level so
+    // visitors open directly on the neighborhood demographics this tool is built
+    // around — matching the Lynn close-up camera below. Default to a tract ACS
+    // metric so the first paint has data (muni/district stay one click away).
+    level: "tract",
+    metric: "non_english_pct",         // % non-English at home — tract ACS, mirrors the EL theme
     palette: "Greens",
     classify: "jenks",                 // Fisher-Jenks natural breaks (standard cartographic default)
     extrude3d: false,

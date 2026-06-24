@@ -239,7 +239,8 @@ with c_atlas:
   per-pupil spending, teacher workforce, retention, demographics
 - Year slider 2017–2026 with animation playback
 - Student-group filter (9 groups: Hispanic, Black, Asian, White,
-  ELL, Former ELL, Low Income, SWD, High Needs)
+  English Learners (ELL), Former English Learners, Low Income,
+  students with disabilities (SWD), High Needs)
 - Multiple color palettes including a **bivariate** mode (two
   metrics shaded on one map)
 - Jenks natural breaks · quantile · equal-interval · continuous

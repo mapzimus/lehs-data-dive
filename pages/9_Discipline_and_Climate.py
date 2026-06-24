@@ -17,6 +17,7 @@ from utils.charts import (
     data_downloads_panel,
     span_years,
     with_year_gaps,
+    year_axis,
 )
 from utils.constants import (
     GENDER_PALETTE,
@@ -106,6 +107,7 @@ if not susp_lehs.empty:
             yaxis_title="% suspended at least once",
             yaxis_ticksuffix="%",
         )
+        year_axis(fig)
         st.plotly_chart(fig, width="stretch")
 
 st.divider()
@@ -156,6 +158,7 @@ if not all_stu.empty:
                       line=dict(dash="dot", width=2))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                       yaxis_title="% Chronically Absent (10%+ missed)")
+    year_axis(fig)
     st.plotly_chart(fig, width="stretch")
 
 # By subgroup — LEHS only (LCHS comparison on subgroups would clutter the chart)
@@ -184,6 +187,7 @@ if not sub_g.empty:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                        yaxis_title="% Chronically Absent")
+    year_axis(fig)
     st.plotly_chart(fig, width="stretch")
 
     # ---------------------------------------------------------------------------
@@ -413,6 +417,7 @@ if not att_rate.empty:
                       line=dict(dash="dot", width=2))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                       yaxis_title="Attendance rate")
+    year_axis(fig)
     st.plotly_chart(fig, width="stretch")
 
 st.divider()
@@ -494,6 +499,7 @@ if not mobility.empty:
                     **DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                     yaxis_title=f"% {metric.lower()}", xaxis_title="School Year",
                 )
+                year_axis(fig)
                 st.plotly_chart(fig, width="stretch")
 
         # Subgroup breakdown — latest year, sorted by churn descending
@@ -589,6 +595,7 @@ else:
             yaxis_title="% suspended out-of-school",
             xaxis_title="School Year",
         )
+        year_axis(fig)
         st.plotly_chart(fig, width="stretch")
 
         st.caption(
@@ -977,6 +984,7 @@ else:
             yaxis_title="Annual dropout rate",
             xaxis_title="School Year",
         )
+        year_axis(fig)
         st.plotly_chart(fig, width="stretch")
 
         st.caption(
@@ -1156,9 +1164,31 @@ else:
         if bdf["Pct"].sum() > 0:
             bdf["label"] = bdf["Pct"].map(lambda v: f"{v:.1%}")
             st.markdown(f"**Share of all LEHS students by days missed — SY {sy_label(days_year)}**")
-            fig = px.bar(bdf, x="Band", y="Pct", text="label")
-            fig.update_traces(marker_color=LEHS_NAVY, textposition="outside",
-                              cliponaxis=False)
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                name="Lynn English", x=bdf["Band"], y=bdf["Pct"],
+                text=bdf["label"], textposition="outside", cliponaxis=False,
+                marker_color=LEHS_NAVY,
+            ))
+            # State reference — Massachusetts All-Students band shares for the
+            # same year. Both are "% of all enrolled students" per band, so the
+            # series are directly comparable (answers "is this high vs. normal?").
+            state_days = days[
+                (days["ORG_CODE"].astype(str) == "00000000")
+                & (days["STU_GRP"] == "All Students")
+                & (days["SY"] == days_year)
+            ]
+            if not state_days.empty:
+                srow = state_days.iloc[0]
+                state_pct = [
+                    float(v) if pd.notna(v := pd.to_numeric(srow.get(col), errors="coerce")) else 0.0
+                    for col, _ in DAY_BANDS
+                ]
+                fig.add_trace(go.Bar(
+                    name="Massachusetts", x=[lbl for _, lbl in DAY_BANDS], y=state_pct,
+                    marker_color=STATE_COLOR,
+                ))
+                fig.update_layout(barmode="group")
             fig.update_layout(
                 **DEFAULT_LAYOUT,
                 yaxis_tickformat=".1%",

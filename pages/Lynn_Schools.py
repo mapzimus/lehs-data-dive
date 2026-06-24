@@ -19,6 +19,7 @@ from utils.charts import (
     DEFAULT_LAYOUT,
     LEHS_GOLD,
     LEHS_NAVY,
+    STATE_COLOR,
     SUBGROUP_PALETTE,
     data_downloads_panel,
     span_years,
@@ -142,9 +143,9 @@ latest_year_sib = int(siblings["SY"].max())
 latest_sib = siblings[siblings["SY"] == latest_year_sib].set_index("School")
 scorecard_cols = {
     "TOTAL_CNT": "Total Enrollment",
-    "EL_PCT": "% ELL",
+    "EL_PCT": "% English Learners (ELL)",
     "LI_PCT": "% Low Income",
-    "SWD_PCT": "% SPED",
+    "SWD_PCT": "% Students with Disabilities (SPED)",
     "HN_PCT": "% High Needs",
     "HL_PCT": "% Hispanic/Latino",
     "FE_PCT": "% Female",
@@ -164,7 +165,11 @@ def highlight_lehs_sib(row):
 
 
 st.dataframe(scorecard.style.apply(highlight_lehs_sib, axis=1), width="stretch")
-st.caption(f"School year {latest_year_sib}. LEHS highlighted in gold.")
+st.caption(
+    f"School year {latest_year_sib}. LEHS highlighted in gold. "
+    "High Needs counts any student who is low-income, an English learner, "
+    "or a student with disabilities."
+)
 
 # ---------------------------------------------------------------------------
 # Enrollment trends
@@ -194,9 +199,9 @@ st.subheader(f"Demographic Composition ({latest_year_sib})")
 
 demo_cols = ["EL_PCT", "LI_PCT", "SWD_PCT", "HL_PCT", "BAA_PCT"]
 demo_labels = {
-    "EL_PCT": "% ELL",
+    "EL_PCT": "% English Learners (ELL)",
     "LI_PCT": "% Low Income",
-    "SWD_PCT": "% SPED",
+    "SWD_PCT": "% Students with Disabilities (SPED)",
     "HL_PCT": "% Hispanic/Latino",
     "BAA_PCT": "% Black/African American",
 }
@@ -334,6 +339,7 @@ else:
     fig = px.bar(
         latest_grad.reset_index().melt(id_vars="School", var_name="Outcome", value_name="Pct"),
         x="School", y="Pct", color="Outcome", barmode="stack",
+        color_discrete_sequence=list(SUBGROUP_PALETTE.values()),
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", xaxis_title="")
     st.plotly_chart(fig, width="stretch")
@@ -464,6 +470,20 @@ else:
         **DEFAULT_LAYOUT, yaxis_tickformat=".0%",
         yaxis_title="% held back a grade", xaxis_title="", showlegend=False,
     )
+    # State reference: the statewide all-students retention rate for the same
+    # year gives readers a "what is normal?" anchor for "retention is rare".
+    _ret_state = retention[
+        (retention["ORG_TYPE"] == "State")
+        & (retention["STU_GRP"] == "All Students")
+        & (retention["SY"] == ret_year)
+    ]
+    if not _ret_state.empty:
+        _ret_state_pct = float(_ret_state["RET_ALL_PCT"].iloc[0])
+        fig.add_hline(
+            y=_ret_state_pct, line_dash="dash", line_color=STATE_COLOR,
+            annotation_text=f"MA statewide: {_ret_state_pct:.1%}",
+            annotation_position="top right",
+        )
     st.plotly_chart(fig, width="stretch")
 
     st.caption(
@@ -516,6 +536,20 @@ else:
         yaxis_title="% making expected ACCESS progress (RE1)",
         xaxis_title="", showlegend=False,
     )
+    # State reference: the statewide RE1 share for the same year, so readers
+    # can see where the "expected ACCESS growth" bar sits relative to MA.
+    _el_state = el_access[
+        (el_access["ORG_TYPE"] == "State")
+        & (el_access["GRADE"].astype(str) == "ALL")
+        & (el_access["SY"] == ela_year)
+    ]
+    if not _el_state.empty:
+        _el_state_re1 = float(_el_state["RE1_PCT"].iloc[0])
+        fig.add_hline(
+            y=_el_state_re1, line_dash="dash", line_color=STATE_COLOR,
+            annotation_text=f"MA statewide: {_el_state_re1:.0%}",
+            annotation_position="top right",
+        )
     st.plotly_chart(fig, width="stretch")
 
     _lehs_el = ela_cur[ela_cur["ORG_CODE"] == "01630510"]

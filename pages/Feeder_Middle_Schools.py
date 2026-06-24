@@ -123,7 +123,7 @@ if not feeder_rows.empty:
             "Total enrollment": gi("TOTAL_CNT"),
             "% English Learners": pc("EL_PCT"),
             "% Low Income": pc("LI_PCT"),
-            "% SWD": pc("SWD_PCT"),
+            "% Students with Disabilities (SWD)": pc("SWD_PCT"),
             "% Hispanic/Latino": pc("HL_PCT"),
         })
     feeder_snapshot = pd.DataFrame(rows)
@@ -167,11 +167,11 @@ else:
 
     # Demographic mini-table (fractions → percentages).
     demo_tbl = feeder_snapshot[
-        ["School", "% English Learners", "% Low Income", "% SWD", "% Hispanic/Latino"]
+        ["School", "% English Learners", "% Low Income", "% Students with Disabilities (SWD)", "% Hispanic/Latino"]
     ].copy()
     st.dataframe(
         demo_tbl.style.format(
-            {c: "{:.0%}" for c in ["% English Learners", "% Low Income", "% SWD", "% Hispanic/Latino"]}
+            {c: "{:.0%}" for c in ["% English Learners", "% Low Income", "% Students with Disabilities (SWD)", "% Hispanic/Latino"]}
         ),
         width="stretch", hide_index=True,
     )

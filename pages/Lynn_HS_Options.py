@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.branding import crosslink_callout, page_footer, sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, csv_download, data_downloads_panel, with_year_gaps, span_years
+from utils.charts import DEFAULT_LAYOUT, data_downloads_panel
 from utils.constants import (LEHS_SCHOOL_CODE, LCHS_SCHOOL_CODE, LYNN_SIBLING_HS,
                              LEHS_NAVY, LEHS_GOLD, STATE_COLOR, LYNN_SIBLING_COLOR, LVTI_COLOR)
 from utils.data_loader import load_dataset
@@ -115,6 +115,62 @@ if not ap.empty:
 ap_year = int(ap_latest["SY"].max()) if not ap_latest.empty else None
 
 # ---------------------------------------------------------------------------
+# Statewide reference values (ORG_TYPE == 'State') for benchmark lines.
+# These are published DESE statewide figures, pulled at the same year the
+# school bars display. Each helper returns None when the figure is absent so
+# the chart simply omits its reference line rather than inventing one.
+# ---------------------------------------------------------------------------
+
+
+def _state_value(df: pd.DataFrame, value_col: str, year, extra_filter=None):
+    """Latest-year statewide value (0-1 fraction) for a metric, or None."""
+    if df is None or df.empty or "ORG_TYPE" not in df.columns:
+        return None
+    s = df[df["ORG_TYPE"].astype(str) == "State"].copy()
+    if extra_filter is not None:
+        s = s[extra_filter(s)]
+    if s.empty or "SY" not in s.columns:
+        return None
+    s["SY"] = _num(s["SY"])
+    if year is not None and (s["SY"] == year).any():
+        s = s[s["SY"] == year]
+    else:
+        s = s[s["SY"] == s["SY"].max()]
+    if s.empty:
+        return None
+    val = _num(s[value_col]).iloc[0]
+    return float(val) if pd.notna(val) else None
+
+
+# MCAS grade-10 statewide %M+E, All Students, by subject (fractions 0-1).
+_state_mcas = {}
+if not mcas.empty:
+    for _subj in ("ELA", "MATH"):
+        _state_mcas[_subj] = _state_value(
+            mcas, "M_PLUS_E_PCT", mcas_year,
+            lambda d, _s=_subj: (d["TEST_GRADE"].astype(str) == "10")
+            & (d["STU_GRP"] == "All Students")
+            & (d["SUBJECT_CODE"] == _s),
+        )
+
+# Statewide 4-year graduation rate, All Students. State publishes this as the
+# "4-Year Graduation Rate" (the school bars use the "Adjusted Cohort" wording,
+# which the state row does not carry); both are DESE's statewide 4-year figure.
+state_grad = _state_value(
+    grad, "GRAD_PCT", grad_year,
+    lambda d: (d["GRAD_RATE_TYPE"] == "4-Year Graduation Rate")
+    & (d["STU_GRP"] == "All Students"),
+)
+
+# Statewide demographic shares (All Students implied at the State total row).
+state_demo = {}
+if not enroll.empty:
+    for _lbl, _col in [("% English Learners", "EL_PCT"),
+                       ("% Low Income", "LI_PCT"),
+                       ("% Students with Disabilities", "SWD_PCT")]:
+        state_demo[_lbl] = _state_value(enroll, _col, enr_year)
+
+# ---------------------------------------------------------------------------
 # Page header + framing
 # ---------------------------------------------------------------------------
 
@@ -164,7 +220,7 @@ for code in SCHOOLS:  # dict preserves insertion order → LEHS first
     row["Enrollment"] = f"{int(_num(e['TOTAL_CNT']).iloc[0]):,}" if not e.empty and pd.notna(_num(e["TOTAL_CNT"]).iloc[0]) else DASH
     row["% English Learners"] = _pct(_num(e["EL_PCT"]).iloc[0]) if not e.empty else DASH
     row["% Low Income"] = _pct(_num(e["LI_PCT"]).iloc[0]) if not e.empty else DASH
-    row["% SWD"] = _pct(_num(e["SWD_PCT"]).iloc[0]) if not e.empty else DASH
+    row["% Students with Disabilities"] = _pct(_num(e["SWD_PCT"]).iloc[0]) if not e.empty else DASH
 
     ac = acct_sub[acct_sub["ORG_CODE"].astype(str) == code]
     row["State classification"] = str(ac["CLASSIFICATION"].iloc[0]) if not ac.empty and pd.notna(ac["CLASSIFICATION"].iloc[0]) else DASH
@@ -174,8 +230,8 @@ for code in SCHOOLS:  # dict preserves insertion order → LEHS first
     mm = mcas_g10[mcas_g10["ORG_CODE"].astype(str) == code]
     ela = mm[mm["SUBJECT_CODE"] == "ELA"]["M_PLUS_E_PCT"]
     mat = mm[mm["SUBJECT_CODE"] == "MATH"]["M_PLUS_E_PCT"]
-    row["MCAS ELA % M+E"] = _pct(ela.iloc[0]) if not ela.empty else DASH
-    row["MCAS Math % M+E"] = _pct(mat.iloc[0]) if not mat.empty else DASH
+    row["MCAS ELA % meeting/exceeding"] = _pct(ela.iloc[0]) if not ela.empty else DASH
+    row["MCAS Math % meeting/exceeding"] = _pct(mat.iloc[0]) if not mat.empty else DASH
 
     gg = grad_latest[grad_latest["ORG_CODE"].astype(str) == code]
     row["4-yr Grad %"] = _pct(_num(gg["GRAD_PCT"]).iloc[0]) if not gg.empty else DASH
@@ -246,8 +302,17 @@ with c1:
                      text=md["Pct"].map("{:.0f}%".format))
         fig.update_traces(textposition="outside", cliponaxis=False)
         fig.update_layout(**DEFAULT_LAYOUT, height=330, xaxis_title=None,
-                          yaxis_title="% M+E", legend_title_text="")
+                          yaxis_title="% meeting/exceeding", legend_title_text="")
+        for _subj, _slabel in (("ELA", "MA ELA"), ("MATH", "MA Math")):
+            _sv = _state_mcas.get(_subj)
+            if _sv is not None:
+                fig.add_hline(y=_sv * 100, line_dash="dot", line_color=STATE_COLOR,
+                              annotation_text=f"{_slabel} {_sv * 100:.0f}%",
+                              annotation_position="top left",
+                              annotation_font_color=STATE_COLOR)
         st.plotly_chart(fig, width="stretch")
+        if _state_mcas.get("ELA") is not None or _state_mcas.get("MATH") is not None:
+            st.caption(f"Dotted lines mark the Massachusetts statewide grade-10 average (SY{mcas_year}).")
     else:
         st.caption("No grade-10 MCAS data available.")
 
@@ -258,11 +323,17 @@ with c2:
         gd["School"] = gd["ORG_CODE"].astype(str).map(SCHOOLS)
         gd["Pct"] = _num(gd["GRAD_PCT"]) * 100
         gd = _ordered(gd)
-        st.plotly_chart(
-            _bar(gd, "Pct", f"4-year graduation rate (SY{grad_year})", "{:.0f}%", yrange=[0, 105]),
-            width="stretch",
-        )
-        st.caption("Douglass's small cohort is not published here; LVTI's near-100% reflects its CTE cohort.")
+        fig_g = _bar(gd, "Pct", f"4-year graduation rate (SY{grad_year})", "{:.0f}%", yrange=[0, 105])
+        if state_grad is not None:
+            fig_g.add_hline(y=state_grad * 100, line_dash="dot", line_color=STATE_COLOR,
+                            annotation_text=f"MA statewide {state_grad * 100:.0f}%",
+                            annotation_position="top left",
+                            annotation_font_color=STATE_COLOR)
+        st.plotly_chart(fig_g, width="stretch")
+        _grad_note = "Douglass's small cohort is not published here; LVTI's near-100% reflects its CTE cohort."
+        if state_grad is not None:
+            _grad_note += " The dotted line is the Massachusetts statewide 4-year rate."
+        st.caption(_grad_note)
     else:
         st.caption("No graduation-rate data available.")
 
@@ -274,7 +345,7 @@ with c3:
         ed = enr_latest.copy()
         ed["School"] = ed["ORG_CODE"].astype(str).map(SCHOOLS)
         long = []
-        for label, col in [("% English Learners", "EL_PCT"), ("% Low Income", "LI_PCT"), ("% SWD", "SWD_PCT")]:
+        for label, col in [("% English Learners", "EL_PCT"), ("% Low Income", "LI_PCT"), ("% Students with Disabilities", "SWD_PCT")]:
             for _, r in ed.iterrows():
                 long.append({"School": r["School"], "Measure": label, "Pct": _num(pd.Series([r[col]])).iloc[0] * 100})
         ld = _ordered(pd.DataFrame(long))
@@ -283,7 +354,18 @@ with c3:
                      color_discrete_map=SCHOOL_COLORS, category_orders={"School": SCHOOL_ORDER})
         fig.update_layout(**DEFAULT_LAYOUT, height=330, xaxis_title=None,
                           yaxis_title="% of students", legend_title_text="")
+        _measures = ["% English Learners", "% Low Income", "% Students with Disabilities"]
+        _state_pts = [(m, state_demo.get(m)) for m in _measures if state_demo.get(m) is not None]
+        if _state_pts:
+            fig.add_trace(go.Scatter(
+                x=[m for m, _ in _state_pts], y=[v * 100 for _, v in _state_pts],
+                mode="markers", name="Massachusetts",
+                marker=dict(symbol="diamond", size=11, color=STATE_COLOR,
+                            line=dict(width=1, color="white")),
+            ))
         st.plotly_chart(fig, width="stretch")
+        if _state_pts:
+            st.caption("Diamonds mark the Massachusetts statewide share for each measure.")
     else:
         st.caption("No enrollment/demographic data available.")
 
@@ -298,7 +380,12 @@ with c4:
             _bar(ad, "Takers", f"AP test-takers (SY{ap_year})", "{:.0f}"),
             width="stretch",
         )
-        st.caption("Counts, not rates — larger schools naturally field more AP test-takers.")
+        st.caption(
+            "Counts, not rates — larger schools naturally field more AP test-takers. "
+            "No statewide reference line is drawn here: the state figure is a raw test-taker "
+            "count (tens of thousands), not a per-school rate, so it is not a meaningful "
+            "benchmark for these bars."
+        )
     else:
         st.caption("No AP participation data available.")
 

@@ -20,7 +20,8 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.branding import page_footer, sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY
+from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, year_axis
+from utils.constants import SEQ_BRAND
 
 st.set_page_config(
     page_title="Data 101 | LEHS", page_icon="📊", layout="wide",
@@ -155,6 +156,7 @@ fig = px.line(
     color_discrete_map={"ELA": LEHS_NAVY, "Math": LEHS_GOLD},
 )
 fig.update_layout(**DEFAULT_LAYOUT, height=320, yaxis_tickformat=".0%")
+year_axis(fig)
 st.plotly_chart(fig, width="stretch")
 
 st.markdown(
@@ -288,7 +290,7 @@ heat_pivot = heat_df.pivot(index="Subject", columns="Grade", values="% M+E")
 fig = go.Figure(
     data=go.Heatmap(
         z=heat_pivot.values, x=heat_pivot.columns, y=heat_pivot.index,
-        colorscale="Blues", text=heat_pivot.values,
+        colorscale=SEQ_BRAND, text=heat_pivot.values,
         texttemplate="%{text:.0%}", textfont={"size": 12},
         zmin=0, zmax=0.6,
     )

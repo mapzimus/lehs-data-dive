@@ -15,6 +15,7 @@ from utils.charts import (
     data_downloads_panel,
     span_years,
     with_year_gaps,
+    year_axis,
 )
 from utils.constants import LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE, STATE_COLOR
 from utils.data_loader import load_dataset
@@ -184,13 +185,28 @@ key_roles = latest[latest["JOBCLASS_CAT"].isin([
 ])].copy()
 
 if not key_roles.empty:
+    # Plain-language labels for the DESE job-classification categories so the
+    # y-axis reads in everyday terms rather than raw DESE category strings.
+    role_labels = {
+        "Administrators": "Administrators",
+        "Instructional Staff": "Teachers",
+        "Instructional Support Staff": "Instructional support staff",
+        "Instructional Support and Special Education Shared Staff":
+            "Special education & instructional support",
+        "Medical/Health Services": "Nurses & health services",
+        "Office/Clerical/Administrative Support": "Office & clerical staff",
+        "Paraprofessional": "Paraprofessionals",
+    }
     role_summary = (
         key_roles.groupby("JOBCLASS_CAT")["FTE_TOTAL"]
         .apply(lambda x: pd.to_numeric(x, errors="coerce").sum())
         .reset_index()
         .sort_values("FTE_TOTAL", ascending=True)
     )
-    fig = px.bar(role_summary, x="FTE_TOTAL", y="JOBCLASS_CAT", orientation="h",
+    role_summary["Role"] = role_summary["JOBCLASS_CAT"].map(role_labels).fillna(
+        role_summary["JOBCLASS_CAT"]
+    )
+    fig = px.bar(role_summary, x="FTE_TOTAL", y="Role", orientation="h",
                  color_discrete_sequence=[LEHS_NAVY])
     fig.update_layout(**DEFAULT_LAYOUT, xaxis_title="FTE", yaxis_title="")
     st.plotly_chart(fig, width="stretch")
@@ -308,16 +324,25 @@ st.header("Teacher Diversity Trend Over Time")
 teachers_all_years = lehs_staff[lehs_staff["JOBCLASS"].astype(str).str.lower() == "teacher"].copy()
 if not teachers_all_years.empty:
     teachers_all_years = teachers_all_years.sort_values("SY")
-    div_long = teachers_all_years.melt(
-        id_vars="SY",
-        value_vars=["HL_PCT", "BAA_PCT", "AS_PCT", "WH_PCT", "MNHL_PCT"],
-        var_name="Group", value_name="Pct",
-    )
-    label_map = {
-        "HL_PCT": "Hispanic/Latino", "BAA_PCT": "African American/Black",
-        "AS_PCT": "Asian", "WH_PCT": "White", "MNHL_PCT": "Multi-Race",
+    # DESE's published _PCT columns are rounded to one decimal and read 0.0 for
+    # the smaller groups in nearly every year (BAA_PCT, AS_PCT, MNHL_PCT) even
+    # when the head count is non-zero — which renders the Black / Asian /
+    # Multi-Race teacher lines as a flat 0% and reproduces the "zero black staff"
+    # complaint. Compute each group's share from the precise head counts instead
+    # (_CNT / FTE_TOTAL per year), matching the snapshot bar chart above.
+    cnt_cols = {
+        "HL_CNT": "Hispanic/Latino", "BAA_CNT": "African American/Black",
+        "AS_CNT": "Asian", "WH_CNT": "White", "MNHL_CNT": "Multi-Race",
     }
-    div_long["Group"] = div_long["Group"].map(label_map)
+    _g = teachers_all_years.copy()
+    for _c in ["FTE_TOTAL", *cnt_cols]:
+        _g[_c] = pd.to_numeric(_g[_c], errors="coerce")
+    _g = _g.groupby("SY", as_index=False)[["FTE_TOTAL", *cnt_cols]].sum()
+    _g = _g[_g["FTE_TOTAL"] > 0]
+    _share = pd.DataFrame({"SY": _g["SY"]})
+    for _col, _label in cnt_cols.items():
+        _share[_label] = _g[_col] / _g["FTE_TOTAL"]
+    div_long = _share.melt(id_vars="SY", var_name="Group", value_name="Pct")
     div_long["Pct"] = pd.to_numeric(div_long["Pct"], errors="coerce")
     div_long = div_long.dropna(subset=["Pct"])
 
@@ -333,6 +358,7 @@ if not teachers_all_years.empty:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                        yaxis_title="Share of teachers")
+    year_axis(fig)
     st.plotly_chart(fig, width="stretch")
 
 st.divider()
@@ -385,48 +411,8 @@ if not retention.empty:
         with c2:
             st.plotly_chart(fig, width="stretch")
 
-    # LEHS-specific Teachers vs. Principals retention trend (2009-2026). The
-    # school-level rows let us see whether building leadership turns over more or
-    # less than the teaching staff it supervises.
-    lehs_ret = retention[
-        (retention["ORG_CODE"] == LEHS_SCHOOL_CODE)
-        & (retention["STAFF_DESC"].astype(str).isin(["Teachers", "Principals"]))
-    ].copy()
-    lehs_ret["SY"] = pd.to_numeric(lehs_ret["SY"], errors="coerce")
-    lehs_ret["RETND_CNT"] = pd.to_numeric(lehs_ret["RETND_CNT"], errors="coerce")
-    lehs_ret["TOT_CNT"] = pd.to_numeric(lehs_ret["TOT_CNT"], errors="coerce")
-    lehs_ret = lehs_ret.dropna(subset=["SY", "RETND_CNT", "TOT_CNT"])
-    lehs_ret = lehs_ret[lehs_ret["TOT_CNT"] > 0]
-    # Precise rate from counts (DESE's RETND_PCT is rounded to one decimal).
-    lehs_ret["RETND_RATE"] = lehs_ret["RETND_CNT"] / lehs_ret["TOT_CNT"]
-
-    if not lehs_ret.empty:
-        st.subheader("LEHS retention — teachers vs. principals over time")
-        # Break any skipped year (incl. the 2020 COVID year if absent) instead of
-        # drawing across it.
-        ret_plot = with_year_gaps(
-            lehs_ret[["SY", "STAFF_DESC", "RETND_RATE"]],
-            "RETND_RATE", group_col="STAFF_DESC", years=span_years(lehs_ret),
-        )
-        fig = px.line(
-            ret_plot.sort_values(["STAFF_DESC", "SY"]),
-            x="SY", y="RETND_RATE", color="STAFF_DESC", markers=True,
-            color_discrete_map={"Teachers": LEHS_NAVY, "Principals": LEHS_GOLD},
-        )
-        fig.update_traces(connectgaps=False)
-        fig.update_layout(
-            **DEFAULT_LAYOUT, yaxis_tickformat=".0%",
-            yaxis_title="% returning the next year", xaxis_title="School Year",
-            legend_title="Staff group",
-        )
-        st.plotly_chart(fig, width="stretch")
-        st.caption(
-            "Both series are computed from the underlying retained / total counts. "
-            "LEHS has a single principal in most years, so the principal line is a "
-            "0%-or-100% step (one departure swings it the whole way) — read it as a "
-            "leadership-continuity flag, not a rate. The teacher line, drawn from "
-            "100-plus staff, is the stable signal."
-        )
+    # (Removed per owner direction: the LEHS teachers-vs-principals retention
+    # trend was a meaningless 0%-or-100% step driven by a single principal.)
 
 st.divider()
 
@@ -516,7 +502,7 @@ if not teacher_data.empty:
             long, x="SY", y="Pct", color="Indicator", markers=True, text="label",
             color_discrete_map={
                 "% Experienced (3+ yrs)":   LEHS_NAVY,
-                "% In-field for subject":   "#388E3C",
+                "% In-field for subject":   "#6FA593",
                 "% Properly licensed":      LEHS_GOLD,
             },
         )
@@ -578,7 +564,7 @@ if not teacher_data.empty:
                         barmode="group", orientation="h", text="label",
                         color_discrete_map={
                             "Experienced Teachers": LEHS_NAVY,
-                            "In-Field Teachers":    "#388E3C",
+                            "In-Field Teachers":    "#6FA593",
                         },
                     )
                     fig.update_traces(textposition="outside", cliponaxis=False)

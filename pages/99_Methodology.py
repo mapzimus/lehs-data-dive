@@ -15,6 +15,47 @@ st.markdown(
     "fields, and spells out the suppression rules and important caveats."
 )
 
+st.header("About this dashboard")
+st.markdown(
+    """
+**What it is.** A free, public data dashboard about **Lynn English High
+School** (LEHS) — the largest comprehensive high school in Lynn,
+Massachusetts. It pulls together enrollment, MCAS, coursework, English
+Learner, college-and-career, accountability, staffing, finance, discipline,
+and neighborhood-context data that are normally scattered across a dozen
+state and federal websites, and presents them in one place.
+
+**Why it exists.** Most of this information is public but hard to find, hard
+to compare year-over-year, and dense with agency jargon. The goal is to make
+LEHS's story legible to the people with a stake in it — **students, families,
+teachers, school leaders, and community members** — without requiring a
+spreadsheet or a glossary of DESE codes.
+
+**Who built it.** Built and maintained by **Maxwell Howe**
+([maxwellhowegis.com](https://maxwellhowegis.com)) as an independent project.
+It is **not** an official publication of Lynn Public Schools or the
+Massachusetts Department of Elementary and Secondary Education; every figure
+traces back to the public sources listed below so you can check the work
+yourself.
+"""
+)
+
+st.divider()
+
+# Owner direction: keep Methodology, "how to read the charts", and "what we
+# don't know" discoverable as one reference family. Rather than duplicate that
+# content, point to its dedicated pages up top.
+st.info(
+    "**The reference family:** this page covers *sources, fields, and "
+    "caveats*. For how to read the charts see **Data 101**, and for the honest "
+    "limits of what's measurable see **What We Still Don't Know**."
+)
+_ref1, _ref2 = st.columns(2)
+with _ref1:
+    st.page_link("pages/Data_Literacy.py", label="📊 Data 101 — reading the charts")
+with _ref2:
+    st.page_link("pages/Data_Gaps.py", label="🕳️ What We Still Don't Know")
+
 # Annual PDF download — built by scripts/13_build_annual_report.py
 from pathlib import Path
 _pdf_path = Path(__file__).resolve().parent.parent / "reports" / "state_of_lehs_2026.pdf"
@@ -33,7 +74,7 @@ sources = [
     ("E2C Hub", "educationtocareer.data.mass.gov",
      "Socrata-hosted DESE open data — MCAS, graduation, AP, enrollment, attendance, finance, staffing, plans, pathways, postsecondary"),
     ("DESE Profiles statereport", "profiles.doe.mass.edu/statereport/",
-     "Bulk CSVs — discipline, VOCAL climate, accountability, ACCESS for ELLs, detailed staffing"),
+     "Bulk CSVs — discipline, VOCAL climate, accountability, ACCESS for ELLs (the state English-proficiency test for English Learners), detailed staffing"),
     ("DESE accountability workbooks", "doe.mass.edu/accountability/lists-tools",
      "Five annual xlsx workbooks behind the State Accountability page — determinations, criterion-referenced indicator detail, targets, and percentile research files (full breakdown below)"),
     ("Civil Rights Data Collection (CRDC)", "civilrightsdata.ed.gov",
@@ -53,7 +94,7 @@ sources = [
     ("MaxPreps", "maxpreps.com",
      "Season-by-season Athletics records (team results, standings) powering the Athletics page — complemented by a hand-curated history file (assets/curated/lehs_athletics_history.yaml: Hall of Fame, Manning Bowl, legacy coaches)"),
     ("DESE local files", "—",
-     "reporting-element4.xlsx (former-EL MCAS), state.docx (WIDA ACCESS 2025)"),
+     "reporting-element4.xlsx (former-EL MCAS), state.docx (the WIDA ACCESS 2025 English-proficiency test results)"),
 ]
 
 for name, url, desc in sources:
@@ -79,7 +120,7 @@ The **[State Accountability](/Accountability?embed=true)** page is built from
 2. **`criterion-referenced-percentage-{year}.xlsx`** — every indicator ×
    student group, with prior and current value, change, target, N, points
    earned, rating, and the rating reason. The HS sheet carries schools →
-   `accountability_indicators.parquet`; the MSHS sheet carries the state and
+   `accountability_indicators.parquet`; the middle/high-school (MSHS) sheet carries the state and
    district rows used as benchmarks → `accountability_benchmarks.parquet`.
 3. **`accountability-targets-{year}.xlsx`** — baselines plus this-year and
    next-year targets with annual increments, per school × student group →
@@ -94,8 +135,8 @@ The **[State Accountability](/Accountability?embed=true)** page is built from
 **How DESE scores it (the short version).** Each indicator earns **0–4
 points** per student group. Points are weighted by category — for *All
 Students*: Achievement 40, Growth 20, HS completion 20, English-language
-proficiency 10, Additional indicators 10; for the *Lowest Performing* group:
-67.5 / 22.5 / 10 (no HS-completion or ELP weight). The **annual**
+proficiency (ELP) 10, Additional indicators 10; for the *Lowest Performing* group:
+67.5 / 22.5 / 10 (no HS-completion or English-language-proficiency weight). The **annual**
 criterion-referenced percentage is the weighted share of possible points;
 the **cumulative** figure blends prior year × 40% with current year × 60%;
 a cumulative percentage of **75% or higher reads as "meeting targets."**

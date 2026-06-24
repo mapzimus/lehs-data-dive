@@ -1,6 +1,7 @@
 """Search — find a page or section across the whole dashboard."""
 
 import json
+import re
 
 import streamlit as st
 
@@ -12,6 +13,14 @@ st.set_page_config(page_title="Search | LEHS", page_icon="🔎", layout="wide")
 sidebar_attribution()
 
 INDEX_PATH = PROJECT_ROOT / "data" / "search_index.json"
+
+# Section headings carry decorative emoji/icon prefixes (e.g. "📊 MCAS Results");
+# strip the leading non-letter/digit clutter so search results read cleanly.
+_LEADING_ICON = re.compile(r"^[^0-9A-Za-z]+")
+
+
+def _clean_section(text: str) -> str:
+    return _LEADING_ICON.sub("", text).strip() or text
 
 
 @st.cache_data(show_spinner=False)
@@ -74,7 +83,7 @@ else:
         with st.container(border=True):
             st.markdown(f"### [{r['title']}](/{r['url']})")
             if r["matched"]:
-                bullets = "\n".join(f"- {s}" for s in r["matched"][:6])
+                bullets = "\n".join(f"- {_clean_section(s)}" for s in r["matched"][:6])
                 st.markdown("Matching sections:\n" + bullets)
 
 page_footer()

@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.branding import crosslink_callout, page_footer, sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, data_downloads_panel
+from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, data_downloads_panel, year_axis
 from utils.constants import (
     GATEWAY_PEER_COLOR,
     IMAGES_DIR,
@@ -138,6 +138,7 @@ if not total_exp.empty:
 
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="$,.0f",
                       yaxis_title="$ per pupil", xaxis_title="Fiscal Year")
+    year_axis(fig)
     with c2:
         st.plotly_chart(fig, width="stretch")
         if gw_med_pp is not None:
@@ -276,6 +277,7 @@ if not fund_summary.empty:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="$,.0f",
                        yaxis_title="$ per pupil", xaxis_title="Fiscal Year")
+    year_axis(fig)
     st.plotly_chart(fig, width="stretch")
 
 st.divider()
@@ -341,6 +343,7 @@ if not salary.empty:
                                      line=dict(color=LVTI_COLOR, width=2, dash="dot")))
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="$,.0f",
                           yaxis_title="Average salary")
+        year_axis(fig)
         st.plotly_chart(fig, width="stretch")
 
 if not teach_per_100.empty:
@@ -373,6 +376,7 @@ if not teach_per_100.empty:
                                      mode="lines+markers", name="Lynn Tech",
                                      line=dict(color=LVTI_COLOR, width=2, dash="dot")))
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Teachers per 100 students")
+        year_axis(fig)
         st.plotly_chart(fig, width="stretch")
 
 st.divider()
@@ -497,6 +501,7 @@ if not dist_exp.empty:
                 xaxis_title="Fiscal Year",
                 legend_title="",
             )
+            year_axis(fig)
             st.plotly_chart(fig, width="stretch")
 
         st.caption(
@@ -636,6 +641,7 @@ else:
             xaxis_title="School Year",
             legend_title="",
         )
+        year_axis(fig)
         st.plotly_chart(fig, width="stretch")
         st.caption(
             "The Student Opportunity Act of 2019 substantially increased the "

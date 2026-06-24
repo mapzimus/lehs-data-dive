@@ -13,6 +13,7 @@ from utils.charts import (
     SUBGROUP_PALETTE,
     span_years,
     with_year_gaps,
+    year_axis,
 )
 from utils.constants import (
     GENDER_PALETTE,
@@ -44,11 +45,15 @@ st.markdown(
 # moved out; see the Leadership section on pages/12_LEHS_History.py.)
 # ---------------------------------------------------------------------------
 
-_b_l, _b_c, _b_r = st.columns([1, 2, 1])
+# The source image is a tall 1200x1600 portrait; rendering it width="stretch"
+# across half the page made it read as an oversized hero. Cap it to a fixed,
+# modest pixel width inside a narrow centered column so it sits as a compact
+# banner rather than dominating the top of the page.
+_b_l, _b_c, _b_r = st.columns([2, 1, 2])
 with _b_c:
     st.image(
         str(IMAGES_DIR / "lehs-building.jpg"),
-        width="stretch",
+        width=240,
         caption="Main entrance, O'Callaghan Way",
     )
 
@@ -338,12 +343,17 @@ grade_data = pd.DataFrame({
     "Students": [current["G9_CNT"], current["G10_CNT"], current["G11_CNT"], current["G12_CNT"]],
 })
 
+# Cohort framing: shade grades 9→12 as a single navy progression and pull
+# the graduating class (grade 12) out in the gold accent, so the bars read
+# as one cohort moving toward graduation rather than four interchangeable
+# blocks. Data is unchanged — only the per-grade color emphasis differs.
+_grade_colors = [LEHS_NAVY, LEHS_NAVY, LEHS_NAVY, LEHS_GOLD]
 fig = go.Figure(go.Bar(
     x=grade_data["Grade"],
     y=grade_data["Students"],
     text=grade_data["Students"].apply(lambda v: f"{int(v):,}" if pd.notna(v) else ""),
     textposition="outside",
-    marker_color=LEHS_NAVY,
+    marker_color=_grade_colors,
 ))
 fig.update_traces(cliponaxis=False)
 fig.update_layout(
@@ -381,7 +391,7 @@ st.divider()
 st.subheader("Student–teacher ratio over time")
 st.caption(
     "DESE's reported student-to-teacher ratio for LEHS, computed from the "
-    "'All Teachers' FTE total. Lower is better (smaller classes)."
+    "'All Teachers' FTE total. Fewer students per teacher means smaller classes."
 )
 
 _td = load_dataset("teacher_data")
@@ -718,6 +728,84 @@ fig.update_layout(**DEFAULT_LAYOUT, xaxis_title="Students", yaxis_title="",
 st.plotly_chart(fig, width="stretch")
 
 # ---------------------------------------------------------------------------
+# English Learner access & progress — the EL share appears throughout the
+# page, but the EL-specific access dataset (ACCESS test participation +
+# DESE reclassification rates) wasn't surfaced anywhere. Loaded here so the
+# EL story isn't only a single demographic %.
+# ---------------------------------------------------------------------------
+
+_ela = load_dataset("el_access")
+if not _ela.empty:
+    _ela_lehs = _ela[
+        (_ela["ORG_CODE"] == LEHS_SCHOOL_CODE)
+        & (_ela["ORG_TYPE"] == "School")
+        & (_ela["GRADE"] == "ALL")
+    ].sort_values("SY").copy()
+    _ela_state = _ela[
+        (_ela["ORG_TYPE"] == "State") & (_ela["GRADE"] == "ALL")
+    ].sort_values("SY").copy()
+    if not _ela_lehs.empty:
+        st.divider()
+        st.subheader("English Learner access & progress")
+        st.caption(
+            "Beyond the EL *share* shown above, DESE's ACCESS reporting tracks "
+            "how EL students are doing on the path to English proficiency. "
+            "**ACCESS participation** is the % of EL students who took the annual "
+            "WIDA ACCESS test; **making progress** is the % advancing toward "
+            "proficiency that year (DESE's RE1 measure)."
+        )
+
+        _ela_latest = _ela_lehs.iloc[-1]
+        e1, e2, e3 = st.columns(3)
+        with e1:
+            st.metric(
+                f"EL students tested (SY {sy_label(int(_ela_latest['SY']))})",
+                f"{int(_ela_latest['ENROLLED_CNT']):,}"
+                if pd.notna(_ela_latest.get("ENROLLED_CNT")) else "—",
+                help="Count of LEHS English Learners enrolled for ACCESS testing.",
+            )
+        with e2:
+            st.metric(
+                "ACCESS participation",
+                f"{float(_ela_latest['PART_RATE']):.0%}"
+                if pd.notna(_ela_latest.get("PART_RATE")) else "—",
+                help="% of EL students who took the annual WIDA ACCESS test.",
+            )
+        with e3:
+            st.metric(
+                "Making progress toward proficiency",
+                f"{float(_ela_latest['RE1_PCT']):.0%}"
+                if pd.notna(_ela_latest.get("RE1_PCT")) else "—",
+                help="% of EL students advancing toward English proficiency this year (DESE RE1).",
+            )
+
+        _re1_frames = []
+        for _label, _frame in [("LEHS", _ela_lehs), ("Massachusetts", _ela_state)]:
+            _t = _frame[["SY", "RE1_PCT"]].dropna().copy()
+            if not _t.empty:
+                _t["Scope"] = _label
+                _re1_frames.append(_t)
+        if _re1_frames:
+            _re1 = pd.concat(_re1_frames, ignore_index=True)
+            _re1 = with_year_gaps(
+                _re1, "RE1_PCT", group_col="Scope", years=span_years(_re1),
+            )
+            fig_el = px.line(
+                _re1.sort_values(["Scope", "SY"]),
+                x="SY", y="RE1_PCT", color="Scope", markers=True,
+                color_discrete_map={"LEHS": LEHS_GOLD, "Massachusetts": STATE_COLOR},
+            )
+            fig_el.update_traces(connectgaps=False)
+            fig_el.update_layout(
+                **DEFAULT_LAYOUT,
+                yaxis_tickformat=".0%",
+                yaxis_title="% making progress toward proficiency",
+                xaxis_title="School Year",
+            )
+            year_axis(fig_el)
+            st.plotly_chart(fig_el, width="stretch")
+
+# ---------------------------------------------------------------------------
 # Where LEHS students live — Gap #4: tie the demographic story to a
 # place. A kernel-density thumbnail from the original catchment
 # research, with a hand-off to Where Students Live for the full
@@ -766,6 +854,14 @@ if not _mob.empty:
         & (_mob["ORG_TYPE"] == "School")
         & (_mob["STU_GRP"] == "All Students")
     ].sort_values("SY").copy()
+    # Lynn district row is the closest "what is normal?" benchmark — DESE's
+    # mobility report carries no statewide aggregate, but it does publish a
+    # district-wide row (the attrition section below uses the same comparison).
+    _mob_dist = _mob[
+        (_mob["DIST_CODE"] == LYNN_DISTRICT_CODE)
+        & (_mob["ORG_TYPE"] == "District")
+        & (_mob["STU_GRP"] == "All Students")
+    ].sort_values("SY").copy()
     if not _mob_lehs.empty:
         st.divider()
         st.subheader("Student mobility")
@@ -773,7 +869,9 @@ if not _mob.empty:
             "How much of LEHS's student body turns over during a school year. "
             "**Stability** = % enrolled the whole year. **Churn** = % who "
             "moved in or out mid-year. **Intake** = % new during the year. "
-            "Lower churn means a more predictable instructional environment."
+            "The dashed line is the Lynn district churn rate — the closest "
+            "available “what’s normal here?” benchmark, since DESE "
+            "publishes no statewide mobility aggregate."
         )
 
         _latest_m = _mob_lehs.iloc[-1]
@@ -820,12 +918,23 @@ if not _mob.empty:
             color_discrete_map=MOBILITY_PALETTE,
         )
         fig_m.update_traces(connectgaps=False)
+        # District churn benchmark — answers "is LEHS's churn normal for Lynn?"
+        if not _mob_dist.empty:
+            _dist_churn = _mob_dist[["SY", "CHURN_PCT"]].dropna(subset=["CHURN_PCT"])
+            _dist_churn = with_year_gaps(_dist_churn, "CHURN_PCT", years=span_years(_dist_churn))
+            fig_m.add_scatter(
+                x=_dist_churn["SY"], y=_dist_churn["CHURN_PCT"],
+                mode="lines", name="Lynn district churn",
+                line=dict(color=MOBILITY_PALETTE["Churn"], width=2, dash="dash"),
+                connectgaps=False,
+            )
         fig_m.update_layout(
             **DEFAULT_LAYOUT,
             yaxis_tickformat=".0%",
             yaxis_title="Share of students",
             xaxis_title="School Year",
         )
+        year_axis(fig_m)
         st.plotly_chart(fig_m, width="stretch")
 
 # ---------------------------------------------------------------------------
@@ -1283,6 +1392,7 @@ try:
         'MCAS achievement': _mcas,
         'Teacher & staffing': _td,
         'Average class size': _cs,
+        'English Learner access': _ela,
         'Student mobility': _mob,
         'Student attrition': _attr,
         'Attendance & chronic absenteeism': attendance,

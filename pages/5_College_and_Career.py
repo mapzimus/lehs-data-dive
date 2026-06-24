@@ -112,10 +112,14 @@ if not pathways.empty:
         # (SY, PATHWAY) group, so take the max to get one clean number per
         # pathway per year without summing sub-programs.
         p["PROGRAM_CNT"] = pd.to_numeric(p["PROGRAM_CNT"], errors="coerce")
+        # "After Dark" is the evening delivery model for the Chapter 74 career-tech
+        # programs — it counts the *same* students as "Career Tech Ed (Ch. 74)".
+        # Drawing both as separate grouped bars implies they are distinct,
+        # additive populations, so we drop the duplicate "After Dark" series and
+        # show only the two non-overlapping pathways.
         PATHWAY_LABELS = {
             "Early College": "Early College",
             "Career Technical Education (Chapter 74 Programs)": "Career Tech Ed (Ch. 74)",
-            "After Dark": "After Dark (evening CTE)",
         }
         pw = p[p["PATHWAY"].isin(PATHWAY_LABELS)].copy()
         pw["Pathway"] = pw["PATHWAY"].map(PATHWAY_LABELS)
@@ -134,7 +138,6 @@ if not pathways.empty:
                 color_discrete_map={
                     "Early College": LEHS_NAVY,
                     "Career Tech Ed (Ch. 74)": LEHS_GOLD,
-                    "After Dark (evening CTE)": "#7B9E89",
                 },
             )
             fig.update_traces(textposition="outside", cliponaxis=False)
@@ -148,7 +151,8 @@ if not pathways.empty:
                 "College is by far the largest at LEHS and has roughly doubled "
                 "since SY 2021-22. The Chapter 74 career-tech programs are "
                 "delivered through the after-school \"After Dark\" model, so "
-                "those two bars count the same students."
+                "they are shown as a single bar to avoid double-counting the "
+                "same students."
             )
     else:
         st.info("No LEHS pathways enrollment data (program may not be designated here).")
@@ -207,7 +211,8 @@ st.header("Early College Credits — Lynn District")
 st.caption(
     "Above is *participation* (any rows = participating). This section is the "
     "*credit volume*: how many college credits Lynn HS students actually "
-    "earn each year, broken out by partner CEEB college. Source: "
+    "earn each year, broken out by partner college (identified by its "
+    "College Board / CEEB code). Source: "
     "*Early College Credits* dataset."
 )
 
@@ -234,21 +239,23 @@ if not early_credits.empty:
         )
         if not ec_agg.empty:
             st.subheader(f"Credits earned by partner college (SY {latest_ec - 1}-{str(latest_ec)[-2:]})")
+            # Pass rate (earned/registered) sits in a narrow band across partners
+            # (~93–95%), so a continuous colorscale would exaggerate a trivial
+            # spread and distract from the actual measure (credits earned). Use a
+            # single brand color for the bars and keep pass rate in the hover.
             ec_agg["pass_rate"] = ec_agg["EARNED_CREDIT_CNT"] / ec_agg["REG_CREDITS_CNT"]
             fig = px.bar(
                 ec_agg, y="CEEB_NAME", x="EARNED_CREDIT_CNT", orientation="h",
-                color="pass_rate", color_continuous_scale="Greens",
                 hover_data={"STU_CNT": True, "REG_CREDITS_CNT": True, "pass_rate": ":.0%"},
                 text=ec_agg["EARNED_CREDIT_CNT"].astype(int).astype(str),
             )
-            fig.update_traces(textposition="outside", cliponaxis=False)
+            fig.update_traces(textposition="outside", cliponaxis=False, marker_color=LEHS_NAVY)
             fig.update_layout(
                 **DEFAULT_LAYOUT,
                 height=max(280, 36 * len(ec_agg)),
                 xaxis_title="Credits earned",
                 xaxis_range=[0, ec_agg["EARNED_CREDIT_CNT"].max() * 1.15],
                 yaxis_title="",
-                coloraxis_colorbar=dict(title="Pass rate"),
             )
             st.plotly_chart(fig, width="stretch")
 else:
@@ -301,11 +308,11 @@ if not cco.empty:
             )
             color_map_outcome = {
                 "Total Missing":          "#90A4AE",
-                "In-State Public 4-Year": "#1976D2",
-                "In-State Public 2-Year": "#42A5F5",
-                "In-State Private":       LEHS_NAVY,
-                "Out-of-State":           "#7B1FA2",
-                "Total Employed":         "#388E3C",
+                "In-State Public 4-Year": LEHS_NAVY,
+                "In-State Public 2-Year": "#A6C8E8",
+                "In-State Private":       "#8294AE",
+                "Out-of-State":           LEHS_GOLD,
+                "Total Employed":         "#9CCFC4",
             }
             fig = px.bar(
                 itemized, y="OUTCOME_TYPE", x="OUTCOME_CNT", orientation="h",
@@ -370,20 +377,36 @@ else:
         "WHITE_PCT": "% White",
         "ASIAN_PCT": "% Asian",
     }
-    have = [c for c in display_cols if c in ipeds.columns]
-    display = ipeds[have].rename(columns=display_cols).copy()
-    for c in ["Grad rate (150%)", "% Pell recipients", "% Black", "% Hispanic",
-              "% White", "% Asian"]:
-        if c in display.columns:
-            display[c] = display[c].apply(
-                lambda x: f"{x:.0%}" if pd.notna(x) and isinstance(x, (int, float)) else "—"
-            )
-    for c in ["In-state cost", "Out-of-state cost"]:
-        if c in display.columns:
-            display[c] = display[c].apply(
-                lambda x: f"${x:,.0f}" if pd.notna(x) and isinstance(x, (int, float)) else "—"
-            )
-    st.dataframe(display, width="stretch", hide_index=True, height=420)
+    # Drop any enrichment column that is entirely empty so we never render a
+    # wall of em-dashes — the College Scorecard demo key frequently returns
+    # institution names only. If nothing but names came back, show the names as
+    # a clean list with an honest note instead of a one-real-column table.
+    enrich_cols = [c for c in display_cols if c != "INSTITUTION" and c in ipeds.columns]
+    populated = [c for c in enrich_cols if ipeds[c].notna().any()]
+    if not populated:
+        st.info(
+            "We have the destination institution names below, but the College "
+            "Scorecard enrichment (grad rate, cost, demographics) isn't "
+            "populated in this build — so rather than a table of blanks, here's "
+            "the institution list."
+        )
+        _names = ipeds["INSTITUTION"].dropna().astype(str).tolist()
+        st.markdown("\n".join(f"- {n}" for n in _names))
+    else:
+        have = ["INSTITUTION"] + populated
+        display = ipeds[have].rename(columns=display_cols).copy()
+        for c in ["Grad rate (150%)", "% Pell recipients", "% Black", "% Hispanic",
+                  "% White", "% Asian"]:
+            if c in display.columns:
+                display[c] = display[c].apply(
+                    lambda x: f"{x:.0%}" if pd.notna(x) and isinstance(x, (int, float)) else "—"
+                )
+        for c in ["In-state cost", "Out-of-state cost"]:
+            if c in display.columns:
+                display[c] = display[c].apply(
+                    lambda x: f"${x:,.0f}" if pd.notna(x) and isinstance(x, (int, float)) else "—"
+                )
+        st.dataframe(display, width="stretch", hide_index=True, height=420)
 
 st.divider()
 
