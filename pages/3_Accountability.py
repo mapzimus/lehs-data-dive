@@ -22,7 +22,7 @@ from utils.charts import (
     DEFAULT_LAYOUT,
     csv_download,
     data_downloads_panel,
-    with_year_gaps,
+    year_axis,
 )
 from utils.constants import (
     ACCT_GROUP_TO_STU_GRP,
@@ -410,11 +410,13 @@ tdf = _load_trend(ti, tgrp)
 if tdf.empty:
     st.info("No trend rows for this indicator / group combination.")
 else:
-    years = tuple(range(int(tdf["SY"].min()), int(tdf["SY"].max()) + 1))
-    gapped = with_year_gaps(tdf, "VALUE", group_col="Scope", years=years)
-    fig = px.line(gapped, x="SY", y="VALUE", color="Scope", markers=True,
-                  color_discrete_map=_SCOPE_COLORS)
-    fig.update_traces(connectgaps=False)
+    # Owner direction: visually skip the missing 2020 (no testing) but DRAW the
+    # connecting 2019->2021 segment rather than breaking the line. Plotting the
+    # actual rows (which have no 2020) lets px.line connect across the gap; the
+    # integer year axis (year_axis below) still leaves an empty 2020 tick so the
+    # skip stays visible.
+    fig = px.line(tdf.sort_values("SY"), x="SY", y="VALUE", color="Scope",
+                  markers=True, color_discrete_map=_SCOPE_COLORS)
     # Target overlays (LEHS, for the selected group)
     if not targets.empty:
         tt = targets[(targets["ORG_CODE"] == LEHS_SCHOOL_CODE) & (targets["GROUP"] == tgrp)
@@ -431,6 +433,7 @@ else:
                               annotation_position="top right", annotation_font=dict(size=10, color=LEHS_GOLD))
     fig.update_layout(**DEFAULT_LAYOUT, title=f"{ti} — {tgrp}", yaxis_title=tg_spec["ytitle"],
                       xaxis_title="School Year", legend_title="")
+    year_axis(fig)
     st.plotly_chart(fig, width="stretch")
     note = tg_spec.get("note")
     if note == "sgp":

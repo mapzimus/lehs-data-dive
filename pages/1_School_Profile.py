@@ -13,6 +13,7 @@ from utils.charts import (
     SUBGROUP_PALETTE,
     span_years,
     with_year_gaps,
+    year_axis,
 )
 from utils.constants import (
     GENDER_PALETTE,
@@ -766,6 +767,14 @@ if not _mob.empty:
         & (_mob["ORG_TYPE"] == "School")
         & (_mob["STU_GRP"] == "All Students")
     ].sort_values("SY").copy()
+    # Lynn district row is the closest "what is normal?" benchmark — DESE's
+    # mobility report carries no statewide aggregate, but it does publish a
+    # district-wide row (the attrition section below uses the same comparison).
+    _mob_dist = _mob[
+        (_mob["DIST_CODE"] == LYNN_DISTRICT_CODE)
+        & (_mob["ORG_TYPE"] == "District")
+        & (_mob["STU_GRP"] == "All Students")
+    ].sort_values("SY").copy()
     if not _mob_lehs.empty:
         st.divider()
         st.subheader("Student mobility")
@@ -773,7 +782,9 @@ if not _mob.empty:
             "How much of LEHS's student body turns over during a school year. "
             "**Stability** = % enrolled the whole year. **Churn** = % who "
             "moved in or out mid-year. **Intake** = % new during the year. "
-            "Lower churn means a more predictable instructional environment."
+            "The dashed line is the Lynn district churn rate — the closest "
+            "available “what’s normal here?” benchmark, since DESE "
+            "publishes no statewide mobility aggregate."
         )
 
         _latest_m = _mob_lehs.iloc[-1]
@@ -820,12 +831,23 @@ if not _mob.empty:
             color_discrete_map=MOBILITY_PALETTE,
         )
         fig_m.update_traces(connectgaps=False)
+        # District churn benchmark — answers "is LEHS's churn normal for Lynn?"
+        if not _mob_dist.empty:
+            _dist_churn = _mob_dist[["SY", "CHURN_PCT"]].dropna(subset=["CHURN_PCT"])
+            _dist_churn = with_year_gaps(_dist_churn, "CHURN_PCT", years=span_years(_dist_churn))
+            fig_m.add_scatter(
+                x=_dist_churn["SY"], y=_dist_churn["CHURN_PCT"],
+                mode="lines", name="Lynn district churn",
+                line=dict(color=MOBILITY_PALETTE["Churn"], width=2, dash="dash"),
+                connectgaps=False,
+            )
         fig_m.update_layout(
             **DEFAULT_LAYOUT,
             yaxis_tickformat=".0%",
             yaxis_title="Share of students",
             xaxis_title="School Year",
         )
+        year_axis(fig_m)
         st.plotly_chart(fig_m, width="stretch")
 
 # ---------------------------------------------------------------------------
