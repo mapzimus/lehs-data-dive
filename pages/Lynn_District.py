@@ -22,6 +22,7 @@ from utils.charts import (
     DEFAULT_LAYOUT,
     LEHS_GOLD,
     LEHS_NAVY,
+    STATE_COLOR,
     SUBGROUP_PALETTE,
     data_downloads_panel,
     year_axis,
@@ -282,10 +283,31 @@ with tab_snapshot:
                     markers=True,
                     color_discrete_map=SUBJECT_PALETTE,
                 )
+                # Real DESE statewide reference (ORG_TYPE=='State') per subject,
+                # so a reader can see whether Lynn sits above or below MA at the
+                # point of the chart instead of only Lynn-on-Lynn.
+                for _subj in g10["SUBJECT_CODE"].dropna().unique():
+                    _sl = _state_line(
+                        mcas, "M_PLUS_E_PCT",
+                        extra_filters={"TEST_GRADE": "10", "SUBJECT_CODE": _subj,
+                                       "STU_GRP": "All Students"},
+                        period_col=None,
+                    )
+                    if _sl is not None and not _sl.empty:
+                        fig.add_trace(go.Scatter(
+                            x=_sl["SY"], y=_sl["M_PLUS_E_PCT"], mode="lines",
+                            name=f"MA statewide — {_subj}",
+                            line=dict(color=STATE_COLOR, width=2, dash="dot"),
+                        ))
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                    yaxis_title="% Meeting + Exceeding")
                 year_axis(fig)
                 st.plotly_chart(fig, width="stretch")
+                st.caption(
+                    "Dotted grey lines are the real DESE statewide figure for "
+                    "each subject (ORG_TYPE = State), shown so Lynn's trend has a "
+                    "\"is this typical?\" anchor in-chart."
+                )
 
             elem_mcas = district_mcas[
                 district_mcas["TEST_GRADE"].astype(str).isin(
@@ -325,6 +347,11 @@ with tab_snapshot:
                                xaxis_title="Cohort Year")
             year_axis(fig)
             st.plotly_chart(fig, width="stretch")
+            st.caption(
+                "Lynn only — DESE publishes no statewide 4-year cohort "
+                "graduation row in this dataset, so no MA reference line is "
+                "drawn here. See the Gateway-districts comparison below for a peer anchor."
+            )
 
         # -------------------------------------------------------------------
         # District attendance / chronic absence
@@ -343,7 +370,21 @@ with tab_snapshot:
                 district_att["PCT_CHRON_ABS_10"], errors="coerce"
             )
             fig = px.line(district_att, x="SY", y="PCT_CHRON_ABS_10", markers=True)
-            fig.update_traces(line=dict(color=LEHS_GOLD, width=3))
+            fig.update_traces(line=dict(color=LEHS_GOLD, width=3),
+                              name="Lynn district", showlegend=True)
+            # Real DESE statewide chronic-absence line (ORG_TYPE=='State') so the
+            # Lynn trend has an "is this high?" anchor in-chart.
+            _att_state = _state_line(
+                attendance, "PCT_CHRON_ABS_10",
+                period_col="ATTEND_PERIOD", period="End of Year",
+                extra_filters={"STU_GRP": "All Students"},
+            )
+            if _att_state is not None and not _att_state.empty:
+                fig.add_trace(go.Scatter(
+                    x=_att_state["SY"], y=_att_state["PCT_CHRON_ABS_10"],
+                    mode="lines", name="Massachusetts (statewide)",
+                    line=dict(color=STATE_COLOR, width=2, dash="dot"),
+                ))
             fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                yaxis_title="% Chronically Absent (10%+ missed)")
             year_axis(fig)
@@ -514,8 +555,12 @@ with tab_snapshot:
                         )
                         st.plotly_chart(fig, width="stretch")
                         st.caption(
-                            "The gap between the two groups is one of DESE's most "
-                            "tracked indicators for SpEd program effectiveness."
+                            "The two bars are the in-chart benchmark: Lynn's "
+                            "students with disabilities compared against Lynn's "
+                            "students without disabilities. The gap between them "
+                            "is one of DESE's most tracked indicators for SpEd "
+                            "program effectiveness. (No separate statewide SWD/"
+                            "non-SWD reference is drawn here.)"
                         )
 
                 post = sped_lynn[

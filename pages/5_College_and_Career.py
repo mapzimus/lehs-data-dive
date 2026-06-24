@@ -112,10 +112,14 @@ if not pathways.empty:
         # (SY, PATHWAY) group, so take the max to get one clean number per
         # pathway per year without summing sub-programs.
         p["PROGRAM_CNT"] = pd.to_numeric(p["PROGRAM_CNT"], errors="coerce")
+        # "After Dark" is the evening delivery model for the Chapter 74 career-tech
+        # programs — it counts the *same* students as "Career Tech Ed (Ch. 74)".
+        # Drawing both as separate grouped bars implies they are distinct,
+        # additive populations, so we drop the duplicate "After Dark" series and
+        # show only the two non-overlapping pathways.
         PATHWAY_LABELS = {
             "Early College": "Early College",
             "Career Technical Education (Chapter 74 Programs)": "Career Tech Ed (Ch. 74)",
-            "After Dark": "After Dark (evening CTE)",
         }
         pw = p[p["PATHWAY"].isin(PATHWAY_LABELS)].copy()
         pw["Pathway"] = pw["PATHWAY"].map(PATHWAY_LABELS)
@@ -134,7 +138,6 @@ if not pathways.empty:
                 color_discrete_map={
                     "Early College": LEHS_NAVY,
                     "Career Tech Ed (Ch. 74)": LEHS_GOLD,
-                    "After Dark (evening CTE)": "#7B9E89",
                 },
             )
             fig.update_traces(textposition="outside", cliponaxis=False)
@@ -148,7 +151,8 @@ if not pathways.empty:
                 "College is by far the largest at LEHS and has roughly doubled "
                 "since SY 2021-22. The Chapter 74 career-tech programs are "
                 "delivered through the after-school \"After Dark\" model, so "
-                "those two bars count the same students."
+                "they are shown as a single bar to avoid double-counting the "
+                "same students."
             )
     else:
         st.info("No LEHS pathways enrollment data (program may not be designated here).")
@@ -235,21 +239,23 @@ if not early_credits.empty:
         )
         if not ec_agg.empty:
             st.subheader(f"Credits earned by partner college (SY {latest_ec - 1}-{str(latest_ec)[-2:]})")
+            # Pass rate (earned/registered) sits in a narrow band across partners
+            # (~93–95%), so a continuous colorscale would exaggerate a trivial
+            # spread and distract from the actual measure (credits earned). Use a
+            # single brand color for the bars and keep pass rate in the hover.
             ec_agg["pass_rate"] = ec_agg["EARNED_CREDIT_CNT"] / ec_agg["REG_CREDITS_CNT"]
             fig = px.bar(
                 ec_agg, y="CEEB_NAME", x="EARNED_CREDIT_CNT", orientation="h",
-                color="pass_rate", color_continuous_scale="Greens",
                 hover_data={"STU_CNT": True, "REG_CREDITS_CNT": True, "pass_rate": ":.0%"},
                 text=ec_agg["EARNED_CREDIT_CNT"].astype(int).astype(str),
             )
-            fig.update_traces(textposition="outside", cliponaxis=False)
+            fig.update_traces(textposition="outside", cliponaxis=False, marker_color=LEHS_NAVY)
             fig.update_layout(
                 **DEFAULT_LAYOUT,
                 height=max(280, 36 * len(ec_agg)),
                 xaxis_title="Credits earned",
                 xaxis_range=[0, ec_agg["EARNED_CREDIT_CNT"].max() * 1.15],
                 yaxis_title="",
-                coloraxis_colorbar=dict(title="Pass rate"),
             )
             st.plotly_chart(fig, width="stretch")
 else:

@@ -15,6 +15,33 @@ st.markdown(
     "fields, and spells out the suppression rules and important caveats."
 )
 
+st.header("About this dashboard")
+st.markdown(
+    """
+**What it is.** A free, public data dashboard about **Lynn English High
+School** (LEHS) — the largest comprehensive high school in Lynn,
+Massachusetts. It pulls together enrollment, MCAS, coursework, English
+Learner, college-and-career, accountability, staffing, finance, discipline,
+and neighborhood-context data that are normally scattered across a dozen
+state and federal websites, and presents them in one place.
+
+**Why it exists.** Most of this information is public but hard to find, hard
+to compare year-over-year, and dense with agency jargon. The goal is to make
+LEHS's story legible to the people with a stake in it — **students, families,
+teachers, school leaders, and community members** — without requiring a
+spreadsheet or a glossary of DESE codes.
+
+**Who built it.** Built and maintained by **Maxwell Howe**
+([maxwellhowegis.com](https://maxwellhowegis.com)) as an independent project.
+It is **not** an official publication of Lynn Public Schools or the
+Massachusetts Department of Elementary and Secondary Education; every figure
+traces back to the public sources listed below so you can check the work
+yourself.
+"""
+)
+
+st.divider()
+
 # Owner direction: keep Methodology, "how to read the charts", and "what we
 # don't know" discoverable as one reference family. Rather than duplicate that
 # content, point to its dedicated pages up top.

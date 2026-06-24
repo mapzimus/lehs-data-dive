@@ -1164,9 +1164,31 @@ else:
         if bdf["Pct"].sum() > 0:
             bdf["label"] = bdf["Pct"].map(lambda v: f"{v:.1%}")
             st.markdown(f"**Share of all LEHS students by days missed — SY {sy_label(days_year)}**")
-            fig = px.bar(bdf, x="Band", y="Pct", text="label")
-            fig.update_traces(marker_color=LEHS_NAVY, textposition="outside",
-                              cliponaxis=False)
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                name="Lynn English", x=bdf["Band"], y=bdf["Pct"],
+                text=bdf["label"], textposition="outside", cliponaxis=False,
+                marker_color=LEHS_NAVY,
+            ))
+            # State reference — Massachusetts All-Students band shares for the
+            # same year. Both are "% of all enrolled students" per band, so the
+            # series are directly comparable (answers "is this high vs. normal?").
+            state_days = days[
+                (days["ORG_CODE"].astype(str) == "00000000")
+                & (days["STU_GRP"] == "All Students")
+                & (days["SY"] == days_year)
+            ]
+            if not state_days.empty:
+                srow = state_days.iloc[0]
+                state_pct = [
+                    float(v) if pd.notna(v := pd.to_numeric(srow.get(col), errors="coerce")) else 0.0
+                    for col, _ in DAY_BANDS
+                ]
+                fig.add_trace(go.Bar(
+                    name="Massachusetts", x=[lbl for _, lbl in DAY_BANDS], y=state_pct,
+                    marker_color=STATE_COLOR,
+                ))
+                fig.update_layout(barmode="group")
             fig.update_layout(
                 **DEFAULT_LAYOUT,
                 yaxis_tickformat=".1%",

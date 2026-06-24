@@ -522,7 +522,7 @@ with t_col:
 
 with sc_col:
     st.markdown("### For school committee")
-    st.caption("Accountability, peer comparison, dollar-for-outcome leverage.")
+    st.caption("Peer comparison and dollar-for-outcome leverage across the district.")
     st.page_link("pages/Lynn_District.py", label="Lynn District — LPS as a whole")
     st.page_link("pages/8_Finance.py", label="Finance — per-pupil spending by category")
     st.page_link("pages/Lynn_Schools.py", label="Lynn Schools — vs. same-district siblings")
@@ -630,25 +630,6 @@ st.markdown(
 *Jump to any of these from the index just below, or the sidebar.*
 """
 )
-
-# FAQ — plain-language answers to the terms visitors hit first.
-with st.expander("FAQ: What does “requiring assistance or intervention” mean?"):
-    st.markdown(
-        "It's the classification Massachusetts DESE assigns to schools whose "
-        "accountability results place them among those the state monitors most "
-        "closely — a state determination, not a federal one. The call rests on "
-        "the school's **target-progress score** (a 0–100 score measured against "
-        "fixed state improvement targets — the official term is the "
-        "*criterion-referenced target percentage*) "
-        "for progress across MCAS achievement, "
-        "growth, chronic absence, graduation, and English-learner progress) and "
-        "on whether the school falls in the **lowest-performing 10%** of schools "
-        "statewide. Schools in this status can also carry the federal "
-        "**Comprehensive Support and Improvement (CSI)** "
-        "designation, which requires a "
-        "state-monitored improvement plan. The indicator-by-indicator breakdown "
-        "for LEHS is on the [State Accountability](/Accountability) page."
-    )
 
 st.divider()
 

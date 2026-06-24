@@ -250,11 +250,11 @@ st.caption(
 latest = all_students[all_students["SY"] == latest_year]
 dist_rows = []
 for _, row in latest.iterrows():
-    for level, col, color in [
-        ("Exceeding",          "E_PCT",  "#6FA593"),
-        ("Meeting",            "M_PCT",  "#9CCFC4"),
-        ("Partially Meeting",  "PM_PCT", "#E0C079"),
-        ("Not Meeting",        "NM_PCT", "#E89B9B"),
+    for level, col in [
+        ("Exceeding",          "E_PCT"),
+        ("Meeting",            "M_PCT"),
+        ("Partially Meeting",  "PM_PCT"),
+        ("Not Meeting",        "NM_PCT"),
     ]:
         dist_rows.append({
             "Subject": SUBJECT_MAP.get(row["SUBJECT_CODE"], row["SUBJECT_CODE"]),

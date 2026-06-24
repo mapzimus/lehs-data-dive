@@ -223,6 +223,17 @@ with tab_city:
         fig.add_trace(go.Scatter(x=decadal["year"], y=decadal["population"],
                                   mode="lines+markers", line=dict(color=LEHS_NAVY, width=3),
                                   marker=dict(size=7)))
+        # Mark the early-1930s peak the narrative above calls out, so the
+        # cited "peaked around 1930" claim is visible on the line itself.
+        _peak_idx = decadal["population"].idxmax()
+        _peak_year = int(decadal.loc[_peak_idx, "year"])
+        _peak_pop = int(decadal.loc[_peak_idx, "population"])
+        fig.add_annotation(
+            x=_peak_year, y=_peak_pop,
+            text=f"Peak: {_peak_year} ({_peak_pop:,})",
+            showarrow=True, arrowhead=2, ax=0, ay=-40,
+            font=dict(color=LEHS_GOLD), arrowcolor=LEHS_GOLD,
+        )
         fig.update_layout(**DEFAULT_LAYOUT,
                           yaxis_title="Total population",
                           xaxis_title="Decennial Census year")
@@ -888,6 +899,17 @@ with tab_nbhds:
                 ("severe_burden_pct",       "% Severely rent-burdened","{:.0%}",   SEQ_BRAND),
             ]
 
+            # Massachusetts statewide reference values, on the same scale as the
+            # tract columns (fractions for the *_pct bars). These match the
+            # state-average figures cited in the caption just above. No
+            # published MA figure for severe rent-burden, so it gets no line.
+            ma_tract_ref = {
+                "median_household_income": 96_500,
+                "foreign_born_pct":        0.17,
+                "non_english_pct":         0.26,
+                "bachelors_or_higher_pct": 0.46,
+            }
+
             for col, label, fmt, palette in metrics:
                 if col not in tracts.columns:
                     continue
@@ -910,6 +932,15 @@ with tab_nbhds:
                     coloraxis_showscale=False,
                     height=480,
                 )
+                _ma_ref = ma_tract_ref.get(col)
+                if _ma_ref is not None:
+                    fig.add_vline(
+                        x=_ma_ref, line_dash="dash", line_color=LEHS_NAVY,
+                        line_width=2,
+                        annotation_text=f"MA avg {fmt.format(_ma_ref)}",
+                        annotation_position="top",
+                        annotation_font_color=LEHS_NAVY,
+                    )
                 if "_pct" in col:
                     fig.update_layout(xaxis_tickformat=".0%")
                 elif col == "median_household_income":

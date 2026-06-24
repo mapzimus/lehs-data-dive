@@ -17,7 +17,7 @@ import yaml
 
 from utils.branding import crosslink_callout, page_footer, sidebar_attribution
 from utils.charts import DEFAULT_LAYOUT, data_downloads_panel
-from utils.constants import ASSETS_DIR, GENDER_PALETTE, IMAGES_DIR
+from utils.constants import ASSETS_DIR, GENDER_PALETTE, IMAGES_DIR, LEHS_NAVY
 from utils.data_loader import load_dataset
 from utils.url_state import qp_selectbox
 
@@ -305,17 +305,19 @@ team_df["W-L"] = team_df.apply(
     lambda r: f"{int(r['wins'])}-{int(r['losses'])}" if pd.notna(r["wins"]) else "—", axis=1,
 )
 
+# Single brand color — win % is already encoded by bar height, so a
+# red→green color ramp would only double-encode it and impose a value
+# judgment on every season.
 fig = px.bar(
-    team_df, x="year_display", y="win_pct", text="W-L", color="win_pct",
-    color_continuous_scale=[(0, "#E89B9B"), (0.5, "#E0C079"), (1, "#6FA593")],
-    range_color=(0, 1),
+    team_df, x="year_display", y="win_pct", text="W-L",
 )
+fig.update_traces(marker_color=LEHS_NAVY)
 fig.add_hline(y=0.5, line_dash="dash", line_color="#455A64",
               annotation_text=".500", annotation_position="right")
 fig.update_traces(textposition="outside", cliponaxis=False)
 fig.update_layout(
     **DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Win %",
-    xaxis_title="Season", coloraxis_showscale=False, yaxis_range=[0, 1.05],
+    xaxis_title="Season", yaxis_range=[0, 1.05],
     # Force categorical x-axis — else "2024-25" parses as a YYYY-MM date and
     # Plotly truncates the axis (because "2012-13" is an invalid month).
     xaxis_type="category",

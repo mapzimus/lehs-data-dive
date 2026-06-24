@@ -19,6 +19,7 @@ from utils.charts import (
     DEFAULT_LAYOUT,
     LEHS_GOLD,
     LEHS_NAVY,
+    STATE_COLOR,
     SUBGROUP_PALETTE,
     data_downloads_panel,
     span_years,
@@ -469,6 +470,20 @@ else:
         **DEFAULT_LAYOUT, yaxis_tickformat=".0%",
         yaxis_title="% held back a grade", xaxis_title="", showlegend=False,
     )
+    # State reference: the statewide all-students retention rate for the same
+    # year gives readers a "what is normal?" anchor for "retention is rare".
+    _ret_state = retention[
+        (retention["ORG_TYPE"] == "State")
+        & (retention["STU_GRP"] == "All Students")
+        & (retention["SY"] == ret_year)
+    ]
+    if not _ret_state.empty:
+        _ret_state_pct = float(_ret_state["RET_ALL_PCT"].iloc[0])
+        fig.add_hline(
+            y=_ret_state_pct, line_dash="dash", line_color=STATE_COLOR,
+            annotation_text=f"MA statewide: {_ret_state_pct:.1%}",
+            annotation_position="top right",
+        )
     st.plotly_chart(fig, width="stretch")
 
     st.caption(
@@ -521,6 +536,20 @@ else:
         yaxis_title="% making expected ACCESS progress (RE1)",
         xaxis_title="", showlegend=False,
     )
+    # State reference: the statewide RE1 share for the same year, so readers
+    # can see where the "expected ACCESS growth" bar sits relative to MA.
+    _el_state = el_access[
+        (el_access["ORG_TYPE"] == "State")
+        & (el_access["GRADE"].astype(str) == "ALL")
+        & (el_access["SY"] == ela_year)
+    ]
+    if not _el_state.empty:
+        _el_state_re1 = float(_el_state["RE1_PCT"].iloc[0])
+        fig.add_hline(
+            y=_el_state_re1, line_dash="dash", line_color=STATE_COLOR,
+            annotation_text=f"MA statewide: {_el_state_re1:.0%}",
+            annotation_position="top right",
+        )
     st.plotly_chart(fig, width="stretch")
 
     _lehs_el = ela_cur[ela_cur["ORG_CODE"] == "01630510"]

@@ -183,7 +183,7 @@ if _TRACTS_PATH.exists():
     elif "GEOID" in _tracts_df.columns:
         _tracts_df["tract_label"] = "Tract " + _tracts_df["GEOID"].astype(str).str[-6:]
 
-    def _ranked_bar(col: str, label: str, fmt: str, palette: str):
+    def _ranked_bar(col: str, label: str, fmt: str, palette: str = None):
         if col not in _tracts_df.columns:
             st.caption(f"_({label}: column not in lynn_tracts.geojson — refresh pending)_")
             return
@@ -194,16 +194,17 @@ if _TRACTS_PATH.exists():
             st.caption(f"_({label}: no non-null values yet)_")
             return
         d["text"] = d[col].apply(lambda v: fmt.format(v))
+        # Bar length already encodes the value (and it's printed as a text label),
+        # so a value->color gradient would be a redundant, decorative second
+        # encoding. Use a single flat brand color instead.
         fig = px.bar(
             d, y="tract_label", x=col, orientation="h", text="text",
-            color=col, color_continuous_scale=palette,
         )
-        fig.update_traces(textposition="outside")
+        fig.update_traces(marker_color=LEHS_NAVY, textposition="outside")
         fig.update_layout(
             **DEFAULT_LAYOUT,
             xaxis_title=label,
             yaxis_title="",
-            coloraxis_showscale=False,
             height=480,
         )
         # Drive tickformat from data range, not column name. Columns like
