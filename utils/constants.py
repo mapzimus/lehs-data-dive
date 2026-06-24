@@ -233,3 +233,35 @@ MOBILITY_PALETTE = {
     "Churn":           "#E89B9B",  # pastel coral — muted "negative"
     "Mid-year intake": "#F5C28B",  # pastel orange
 }
+
+# Subject palette — muted brand tokens for the recurring ELA / Math / Science
+# trio, replacing the harsh DESE-default trio (#1976D2 / #D32F2F / #388E3C) the
+# owner flagged. Keys cover both label spellings used across pages.
+SUBJECT_PALETTE = {
+    "ELA":               LEHS_NAVY,
+    "Reading & Writing": LEHS_NAVY,
+    "Reading":           LEHS_NAVY,
+    "Math":              LEHS_GOLD,
+    "MATH":              LEHS_GOLD,
+    "Science":           "#9CCFC4",  # pastel teal
+    "SCI":               "#9CCFC4",
+    "Bio":               "#9CCFC4",
+}
+
+# MCAS achievement levels — muted ordinal (green → amber → coral), replacing the
+# saturated traffic-light set (#388E3C / #F57C00 / #D32F2F).
+PERF_LEVEL_PALETTE = {
+    "Exceeding Expectations": "#6FA593",  # muted green
+    "Exceeding":              "#6FA593",
+    "Meeting Expectations":   "#9CCFC4",  # pastel teal
+    "Meeting":                "#9CCFC4",
+    "Partially Meeting":      "#E0C079",  # muted amber
+    "Partially":              "#E0C079",
+    "Not Meeting":            "#E89B9B",  # pastel coral
+}
+
+# Single-hue sequential scale for choropleths / ranked bars, replacing stock
+# saturated Plotly scales ("Reds" / "Purples" / "Blues" / "Oranges" / "Greens").
+# Light tint → brand navy; *_R is the reversed (high = light) variant.
+SEQ_BRAND = ["#EEF2F8", "#B9C5DA", "#8597BD", LEHS_NAVY, "#3E4E72"]
+SEQ_BRAND_R = list(reversed(SEQ_BRAND))

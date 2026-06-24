@@ -29,6 +29,7 @@ from utils.constants import (
     GATEWAY_CITIES,
     IMAGES_DIR,
     LYNN_DISTRICT_CODE,
+    SUBJECT_PALETTE,
 )
 from utils.data_loader import load_dataset
 from utils.interpret import sy_label
@@ -275,7 +276,7 @@ with tab_snapshot:
                 fig = px.line(
                     g10, x="SY", y="M_PLUS_E_PCT", color="SUBJECT_CODE",
                     markers=True,
-                    color_discrete_map={"ELA": "#1976D2", "MATH": "#D32F2F", "SCI": "#388E3C"},
+                    color_discrete_map=SUBJECT_PALETTE,
                 )
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                    yaxis_title="% Meeting + Exceeding")
@@ -292,7 +293,7 @@ with tab_snapshot:
                 fig = px.line(
                     avg, x="SY", y="M_PLUS_E_PCT", color="SUBJECT_CODE",
                     markers=True,
-                    color_discrete_map={"ELA": "#1976D2", "MATH": "#D32F2F", "SCI": "#388E3C"},
+                    color_discrete_map=SUBJECT_PALETTE,
                 )
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                    yaxis_title="Avg % M+E across grades")
@@ -335,7 +336,7 @@ with tab_snapshot:
                 district_att["PCT_CHRON_ABS_10"], errors="coerce"
             )
             fig = px.line(district_att, x="SY", y="PCT_CHRON_ABS_10", markers=True)
-            fig.update_traces(line=dict(color="#F57C00", width=3))
+            fig.update_traces(line=dict(color=LEHS_GOLD, width=3))
             fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                yaxis_title="% Chronically Absent (10%+ missed)")
             st.plotly_chart(fig, width="stretch")
@@ -488,7 +489,7 @@ with tab_snapshot:
                             snap, x="Subject", y="IND_PCT", color="STU_GRP",
                             barmode="group",
                             color_discrete_map={
-                                "Students with Disabilities":    "#D32F2F",
+                                "Students with Disabilities":    "#C2A99E",
                                 "Students without Disabilities": LEHS_NAVY,
                             },
                             text=snap["IND_PCT"].round(1).astype(str) + "%",
