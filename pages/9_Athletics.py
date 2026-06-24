@@ -221,7 +221,7 @@ with c2:
     # Win % by season — bar
     fig = px.bar(
         team_df, x="year_display", y="win_pct", text="W-L",
-        color="win_pct", color_continuous_scale=[(0, "#B71C1C"), (0.5, "#FBC02D"), (1, "#2E7D32")],
+        color="win_pct", color_continuous_scale=[(0, "#E08E8E"), (0.5, "#F3ECD8"), (1, "#74C476")],
         range_color=(0, 1),
     )
     fig.add_hline(y=0.5, line_dash="dash", line_color="#455A64",
@@ -284,7 +284,7 @@ heat = (
 heat = heat.reindex(sorted(heat.columns), axis=1)
 fig = go.Figure(go.Heatmap(
     z=heat.values, x=list(heat.columns), y=list(heat.index),
-    colorscale=[(0, "#B71C1C"), (0.5, "#FBC02D"), (1, "#2E7D32")],
+    colorscale=[(0, "#E08E8E"), (0.5, "#F3ECD8"), (1, "#74C476")],
     zmin=0, zmax=1,
     colorbar=dict(title="Win %", tickformat=".0%"),
     hovertemplate="<b>%{y}</b><br>Season %{x}<br>Win %: %{z:.0%}<extra></extra>",

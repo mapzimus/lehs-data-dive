@@ -6,10 +6,8 @@ The novel analytical layer no DESE tool provides.
 
 import json
 
-import numpy as np
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
 
 from utils.branding import sidebar_attribution
@@ -46,9 +44,13 @@ def build_master_panel() -> pd.DataFrame:
         info["school_code"] for info in peers["gateway_main_hs"].values()
         if info.get("school_code")
     ]
-    # Include LEHS in the gateway pool so Lynn is represented in the
-    # cross-city scatter (one school per city — Lynn-the-district has
-    # 22 schools and isn't comparable to a single gateway-city HS).
+    # Lynn's "main HS" slot in the manifest is Lynn Classical (LCHS). This is the
+    # LEHS dashboard, so represent Lynn with LEHS instead — drop Classical and add
+    # LEHS as Lynn's single entry. Without this the pool carries BOTH Classical
+    # (mislabeled just "Lynn") and LEHS → two Lynn dots and a 27-school count.
+    # One school per city: Lynn-the-district has 22 schools and isn't comparable
+    # to a single gateway-city HS, so we pick LEHS as the representative.
+    gateway_codes = [c for c in gateway_codes if c != LCHS_SCHOOL_CODE]
     if LEHS_SCHOOL_CODE not in gateway_codes:
         gateway_codes.append(LEHS_SCHOOL_CODE)
 
@@ -127,6 +129,49 @@ if panel.empty:
 
 NUMERIC_COLS = sorted([c for c in panel.columns if pd.api.types.is_numeric_dtype(panel[c]) and c != "SY"])
 
+# Friendly display labels for the raw panel column aliases — used in the metric
+# dropdowns and chart axis titles so non-analysts don't see "MCAS_G10_Math".
+METRIC_LABELS = {
+    "Enrollment": "Enrollment",
+    "ELL_pct": "% English learners",
+    "LowIncome_pct": "% Low income",
+    "SPED_pct": "% Students w/ disabilities",
+    "HighNeeds_pct": "% High needs",
+    "Hispanic_pct": "% Hispanic / Latino",
+    "Black_pct": "% Black / African American",
+    "Asian_pct": "% Asian",
+    "White_pct": "% White",
+    "FirstLangNotEnglish_pct": "% First language not English",
+    "GradRate_4yr": "4-year graduation rate",
+    "GradRate_5yr": "5-year graduation rate",
+    "Promotion_9to10": "9th-to-10th promotion rate",
+    "Dropout": "Annual dropout rate",
+    "ChronicAbsence": "Chronic absence rate",
+    "AttendanceRate": "Attendance rate",
+    "Suspension_pct": "% Suspended (out-of-school)",
+    "SGP_ELA": "Student growth percentile — ELA",
+    "SGP_Math": "Student growth percentile — Math",
+    "MCAS_G10_ELA": "Grade 10 MCAS ELA (% meeting+)",
+    "MCAS_G10_Math": "Grade 10 MCAS Math (% meeting+)",
+    "AP_Enrolled": "% Juniors/seniors in AP/IB",
+    "AP_3plus": "% AP tests scoring 3+",
+    "SAT_Math": "SAT Math (mean)",
+    "SAT_Reading": "SAT Reading (mean)",
+    "FAFSA": "% Completing FAFSA",
+    "ImmediateCollege": "% Enrolling in college right away",
+    "College_2yr": "% Enrolling in 2-year college",
+    "College_4yr": "% Enrolling in 4-year college",
+    "CollegePersist": "% Persisting to college year 2",
+    "MassCore": "% Completing MassCore",
+    "PerPupil": "Per-pupil spending ($)",
+    "AvgTeacherSalary": "Average teacher salary ($)",
+    "TeachersPer100": "Teachers per 100 students",
+}
+
+
+def _mlabel(col: str) -> str:
+    return METRIC_LABELS.get(col, col)
+
 # ---------------------------------------------------------------------------
 # Curated correlations
 # ---------------------------------------------------------------------------
@@ -199,7 +244,7 @@ for x, y, label in curated_pairs:
             hover_data={"City": True, "School": False, "highlight": False},
         )
         fig.update_traces(textposition="top center", textfont_size=10)
-        fig.update_layout(**DEFAULT_LAYOUT, xaxis_title=x, yaxis_title=y)
+        fig.update_layout(**DEFAULT_LAYOUT, xaxis_title=_mlabel(x), yaxis_title=_mlabel(y))
         st.plotly_chart(fig, use_container_width=True)
         st.caption(
             f"Pearson r = {stats['r']:+.3f} (p = {stats['p']:.3f}, n = {stats['n']}). "
@@ -217,10 +262,10 @@ st.markdown("Pick any two metrics from the panel.")
 
 c1, c2 = st.columns(2)
 with c1:
-    x_var = st.selectbox("X variable", options=NUMERIC_COLS,
+    x_var = st.selectbox("X variable", options=NUMERIC_COLS, format_func=_mlabel,
                           index=NUMERIC_COLS.index("PerPupil") if "PerPupil" in NUMERIC_COLS else 0)
 with c2:
-    y_var = st.selectbox("Y variable", options=NUMERIC_COLS,
+    y_var = st.selectbox("Y variable", options=NUMERIC_COLS, format_func=_mlabel,
                           index=NUMERIC_COLS.index("GradRate_4yr") if "GradRate_4yr" in NUMERIC_COLS else 1)
 
 scope = st.radio(
@@ -249,7 +294,7 @@ if len(data) >= 3:
         trendline="ols",
         hover_data={"School": True, "City": True, "highlight": False},
     )
-    fig.update_layout(**DEFAULT_LAYOUT, xaxis_title=x_var, yaxis_title=y_var)
+    fig.update_layout(**DEFAULT_LAYOUT, xaxis_title=_mlabel(x_var), yaxis_title=_mlabel(y_var))
     st.plotly_chart(fig, use_container_width=True)
 
     stats = pearson(data, x_var, y_var)
@@ -285,6 +330,7 @@ with c1:
         "Predictor (X) — measured in base year",
         options=NUMERIC_COLS,
         index=NUMERIC_COLS.index("ChronicAbsence") if "ChronicAbsence" in NUMERIC_COLS else 0,
+        format_func=_mlabel,
         key="lag_x",
     )
 with c2:
@@ -292,6 +338,7 @@ with c2:
         "Outcome (Y) — measured in base year + lag",
         options=NUMERIC_COLS,
         index=NUMERIC_COLS.index("GradRate_4yr") if "GradRate_4yr" in NUMERIC_COLS else 1,
+        format_func=_mlabel,
         key="lag_y",
     )
 with c3:
@@ -331,14 +378,14 @@ if len(lagged) >= 5:
         trendline="ols",
         hover_data=["pair_label"],
         labels={
-            "x_val": f"{x_var_lag} (year Y)",
-            "y_val": f"{y_var_lag} (year Y + {lag_years})",
+            "x_val": f"{_mlabel(x_var_lag)} (year Y)",
+            "y_val": f"{_mlabel(y_var_lag)} (year Y + {lag_years})",
         },
     )
     fig.update_layout(
         **DEFAULT_LAYOUT,
-        xaxis_title=f"{x_var_lag} (year Y)",
-        yaxis_title=f"{y_var_lag} (year Y + {lag_years})",
+        xaxis_title=f"{_mlabel(x_var_lag)} (year Y)",
+        yaxis_title=f"{_mlabel(y_var_lag)} (year Y + {lag_years})",
     )
     st.plotly_chart(fig, use_container_width=True)
 

@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.branding import sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY
+from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, year_axis
 from utils.constants import IMAGES_DIR, LCHS_SCHOOL_CODE, LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
 from utils.data_loader import load_dataset
 from utils.interpret import sy_label
@@ -17,7 +17,7 @@ from utils.interpret import sy_label
 # similar enrollment scale — meaningful side-by-side comparison.
 LVTI_SCHOOL_CODE = "01630605"
 LCHS_COLOR = LEHS_GOLD
-LVTI_COLOR = "#26A69A"  # teal — distinct from navy + gold
+LVTI_COLOR = "#9CCFC4"  # teal — distinct from navy + gold
 
 st.set_page_config(page_title="Finance | LEHS", page_icon="💰", layout="wide")
 sidebar_attribution()
@@ -104,7 +104,7 @@ if not total_exp.empty:
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="$,.0f",
                       yaxis_title="$ per pupil", xaxis_title="Fiscal Year")
     with c2:
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(year_axis(fig), use_container_width=True)
 
 st.divider()
 
@@ -135,6 +135,11 @@ if not breakdown.empty:
     fig.update_layout(**DEFAULT_LAYOUT, xaxis_tickformat="$,.0f",
                        xaxis_title="$ per pupil", yaxis_title="")
     st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        "These are LEHS figures only. For a sense of what's typical, see the "
+        "per-school comparisons further down (LEHS vs. Lynn Classical vs. Lynn "
+        "Tech) and the Gateway-City peer charts."
+    )
 
 st.divider()
 
@@ -161,7 +166,7 @@ if not fund_summary.empty:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="$,.0f",
                        yaxis_title="$ per pupil", xaxis_title="Fiscal Year")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(year_axis(fig), use_container_width=True)
 
 st.divider()
 
@@ -226,7 +231,7 @@ if not salary.empty:
                                      line=dict(color=LVTI_COLOR, width=2, dash="dot")))
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="$,.0f",
                           yaxis_title="Average salary")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(year_axis(fig), use_container_width=True)
 
 if not teach_per_100.empty:
     latest_r = teach_per_100.iloc[-1]
@@ -258,7 +263,7 @@ if not teach_per_100.empty:
                                      mode="lines+markers", name="Lynn Tech",
                                      line=dict(color=LVTI_COLOR, width=2, dash="dot")))
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Teachers per 100 students")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(year_axis(fig), use_container_width=True)
 
 st.divider()
 
@@ -380,7 +385,7 @@ if not dist_exp.empty:
                 xaxis_title="Fiscal Year",
                 legend_title="",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(year_axis(fig), use_container_width=True)
 
         st.caption(
             "Average teacher salary reflects the joint effect of pay scale and "
@@ -402,16 +407,18 @@ if not dist_exp.empty:
     d = dist_exp[dist_exp["DIST_CODE"] == LYNN_DISTRICT_CODE].copy()
     d["IND_VALUE"] = pd.to_numeric(d["IND_VALUE"], errors="coerce")
 
-    total_district = d[d["IND_SUBCAT"].str.contains("Total", case=False, na=False)].copy()
-    if not total_district.empty:
-        latest_d = total_district[total_district["SY"] == total_district["SY"].max()]
-        st.dataframe(
-            latest_d[["IND_CAT", "IND_SUBCAT", "IND_VALUE"]].assign(
-                **{"$": latest_d["IND_VALUE"].apply(lambda x: f"${x:,.0f}" if pd.notna(x) else "—")}
-            )[["IND_CAT", "IND_SUBCAT", "$"]].rename(columns={
-                "IND_CAT": "Category", "IND_SUBCAT": "Indicator",
-            }),
-            use_container_width=True, hide_index=True,
+    # The per-pupil figures here duplicate the hero metric at the top of the
+    # page, so surface only the one genuinely-new fact: total district
+    # enrollment (FTE pupils), which sets the scale for everything above.
+    fte = d[d["IND_SUBCAT"].str.fullmatch("Total FTE Pupils", case=False, na=False)].copy()
+    fte = fte.dropna(subset=["IND_VALUE"])
+    if not fte.empty:
+        latest_fte = fte[fte["SY"] == fte["SY"].max()].iloc[0]
+        st.metric(
+            f"District enrollment (FY {int(latest_fte['SY'])})",
+            f"{latest_fte['IND_VALUE']:,.0f} FTE pupils",
+            help="Total full-time-equivalent students across Lynn Public Schools "
+                 "— the denominator behind every per-pupil figure on this page.",
         )
 
 st.divider()
@@ -519,7 +526,7 @@ else:
             xaxis_title="School Year",
             legend_title="",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(year_axis(fig), use_container_width=True)
         st.caption(
             "The Student Opportunity Act of 2019 substantially increased the "
             "foundation budget formula's weight for low-income and ELL students "

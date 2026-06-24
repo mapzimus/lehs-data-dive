@@ -24,6 +24,7 @@ from utils.charts import (
     LEHS_NAVY,
     SUBGROUP_PALETTE,
     data_downloads_panel,
+    year_axis,
 )
 from utils.constants import (
     GATEWAY_CITIES,
@@ -163,7 +164,7 @@ with tab_snapshot:
         fig = px.line(district, x="SY", y="TOTAL_CNT", markers=True)
         fig.update_traces(line=dict(color=LEHS_NAVY, width=3))
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Students", xaxis_title="School Year")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(year_axis(fig), use_container_width=True)
 
         st.header("Selected Populations Trend (District-wide)")
         long = district.melt(
@@ -186,11 +187,11 @@ with tab_snapshot:
                 "Low Income":               SUBGROUP_PALETTE["Low Income"],
                 "Students w/ Disabilities": SUBGROUP_PALETTE["Students w/ Disabilities"],
                 "High Needs":               SUBGROUP_PALETTE["High Needs"],
-                "First Lang Not English":   "#0277BD",
+                "First Lang Not English":   "#AAB4E8",
             },
         )
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(year_axis(fig), use_container_width=True)
 
         # -------------------------------------------------------------------
         # District MCAS performance
@@ -210,11 +211,11 @@ with tab_snapshot:
                 fig = px.line(
                     g10, x="SY", y="M_PLUS_E_PCT", color="SUBJECT_CODE",
                     markers=True,
-                    color_discrete_map={"ELA": "#1976D2", "MATH": "#D32F2F", "SCI": "#388E3C"},
+                    color_discrete_map={"ELA": "#6BAED6", "MATH": "#E08E8E", "SCI": "#74C476"},
                 )
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                    yaxis_title="% Meeting + Exceeding")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(year_axis(fig), use_container_width=True)
 
             elem_mcas = district_mcas[
                 district_mcas["TEST_GRADE"].astype(str).isin(
@@ -222,16 +223,16 @@ with tab_snapshot:
                 )
             ].copy()
             if not elem_mcas.empty:
-                st.subheader("Grades 3-8 — Average % M+E (across grades)")
+                st.subheader("Grades 3-8 — Average % meeting or exceeding grade level (across grades)")
                 avg = elem_mcas.groupby(["SY", "SUBJECT_CODE"])["M_PLUS_E_PCT"].mean().reset_index()
                 fig = px.line(
                     avg, x="SY", y="M_PLUS_E_PCT", color="SUBJECT_CODE",
                     markers=True,
-                    color_discrete_map={"ELA": "#1976D2", "MATH": "#D32F2F", "SCI": "#388E3C"},
+                    color_discrete_map={"ELA": "#6BAED6", "MATH": "#E08E8E", "SCI": "#74C476"},
                 )
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                    yaxis_title="Avg % M+E across grades")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(year_axis(fig), use_container_width=True)
 
         # -------------------------------------------------------------------
         # District graduation
@@ -251,7 +252,7 @@ with tab_snapshot:
             fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                yaxis_title="4-yr Graduation Rate",
                                xaxis_title="Cohort Year")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(year_axis(fig), use_container_width=True)
 
         # -------------------------------------------------------------------
         # District attendance / chronic absence
@@ -262,7 +263,7 @@ with tab_snapshot:
             (attendance["DIST_CODE"] == LYNN_DISTRICT_CODE)
             & (attendance["ORG_TYPE"] == "District")
             & (attendance["STU_GRP"] == "All Students")
-            & (attendance["ATTEND_PERIOD"] == "FY")
+            & (attendance["ATTEND_PERIOD"] == "End of Year")
         ].sort_values("SY")
 
         if not district_att.empty:
@@ -270,10 +271,10 @@ with tab_snapshot:
                 district_att["PCT_CHRON_ABS_10"], errors="coerce"
             )
             fig = px.line(district_att, x="SY", y="PCT_CHRON_ABS_10", markers=True)
-            fig.update_traces(line=dict(color="#F57C00", width=3))
+            fig.update_traces(line=dict(color="#E08E8E", width=3))
             fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                yaxis_title="% Chronically Absent (10%+ missed)")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(year_axis(fig), use_container_width=True)
 
         # -------------------------------------------------------------------
         # District finance
@@ -299,19 +300,25 @@ with tab_snapshot:
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="$,.0f",
                                    yaxis_title="$ per pupil", xaxis_title="Fiscal Year")
                 with c2:
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(year_axis(fig), use_container_width=True)
+                st.caption(
+                    "For context: the Massachusetts statewide average is roughly "
+                    "$20,000 per pupil, so Lynn's per-pupil spending sits near the "
+                    "state average. (This finance dataset covers the 26 Gateway "
+                    "Cities only, so a true statewide median can't be drawn here.)"
+                )
 
         # -------------------------------------------------------------------
         # Lynn middle schools (LEHS feeders)
         # -------------------------------------------------------------------
-        st.header("Lynn Middle Schools — Profile of LEHS's Feeders")
+        st.header("Lynn Middle Schools — the middle schools that send students to LEHS")
         st.caption(
             "The three Lynn middle schools that feed every Lynn comprehensive high "
             "school (LEHS, LCHS, Tech). Each row is the latest publicly-published "
-            "DESE snapshot — enrollment, key demographic shares, and Grade 8 MCAS "
-            "% Meeting+Exceeding. (Per-student outcome tracking from each feeder "
-            "to LEHS specifically would require Lynn-SIS data and isn't part of "
-            "the public dashboard.)"
+            "snapshot — enrollment, key demographic shares, and Grade 8 MCAS "
+            "% meeting or exceeding grade level. (Per-student outcome tracking from "
+            "each middle school to LEHS specifically would require Lynn-SIS data and "
+            "isn't part of the public dashboard.)"
         )
 
         MIDDLE_SCHOOL_CODES = [
@@ -348,13 +355,14 @@ with tab_snapshot:
                 "LI_PCT":    "% Low Income",
                 "HN_PCT":    "% High Needs",
                 "HL_PCT":    "% Hispanic/Latino",
-                "G8_ELA_ME": "G8 ELA % M+E",
-                "G8_MATH_ME":"G8 Math % M+E",
+                "G8_ELA_ME": "G8 ELA % meeting or exceeding grade level",
+                "G8_MATH_ME":"G8 Math % meeting or exceeding grade level",
             })
             ms_table = ms_table.drop(columns=["ORG_CODE"])
 
             for col in ["% ELL", "% Low Income", "% High Needs", "% Hispanic/Latino",
-                         "G8 ELA % M+E", "G8 Math % M+E"]:
+                         "G8 ELA % meeting or exceeding grade level",
+                         "G8 Math % meeting or exceeding grade level"]:
                 if col in ms_table.columns:
                     ms_table[col] = ms_table[col].apply(
                         lambda x: f"{x:.0%}" if pd.notna(x) else "—"
@@ -371,9 +379,9 @@ with tab_snapshot:
         st.header("Special Education Program — Lynn District")
         st.caption(
             "DESE publishes a separate *Special Education Indicators* dataset that "
-            "tracks the LPS SpEd program end-to-end: identification, MCAS performance "
-            "for students with disabilities (SWD), and postsecondary outcomes. "
-            "All figures are district-level, K-12 (or grade range as noted)."
+            "tracks the LPS special education program end-to-end: identification, "
+            "MCAS performance for students with disabilities, and postsecondary "
+            "outcomes. All figures are district-level, K-12 (or grade range as noted)."
         )
 
         if not sped.empty:
@@ -416,14 +424,15 @@ with tab_snapshot:
                     snap = snap.dropna(subset=["Subject"])
                     if not snap.empty:
                         st.subheader(
-                            f"Grade 10 MCAS — % Meeting + Exceeding, SWD vs. non-SWD "
+                            f"Grade 10 MCAS — % meeting or exceeding grade level, "
+                            f"students with disabilities vs. without "
                             f"(SY {latest_sped_mcas})"
                         )
                         fig = px.bar(
                             snap, x="Subject", y="IND_PCT", color="STU_GRP",
                             barmode="group",
                             color_discrete_map={
-                                "Students with Disabilities":    "#D32F2F",
+                                "Students with Disabilities":    "#C2A99E",
                                 "Students without Disabilities": LEHS_NAVY,
                             },
                             text=snap["IND_PCT"].round(1).astype(str) + "%",
@@ -440,7 +449,8 @@ with tab_snapshot:
                         st.plotly_chart(fig, use_container_width=True)
                         st.caption(
                             "The gap between the two groups is one of DESE's most "
-                            "tracked indicators for SpEd program effectiveness."
+                            "tracked indicators for special education program "
+                            "effectiveness."
                         )
 
                 post = sped_lynn[
@@ -452,8 +462,8 @@ with tab_snapshot:
                     post_latest = post[post["SY"] == latest_post].sort_values("IND_PCT", ascending=True)
                     if not post_latest.empty:
                         st.subheader(
-                            f"Postsecondary outcomes for Lynn SWD graduates "
-                            f"(SY {latest_post})"
+                            f"Postsecondary outcomes for Lynn graduates with "
+                            f"disabilities (SY {latest_post})"
                         )
                         fig = px.bar(
                             post_latest, y="IND_DESC", x="IND_PCT", orientation="h",
@@ -463,7 +473,7 @@ with tab_snapshot:
                         fig.update_traces(textposition="outside", cliponaxis=False)
                         fig.update_layout(
                             **DEFAULT_LAYOUT,
-                            xaxis_title="% of SWD graduates",
+                            xaxis_title="% of graduates with disabilities",
                             xaxis_ticksuffix="%",
                             xaxis_range=[0, max(post_latest["IND_PCT"].max() * 1.18, 10)],
                             yaxis_title="",
@@ -492,16 +502,16 @@ with tab_snapshot:
             fig = _small_multiple(g4, "GRAD_PCT", "4-yr graduation rate")
             if fig:
                 with col_a:
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(year_axis(fig), use_container_width=True)
 
         if not attendance.empty:
             a = attendance[(attendance["ORG_TYPE"] == "District")
                            & (attendance["STU_GRP"] == "All Students")
-                           & (attendance["ATTEND_PERIOD"] == "FY")][["SY", "DIST_CODE", "PCT_CHRON_ABS_10"]]
+                           & (attendance["ATTEND_PERIOD"] == "End of Year")][["SY", "DIST_CODE", "PCT_CHRON_ABS_10"]]
             fig = _small_multiple(a, "PCT_CHRON_ABS_10", "Chronic absenteeism")
             if fig:
                 with col_b:
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(year_axis(fig), use_container_width=True)
 
         if not mcas.empty:
             m_g10 = mcas[(mcas["TEST_GRADE"].astype(str) == "10")
@@ -515,7 +525,7 @@ with tab_snapshot:
             fig = _small_multiple(m_g10, "M_PLUS_E_PCT", "MCAS Grade 10 ELA — % M+E")
             if fig:
                 with col_a:
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(year_axis(fig), use_container_width=True)
 
         if not mcas.empty:
             m_g10m = mcas[(mcas["TEST_GRADE"].astype(str) == "10")
@@ -529,7 +539,7 @@ with tab_snapshot:
             fig = _small_multiple(m_g10m, "M_PLUS_E_PCT", "MCAS Grade 10 Math — % M+E")
             if fig:
                 with col_b:
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(year_axis(fig), use_container_width=True)
 
 
 # ===========================================================================
@@ -622,7 +632,7 @@ with tab_all_schools:
             "TOTAL_CNT": "Enrollment",
             "EL_PCT": "% ELL",
             "LI_PCT": "% Low Income",
-            "SWD_PCT": "% SPED",
+            "SWD_PCT": "% students with disabilities",
             "HN_PCT": "% High Needs",
             "HL_PCT": "% Hispanic/Latino",
             "BAA_PCT": "% Black/AA",
@@ -680,7 +690,7 @@ with tab_all_schools:
             a = attendance.copy()
             a["PCT_CHRON_ABS_10"] = pd.to_numeric(a["PCT_CHRON_ABS_10"], errors="coerce")
             a["ATTEND_RATE"] = pd.to_numeric(a["ATTEND_RATE"], errors="coerce")
-            a = a[(a["STU_GRP"] == "All Students") & (a["ATTEND_PERIOD"] == "FY")]
+            a = a[(a["STU_GRP"] == "All Students") & (a["ATTEND_PERIOD"] == "End of Year")]
             a_latest = a.sort_values("SY").groupby("ORG_CODE").tail(1)[
                 ["ORG_CODE", "ATTEND_RATE", "PCT_CHRON_ABS_10"]
             ]

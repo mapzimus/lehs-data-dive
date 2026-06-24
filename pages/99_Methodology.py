@@ -30,18 +30,18 @@ st.header("Data sources")
 
 sources = [
     ("E2C Hub", "educationtocareer.data.mass.gov",
-     "Socrata-hosted DESE open data — MCAS, graduation, AP, enrollment, attendance, finance, staffing, plans, pathways, postsecondary"),
+     "DESE open data on Socrata (an open-data platform) — MCAS, graduation, AP, enrollment, attendance, finance, staffing, plans, pathways, postsecondary"),
     ("DESE Profiles statereport", "profiles.doe.mass.edu/statereport/",
-     "Bulk CSVs — discipline, VOCAL climate, accountability, ACCESS for ELLs, detailed staffing"),
+     "Bulk CSVs — discipline, VOCAL (the state school-climate survey), accountability, ACCESS for ELLs (the annual English-proficiency test), detailed staffing"),
     ("Civil Rights Data Collection (CRDC)", "civilrightsdata.ed.gov",
      "Federal biennial — granular discipline by race × disability × gender, restraint, school-based arrests, AP offerings, athletic participation"),
-    ("IPEDS", "nces.ed.gov/ipeds",
+    ("IPEDS — the federal college database", "nces.ed.gov/ipeds",
      "Federal postsecondary — grad rates and outcomes at the colleges Lynn grads attend"),
     ("Census ACS 5-year", "data.census.gov",
      "Lynn community context — income, language, parental education, housing"),
-    ("Census SAIPE", "census.gov/programs-surveys/saipe",
+    ("Census SAIPE — small-area income & poverty estimates", "census.gov/programs-surveys/saipe",
      "School district child poverty estimates"),
-    ("EPA EJScreen", "ejscreen.epa.gov",
+    ("EPA EJScreen — environmental-justice screening", "ejscreen.epa.gov",
      "Environmental justice indicators around the school"),
     ("CDC PLACES", "cdc.gov/places",
      "Local adult health indicators"),
@@ -91,7 +91,10 @@ home so the rest of the pages can stay LEHS-focused:
 
 1. **Lynn sibling high schools** (LEHS vs. Lynn Classical, Lynn Tech,
    Frederick Douglass, Harold Durgin) — the same-district, same-policies
-   comparison. Lives on the **[Lynn Schools](/Lynn_Schools?embed=true)** page under
+   comparison. *Note:* Frederick Douglass and **Harold Durgin Success Academy**
+   are small alternative programs (a few hundred and ~98 students), so their
+   bars are noisier and not directly comparable to the three comprehensive
+   highs. Lives on the **[Lynn Schools](/Lynn_Schools?embed=true)** page under
    the Compare group. Differences here isolate school-level practices
    (curriculum, discipline policy, ELL programming) from city-wide
    demographics. Where surviving chart contrasts on other pages (Finance,
@@ -128,6 +131,33 @@ st.markdown(
 - **ACS geography**: We use whole-city Lynn ACS rather than a precise LEHS catchment area. The catchment is roughly the eastern half of the city but exact boundaries are not published.
 - **CRDC frequency**: Federal CRDC data is biennial. The latest release reflects the 2020-21 school year. The Civil Rights Data page is hidden from the sidebar until the ingest pipeline is finished.
 - **Correlation ≠ causation**: The Correlation Lab surfaces patterns. Confirming cause-and-effect requires more than this dashboard can show.
+"""
+)
+
+st.divider()
+
+st.header("What this dashboard can't tell you")
+
+st.markdown(
+    """
+Just as important as what's here is what *isn't* — the honest limits of a
+public-data dashboard:
+
+- **It can't pinpoint who LEHS serves geographically.** We use whole-city
+  Lynn Census data, not a precise LEHS attendance catchment — those exact
+  boundaries aren't published, so neighborhood-level reads are approximate.
+- **It can't prove cause and effect.** The Cross-Topic Explorer surfaces
+  *correlations* across schools; confirming that one thing *causes* another
+  needs controlled study this dashboard can't do.
+- **It can't always separate the school from the district.** Some measures
+  (finance, parts of staffing and postsecondary outcomes) are only published
+  at the Lynn-district level, so they describe all 26 LPS schools, not LEHS
+  alone — noted where it matters.
+- **It lags on a few federal sources.** Civil-rights discipline data (CRDC)
+  is biennial and runs ~2 years behind; the graduate-earnings series is
+  paused by the state. Recent years can be missing for those.
+- **It hides small numbers.** DESE suppresses any student-group cell under
+  10 students, so the smallest subgroups show as blanks rather than values.
 """
 )
 

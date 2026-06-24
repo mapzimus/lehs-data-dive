@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.branding import sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
+from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE, year_axis
 from utils.constants import LEHS_SCHOOL_CODE
 from utils.data_loader import load_dataset
 
@@ -97,18 +97,25 @@ st.caption(
 if not teachers.empty and not enr.empty:
     teach_row = teachers.iloc[0]
     stu = enr.iloc[0]
+    # Teacher shares are computed from FTE COUNTS, not the staffing dataset's
+    # *_PCT columns — those are unreliable (they read ~0 even when the counts
+    # are non-zero, which is what made it look like LEHS had zero Black teachers:
+    # BAA_CNT is 4 FTE but BAA_PCT is 0.0). Student shares use the enrollment
+    # *_PCT columns, which are correct.
+    _tfte = pd.to_numeric(teach_row.get("FTE_TOTAL", 0), errors="coerce") or 0
     groups = [
-        ("Hispanic/Latino",          "HL_PCT",   "HL_PCT"),
-        ("African American/Black",   "BAA_PCT",  "BAA_PCT"),
-        ("Asian",                    "AS_PCT",   "AS_PCT"),
-        ("White",                    "WH_PCT",   "WH_PCT"),
-        ("Multi-Race",               "MNHL_PCT", "MNHL_PCT"),
+        ("Hispanic/Latino",          "HL_CNT",   "HL_PCT"),
+        ("African American/Black",   "BAA_CNT",  "BAA_PCT"),
+        ("Asian",                    "AS_CNT",   "AS_PCT"),
+        ("White",                    "WH_CNT",   "WH_PCT"),
+        ("Multi-Race",               "MNHL_CNT", "MNHL_PCT"),
     ]
     rows = []
-    for label, teach_col, stu_col in groups:
+    for label, teach_cnt_col, stu_col in groups:
+        _cnt = pd.to_numeric(teach_row.get(teach_cnt_col, 0), errors="coerce") or 0
         rows.append({
             "Group": label,
-            "LEHS Teachers": pd.to_numeric(teach_row.get(teach_col, 0), errors="coerce") or 0,
+            "LEHS Teachers": (_cnt / _tfte) if _tfte else 0,
             "LEHS Students": pd.to_numeric(stu.get(stu_col, 0), errors="coerce") or 0,
         })
     diversity_df = pd.DataFrame(rows)
@@ -138,33 +145,6 @@ if not teachers.empty and not enr.empty:
 st.divider()
 
 # ---------------------------------------------------------------------------
-# Staff composition by job classification
-# ---------------------------------------------------------------------------
-
-st.header("Staff Composition by Role")
-
-key_roles = latest[latest["JOBCLASS_CAT"].isin([
-    "Administrators", "Instructional Staff", "Instructional Support Staff",
-    "Instructional Support and Special Education Shared Staff",
-    "Medical/Health Services", "Office/Clerical/Administrative Support",
-    "Paraprofessional",
-])].copy()
-
-if not key_roles.empty:
-    role_summary = (
-        key_roles.groupby("JOBCLASS_CAT")["FTE_TOTAL"]
-        .apply(lambda x: pd.to_numeric(x, errors="coerce").sum())
-        .reset_index()
-        .sort_values("FTE_TOTAL", ascending=True)
-    )
-    fig = px.bar(role_summary, x="FTE_TOTAL", y="JOBCLASS_CAT", orientation="h",
-                 color_discrete_sequence=[LEHS_NAVY])
-    fig.update_layout(**DEFAULT_LAYOUT, xaxis_title="FTE", yaxis_title="")
-    st.plotly_chart(fig, use_container_width=True)
-
-st.divider()
-
-# ---------------------------------------------------------------------------
 # Teacher diversity trend over time
 # ---------------------------------------------------------------------------
 
@@ -173,16 +153,22 @@ st.header("Teacher Diversity Trend Over Time")
 teachers_all_years = lehs_staff[lehs_staff["JOBCLASS"].astype(str).str.lower() == "teacher"].copy()
 if not teachers_all_years.empty:
     teachers_all_years = teachers_all_years.sort_values("SY")
+    # Shares from FTE COUNTS (the *_PCT columns are unreliable — see the chart above).
+    _fte_y = pd.to_numeric(teachers_all_years["FTE_TOTAL"], errors="coerce")
+    label_map = {
+        "HL_CNT": "Hispanic/Latino", "BAA_CNT": "African American/Black",
+        "AS_CNT": "Asian", "WH_CNT": "White", "MNHL_CNT": "Multi-Race",
+    }
+    for cnt_col in label_map:
+        teachers_all_years[cnt_col + "_sh"] = (
+            pd.to_numeric(teachers_all_years[cnt_col], errors="coerce") / _fte_y
+        )
     div_long = teachers_all_years.melt(
         id_vars="SY",
-        value_vars=["HL_PCT", "BAA_PCT", "AS_PCT", "WH_PCT", "MNHL_PCT"],
+        value_vars=[c + "_sh" for c in label_map],
         var_name="Group", value_name="Pct",
     )
-    label_map = {
-        "HL_PCT": "Hispanic/Latino", "BAA_PCT": "African American/Black",
-        "AS_PCT": "Asian", "WH_PCT": "White", "MNHL_PCT": "Multi-Race",
-    }
-    div_long["Group"] = div_long["Group"].map(label_map)
+    div_long["Group"] = div_long["Group"].str.replace("_sh", "", regex=False).map(label_map)
     div_long["Pct"] = pd.to_numeric(div_long["Pct"], errors="coerce")
     div_long = div_long.dropna(subset=["Pct"])
 
@@ -198,46 +184,14 @@ if not teachers_all_years.empty:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                        yaxis_title="Share of teachers")
-    st.plotly_chart(fig, use_container_width=True)
-
-st.divider()
-
-# ---------------------------------------------------------------------------
-# Teacher retention — at Lynn district level (staff_retention dataset)
-# ---------------------------------------------------------------------------
-
-st.header("Teacher Retention Rate")
-st.caption(
-    "Share of teachers in the Lynn district who returned the following year. "
-    "DESE publishes this at district level — school-by-school retention "
-    "is not separately released."
-)
-
-retention = load_dataset("staff_retention")
-if not retention.empty:
-    lynn_ret = retention[
-        (retention["DIST_CODE"] == "01630000")
-        & (retention["STAFF_DESC"].astype(str).str.contains("Teacher", case=False, na=False))
-    ].copy()
-    lynn_ret["RETND_PCT"] = pd.to_numeric(lynn_ret["RETND_PCT"], errors="coerce")
-    lynn_ret = lynn_ret.dropna(subset=["RETND_PCT"]).sort_values("SY")
-
-    if not lynn_ret.empty:
-        latest_ret = lynn_ret.iloc[-1]
-        c1, c2 = st.columns([1, 3])
-        with c1:
-            st.metric(
-                f"Lynn district teacher retention (SY {int(latest_ret['SY'])})",
-                f"{latest_ret['RETND_PCT']:.0%}",
-                f"{int(latest_ret['RETND_CNT'])} of {int(latest_ret['TOT_CNT'])} teachers",
-            )
-        lynn_ret["label"] = lynn_ret["RETND_PCT"].apply(lambda x: f"{x:.0%}")
-        fig = px.line(lynn_ret, x="SY", y="RETND_PCT", markers=True, text="label")
-        fig.update_traces(line=dict(color=LEHS_NAVY, width=3), textposition="top center")
-        fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
-                          yaxis_title="% teachers returning the next year")
-        with c2:
-            st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(year_axis(fig), use_container_width=True)
+    st.caption(
+        "Shares are computed from FTE head counts. A caveat on the categories: "
+        "DESE's source coding folded some Black/African American staff into the "
+        "Multi-Race or Native American buckets in certain earlier years, so a "
+        "single-year dip for a small group can reflect a coding change rather "
+        "than real turnover — read the trend, not any one point."
+    )
 
 st.divider()
 
@@ -282,13 +236,13 @@ if not teacher_data.empty:
             long, x="SY", y="Pct", color="Indicator", markers=True, text="label",
             color_discrete_map={
                 "% Experienced (3+ yrs)":   LEHS_NAVY,
-                "% In-field for subject":   "#388E3C",
+                "% In-field for subject":   "#74C476",
                 "% Properly licensed":      LEHS_GOLD,
             },
         )
         fig.update_traces(textposition="top center")
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(year_axis(fig), use_container_width=True)
 
         # By race/ethnicity — uses the separate teacher_experience_infield
         # dataset, which disaggregates Experienced and In-Field rates by
@@ -322,7 +276,7 @@ if not teacher_data.empty:
                         barmode="group", orientation="h", text="label",
                         color_discrete_map={
                             "Experienced Teachers": LEHS_NAVY,
-                            "In-Field Teachers":    "#388E3C",
+                            "In-Field Teachers":    "#74C476",
                         },
                     )
                     fig.update_traces(textposition="outside", cliponaxis=False)
@@ -402,29 +356,75 @@ if not class_size.empty:
 st.divider()
 
 # ---------------------------------------------------------------------------
-# CRDC support-staff ratios (counselors, nurses, social workers, psychologists)
+# Student support staff — counselors, psychologists, social workers, nurses.
+# The 618 audit flagged that "counselor" was undifferentiated; DESE's JOBCLASS
+# field distinguishes the roles, so break them out.
 # ---------------------------------------------------------------------------
 
-st.header("Support-staff ratios (federal CRDC)")
+st.header("Student Support Staff — by Role")
 st.caption(
-    "Counselor / nurse / social-worker / psychologist FTE per 100 students. "
-    "Source: federal CRDC, most recent release at script-write was SY 2017-18. "
-    "Compare against ASCA recommendation of 1 counselor per 250 students."
+    "\"Counselor\" covers several distinct roles. DESE's staffing file separates "
+    "school (guidance) counselors, adjustment counselors, school psychologists, "
+    "social workers, and nurses — each a different lever for student support. "
+    "FTE for the latest reported year."
 )
 
-crdc_staff = load_dataset("crdc_staffing")
-if crdc_staff.empty:
-    st.info(
-        "CRDC staffing data not yet wired in — bulk archive is at "
-        "data/raw/crdc/, parsing is a follow-up. See scripts/04_download_crdc.py."
+SUPPORT_ROLE_MAP = {
+    "School Counselor":                                     "School Counselor (guidance)",
+    "School Adjustment Counselor -- Non-Special Education": "School Adjustment Counselor",
+    "School Adjustment Counselor -- Special Education":     "School Adjustment Counselor",
+    "School Psychologist -- Non-Special Education":         "School Psychologist",
+    "School Psychologist -- Special Education":             "School Psychologist",
+    "School Social Worker -- Non-Special Education":        "School Social Worker",
+    "School Social Worker -- Special Education":            "School Social Worker",
+    "School Nurse -- Non-Special Education":                "School Nurse",
+    "School Nurse -- Special Education":                    "School Nurse",
+    "School Nurse Leader":                                  "School Nurse",
+    "Speech Pathologist":                                  "Speech / OT / PT therapist",
+    "Occupational Therapist":                              "Speech / OT / PT therapist",
+    "Physical Therapist":                                  "Speech / OT / PT therapist",
+}
+
+_staff_latest = lehs_staff[lehs_staff["SY"] == latest_year].copy()
+_support = _staff_latest[_staff_latest["JOBCLASS"].isin(SUPPORT_ROLE_MAP)].copy()
+if not _support.empty:
+    _support["Role"] = _support["JOBCLASS"].map(SUPPORT_ROLE_MAP)
+    _support["FTE_TOTAL"] = pd.to_numeric(_support["FTE_TOTAL"], errors="coerce")
+    role_fte = (
+        _support.groupby("Role", as_index=False)["FTE_TOTAL"].sum()
+                .dropna(subset=["FTE_TOTAL"])
     )
+    role_fte = role_fte[role_fte["FTE_TOTAL"] > 0].sort_values("FTE_TOTAL")
+    if not role_fte.empty:
+        role_fte["label"] = role_fte["FTE_TOTAL"].apply(lambda x: f"{x:.1f} FTE")
+        fig = px.bar(
+            role_fte, x="FTE_TOTAL", y="Role", orientation="h", text="label",
+            color_discrete_sequence=[LEHS_NAVY],
+        )
+        fig.update_traces(textposition="outside", cliponaxis=False)
+        fig.update_layout(
+            **DEFAULT_LAYOUT, xaxis_title=f"FTE at LEHS (SY {latest_year})",
+            yaxis_title="", xaxis_range=[0, role_fte["FTE_TOTAL"].max() * 1.25],
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        # Students-per-counselor context using the guidance-counselor FTE.
+        _enr_l = enrollment[
+            (enrollment["ORG_CODE"] == LEHS_SCHOOL_CODE) & (enrollment["SY"] == latest_year)
+        ]
+        _gc = role_fte.loc[role_fte["Role"] == "School Counselor (guidance)", "FTE_TOTAL"].sum()
+        if not _enr_l.empty and _gc:
+            _students = pd.to_numeric(_enr_l.iloc[0]["TOTAL_CNT"], errors="coerce")
+            if pd.notna(_students) and _students:
+                st.caption(
+                    f"That's about **{_students / _gc:,.0f} students per school "
+                    f"counselor** at LEHS — the American School Counselor "
+                    f"Association recommends 250:1."
+                )
 else:
-    cols = [c for c in ["COUNSELOR_FTE", "NURSE_FTE", "SOCIAL_WORKER_FTE",
-                         "PSYCHOLOGIST_FTE", "LAW_ENFORCEMENT_FTE"]
-            if c in crdc_staff.columns]
-    if cols:
-        st.dataframe(crdc_staff[["SCHOOL_NAME", "STUDENT_ENROLLMENT"] + cols].head(30),
-                     use_container_width=True)
+    st.caption("Student-support role detail isn't available for LEHS this year.")
+
+st.divider()
 
 # >>> auto: csv downloads <<<
 try:
@@ -432,9 +432,7 @@ try:
     _dl({
         'Staffing (race/gender)': staffing,
         'Enrollment & demographics': enrollment,
-        'CRDC staffing': crdc_staff,
     })
 except NameError:
-    # one of the dataset variables wasn't defined on this run
     pass
 

@@ -572,7 +572,7 @@ body.maps-page {
    ============================================================================ */
 .legend {
     position: absolute;
-    bottom: 16px;
+    bottom: 40px;
     right: 16px;
     min-width: 200px;
     max-width: 280px;
@@ -618,6 +618,115 @@ body.maps-page {
     font-size: 10px;
     color: #607D8B;
 }
+/* Palette-direction hint under the swatches (sequential vs diverging) */
+.legend-direction {
+    font-size: 10px;
+    color: #607D8B;
+    margin: 6px 0 4px;
+    line-height: 1.4;
+}
+
+/* ============================================================================
+   Attribution / info bar — always visible, centered along the bottom.
+   Replaces MapLibre's compact ⓘ control that collapsed behind the legend.
+   ============================================================================ */
+.map-attribution {
+    position: absolute;
+    bottom: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    max-width: min(92vw, 520px);
+    padding: 4px 14px;
+    background: rgba(255, 255, 255, 0.84);
+    border: 1px solid var(--panel-border);
+    border-radius: 999px;
+    box-shadow: var(--panel-shadow);
+    backdrop-filter: blur(6px);
+    font-size: 11px;
+    line-height: 1.3;
+    color: #4a5a6a;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.map-attribution a { color: var(--lehs-navy); font-weight: 600; text-decoration: none; }
+.map-attribution a:hover { text-decoration: underline; }
+
+/* ============================================================================
+   Map-controls help — floating "?" button (always visible) + modal
+   ============================================================================ */
+.help-button {
+    position: absolute;
+    top: 112px;            /* just below the top-right zoom / compass control */
+    right: 10px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: none;
+    background: var(--lehs-navy);
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: var(--panel-shadow);
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+.help-button:hover { background: #14305c; transform: scale(1.06); }
+
+.help-modal {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10, 31, 68, 0.45);
+    backdrop-filter: blur(2px);
+}
+.help-modal.open { display: flex; }
+.help-modal-inner {
+    position: relative;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: var(--panel-shadow);
+    padding: 26px 26px 20px;
+    max-width: 460px;
+    width: calc(100% - 40px);
+    max-height: 80vh;
+    overflow-y: auto;
+    color: var(--lehs-navy);
+    font-size: 14px;
+}
+.help-modal-inner h2 { margin: 0 0 14px; font-size: 19px; }
+.help-modal-close {
+    position: absolute;
+    top: 10px; right: 12px;
+    background: none; border: none;
+    font-size: 24px; line-height: 1;
+    color: #90A4AE; cursor: pointer;
+}
+.help-modal-close:hover { color: var(--lehs-navy); }
+.help-section { border-top: 1px solid var(--panel-border); padding-top: 12px; margin-top: 12px; }
+.help-section strong { display: block; margin-bottom: 6px; font-size: 13px; }
+.help-row { display: flex; gap: 12px; padding: 3px 0; font-size: 12px; color: #455A64; }
+.help-key {
+    min-width: 130px; flex-shrink: 0;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--lehs-navy); font-weight: 500;
+}
+.help-footer { margin-top: 16px; text-align: right; }
+.help-got-it {
+    background: var(--lehs-navy); color: #fff;
+    border: none; border-radius: 6px;
+    padding: 8px 18px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.help-got-it:hover { background: #14305c; }
 
 /* ============================================================================
    Loading overlay
@@ -773,13 +882,18 @@ body.maps-page {
     }
     .feature-panel.open { transform: translateY(0); }
 
-    .help-button { bottom: 16px; right: 16px; width: 44px; height: 44px; font-size: 22px; }
+    .help-button { top: auto; bottom: 92px; right: 12px; width: 40px; height: 40px; font-size: 20px; }
     .help-modal-inner { padding: 22px 18px 18px; font-size: 14px; }
     .help-key { min-width: 110px; font-size: 11px; }
 
     .legend {
-        bottom: 12px; left: 12px; right: 12px;
+        bottom: 44px; left: 12px; right: 12px;
         max-width: none; font-size: 11px; padding: 10px 12px;
+    }
+    .map-attribution {
+        max-width: calc(100vw - 24px);
+        font-size: 10px;
+        white-space: normal;
     }
     .hist { height: 26px; }
 

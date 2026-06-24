@@ -118,7 +118,10 @@ DP_VARS = {
     "DP03_0009PE": "unemployment_rate",   # percent
     "DP03_0062E": "median_household_income",
     "DP03_0063E": "mean_household_income",
-    "DP03_0086E": "per_capita_income",
+    # DP03_0086E is *median family income*, not per-capita — that mislabel made
+    # the page show ~$86.6k (above median household, which is impossible for a
+    # true per-capita figure). DP03_0088E is the real per-capita income.
+    "DP03_0088E": "per_capita_income",
     "DP03_0096PE": "with_health_insurance_pct",
     "DP03_0119PE": "pov_rate_all_pct",
     "DP03_0128PE": "pov_rate_kids_under_18_pct",

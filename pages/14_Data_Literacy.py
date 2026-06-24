@@ -20,7 +20,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.branding import sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY
+from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, year_axis
 
 st.set_page_config(
     page_title="Data 101 | LEHS", page_icon="📊", layout="wide",
@@ -152,7 +152,7 @@ fig = px.line(
     color_discrete_map={"ELA": LEHS_NAVY, "Math": LEHS_GOLD},
 )
 fig.update_layout(**DEFAULT_LAYOUT, height=320, yaxis_tickformat=".0%")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(year_axis(fig), use_container_width=True)
 
 st.markdown(
     """

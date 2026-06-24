@@ -185,7 +185,7 @@ with tab_city:
             race_df = race_df.sort_values("count", ascending=True)
             fig = px.bar(race_df, y="group", x="count", orientation="h",
                          color="group",
-                         color_discrete_sequence=px.colors.qualitative.Bold)
+                         color_discrete_sequence=px.colors.qualitative.Pastel)
             fig.update_layout(**DEFAULT_LAYOUT, showlegend=False,
                               yaxis_title="", xaxis_title="People")
             st.plotly_chart(fig, use_container_width=True)
@@ -383,9 +383,7 @@ with tab_city:
             if total:
                 st.caption(
                     f"**{pre1940 / total:.0%} of Lynn's housing stock predates 1940** — "
-                    f"a leading indicator of legacy lead-paint exposure risk. "
-                    f"This pattern shows up in EJScreen's `PRE1960_HOUSING` indicator "
-                    f"in the *Neighborhoods* tab."
+                    f"a leading indicator of legacy lead-paint exposure risk."
                 )
 
         # -------------------------------------------------------------------
@@ -443,7 +441,7 @@ with tab_city:
                     color_discrete_map={
                         "Lynn": LEHS_GOLD,
                         "Massachusetts": LEHS_NAVY,
-                        "United States": "#455A64",
+                        "United States": "#9AA6B2",
                     },
                 )
                 fig.update_layout(
@@ -463,7 +461,7 @@ with tab_city:
                     x="date", y="value", color="scope",
                     color_discrete_map={
                         "Lynn": LEHS_GOLD,
-                        "United States": "#455A64",
+                        "United States": "#9AA6B2",
                     },
                 )
                 fig.update_layout(
@@ -723,6 +721,16 @@ with tab_nbhds:
                 ("severe_burden_pct",       "% Severely rent-burdened","{:.0%}",   "Reds"),
             ]
 
+            # MA statewide averages — used to draw a 'what's normal' reference
+            # line on each ranked-bar chart. Metrics without a clean MA figure
+            # (e.g. severe_burden_pct) are intentionally omitted.
+            ma_avg = {
+                "median_household_income": 96500,
+                "foreign_born_pct":        0.17,
+                "non_english_pct":         0.26,
+                "bachelors_or_higher_pct": 0.46,
+            }
+
             for col, label, fmt, palette in metrics:
                 if col not in tracts.columns:
                     continue
@@ -749,6 +757,14 @@ with tab_nbhds:
                     fig.update_layout(xaxis_tickformat=".0%")
                 elif col == "median_household_income":
                     fig.update_layout(xaxis_tickformat="$,.0f")
+                if col in ma_avg:
+                    fig.add_vline(
+                        x=ma_avg[col],
+                        line_dash="dash",
+                        line_color="#9AA6B2",
+                        annotation_text="MA avg",
+                        annotation_position="top",
+                    )
                 st.plotly_chart(fig, use_container_width=True)
 
             # -------------------------------------------------------------------
@@ -763,22 +779,10 @@ with tab_nbhds:
                     "Census at tract resolution but are available at the city level (see the "
                     "*Citywide* tab above)."
                 )
-                lang_share = pd.DataFrame({
-                    "Group": ["English only", "Non-English"],
-                    "Total speakers (age 5+)": [
-                        tracts["lang_total"].fillna(0).sum() * (1 - tracts["non_english_pct"].mean()),
-                        tracts["lang_total"].fillna(0).sum() * tracts["non_english_pct"].mean(),
-                    ],
-                })
-                fig = px.pie(
-                    lang_share, names="Group", values="Total speakers (age 5+)",
-                    color="Group",
-                    color_discrete_map={"English only": LEHS_NAVY, "Non-English": LEHS_GOLD},
-                    hole=0.55,
+                st.metric(
+                    "% who speak a language other than English at home",
+                    f"{tracts['non_english_pct'].mean():.0%}",
                 )
-                fig.update_traces(textinfo="percent+label", textfont_size=12)
-                fig.update_layout(**DEFAULT_LAYOUT, height=380)
-                st.plotly_chart(fig, use_container_width=True)
 
         # -------------------------------------------------------------------
         # Map link
@@ -807,34 +811,10 @@ indicators (where data is available at scale).
             "Joined onto Lynn's 22 tracts in scripts/11_build_lynn_geo.py."
         )
 
-        ej_cols = [("ENV_INDEX", "Env burden index"),
-                   ("PM25", "PM2.5"),
-                   ("OZONE", "Ozone"),
-                   ("PRE1960_HOUSING", "% Housing built pre-1960 (lead-paint era)")]
-        ej_present = [(c, l) for c, l in ej_cols if c in tracts.columns and tracts[c].notna().any()]
-
-        if ej_present:
-            st.subheader("EPA EJScreen — environmental burden")
-            cols = st.columns(min(4, len(ej_present)))
-            for (col, label), st_col in zip(ej_present, cols):
-                with st_col:
-                    val = pd.to_numeric(tracts[col], errors="coerce").mean()
-                    if pd.notna(val):
-                        st.metric(f"Lynn mean — {label}", f"{val:.1f}")
-            if "ENV_INDEX" in tracts.columns and tracts["ENV_INDEX"].notna().any():
-                ej_sub = tracts.dropna(subset=["ENV_INDEX"]).sort_values("ENV_INDEX")
-                fig = px.bar(ej_sub, y="NAMELSAD", x="ENV_INDEX", orientation="h",
-                             color="ENV_INDEX", color_continuous_scale="Reds",
-                             title="Environmental burden index by Lynn tract")
-                fig.update_layout(**DEFAULT_LAYOUT, height=480,
-                                  xaxis_title="Index (higher = more burden)",
-                                  yaxis_title="", coloraxis_showscale=False)
-                st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info(
-                "EPA EJScreen data not yet populated — the ingest tries 3 known EPA "
-                "URLs (some have moved post-2025). See scripts/12_download_community_health.py."
-            )
+        st.info(
+            "EPA EJScreen data not yet populated — the ingest tries 3 known EPA "
+            "URLs (some have moved post-2025). See scripts/12_download_community_health.py."
+        )
 
         places_cols = [("asthma_pct", "Asthma"),
                         ("mental_distress_pct", "Mental distress"),

@@ -16,6 +16,7 @@ from utils.constants import (
     LEHS_SCHOOL_CODE,
     LYNN_DISTRICT_CODE,
     PROCESSED_DIR,
+    STATE_COLOR,
 )
 from utils.data_loader import load_dataset
 
@@ -178,6 +179,12 @@ def _build_lps_district_row() -> pd.DataFrame | None:
     }
 
     def _dist_dart(indicator: str) -> float | None:
+        # dart_success_after_hs is school-level only — it has no Lynn district
+        # aggregate row and no ORG_TYPE column — so district-level outcome values
+        # aren't available here. Guard so the scorecard still builds (these cells
+        # stay blank) instead of crashing the whole page on a missing column.
+        if "ORG_TYPE" not in dart.columns:
+            return None
         sub = dart[
             (dart["DIST_CODE"] == LYNN_DISTRICT_CODE)
             & (dart["ORG_TYPE"] == "District")
@@ -241,11 +248,16 @@ display_cols = [
     "% Hispanic/Latino", "4yr Grad Rate", "Immediate College", "% FAFSA",
     "% AP 3+", "% Chronic Absence", "$ Per Pupil",
 ]
-display = scorecard[display_cols].rename(columns={"ORG_NAME": "School"}).copy()
+display = scorecard[display_cols].rename(columns={
+    "ORG_NAME": "School",
+    "% ELL": "% English learners",
+    "% SPED": "% Students w/ disabilities",
+    "% AP 3+": "% AP scoring 3+",
+}).copy()
 
-# Format
-for col in ["% ELL", "% Low Income", "% High Needs", "% Hispanic/Latino",
-            "4yr Grad Rate", "Immediate College", "% FAFSA", "% AP 3+", "% Chronic Absence"]:
+# Format. Use the renamed display headers from the rename() above.
+for col in ["% English learners", "% Low Income", "% High Needs", "% Hispanic/Latino",
+            "4yr Grad Rate", "Immediate College", "% FAFSA", "% AP scoring 3+", "% Chronic Absence"]:
     display[col] = display[col].apply(lambda x: f"{x:.0%}" if pd.notna(x) else "—")
 display["Enrollment"] = display["Enrollment"].apply(lambda x: f"{int(x):,}" if pd.notna(x) else "—")
 display["$ Per Pupil"] = display["$ Per Pupil"].apply(lambda x: f"${x:,.0f}" if pd.notna(x) else "—")
@@ -263,6 +275,11 @@ def highlight_lehs_row(row):
 
 st.dataframe(display.style.apply(highlight_lehs_row, axis=1),
              use_container_width=True, hide_index=True)
+st.caption(
+    "High needs = a student who is an English learner, low-income, OR has a "
+    "disability. FAFSA = the federal financial-aid form (a proxy for college "
+    "intent)."
+)
 st.caption(
     f"School year {latest_enr_year}. LEHS row highlighted in gold; Lynn "
     "Classical, Lynn Tech, and the LPS-district aggregate are tinted "
@@ -284,7 +301,7 @@ st.header("Where does LEHS fall? Per-Pupil Spending vs. Outcomes")
 ROLE_STYLE = {
     "LEHS":             dict(color=LEHS_GOLD, symbol="star",          size=20, line_color=LEHS_NAVY, line_width=2),
     "Lynn Classical":   dict(color=LEHS_NAVY, symbol="circle",        size=14, line_color=LEHS_GOLD, line_width=2),
-    "Lynn Tech":        dict(color="#26A69A", symbol="diamond",       size=14, line_color=LEHS_NAVY, line_width=1),
+    "Lynn Tech":        dict(color="#9CCFC4", symbol="diamond",       size=14, line_color=LEHS_NAVY, line_width=1),
     "LPS district":     dict(color=LEHS_NAVY, symbol="square",        size=14, line_color="#FFFFFF", line_width=1),
     "Other Gateway HS": dict(color=GATEWAY_PEER_COLOR, symbol="circle", size=9, line_color="#FFFFFF", line_width=0),
 }
@@ -334,11 +351,31 @@ def _lynn_scatter(df: pd.DataFrame, x_col: str, y_col: str,
             fig.add_trace(go.Scatter(
                 x=x_fit, y=m * x_fit + b,
                 mode="lines", name="OLS fit",
-                line=dict(color="#90A4AE", width=2, dash="dash"),
+                line=dict(color=STATE_COLOR, width=2, dash="dash"),
                 showlegend=False, hoverinfo="skip",
             ))
     except (TypeError, ValueError):
         pass
+    # Statewide anchor. The scorecard panel holds gateway-city HS + Lynn
+    # siblings + the LPS-district synthetic row — there is no true MA
+    # statewide row to read a mean from, so use the median of the gateway
+    # main-HS set (one school per city) and label it "Gateway median".
+    ref_pool = df[df["lynn_role"] == "Other Gateway HS"]
+    ref_x = pd.to_numeric(ref_pool[x_col], errors="coerce").median()
+    ref_y = pd.to_numeric(ref_pool[y_col], errors="coerce").median()
+    if pd.notna(ref_x) and pd.notna(ref_y):
+        fig.add_trace(go.Scatter(
+            x=[ref_x], y=[ref_y],
+            mode="markers+text", name="Gateway median",
+            marker=dict(color=STATE_COLOR, symbol="diamond", size=16,
+                        line=dict(color="#FFFFFF", width=1)),
+            text=["Gateway median"], textposition="bottom center",
+            textfont=dict(size=10, color=STATE_COLOR),
+            hovertemplate=(
+                "<b>Gateway median</b><br>"
+                + x_title + ": %{x}<br>" + y_title + ": %{y}<extra></extra>"
+            ),
+        ))
     fig.update_layout(
         **DEFAULT_LAYOUT,
         xaxis_tickformat=x_tickformat,

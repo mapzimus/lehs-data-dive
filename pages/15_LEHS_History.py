@@ -172,7 +172,7 @@ calendar year (1924)** so classes could resume on the same site
 without losing more than a few months.
 
 This second Essex Street English — the 1916 addition plus Cornet's
-1924 rebuild — served as Lynn English's home through **1932**, when
+1924 rebuild — served as Lynn English's home through **1931**, when
 the school relocated to its current Goodridge Street campus (next
 tab). The Essex Street building was then converted to a junior high
 school, then sat vacant (documented as such in 1985), and was
@@ -419,14 +419,8 @@ with _tab_leadership:
 
     st.subheader("Historical leadership note")
     st.markdown(
-        "The most historically significant LEHS leader was **Tom Whelan**, "
-        "who served as teacher, baseball coach, athletic director, and "
-        "eventually principal through the **1940s–50s** — the same Tom "
-        "Whelan who'd played MLB for the Boston Braves in 1920 and "
-        "professional football alongside Jim Thorpe on the Canton Bulldogs "
-        "in 1919–20. The **Whelan Family Scholarship** at LEHS is named "
-        "for him and remains active. See the **Notable alumni & faculty** "
-        "tab for the full Whelan write-up."
+        "LEHS's most significant historical leader was **Tom Whelan** — "
+        "see the *Notable alumni & faculty* tab for his full story."
     )
 
 # --- Tab 6: Lynn as a school city ------------------------------------------
@@ -435,7 +429,7 @@ with _tab_civic:
     st.markdown(
         """
 LEHS doesn't exist alone in Lynn. **Lynn Public Schools (LPS)** as
-of June 2024 enrolled **17,447 students across 27 schools**. The
+of June 2024 enrolled **roughly 16,000 students across 26 schools**. The
 five LPS public high schools, in order of size:
 
 - **Lynn English** (9–12) — the focus of this dashboard. Largest.

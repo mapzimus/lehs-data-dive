@@ -8,6 +8,7 @@ consistent and changes propagate everywhere.
 from __future__ import annotations
 
 import io
+from collections.abc import Mapping
 
 import pandas as pd
 import plotly.express as px
@@ -61,17 +62,103 @@ from utils.constants import (
     SUBGROUP_PALETTE,
 )
 
-DEFAULT_LAYOUT = dict(
-    template="simple_white",
-    # Font color lifted to match the new pastel LEHS_NAVY token in constants.
-    font=dict(family="sans-serif", size=13, color="#3F4D66"),
-    # Margins tightened per UI audit — every chart gains ~3-5% vertical
-    # real estate.
-    margin=dict(l=30, r=10, t=30, b=30),
-    plot_bgcolor="#FAFBFD",
-    paper_bgcolor="rgba(0,0,0,0)",
-    hoverlabel=dict(bgcolor="white", font_size=12),
-)
+class _ThemeLayout(Mapping):
+    """Plotly layout defaults that adapt to the active Streamlit theme.
+
+    Spread as ``**DEFAULT_LAYOUT`` exactly like a dict — but because the values
+    resolve at spread time (every page run), charts pick up light vs dark
+    automatically. Streamlit's native theme toggle (top-right ☰ → Settings →
+    Theme) then flips the app chrome AND the charts together. Falls back to the
+    light layout when there's no Streamlit context (e.g. the PDF report builder).
+    """
+
+    # Light = the original look, unchanged (near-white plot, dark slate font).
+    _LIGHT = dict(
+        template="simple_white",
+        font=dict(family="sans-serif", size=13, color="#3F4D66"),
+        margin=dict(l=30, r=10, t=30, b=30),
+        plot_bgcolor="#FAFBFD",
+        paper_bgcolor="rgba(0,0,0,0)",
+        hoverlabel=dict(bgcolor="white", font_size=12),
+    )
+    # Dark = transparent plot area (matches the dark app background), light font,
+    # and the plotly_dark template so gridlines/axes read on a dark canvas.
+    _DARK = dict(
+        template="plotly_dark",
+        font=dict(family="sans-serif", size=13, color="#C7D0E0"),
+        margin=dict(l=30, r=10, t=30, b=30),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        hoverlabel=dict(bgcolor="#1E2330", font_size=12),
+    )
+
+    def _active(self) -> dict:
+        try:
+            return self._DARK if st.context.theme.type == "dark" else self._LIGHT
+        except Exception:
+            return self._LIGHT
+
+    def __getitem__(self, key):
+        return self._active()[key]
+
+    def __iter__(self):
+        return iter(self._active())
+
+    def __len__(self):
+        return len(self._active())
+
+
+# Spread into every chart's update_layout. A theme-aware Mapping, not a plain
+# dict, so light/dark resolves per render — see _ThemeLayout above.
+DEFAULT_LAYOUT = _ThemeLayout()
+
+
+def year_axis(fig: go.Figure) -> go.Figure:
+    """Force whole-year ticks on a numeric year x-axis.
+
+    Plotly subdivides a short numeric range (e.g. five school years) into
+    half-steps, producing nonsense ticks like ``2,021.5``. This pins the tick
+    interval to whole years and strips the decimal + thousands-separator comma
+    (``tickformat="d"``). For longer ranges it widens the interval so a 30-year
+    axis isn't a wall of labels. Call it right before ``st.plotly_chart`` on any
+    chart whose x is a school year (SY / COHORTYR). Categorical (string) year
+    axes are unaffected, so it's safe to call unconditionally on year charts.
+    """
+    xs: list = []
+    for tr in fig.data:
+        vals = getattr(tr, "x", None)
+        if vals is not None:
+            xs.extend(v for v in vals if v is not None)
+    dtick = 1
+    try:
+        numeric = [float(v) for v in xs]
+        if numeric:
+            span = max(numeric) - min(numeric)
+            dtick = 1 if span <= 12 else (2 if span <= 24 else (5 if span <= 60 else 10))
+    except (TypeError, ValueError):
+        dtick = 1
+    fig.update_xaxes(dtick=dtick, tickformat="d")
+    return fig
+
+
+def el_share_figure(enrollment_df: pd.DataFrame, org_code: str) -> go.Figure:
+    """% English Learner over time for one school — the demographic-shift line
+    from the English Learners page, factored out so Home can reuse it as
+    up-front context. Caller supplies the heading/caption; this returns just
+    the figure (with whole-year ticks already applied)."""
+    d = enrollment_df[enrollment_df["ORG_CODE"] == org_code].sort_values("SY")
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=d["SY"], y=d["EL_PCT"], mode="lines+markers", name="Lynn English",
+        line=dict(color=SUBGROUP_PALETTE["English Learner"], width=3),
+    ))
+    fig.update_layout(
+        **DEFAULT_LAYOUT,
+        yaxis_tickformat=".0%",
+        yaxis_title="% English Learner",
+        xaxis_title="School Year",
+    )
+    return year_axis(fig)
 
 
 def trend_line(

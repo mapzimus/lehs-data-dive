@@ -239,6 +239,16 @@ def sidebar_attribution() -> None:
     # keeps the helper iframe invisible.
     components.html(_NAV_COLLAPSE_JS, height=0)
 
+    # Language toggle (EN/ES) — first sidebar control so it's the first thing
+    # a Spanish-speaking visitor sees. Persists in session_state across pages.
+    from utils.i18n import language_selector
+    language_selector()
+
+    # Dashboard search — a compact expander that maps a typed topic to the page
+    # that answers it. Lives in the sidebar so it's reachable from every page.
+    from utils.search import render_sidebar_search
+    render_sidebar_search()
+
     st.sidebar.markdown(
         f"""
         ---

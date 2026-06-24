@@ -104,13 +104,13 @@
                 <label><input type="radio" name="classify" value="continuous"> Continuous (linear)</label>
             </div>
 
-            <label class="form-label" style="margin-top:12px;">Year</label>
-            <div class="year-slider-row">
-                <button class="year-play" id="yearPlay" type="button" title="Play slideshow">▶</button>
-                <input type="range" id="yearSlider" min="2017" max="2026" step="1" value="2026" class="year-slider">
-                <span class="year-label" id="yearLabel">2026</span>
-            </div>
-            <div class="year-note">Click ▶ to animate through years. Year-keyed at district/muni level for: demographics, MCAS, graduation, AP, per-pupil (2017–2026). Tract ACS metrics show 2019–2023 average regardless of slider.</div>
+            <label class="form-label" style="margin-top:12px;">Basemap</label>
+            <select id="basemapSelect" class="select-input">
+                <option value="positron">Light — grey (Positron)</option>
+                <option value="voyager">Light — streets (Voyager)</option>
+                <option value="dark">Dark (Dark Matter)</option>
+                <option value="liberty">Detailed (Liberty)</option>
+            </select>
 
             <label class="form-label" style="margin-top:12px;">Student group filter</label>
             <select id="groupSelect" class="select-input">
@@ -168,7 +168,7 @@
                 <span class="layer-name">All MA public schools (~1700)</span>
             </label>
             <label class="layer-row">
-                <input type="checkbox" id="ref-lynn-town" checked>
+                <input type="checkbox" id="ref-lynn-town">
                 <span class="layer-swatch swatch-lynn"></span>
                 <span class="layer-name">Lynn highlight</span>
             </label>
@@ -225,6 +225,13 @@
         <div class="legend-title" id="legendTitle">Legend</div>
         <div class="legend-stops" id="legendStops"></div>
         <div class="legend-meta" id="legendMeta"></div>
+    </div>
+
+    <!-- ATTRIBUTION / INFO — always visible, centered along the bottom -->
+    <div class="map-attribution" id="mapAttribution">
+        Built by <a href="https://maxwellhowegis.com" target="_blank" rel="noopener">Maxwell Howe</a>
+        · Data: MA DESE · US Census · MassGIS
+        · Tiles © OpenStreetMap, OpenFreeMap &amp; CARTO
     </div>
 
     <!-- HOVER TOOLTIP (positioned via JS) -->

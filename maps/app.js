@@ -102,17 +102,29 @@ const METRICS = [
     { id:"foreign_born_pct",         label:"% Foreign-born",             cat:"Tract — Census ACS", levels:["tract"], palette:"Purples", format:"pct" },
     { id:"bachelors_or_higher_pct",  label:"% Bachelor's or higher",     cat:"Tract — Census ACS", levels:["tract"], palette:"Blues",   format:"pct" },
     { id:"severe_burden_pct",        label:"% Severely Rent-Burdened",   cat:"Tract — Census ACS", levels:["tract"], palette:"Reds",    format:"pct" },
+
+    // Tract — Community Health (CDC PLACES, Lynn only). Values are already in
+    // percentage-points (0-100), so format:"pctpts". All "more = worse", so Reds.
+    { id:"asthma_pct",            label:"% Adults w/ Asthma",          cat:"Tract — Community Health", levels:["tract"], palette:"Reds",    format:"pctpts" },
+    { id:"mental_distress_pct",   label:"% Frequent Mental Distress",  cat:"Tract — Community Health", levels:["tract"], palette:"Reds",    format:"pctpts" },
+    { id:"obesity_pct",           label:"% Adults w/ Obesity",         cat:"Tract — Community Health", levels:["tract"], palette:"Reds",    format:"pctpts" },
+    { id:"diabetes_pct",          label:"% Adults w/ Diabetes",        cat:"Tract — Community Health", levels:["tract"], palette:"Reds",    format:"pctpts" },
+    { id:"high_bp_pct",           label:"% Adults w/ High Blood Pressure", cat:"Tract — Community Health", levels:["tract"], palette:"Reds", format:"pctpts" },
+    { id:"smoking_pct",           label:"% Adults Who Smoke",          cat:"Tract — Community Health", levels:["tract"], palette:"Reds",    format:"pctpts" },
+    { id:"no_leisure_phys_pct",   label:"% No Leisure Physical Activity", cat:"Tract — Community Health", levels:["tract"], palette:"Reds", format:"pctpts" },
 ];
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
 const state = {
-    // Open on the muni level so visitors land on a metric-rich view (~25 metrics)
-    // instead of the tract level (only 5 ACS metrics) and immediately see the
-    // Lynn-vs-gateway-vs-neighbors comparison this tool exists for.
-    level: "muni",
-    metric: "EL_PCT",                  // % English Learner — Lynn's defining demographic
+    // Open on the Lynn census-tract level — the hyper-local view is what makes
+    // this map distinct from the statewide atlas. populateMetricSelect() resolves
+    // state.metric to the first tract metric on load, so the defaults below are
+    // tract-appropriate (% non-English at home — Lynn's signature demographic).
+    level: "tract",
+    metric: "non_english_pct",         // % non-English at home — Lynn's signature
     palette: "Greens",
     classify: "jenks",                 // Fisher-Jenks natural breaks (standard cartographic default)
+    basemap: "positron",               // active basemap key (see BASEMAPS)
     extrude3d: false,
     labels: true,
     townLabels: true,
@@ -122,7 +134,7 @@ const state = {
     showCharterOverlay: false,
     showLynnSchools: true,
     showAllMaSchools: false,
-    showLynnTown: true,
+    showLynnTown: false,               // Lynn highlight off by default — it overpowers the choropleth
     showGatewayHighlight: true,
     studentGroup: "all",
     year: 2026,
@@ -130,6 +142,7 @@ const state = {
 };
 
 let GEO_DATA = null;  // populated after load
+let RAW = null;       // cached source FeatureCollections (for basemap re-install)
 
 // Year-keyed schema introspection. After load, for each (level, baseMetric)
 // pair we record which years actually have data — drives the slider availability
@@ -262,6 +275,7 @@ function stopYearAnimation() {
 function fmt(value, kind) {
     if (value == null || !isFinite(value)) return "—";
     if (kind === "pct") return `${(value * 100).toFixed(1)}%`;
+    if (kind === "pctpts") return `${value.toFixed(1)}%`;  // already 0-100 (e.g. CDC PLACES)
     if (kind === "usd") return `$${Math.round(value).toLocaleString()}`;
     return Math.round(value).toLocaleString();
 }
@@ -435,10 +449,20 @@ function paintExpression(metricId, paletteName, classify, level) {
     return ["case", valid, expr, NO_DATA_COLOR];
 }
 
+// ─── BASEMAPS ────────────────────────────────────────────────────────────────
+// Key-free vector styles. Positron (OpenFreeMap) is the light-grey default;
+// CARTO Voyager/Dark-Matter and OpenFreeMap Liberty add street + dark options.
+const BASEMAPS = {
+    positron: "https://tiles.openfreemap.org/styles/positron",
+    liberty:  "https://tiles.openfreemap.org/styles/liberty",
+    voyager:  "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
+    dark:     "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+};
+
 // ─── MAP INITIALIZATION ──────────────────────────────────────────────────────
 const map = new maplibregl.Map({
     container: "map",
-    style: "https://tiles.openfreemap.org/styles/positron",
+    style: BASEMAPS[state.basemap],
     center: [-70.95, 42.47],   // Lynn close-up — Lynn-focused default
     zoom: 12.3,
     minZoom: 6,
@@ -446,10 +470,9 @@ const map = new maplibregl.Map({
     attributionControl: false,
 });
 map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
-map.addControl(new maplibregl.AttributionControl({
-    compact: true,
-    customAttribution: '<a href="https://maxwellhowegis.com" target="_blank">© Maxwell Howe</a> · MA DESE · US Census · MassGIS',
-}), "bottom-right");
+// Attribution is rendered as a custom always-visible bar centered at the bottom
+// (see #mapAttribution in index.html) instead of MapLibre's compact ⓘ control,
+// which collapsed behind the legend in the bottom-right corner.
 map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: "imperial" }), "bottom-left");
 
 map.on("load", async () => {
@@ -486,31 +509,25 @@ map.on("load", async () => {
             features: ccuv.features.filter(f => f.properties.TYPE === "Charter"),
         };
 
-        // generateId: true assigns a numeric feature ID so setFeatureState works
-        map.addSource("tracts",         { type: "geojson", data: tracts,    generateId: true });
-        map.addSource("schools",        { type: "geojson", data: schools,   generateId: true });
-        map.addSource("town",           { type: "geojson", data: town,      generateId: true });
-        map.addSource("districts",      { type: "geojson", data: academic,  generateId: true });
-        map.addSource("ccuv-voctech",   { type: "geojson", data: voctech,   generateId: true });
-        map.addSource("ccuv-charter",   { type: "geojson", data: charter,   generateId: true });
-        map.addSource("municipalities", { type: "geojson", data: munis,     generateId: true });
-        map.addSource("ma-schools",     { type: "geojson", data: maSchools, generateId: true });
-        map.addSource("lynn-only", {
-            type: "geojson",
-            data: {
+        // Cache every collection so the sources can be re-added after a
+        // basemap swap — map.setStyle() wipes all custom sources + layers.
+        RAW = {
+            tracts, schools, town, districts: academic,
+            "ccuv-voctech": voctech, "ccuv-charter": charter,
+            municipalities: munis, "ma-schools": maSchools,
+            "lynn-only": {
                 type: "FeatureCollection",
                 features: munis.features.filter(f => f.properties.is_lynn),
             },
-        });
-        map.addSource("gateway-only", {
-            type: "geojson",
-            data: {
+            "gateway-only": {
                 type: "FeatureCollection",
                 features: munis.features.filter(f => f.properties.is_gateway && !f.properties.is_lynn),
             },
-        });
+        };
 
-        addLayers();
+        addAllSources();
+        addAllLayers();
+        wireMapInteractions();
         wireUI();
         applyChoropleth();
         updateLegend();
@@ -522,7 +539,25 @@ map.on("load", async () => {
     }
 });
 
-function addLayers() {
+// Source id → key in RAW. generateId gives features numeric ids for
+// setFeatureState (hover highlight). lynn-only / gateway-only intentionally
+// omit it to match the original behaviour. Guarded so it's safe to re-run
+// after a basemap swap.
+function addAllSources() {
+    if (!RAW) return;
+    const specs = [
+        ["tracts", true], ["schools", true], ["town", true], ["districts", true],
+        ["ccuv-voctech", true], ["ccuv-charter", true],
+        ["municipalities", true], ["ma-schools", true],
+        ["lynn-only", false], ["gateway-only", false],
+    ];
+    specs.forEach(([id, genId]) => {
+        if (map.getSource(id)) return;
+        map.addSource(id, { type: "geojson", data: RAW[id], generateId: genId });
+    });
+}
+
+function addAllLayers() {
     // ── CHOROPLETH LAYERS (one visible at a time based on state.level) ───────
     // Use feature-state for hover highlights without re-styling
     map.addLayer({
@@ -716,7 +751,7 @@ function addLayers() {
         paint: {
             "circle-radius": [
                 "interpolate", ["linear"], ["coalesce", ["get", "TOTAL_CNT"], 250],
-                100, 4, 500, 7, 1000, 11, 2000, 16,
+                100, 2.5, 500, 4, 1000, 6, 2000, 8.5,
             ],
             "circle-color": [
                 "case",
@@ -747,7 +782,12 @@ function addLayers() {
         },
         minzoom: 13,
     });
+}
 
+// Layer-scoped event handlers. Registered once on initial load — MapLibre keeps
+// delegated listeners keyed by layer id, so they keep working after a basemap
+// swap re-adds the same layer ids (do NOT re-run this on setStyle).
+function wireMapInteractions() {
     // ── CLICK HANDLERS ───────────────────────────────────────────────────────
     map.on("click", "muni-fill",     e => showPopup(e, "muni"));
     map.on("click", "district-fill", e => showPopup(e, "district"));
@@ -772,11 +812,13 @@ function addLayers() {
     function showTooltip(e, feat) {
         const m = getMetric(state.metric);
         const v = feat.properties[activeColumn()];
-        const name = feat.properties.town_display
-            || feat.properties.TOWN
-            || feat.properties.DIST_NAME
-            || feat.properties.NAMELSAD
-            || "Feature";
+        const name = state.level === "tract"
+            ? tractDisplayName(feat.properties)
+            : (feat.properties.town_display
+                || feat.properties.TOWN
+                || feat.properties.DIST_NAME
+                || feat.properties.NAMELSAD
+                || "Feature");
         tooltip.innerHTML = `
             <div class="tooltip-name">${name}</div>
             <div class="tooltip-value">${m.label}: <strong>${fmt(+v, m.format)}</strong></div>
@@ -856,9 +898,43 @@ function closeFeaturePanel() {
     panel.setAttribute("aria-hidden", "true");
 }
 
+// Tract GEOID → Lynn neighborhood name. User-provided from local knowledge;
+// tracts left out fall back to their "Census Tract NNNN" label. Fill in the 22
+// Lynn tracts (GEOIDs 25009205100–25009207200) to label the map by neighborhood.
+const NEIGHBORHOODS = {
+    "25009205100": "Wyoma Square",
+    "25009205200": "Wyoma Square",
+    "25009205300": "Highlands",
+    "25009205400": "Highlands",
+    "25009205500": "Highlands",
+    "25009205600": "West Lynn",
+    "25009205700": "West Lynn",
+    "25009205800": "West Lynn",
+    "25009205900": "West Lynn",
+    "25009206000": "Lynn Common area",
+    "25009206100": "Lynn Common area",
+    "25009206200": "East Lynn",
+    "25009206300": "East Lynn",
+    "25009206400": "East Lynn",
+    "25009206500": "Diamond District",
+    "25009206600": "Diamond District",
+    "25009206700": "Diamond District",
+    "25009206800": "Downtown / Central Square",
+    "25009206900": "Downtown / Central Square",
+    "25009207000": "Downtown / Central Square",
+    "25009207100": "Pine Hill",
+    "25009207200": "Downtown / Central Square",
+};
+
+// Tract display label — neighborhood name when known, else the census-tract name.
+function tractDisplayName(p) {
+    const nb = NEIGHBORHOODS[p.GEOID];
+    return nb ? `${nb} · Tract ${p.NAME}` : (p.NAMELSAD || "Census Tract");
+}
+
 function featureName(p, kind) {
     if (kind === "school")   return p.NAME || "School";
-    if (kind === "tract")    return p.NAMELSAD || "Census Tract";
+    if (kind === "tract")    return tractDisplayName(p);
     if (kind === "muni")     return p.town_display || p.TOWN || "Municipality";
     if (kind === "district") return p.dist_display || p.DIST_NAME || "District";
     return "Feature";
@@ -911,7 +987,18 @@ function buildPanelHtml(p, kind) {
             ${fpSection("Census ACS — demographic", [
                 fpRow("% Foreign-born", p.foreign_born_pct, "pct"),
                 fpRow("% non-English at home", p.non_english_pct, "pct"),
+                p.dominant_non_english
+                    ? `<div class="feature-panel-row"><span class="label">Top non-English language</span><span class="value">${p.dominant_non_english.charAt(0).toUpperCase() + p.dominant_non_english.slice(1)}</span></div>`
+                    : "",
                 fpRow("% Bachelor's or higher", p.bachelors_or_higher_pct, "pct"),
+            ].join(""))}
+            ${fpSection("Community health — CDC PLACES", [
+                fpRow("% Adults w/ asthma", p.asthma_pct, "pctpts"),
+                fpRow("% Frequent mental distress", p.mental_distress_pct, "pctpts"),
+                fpRow("% Adults w/ obesity", p.obesity_pct, "pctpts"),
+                fpRow("% Adults w/ diabetes", p.diabetes_pct, "pctpts"),
+                fpRow("% Adults w/ high blood pressure", p.high_bp_pct, "pctpts"),
+                fpRow("% Adults who smoke", p.smoking_pct, "pctpts"),
             ].join(""))}
             ${state.metric ? fpSection("Active metric", [
                 fpRow(getMetric(state.metric).label, p[activeColumn()], getMetric(state.metric).format, true)
@@ -1014,9 +1101,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const closeBtn = document.getElementById("featurePanelClose");
     if (closeBtn) closeBtn.addEventListener("click", closeFeaturePanel);
 
-    // Help modal — opens via "?" button, auto-shows once on first visit.
-    // Uses a Lynn-specific localStorage key so this map's help-seen state
-    // is independent of the atlas's.
+    // Help modal — opens via the "?" button (no auto-popup on first visit; the
+    // button is always visible bottom-right so help is one click away).
     const helpBtn   = document.getElementById("helpButton");
     const helpModal = document.getElementById("helpModal");
     const helpClose = document.getElementById("helpModalClose");
@@ -1026,21 +1112,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const closeHelp = () => { helpModal.classList.remove("open"); helpModal.setAttribute("aria-hidden", "true"); };
     if (helpBtn)   helpBtn.addEventListener("click", openHelp);
     if (helpClose) helpClose.addEventListener("click", closeHelp);
-    if (helpDone)  helpDone.addEventListener("click", () => {
-        try { localStorage.setItem("lynn-maps-help-seen", "1"); } catch (e) {}
-        closeHelp();
-    });
+    if (helpDone)  helpDone.addEventListener("click", closeHelp);
     helpModal.addEventListener("click", e => {
         if (e.target === helpModal) closeHelp();   // click backdrop
     });
     document.addEventListener("keydown", e => {
         if (e.key === "Escape") closeHelp();
     });
-    try {
-        if (!localStorage.getItem("lynn-maps-help-seen")) {
-            setTimeout(openHelp, 800);  // brief delay so the map renders first
-        }
-    } catch (e) {}
 });
 
 // ─── CHOROPLETH APPLY ────────────────────────────────────────────────────────
@@ -1151,9 +1229,17 @@ function updateLegend() {
         stopsEl.innerHTML = html;
     }
 
+    // Palette-direction hint — "darker = higher" only holds for sequential
+    // palettes. Diverging palettes encode distance from a midpoint, so spell
+    // that out instead of implying a single light→dark ramp.
+    const dirNote = palObj.type === "div"
+        ? "Two-tone scale — each hue is one side of the middle value; deeper = farther from the middle."
+        : "Darker = higher value.";
+
     // Always show a no-data swatch (so users learn what cream means)
     const dataPct = totalFeatures ? Math.round(100 * values.length / totalFeatures) : 0;
     metaEl.innerHTML = `
+        <div class="legend-direction">${dirNote}</div>
         <span class="legend-null"><span class="legend-null-swatch"></span>No data — <strong>${nullCount.toLocaleString()}</strong> of ${totalFeatures.toLocaleString()} polygons (${100 - dataPct}%)</span>
     `;
 }
@@ -1328,6 +1414,12 @@ function wireUI() {
         applyChoropleth();
         updateLegend();
     });
+    // Basemap selector
+    const basemapSel = document.getElementById("basemapSelect");
+    if (basemapSel) {
+        basemapSel.value = state.basemap;
+        basemapSel.addEventListener("change", e => setBasemap(e.target.value));
+    }
     document.querySelectorAll('input[name="classify"]').forEach(r => {
         r.addEventListener("change", e => {
             if (e.target.checked) {
@@ -1432,6 +1524,23 @@ const VIEWS = {
     "north-shore": { center: [-70.9, 42.55],  zoom: 9.3,  pitch: 0, bearing: 0 },
 };
 
+// Swap the basemap. setStyle() wipes all custom sources + layers, so re-install
+// them once the new style loads, then restore the choropleth + 3D state. The
+// layer-scoped interaction handlers (wireMapInteractions) survive the swap.
+function setBasemap(key) {
+    const url = BASEMAPS[key];
+    if (!url) return;
+    state.basemap = key;
+    map.setStyle(url);
+    map.once("styledata", () => {
+        addAllSources();
+        addAllLayers();
+        applyChoropleth();
+        updateLegend();
+        if (state.extrude3d) toggle3D();
+    });
+}
+
 // 3D extrusion — replaces the flat choropleth fill with extruded polygons
 function toggle3D() {
     const { level, metric } = state;
@@ -1451,9 +1560,15 @@ function toggle3D() {
         return;
     }
 
-    // Build height expression — values × scalar; for $ scale by 0.05 (so $30k = 1500m)
-    const heightScalar = m.format === "usd" ? 0.05 : 8000;
+    // Normalize height so the tallest polygon is a fixed ~2,500 m regardless of
+    // the metric's units (%, $, counts). The old fixed scalars made percentages
+    // (×8000) and dollars render kilometres into the sky — this auto-scales to
+    // the data so the extrusion is always readable.
     const col = activeColumn(metric, state.year, level);
+    const values = getValuesForLevel(level, metric);
+    const maxVal = values.length ? Math.max(...values) : 0;
+    const TARGET_MAX_HEIGHT = 2500;  // metres for the largest value
+    const heightScalar = maxVal > 0 ? TARGET_MAX_HEIGHT / maxVal : 0;
     const paint = paintExpression(col, state.palette, state.classify, level);
     const layerCfg = {
         id: extrudeLayerId, type: "fill-extrusion", source: sourceId,
@@ -1472,7 +1587,35 @@ function toggle3D() {
     if (level === "district") layerCfg.filter = ["==", ["get", "TYPE"], "Operating District"];
     map.addLayer(layerCfg);
     map.setLayoutProperty(flatLayer, "visibility", "none");
-    map.easeTo({ pitch: 55, bearing: -20, duration: 900 });
+
+    // Auto-fit the camera to the extent of the extruded polygons so they're
+    // fully framed (not clipped or floating off-screen) when 3D turns on.
+    const bounds = featureCollectionBounds(GEO_DATA[level]);
+    if (bounds) {
+        map.fitBounds(bounds, { pitch: 55, bearing: -20, padding: 60, maxZoom: 13, duration: 900 });
+    } else {
+        map.easeTo({ pitch: 55, bearing: -20, duration: 900 });
+    }
+}
+
+// Bounding box [[west,south],[east,north]] over every coordinate in a GeoJSON
+// FeatureCollection — used to auto-fit the camera to the 3D extent.
+function featureCollectionBounds(fc) {
+    if (!fc || !fc.features || !fc.features.length) return null;
+    let w = Infinity, s = Infinity, e = -Infinity, n = -Infinity;
+    const walk = (coords) => {
+        if (typeof coords[0] === "number") {
+            const [x, y] = coords;
+            if (x < w) w = x;
+            if (x > e) e = x;
+            if (y < s) s = y;
+            if (y > n) n = y;
+            return;
+        }
+        coords.forEach(walk);
+    };
+    fc.features.forEach(f => { if (f.geometry && f.geometry.coordinates) walk(f.geometry.coordinates); });
+    return isFinite(w) ? [[w, s], [e, n]] : null;
 }
 
 // ─── CSV EXPORT ──────────────────────────────────────────────────────────────

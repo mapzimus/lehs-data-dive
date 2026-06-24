@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.branding import sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
+from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE, year_axis
 from utils.constants import (
     GENDER_PALETTE,
     IMAGES_DIR,
@@ -26,97 +26,94 @@ from utils.interpret import (
 st.set_page_config(page_title="School Profile | LEHS", page_icon="📊", layout="wide")
 sidebar_attribution()
 
-st.title("Lynn English High School — Profile")
-st.markdown(
-    "Demographics, enrollment trends, and headline metrics for LEHS, going "
-    "back to the 1992–93 school year."
+# Load enrollment up front so the At-a-Glance stats can sit in the header beside
+# the photo — filling what was otherwise empty space under the title.
+enrollment = load_dataset("enrollment_demographics")
+lehs = (
+    enrollment[enrollment["ORG_CODE"] == LEHS_SCHOOL_CODE].sort_values("SY").copy()
+    if not enrollment.empty else pd.DataFrame()
+)
+district = (
+    enrollment[
+        (enrollment["DIST_CODE"] == LYNN_DISTRICT_CODE) & (enrollment["ORG_TYPE"] == "District")
+    ].sort_values("SY").copy()
+    if not enrollment.empty else pd.DataFrame()
+)
+current = lehs.iloc[-1] if not lehs.empty else None
+prior = lehs.iloc[-2] if len(lehs) > 1 else None
+oldest = lehs.iloc[0] if not lehs.empty else None
+# A year that fully populates demographic columns
+first_with_demos = (
+    lehs.dropna(subset=["HL_PCT"]).iloc[0]
+    if not lehs.empty and not lehs.dropna(subset=["HL_PCT"]).empty else oldest
 )
 
-# ---------------------------------------------------------------------------
-# Building photo — single compact image at the top. (Principal bio
-# moved out; see the Leadership section on pages/15_LEHS_History.py.)
-# ---------------------------------------------------------------------------
-
-_b_l, _b_c, _b_r = st.columns([1, 2, 1])
-with _b_c:
+# Header — title + intro + the At-a-Glance stats on the left, building photo on
+# the right. The stats fill the space the photo used to leave blank under the
+# title; the photo is a touch smaller too (addresses the "takes up too much
+# space" note). Columns stack on mobile. The accountability block stays near the
+# bottom (see render-block below the charts).
+_hdr_l, _hdr_r = st.columns([2, 1], gap="large")
+with _hdr_l:
+    st.title("Lynn English High School — Profile")
+    st.markdown(
+        "Demographics, enrollment trends, and headline metrics for LEHS, going "
+        "back to the 1992–93 school year."
+    )
+    if current is not None:
+        st.subheader(f"At a Glance — School Year {sy_label(current['SY'])}")
+        _m1, _m2, _m3, _m4, _m5 = st.columns(5)
+        with _m1:
+            st.metric(
+                "Total Enrollment",
+                f"{int(current['TOTAL_CNT']):,}",
+                yoy_delta(current["TOTAL_CNT"], prior["TOTAL_CNT"], "students") if prior is not None else "",
+            )
+        with _m2:
+            st.metric(
+                "% English Learners",
+                f"{current['EL_PCT']:.0%}",
+                yoy_delta(current["EL_PCT"] * 100, prior["EL_PCT"] * 100, "pts") if prior is not None else "",
+            )
+        with _m3:
+            st.metric(
+                "% Low Income",
+                f"{current['LI_PCT']:.0%}",
+                yoy_delta(current["LI_PCT"] * 100, prior["LI_PCT"] * 100, "pts") if prior is not None else "",
+            )
+        with _m4:
+            st.metric(
+                "% Students w/ Disabilities",
+                f"{current['SWD_PCT']:.0%}",
+                yoy_delta(current["SWD_PCT"] * 100, prior["SWD_PCT"] * 100, "pts") if prior is not None else "",
+            )
+        with _m5:
+            st.metric(
+                "% High Needs",
+                f"{current['HN_PCT']:.0%}",
+                yoy_delta(current["HN_PCT"] * 100, prior["HN_PCT"] * 100, "pts") if prior is not None else "",
+                help=(
+                    "DESE's 'High Needs' flag fires when a student is in at least ONE "
+                    "of: English Learner, Economically Disadvantaged, or Students with "
+                    "Disabilities. It's a UNION, not an intersection — so it's higher "
+                    "than any single subgroup % but says nothing about how much those "
+                    "subgroups overlap. (The dashboard works from district-level "
+                    "aggregates, so a true EL-AND-LI cross-tab isn't available here.)"
+                ),
+            )
+with _hdr_r:
     st.image(
         str(IMAGES_DIR / "lehs-building.jpg"),
         use_container_width=True,
         caption="Main entrance, O'Callaghan Way",
     )
 
-# DESE ESSA accountability classification was previously rendered at
-# the top of the page; that framed every visitor's first impression of
-# LEHS as the worst news the state publishes about it. Block moved to
-# near the bottom of the page (right before the history cross-link),
-# preserved verbatim but no longer dominating the hero. See the
-# render-block below the data charts.
-
-enrollment = load_dataset("enrollment_demographics")
 if enrollment.empty:
     st.info("Data is temporarily unavailable. Please check back later.")
     st.stop()
-
-lehs = enrollment[enrollment["ORG_CODE"] == LEHS_SCHOOL_CODE].sort_values("SY").copy()
-district = enrollment[
-    (enrollment["DIST_CODE"] == LYNN_DISTRICT_CODE) & (enrollment["ORG_TYPE"] == "District")
-].sort_values("SY").copy()
-
 if lehs.empty:
     st.error(f"No rows for LEHS school code {LEHS_SCHOOL_CODE}")
     st.stop()
-
-current = lehs.iloc[-1]
-prior = lehs.iloc[-2] if len(lehs) > 1 else None
-oldest = lehs.iloc[0]
-# A year that fully populates demographic columns
-first_with_demos = lehs.dropna(subset=["HL_PCT"]).iloc[0] if not lehs.dropna(subset=["HL_PCT"]).empty else oldest
-
-# ---------------------------------------------------------------------------
-# Hero metrics
-# ---------------------------------------------------------------------------
-
-st.subheader(f"At a Glance — School Year {sy_label(current['SY'])}")
-
-c1, c2, c3, c4, c5 = st.columns(5)
-with c1:
-    st.metric(
-        "Total Enrollment",
-        f"{int(current['TOTAL_CNT']):,}",
-        yoy_delta(current["TOTAL_CNT"], prior["TOTAL_CNT"], "students") if prior is not None else "",
-    )
-with c2:
-    st.metric(
-        "% English Learners",
-        f"{current['EL_PCT']:.0%}",
-        yoy_delta(current["EL_PCT"] * 100, prior["EL_PCT"] * 100, "pts") if prior is not None else "",
-    )
-with c3:
-    st.metric(
-        "% Low Income",
-        f"{current['LI_PCT']:.0%}",
-        yoy_delta(current["LI_PCT"] * 100, prior["LI_PCT"] * 100, "pts") if prior is not None else "",
-    )
-with c4:
-    st.metric(
-        "% Students w/ Disabilities",
-        f"{current['SWD_PCT']:.0%}",
-        yoy_delta(current["SWD_PCT"] * 100, prior["SWD_PCT"] * 100, "pts") if prior is not None else "",
-    )
-with c5:
-    st.metric(
-        "% High Needs",
-        f"{current['HN_PCT']:.0%}",
-        yoy_delta(current["HN_PCT"] * 100, prior["HN_PCT"] * 100, "pts") if prior is not None else "",
-        help=(
-            "DESE's 'High Needs' flag fires when a student is in at least ONE "
-            "of: English Learner, Economically Disadvantaged, or Students with "
-            "Disabilities. It's a UNION, not an intersection — so it's higher "
-            "than any single subgroup % but says nothing about how much those "
-            "subgroups overlap. (The dashboard works from district-level "
-            "aggregates, so a true EL-AND-LI cross-tab isn't available here.)"
-        ),
-    )
 
 # ---------------------------------------------------------------------------
 # Headline academic outcome — Gap #6: the Profile previously showed
@@ -301,7 +298,7 @@ fig.update_traces(
     textfont=dict(size=10, color=LEHS_NAVY),
 )
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Students", xaxis_title="School Year")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(year_axis(fig), use_container_width=True)
 
 peak_year = lehs.loc[lehs["TOTAL_CNT"].idxmax()]
 trough_year = lehs.loc[lehs["TOTAL_CNT"].idxmin()]
@@ -320,24 +317,42 @@ st.caption(
 # ---------------------------------------------------------------------------
 
 st.divider()
-st.subheader(f"Grade-Level Enrollment ({sy_label(current['SY'])})")
+st.subheader("Grade-Level Enrollment")
+st.caption(
+    "How the four grades stack up — and how that structure has shifted over the "
+    "last three years. A larger 9th grade than 12th is the usual funnel; the "
+    "thing to watch is whether the gap is widening or the incoming cohorts are "
+    "shrinking."
+)
 
-grade_data = pd.DataFrame({
-    "Grade": ["9", "10", "11", "12"],
-    "Students": [current["G9_CNT"], current["G10_CNT"], current["G11_CNT"], current["G12_CNT"]],
-})
+# Last 3 years of grade counts, grouped — the temporal view turns a flat
+# four-bar snapshot into the pipeline-shift story the caption below tells.
+_grade_years = lehs.tail(3)
+_g_long = _grade_years.melt(
+    id_vars=["SY"],
+    value_vars=["G9_CNT", "G10_CNT", "G11_CNT", "G12_CNT"],
+    var_name="Grade", value_name="Students",
+)
+_g_long["Grade"] = _g_long["Grade"].map(
+    {"G9_CNT": "9", "G10_CNT": "10", "G11_CNT": "11", "G12_CNT": "12"}
+)
+_g_long["School year"] = _g_long["SY"].apply(lambda s: sy_label(int(s)))
+_g_long = _g_long.dropna(subset=["Students"])
 
-fig = go.Figure(go.Bar(
-    x=grade_data["Grade"],
-    y=grade_data["Students"],
-    text=grade_data["Students"].apply(lambda v: f"{int(v):,}" if pd.notna(v) else ""),
-    textposition="outside",
-    marker_color=LEHS_NAVY,
-))
-fig.update_traces(cliponaxis=False)
+# Oldest→newest goes light grey → navy so the current year reads as the anchor.
+_yr_labels = [sy_label(int(s)) for s in _grade_years["SY"]]
+_yr_shades = ["#CBD5E1", "#94A8C7", LEHS_NAVY][-len(_yr_labels):]
+_yr_cmap = dict(zip(_yr_labels, _yr_shades))
+
+fig = px.bar(
+    _g_long, x="Grade", y="Students", color="School year", barmode="group",
+    color_discrete_map=_yr_cmap, text="Students",
+    category_orders={"Grade": ["9", "10", "11", "12"], "School year": _yr_labels},
+)
+fig.update_traces(texttemplate="%{y:,.0f}", textposition="outside", cliponaxis=False)
 fig.update_layout(
     **DEFAULT_LAYOUT, yaxis_title="Students", xaxis_title="Grade",
-    yaxis_range=[0, grade_data["Students"].max() * 1.15],
+    yaxis_range=[0, _g_long["Students"].max() * 1.15],
 )
 st.plotly_chart(fig, use_container_width=True)
 
@@ -360,6 +375,73 @@ if pd.notna(current["G9_CNT"]) and pd.notna(current["G12_CNT"]):
     st.caption(narrative)
 
 # ---------------------------------------------------------------------------
+# Attrition by student group — the grade funnel above is a single year's
+# snapshot. This is the cohort dropout rate broken out by group, with the
+# school-wide rate as the "what's normal" reference. Surfaces who leaves
+# without duplicating the full pipeline analysis on Success After HS.
+# ---------------------------------------------------------------------------
+
+if not _grad.empty:
+    _att_grp = _grad[
+        (_grad["ORG_CODE"] == LEHS_SCHOOL_CODE)
+        & (_grad["ORG_TYPE"] == "School")
+        & (_grad["GRAD_RATE_TYPE"] == "4-Year Adjusted Cohort Graduation Rate")
+        & (_grad["DRPOUT_PCT"].notna())
+    ].copy()
+    if not _att_grp.empty:
+        _cohort_yr = int(_att_grp["SY"].max())
+        _att_grp = _att_grp[_att_grp["SY"] == _cohort_yr]
+        _keep_groups = [
+            "Hispanic or Latino", "Black or African American", "Asian", "White",
+            "Multi-Race, Not Hispanic or Latino", "English Learners", "Low Income",
+            "Students with Disabilities", "High Needs",
+        ]
+        _att_plot = _att_grp[_att_grp["STU_GRP"].isin(_keep_groups)].copy()
+        _att_plot["DRPOUT_PCT"] = pd.to_numeric(_att_plot["DRPOUT_PCT"], errors="coerce")
+        _att_plot = _att_plot.dropna(subset=["DRPOUT_PCT"]).sort_values("DRPOUT_PCT")
+        _all_row = _att_grp[_att_grp["STU_GRP"] == "All Students"]
+        _all_drop = (
+            float(pd.to_numeric(_all_row["DRPOUT_PCT"].iloc[0], errors="coerce"))
+            if not _all_row.empty else None
+        )
+        if not _att_plot.empty:
+            st.divider()
+            st.subheader("Attrition by student group")
+            st.caption(
+                f"Annual dropout rate for the Class of {_cohort_yr} cohort, by "
+                "student group. The dashed line is the school-wide rate — bars to "
+                "its right lose students faster than LEHS as a whole. See "
+                "**[Success After HS](/Success_After_HS?embed=true)** for the full "
+                "9th-grade-to-graduation pipeline."
+            )
+            _short = {
+                "Hispanic or Latino": "Hispanic/Latino",
+                "Black or African American": "Black/African Am.",
+                "Multi-Race, Not Hispanic or Latino": "Multi-Race",
+                "Students with Disabilities": "Students w/ Disabilities",
+                "English Learners": "English Learner",
+            }
+            _att_plot["Group"] = _att_plot["STU_GRP"].map(lambda g: _short.get(g, g))
+            fig_a = go.Figure(go.Bar(
+                x=_att_plot["DRPOUT_PCT"], y=_att_plot["Group"], orientation="h",
+                text=_att_plot["DRPOUT_PCT"].apply(lambda v: f"{v:.0%}"),
+                textposition="outside", marker_color=LEHS_NAVY,
+            ))
+            fig_a.update_traces(cliponaxis=False)
+            fig_a.update_layout(
+                **DEFAULT_LAYOUT, xaxis_title="Dropout rate", yaxis_title="",
+                xaxis_tickformat=".0%",
+                xaxis_range=[0, _att_plot["DRPOUT_PCT"].max() * 1.25],
+            )
+            if _all_drop is not None:
+                fig_a.add_vline(
+                    x=_all_drop, line_dash="dash", line_color=LEHS_GOLD,
+                    annotation_text=f"All students {_all_drop:.0%}",
+                    annotation_position="top",
+                )
+            st.plotly_chart(fig_a, use_container_width=True)
+
+# ---------------------------------------------------------------------------
 # Student-teacher ratio over time — Gap #1: the first question families
 # ask. Pairs naturally with the enrollment trend above; if enrollment
 # went up but staffing didn't, the ratio climbs (bad). If both moved
@@ -370,7 +452,10 @@ st.divider()
 st.subheader("Student–teacher ratio over time")
 st.caption(
     "DESE's reported student-to-teacher ratio for LEHS, computed from the "
-    "'All Teachers' FTE total. Lower is better (smaller classes)."
+    "'All Teachers' FTE total — a lower ratio means fewer students per teacher. "
+    "It counts every licensed adult (counselors, specialists, and so on), not "
+    "just classroom teachers, so read it alongside average class size below "
+    "rather than as a class-size figure on its own."
 )
 
 _td = load_dataset("teacher_data")
@@ -401,7 +486,7 @@ if not _td.empty:
             yaxis_title="Students per teacher",
             xaxis_title="School Year",
         )
-        st.plotly_chart(fig_r, use_container_width=True)
+        st.plotly_chart(year_axis(fig_r), use_container_width=True)
         _latest_r = _tr.iloc[-1]
         _earliest_r = _tr.iloc[0]
         st.caption(
@@ -431,19 +516,27 @@ if not _cs.empty:
         _cs_row = _cs_all.iloc[-1]
 
 if _cs_row is not None and pd.notna(_cs_row.get("AVG_CLSS_CNT")):
-    _cs_l, _cs_r = st.columns([1, 2], gap="medium")
+    _cs_l, _cs_r = st.columns([1, 3], gap="medium")
     with _cs_l:
         st.metric(
             f"Average class size (SY {sy_label(int(_cs_row['SY']))})",
             f"{float(_cs_row['AVG_CLSS_CNT']):.0f} students",
         )
-    with _cs_r:
         st.caption(
             "Averaged across all LEHS course sections — closer to what a student "
             "actually sits in than the staffing ratio above, which divides total "
             "enrollment by every licensed adult in the building (counselors, "
             "specialists, and so on), not just classroom teachers."
         )
+    with _cs_r:
+        _cs_trend = _cs_all.tail(5).copy()
+        _cs_trend["AVG_CLSS_CNT"] = pd.to_numeric(_cs_trend["AVG_CLSS_CNT"], errors="coerce")
+        _cs_trend["label"] = _cs_trend["AVG_CLSS_CNT"].apply(lambda x: f"{x:.0f}")
+        _fig_cs = px.line(_cs_trend, x="SY", y="AVG_CLSS_CNT", markers=True, text="label")
+        _fig_cs.update_traces(line=dict(color=LEHS_NAVY, width=3), textposition="top center")
+        _fig_cs.update_layout(**DEFAULT_LAYOUT, yaxis_title="Avg class size",
+                              xaxis_title="School Year")
+        st.plotly_chart(year_axis(_fig_cs), use_container_width=True)
 
 # ---------------------------------------------------------------------------
 # LEHS vs Lynn district — same-year comparison
@@ -558,7 +651,7 @@ with col_b:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share",
                        xaxis_title="School Year", height=360)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(year_axis(fig), use_container_width=True)
 
 # Detailed race table — in an expander so it doesn't repeat the donut's
 # latest-year shares as a third full-height block.
@@ -599,7 +692,7 @@ fig = px.area(
 )
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share",
                    xaxis_title="School Year")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(year_axis(fig), use_container_width=True)
 if "NB_PCT" in lehs.columns and lehs["NB_PCT"].notna().any():
     st.caption(
         "A non-binary category appears in DESE reporting only in recent years "
@@ -657,7 +750,7 @@ fig = px.line(
 )
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share of Students",
                    xaxis_title="School Year")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(year_axis(fig), use_container_width=True)
 
 # Special pull-out: ELL trajectory
 ell_with_data = lehs.dropna(subset=["EL_PCT"])
@@ -762,7 +855,9 @@ if not _mob.empty:
             "How much of LEHS's student body turns over during a school year. "
             "**Stability** = % enrolled the whole year. **Churn** = % who "
             "moved in or out mid-year. **Intake** = % new during the year. "
-            "Lower churn means a more predictable instructional environment."
+            "Solid lines are LEHS; dashed lines are the **Lynn district** average "
+            "for the same year, so the school's churn reads against what's normal "
+            "for its district (DESE doesn't publish a statewide mobility figure here)."
         )
 
         _latest_m = _mob_lehs.iloc[-1]
@@ -788,21 +883,38 @@ if not _mob.empty:
         with m4:
             st.metric("School year", sy_label(int(_latest_m["SY"])))
 
-        _mob_long = _mob_lehs.melt(
-            id_vars=["SY"],
-            value_vars=["STAB_PCT", "CHURN_PCT", "INTAKE_PCT"],
-            var_name="Metric", value_name="Pct",
-        )
         _mob_label = {
             "STAB_PCT": "Stability",
             "CHURN_PCT": "Churn",
             "INTAKE_PCT": "Mid-year intake",
         }
-        _mob_long["Metric"] = _mob_long["Metric"].map(_mob_label)
-        _mob_long = _mob_long.dropna(subset=["Pct"])
+        _mob_dist = _mob[
+            (_mob["ORG_TYPE"] == "District")
+            & (_mob["DIST_CODE"].astype(str).str.zfill(8) == LYNN_DISTRICT_CODE)
+            & (_mob["STU_GRP"] == "All Students")
+        ].sort_values("SY")
+
+        def _mob_to_long(df, entity):
+            melted = df.melt(
+                id_vars=["SY"],
+                value_vars=["STAB_PCT", "CHURN_PCT", "INTAKE_PCT"],
+                var_name="Metric", value_name="Pct",
+            )
+            melted["Metric"] = melted["Metric"].map(_mob_label)
+            melted["Entity"] = entity
+            return melted
+
+        _mob_long = pd.concat(
+            [_mob_to_long(_mob_lehs, "Lynn English"),
+             _mob_to_long(_mob_dist, "Lynn district")],
+            ignore_index=True,
+        ).dropna(subset=["Pct"])
+
         fig_m = px.line(
-            _mob_long, x="SY", y="Pct", color="Metric", markers=True,
-            color_discrete_map=MOBILITY_PALETTE,
+            _mob_long, x="SY", y="Pct", color="Metric", line_dash="Entity",
+            markers=True, color_discrete_map=MOBILITY_PALETTE,
+            line_dash_map={"Lynn English": "solid", "Lynn district": "dash"},
+            category_orders={"Metric": ["Stability", "Churn", "Mid-year intake"]},
         )
         fig_m.update_layout(
             **DEFAULT_LAYOUT,
@@ -810,7 +922,7 @@ if not _mob.empty:
             yaxis_title="Share of students",
             xaxis_title="School Year",
         )
-        st.plotly_chart(fig_m, use_container_width=True)
+        st.plotly_chart(year_axis(fig_m), use_container_width=True)
 
 # ---------------------------------------------------------------------------
 # Attendance & Chronic Absenteeism
@@ -892,7 +1004,7 @@ if not attendance.empty:
                 yaxis_title="% chronically absent (≥10% of days)",
                 xaxis_title="School Year",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(year_axis(fig), use_container_width=True)
             st.caption(
                 "The post-COVID spike (SY 2022) is visible across MA, but LEHS "
                 "has not recovered to its pre-pandemic baseline. Even the "
@@ -962,8 +1074,11 @@ if not attendance.empty:
 st.divider()
 st.subheader("State accountability status")
 st.caption(
-    "DESE's official ESSA-era classification for LEHS — what the state "
-    "publishes about the school's overall improvement standing."
+    "How the state (DESE) officially rates LEHS's overall progress. It boils a "
+    "dozen different measures — test scores, student growth, attendance, "
+    "graduation, English-learner progress, and more — down to a single label and "
+    "a single 1–99 rank. Useful as a headline, but it flattens a lot; the "
+    "sections above tell the fuller, measure-by-measure story."
 )
 
 _acc = load_dataset("accountability")
@@ -1002,6 +1117,16 @@ if not _acc.empty:
             f"{_icon} **DESE Accountability ({_sy}): {_classif}** — {_reason}." + _district_blurb
         )
 
+        st.caption(
+            "**Reading this fairly:** a low rank doesn't mean classrooms are "
+            "failing. The state's formula leans heavily on chronic absenteeism and "
+            "graduation — both shaped by poverty, student mobility, and being a "
+            "large school serving many English learners — so the overall score can "
+            "sit low even where individual measures (like year-over-year student "
+            "growth) look stronger. Treat it as a prompt for questions, not a "
+            "final verdict on the school."
+        )
+
         c1, c2, c3 = st.columns(3)
         with c1:
             st.metric(
@@ -1024,11 +1149,12 @@ if not _acc.empty:
                 )
         with c2:
             st.metric(
-                "Cumulative progress toward targets",
+                "Progress toward state goals",
                 f"{int(_progress)}%" if pd.notna(_progress) else "—",
                 help=(
-                    "% of LEHS's improvement-target indicators where the school has met "
-                    "or exceeded its annual target."
+                    "Each year the state sets improvement targets for LEHS across "
+                    "several measures. This is the share of those targets the "
+                    "school has met or beaten — higher is better."
                 ),
             )
         with c3:

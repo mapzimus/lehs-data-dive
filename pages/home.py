@@ -13,8 +13,10 @@ import pandas as pd
 import streamlit as st
 
 from utils.branding import AUTHOR_NAME, AUTHOR_SITE, sidebar_attribution
+from utils.charts import el_share_figure
 from utils.constants import IMAGES_DIR, LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
 from utils.data_loader import load_dataset
+from utils.i18n import t
 from utils.interpret import sy_label
 
 sidebar_attribution()
@@ -69,8 +71,8 @@ with col_author:
     st.markdown(
         f"""
         <div style='text-align:right; margin-top:2rem;'>
-            <span style='color:#0A1F44; font-size:0.95rem;'>Built by</span><br>
-            <strong style='font-size:1.3rem; color:#0A1F44;'>{AUTHOR_NAME}</strong><br>
+            <span style='font-size:0.95rem;'>{t("Built by")}</span><br>
+            <strong style='font-size:1.3rem;'>{AUTHOR_NAME}</strong><br>
             <a href='https://{AUTHOR_SITE}' style='color:#FFB81C;'>{AUTHOR_SITE}</a>
         </div>
         """,
@@ -78,8 +80,10 @@ with col_author:
     )
 
 st.markdown(
-    "A public, interactive data exploration tool centered on Lynn English "
-    "High School (LEHS) — Lynn, Massachusetts."
+    t(
+        "A public, interactive data exploration tool centered on Lynn English "
+        "High School (LEHS) — Lynn, Massachusetts."
+    )
 )
 
 st.divider()
@@ -170,12 +174,14 @@ def _city_num(col):
 
 lehs_sy = int(lehs_row["SY"]) if lehs_row is not None else None
 
-st.header("Where do you want to start?")
+st.header(t("Where do you want to start?"))
 st.markdown(
-    "Three nested views of the same place — **Lynn English** the school, "
-    "**Lynn Public Schools** the district, and **Lynn** the city around them. "
-    "Open whichever one you're curious about; jumping between them is always "
-    "one click away in the sidebar."
+    t(
+        "Three nested views of the same place — **Lynn English** the school, "
+        "**Lynn Public Schools** the district, and **Lynn** the city around them. "
+        "Open whichever one you're curious about; jumping between them is always "
+        "one click away in the sidebar."
+    )
 )
 
 s_col, d_col, c_col = st.columns(3, gap="medium")
@@ -218,7 +224,7 @@ def _card_logo(path: Path, alt_text: str) -> None:
 
 with s_col:
     _card_logo(IMAGES_DIR / "lehs-bulldog.png", "LEHS Bulldogs")
-    st.markdown("#### 🎓 The School")
+    st.markdown(t("#### 🎓 The School"))
     # Pull the latest student-teacher ratio from teacher_data for the
     # "All Teachers" rollup row — it's already a pre-formatted "X.X to 1"
     # string, so we strip the unit to render compactly.
@@ -236,7 +242,7 @@ with s_col:
             if "to" in raw:
                 num = raw.split("to")[0].strip().split(".")[0]
                 stu_tchr = f"{num}:1"
-    ratio_frag = f" · {stu_tchr} student–teacher ratio" if stu_tchr else ""
+    ratio_frag = t(" · {ratio} student–teacher ratio", ratio=stu_tchr) if stu_tchr else ""
     # FLNE (First Language Not English) tracks the actual story for Lynn:
     # waves of immigration, not racial categories. A US-born student
     # whose home language is English isn't counted; a recent immigrant
@@ -247,13 +253,17 @@ with s_col:
         if lehs_row is not None and pd.notna(lehs_row.get("FLNE_PCT"))
         else None
     )
-    flne_frag = f" · {flne:.0%} non-English home language" if flne is not None else ""
+    flne_frag = (
+        t(" · {flne} non-English home language", flne=f"{flne:.0%}")
+        if flne is not None
+        else ""
+    )
     st.caption(
-        f"Lynn English High · Grades 9–12{ratio_frag}{flne_frag}"
+        t("Lynn English High · Grades 9–12") + ratio_frag + flne_frag
     )
     if lehs_row is not None:
-        st.metric("Total Enrollment", f"{int(lehs_row['TOTAL_CNT']):,}")
-        st.metric("% English Learners", f"{lehs_row['EL_PCT']:.0%}")
+        st.metric(t("Total Enrollment"), f"{int(lehs_row['TOTAL_CNT']):,}")
+        st.metric(t("% English Learners"), f"{lehs_row['EL_PCT']:.0%}")
     # % Chronic Absence — students missing 10%+ of school days. Pairs
     # with the Grad Rate below to tell the engagement-vs-completion
     # story. Pull the latest end-of-year value (mid-year "March"
@@ -271,7 +281,7 @@ with s_col:
             chronic_pct = pd.to_numeric(chronic["PCT_CHRON_ABS_10"], errors="coerce")
             if pd.notna(chronic_pct):
                 st.metric(
-                    "% Chronic Absence",
+                    t("% Chronic Absence"),
                     f"{float(chronic_pct):.0%}",
                     help=(
                         f"Share of students who missed 10%+ of school days "
@@ -281,7 +291,7 @@ with s_col:
                 )
     if lehs_grad_row is not None:
         st.metric(
-            "4-yr Graduation Rate",
+            t("4-yr Graduation Rate"),
             f"{float(lehs_grad_row['GRAD_PCT']):.0%}",
             help=f"Most recent cohort: SY {sy_label(int(lehs_grad_row['SY']))}",
         )
@@ -290,13 +300,13 @@ with s_col:
     # routes we want to keep visitors in the same tab/iframe.
     st.page_link(
         "pages/1_School_Profile.py",
-        label="Open School Profile →",
+        label=t("Open School Profile →"),
         use_container_width=True,
     )
 
 with d_col:
     _card_logo(IMAGES_DIR / "lps-logo.png", "Lynn Public Schools")
-    st.markdown("#### 🏛️ The District")
+    st.markdown(t("#### 🏛️ The District"))
     sy_dist = int(district_row["SY"]) if district_row is not None else None
     # Caption frames the district's scale and immigration story. FLNE
     # (First Language Not English) indexes the share of students whose
@@ -308,51 +318,55 @@ with d_col:
         else None
     )
     flne_d_frag = (
-        f" · {flne_d:.0%} non-English home language" if flne_d is not None else ""
+        t(" · {flne} non-English home language", flne=f"{flne_d:.0%}")
+        if flne_d is not None
+        else ""
     )
     st.caption(
-        f"Lynn Public Schools · 26 schools{flne_d_frag} · SY {sy_label(sy_dist)}"
-        if sy_dist else f"Lynn Public Schools · 26 schools{flne_d_frag}"
+        t("Lynn Public Schools · 26 schools") + flne_d_frag + f" · SY {sy_label(sy_dist)}"
+        if sy_dist else t("Lynn Public Schools · 26 schools") + flne_d_frag
     )
     if district_row is not None:
-        st.metric("District Enrollment", f"{int(district_row['TOTAL_CNT']):,}")
-        st.metric("% English Learners", f"{district_row['EL_PCT']:.0%}")
+        st.metric(t("District Enrollment"), f"{int(district_row['TOTAL_CNT']):,}")
+        st.metric(t("% English Learners"), f"{district_row['EL_PCT']:.0%}")
     if district_grad_row is not None:
         st.metric(
-            "4-yr Graduation Rate",
+            t("4-yr Graduation Rate"),
             f"{float(district_grad_row['GRAD_PCT']):.0%}",
         )
     if district_ppe_row is not None:
         st.metric(
-            f"Per-pupil expenditure (FY {int(district_ppe_row['SY'])})",
+            t("Per-pupil expenditure (FY {fy})", fy=int(district_ppe_row['SY'])),
             f"${district_ppe_row['IND_VALUE']:,.0f}",
         )
     st.page_link(
         "pages/Lynn_District.py",
-        label="Open District →",
+        label=t("Open District →"),
         use_container_width=True,
     )
 
 with c_col:
     _card_logo(IMAGES_DIR / "lynn-city-seal.jpg", "City of Lynn seal")
-    st.markdown("#### 🏙️ The City")
+    st.markdown(t("#### 🏙️ The City"))
     # Caption advertises the two-tab structure on the destination page —
     # Citywide rolls everything up; Neighborhoods drops to Lynn's 22
     # census tracts (ACS + EJScreen + CDC PLACES).
     st.caption(
-        "Lynn, MA · coastal Gateway city · "
-        "**Citywide + Neighborhoods (22 census tracts)** tabs"
+        t(
+            "Lynn, MA · coastal Gateway city · "
+            "**Citywide + Neighborhoods (22 census tracts)** tabs"
+        )
     )
     pop = _city_num("pop_total")
     mhi = _city_num("median_household_income")
     fb = _city_num("foreign_born_total")
     if pop is not None:
-        st.metric("Total Population", f"{int(pop):,}")
+        st.metric(t("Total Population"), f"{int(pop):,}")
     if mhi is not None:
-        st.metric("Median HH Income", f"${mhi:,.0f}")
+        st.metric(t("Median HH Income"), f"${mhi:,.0f}")
     if fb is not None and pop:
         st.metric(
-            "Foreign-born",
+            t("Foreign-born"),
             f"{fb / pop:.0%}",
             help=f"{int(fb):,} of {int(pop):,} residents",
         )
@@ -360,7 +374,7 @@ with c_col:
     # two of those are catch-all "Other" groups, so the true distinct
     # count is higher — hence the "+".
     st.metric(
-        "Home languages spoken",
+        t("Home languages spoken"),
         "12+",
         help=(
             "ACS C16001 tracks 12 non-English language groups in Lynn; "
@@ -370,12 +384,32 @@ with c_col:
     )
     st.page_link(
         "pages/Lynn_City.py",
-        label="Open Lynn City →",
+        label=t("Open Lynn City →"),
         use_container_width=True,
     )
 
 # Visual break between the three scope cards (data-heavy) and the
 # utility row below (supporting tools).
+st.divider()
+
+# The single chart that captures LEHS's transformation — the English Learner
+# share over a generation. Reused from the English Learners page (its opening
+# graphic) as up-front context, per the 618 audit.
+st.subheader(t("The shift that defines LEHS"))
+st.markdown(
+    t(
+        "More than any single statistic, this is the story: the share of Lynn "
+        "English students who are **English Learners** has climbed dramatically over "
+        "a generation. It reshapes what the school teaches, who it hires, and how to "
+        "read every other number in this dashboard."
+    )
+)
+st.plotly_chart(el_share_figure(enrollment, LEHS_SCHOOL_CODE), use_container_width=True)
+st.page_link(
+    "pages/3_ELL_Pipeline.py",
+    label=t("See the full English Learner pipeline →"),
+)
+
 st.divider()
 
 # --- Utility row: Maps + Data 101 side-by-side. Both are reference
@@ -384,31 +418,35 @@ st.divider()
 maps_col, learn_col = st.columns(2, gap="medium")
 
 with maps_col:
-    st.markdown("#### 🗺️ Maps")
+    st.markdown(t("#### 🗺️ Maps"))
     st.caption(
-        "Interactive MapLibre experiences — Lynn-focused (school pins + "
-        "tract demographics) and statewide MA Education Atlas. "
-        "**1,800+ MA schools · 351 municipalities · 22 Lynn census tracts.**"
+        t(
+            "Interactive MapLibre experiences — Lynn-focused (school pins + "
+            "tract demographics) and statewide MA Education Atlas. "
+            "**1,800+ MA schools · 351 municipalities · 22 Lynn census tracts.**"
+        )
     )
     st.page_link(
         "pages/13_Maps.py",
-        label="Open Maps →",
+        label=t("Open Maps →"),
         use_container_width=True,
     )
 
 with learn_col:
-    st.markdown("#### 📊 Data 101")
+    st.markdown(t("#### 📊 Data 101"))
     st.caption(
-        "New to dashboards? **Start here.** A beginner-friendly guide to "
-        "what a dataset is, how to read each chart type (bar, line, "
-        "histogram, scatter, choropleth, heatmap), what percentages "
-        "actually mean, and the most common ways charts mislead. "
-        "Built for LEHS students and anyone who's never opened a "
-        "dashboard before."
+        t(
+            "New to dashboards? **Start here.** A beginner-friendly guide to "
+            "what a dataset is, how to read each chart type (bar, line, "
+            "histogram, scatter, choropleth, heatmap), what percentages "
+            "actually mean, and the most common ways charts mislead. "
+            "Built for LEHS students and anyone who's never opened a "
+            "dashboard before."
+        )
     )
     st.page_link(
         "pages/14_Data_Literacy.py",
-        label="Open Data 101 →",
+        label=t("Open Data 101 →"),
         use_container_width=True,
     )
 
@@ -420,43 +458,47 @@ st.divider()
 # (persona-tailored paths) sits right under the hero.
 # ---------------------------------------------------------------------------
 
-st.header("Or pick by role")
+st.header(t("Or pick by role"))
 st.markdown(
-    "The scopes above answer *what* you want to see. These three paths "
-    "answer *who you are* — tailored entry points for families, teachers, "
-    "and the school committee."
+    t(
+        "The scopes above answer *what* you want to see. These three paths "
+        "answer *who you are* — tailored entry points for families, teachers, "
+        "and the school committee."
+    )
 )
 
 p_col, t_col, sc_col = st.columns(3)
 
 with p_col:
-    st.markdown("### For families")
-    st.caption("Choosing a school, understanding outcomes, comparing to siblings.")
-    st.page_link("pages/1_School_Profile.py", label="School Profile — who attends LEHS today")
-    st.page_link("pages/2_Academic_Performance.py", label="Academic Performance — MCAS scores, growth, gaps")
-    st.page_link("pages/5_Success_After_HS.py", label="Success After HS — does the promise hold up?")
-    st.page_link("pages/Lynn_Schools.py", label="Lynn Schools — LEHS vs. its sibling high schools")
+    st.markdown(t("### For families"))
+    st.caption(t("Choosing a school, understanding outcomes, comparing to siblings."))
+    st.page_link("pages/1_School_Profile.py", label=t("School Profile — who attends LEHS today"))
+    st.page_link("pages/2_Academic_Performance.py", label=t("Academic Performance — MCAS scores, growth, gaps"))
+    st.page_link("pages/5_Success_After_HS.py", label=t("Success After HS — does the promise hold up?"))
+    st.page_link("pages/Lynn_Schools.py", label=t("Lynn Schools — LEHS vs. its sibling high schools"))
 
 with t_col:
-    st.markdown("### For teachers")
-    st.caption("Instructional planning, student insight, subgroup gaps.")
-    st.page_link("pages/2_Academic_Performance.py", label="Academic Performance — MCAS by subject, growth, gaps")
-    st.page_link("pages/3_ELL_Pipeline.py", label="English Learners — LEHS's central narrative")
-    st.page_link("pages/8_Discipline_and_Climate.py", label="Discipline & Climate — chronic absence by group")
-    st.page_link("pages/6_Teachers_and_Workforce.py", label="Teachers & Workforce — who's in the building")
+    st.markdown(t("### For teachers"))
+    st.caption(t("Instructional planning, student insight, subgroup gaps."))
+    st.page_link("pages/2_Academic_Performance.py", label=t("Academic Performance — MCAS by subject, growth, gaps"))
+    st.page_link("pages/3_ELL_Pipeline.py", label=t("English Learners — LEHS's central narrative"))
+    st.page_link("pages/8_Discipline_and_Climate.py", label=t("Discipline & Climate — chronic absence by group"))
+    st.page_link("pages/6_Teachers_and_Workforce.py", label=t("Teachers & Workforce — who's in the building"))
 
 with sc_col:
-    st.markdown("### For school committee")
-    st.caption("Accountability, peer comparison, dollar-for-outcome leverage.")
-    st.page_link("pages/Lynn_District.py", label="Lynn District — LPS as a whole")
-    st.page_link("pages/7_Finance.py", label="Finance — per-pupil spending by category")
-    st.page_link("pages/Lynn_Schools.py", label="Lynn Schools — vs. same-district siblings")
-    st.page_link("pages/11_Gateway_Peer_Comparison.py", label="Gateway Cities — 26-city scorecard")
-    st.page_link("pages/12_Correlation_Lab.py", label="Cross-Topic Explorer — what moves with what")
+    st.markdown(t("### For school committee"))
+    st.caption(t("Accountability, peer comparison, dollar-for-outcome leverage."))
+    st.page_link("pages/Lynn_District.py", label=t("Lynn District — LPS as a whole"))
+    st.page_link("pages/7_Finance.py", label=t("Finance — per-pupil spending by category"))
+    st.page_link("pages/Lynn_Schools.py", label=t("Lynn Schools — vs. same-district siblings"))
+    st.page_link("pages/11_Gateway_Peer_Comparison.py", label=t("Gateway Cities — 26-city scorecard"))
+    st.page_link("pages/12_Correlation_Lab.py", label=t("Cross-Topic Explorer — what moves with what"))
 
 st.caption(
-    "These are starting points, not the only useful pages. The full sidebar "
-    "shows every section."
+    t(
+        "These are starting points, not the only useful pages. The full sidebar "
+        "shows every section."
+    )
 )
 
 st.divider()
@@ -465,10 +507,11 @@ st.divider()
 # What is this?
 # ---------------------------------------------------------------------------
 
-st.header("What is this dashboard?")
+st.header(t("What is this dashboard?"))
 
 st.markdown(
-    """
+    t(
+        """
 **The LEHS Data Dive pulls together every publicly available dataset relevant
 to Lynn English High School and renders it as a single navigable analysis.**
 It's designed for the people who actually need to *understand* the school —
@@ -483,6 +526,7 @@ community context in a sixth. **Pulling them together at the school level
 is the difference between a stack of separate facts and a coherent picture
 of one school.**
 """
+    )
 )
 
 # ---------------------------------------------------------------------------
@@ -493,7 +537,8 @@ c1, c2 = st.columns(2)
 
 with c1:
     st.markdown(
-        """
+        t(
+            """
 **Data scope**
 - **22 datasets** from MA DESE's E2C Hub (MCAS, graduation, AP, attendance,
   finance, staffing, plans of graduates, pathways, postsecondary outcomes)
@@ -503,11 +548,13 @@ with c1:
 - **Historical depth**: enrollment back to **1992–93**, MCAS back to 2017,
   graduation cohorts back to 2005
 """
+        )
     )
 
 with c2:
     st.markdown(
-        """
+        t(
+            """
 **Three peer cohorts** for comparing LEHS:
 - **Same district** *(closest comparison)* — LEHS vs. its sibling
   Lynn high schools. Same city, same policies → school-level effects show through.
@@ -517,10 +564,11 @@ with c2:
   school in each of MA's 26 Gateway cities (Brockton, Lawrence,
   Chelsea, Lowell, Holyoke, Springfield, +19).
 """
+        )
     )
-    st.page_link("pages/Lynn_Schools.py", label="→ Lynn Schools (same district)")
-    st.page_link("pages/Lynn_District.py", label="→ Lynn District (same system)")
-    st.page_link("pages/11_Gateway_Peer_Comparison.py", label="→ Gateway Cities (same role)")
+    st.page_link("pages/Lynn_Schools.py", label=t("→ Lynn Schools (same district)"))
+    st.page_link("pages/Lynn_District.py", label=t("→ Lynn District (same system)"))
+    st.page_link("pages/11_Gateway_Peer_Comparison.py", label=t("→ Gateway Cities (same role)"))
 
 st.divider()
 
@@ -528,10 +576,11 @@ st.divider()
 # What questions can you answer here?
 # ---------------------------------------------------------------------------
 
-st.header("Questions you can answer here")
+st.header(t("Questions you can answer here"))
 
 st.markdown(
-    """
+    t(
+        """
 - **How is LEHS doing?** — Headline metrics, trends, and peer comparison
   on **School Profile** and **Academic Performance**.
 - **What does LEHS's English Learner pipeline actually look like?** —
@@ -552,6 +601,7 @@ st.markdown(
 
 *Jump to any of these from the index just below, or the sidebar.*
 """
+    )
 )
 
 st.divider()
@@ -560,43 +610,45 @@ st.divider()
 # Section list
 # ---------------------------------------------------------------------------
 
-st.header("All sections")
+st.header(t("All sections"))
 
 st.markdown(
-    "The sidebar is grouped into five clusters. Pick anything that's "
-    "relevant to what you're trying to figure out."
+    t(
+        "The sidebar is grouped into five clusters. Pick anything that's "
+        "relevant to what you're trying to figure out."
+    )
 )
 
 c1, c2 = st.columns(2)
 
 with c1:
-    st.markdown("**Top of sidebar**")
-    st.page_link("pages/home.py", label="Home — this page")
-    st.page_link("pages/13_Maps.py", label="Maps — Lynn map + statewide MA Education Atlas")
-    st.markdown("**The School (LEHS)**")
-    st.page_link("pages/1_School_Profile.py", label="School Profile — demographics, enrollment trends")
-    st.page_link("pages/2_Academic_Performance.py", label="Academic Performance — MCAS, growth, gaps")
-    st.page_link("pages/3_ELL_Pipeline.py", label="English Learners (central narrative)")
-    st.page_link("pages/4_College_and_Career.py", label="College & Career — AP, MassCore, FAFSA, plans")
-    st.page_link("pages/5_Success_After_HS.py", label="Success After HS — 9th grade → degrees → earnings")
-    st.page_link("pages/6_Teachers_and_Workforce.py", label="Teachers & Workforce — diversity, staffing")
-    st.page_link("pages/7_Finance.py", label="Finance — per-pupil spending breakdowns")
-    st.page_link("pages/8_Discipline_and_Climate.py", label="Discipline & Climate — suspensions, attendance")
-    st.page_link("pages/9_Athletics.py", label="Athletics — records, rivalry, hall of fame")
-    st.page_link("pages/16_Where_Students_Live.py", label="Where Students Live — residential pattern")
-    st.page_link("pages/15_LEHS_History.py", label="LEHS History — 130+ years of the school's story")
+    st.markdown(t("**Top of sidebar**"))
+    st.page_link("pages/home.py", label=t("Home — this page"))
+    st.page_link("pages/13_Maps.py", label=t("Maps — Lynn map + statewide MA Education Atlas"))
+    st.markdown(t("**The School (LEHS)**"))
+    st.page_link("pages/1_School_Profile.py", label=t("School Profile — demographics, enrollment trends"))
+    st.page_link("pages/2_Academic_Performance.py", label=t("Academic Performance — MCAS, growth, gaps"))
+    st.page_link("pages/3_ELL_Pipeline.py", label=t("English Learners (central narrative)"))
+    st.page_link("pages/4_College_and_Career.py", label=t("College & Career — AP, MassCore, FAFSA, plans"))
+    st.page_link("pages/5_Success_After_HS.py", label=t("Success After HS — 9th grade → degrees → earnings"))
+    st.page_link("pages/6_Teachers_and_Workforce.py", label=t("Teachers & Workforce — diversity, staffing"))
+    st.page_link("pages/7_Finance.py", label=t("Finance — per-pupil spending breakdowns"))
+    st.page_link("pages/8_Discipline_and_Climate.py", label=t("Discipline & Climate — suspensions, attendance"))
+    st.page_link("pages/9_Athletics.py", label=t("Athletics — records, rivalry, hall of fame"))
+    st.page_link("pages/16_Where_Students_Live.py", label=t("Where Students Live — residential pattern"))
+    st.page_link("pages/15_LEHS_History.py", label=t("LEHS History — 130+ years of the school's story"))
 
 with c2:
-    st.markdown("**Lynn**")
-    st.page_link("pages/Lynn_District.py", label="District — LPS snapshot + all 26 schools")
-    st.page_link("pages/Lynn_City.py", label="City — demographics, economy, neighborhoods")
-    st.markdown("**Comparison**")
-    st.page_link("pages/Lynn_Schools.py", label="Lynn Schools — closest peer view")
-    st.page_link("pages/11_Gateway_Peer_Comparison.py", label="Gateway Cities — 26-city scorecard")
-    st.page_link("pages/12_Correlation_Lab.py", label="Cross-Topic Explorer — cross-domain analysis")
-    st.markdown("**About**")
-    st.page_link("pages/14_Data_Literacy.py", label="Data 101 — beginner's guide to the charts")
-    st.page_link("pages/99_Methodology.py", label="Methodology — sources and caveats")
+    st.markdown(t("**Lynn**"))
+    st.page_link("pages/Lynn_District.py", label=t("District — LPS snapshot + all 26 schools"))
+    st.page_link("pages/Lynn_City.py", label=t("City — demographics, economy, neighborhoods"))
+    st.markdown(t("**Comparison**"))
+    st.page_link("pages/Lynn_Schools.py", label=t("Lynn Schools — closest peer view"))
+    st.page_link("pages/11_Gateway_Peer_Comparison.py", label=t("Gateway Cities — 26-city scorecard"))
+    st.page_link("pages/12_Correlation_Lab.py", label=t("Cross-Topic Explorer — cross-domain analysis"))
+    st.markdown(t("**About**"))
+    st.page_link("pages/14_Data_Literacy.py", label=t("Data 101 — beginner's guide to the charts"))
+    st.page_link("pages/99_Methodology.py", label=t("Methodology — sources and caveats"))
 
 st.divider()
 
@@ -606,10 +658,10 @@ st.divider()
 
 st.markdown(
     f"""
-    <div style='text-align:center; margin-top:2rem; color:#455A64; font-size:0.9rem;'>
-        Built by <strong>{AUTHOR_NAME}</strong> ·
+    <div style='text-align:center; margin-top:2rem; color:#8A94A6; font-size:0.9rem;'>
+        {t("Built by")} <strong>{AUTHOR_NAME}</strong> ·
         <a href='https://{AUTHOR_SITE}' style='color:#FFB81C;'>{AUTHOR_SITE}</a> ·
-        <a href='https://github.com/mapzimus/lehs-data-dive' style='color:#FFB81C;'>source on GitHub</a>
+        <a href='https://github.com/mapzimus/lehs-data-dive' style='color:#FFB81C;'>{t("source on GitHub")}</a>
     </div>
     """,
     unsafe_allow_html=True,

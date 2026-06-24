@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.branding import sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
+from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE, year_axis
 from utils.constants import LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
 from utils.data_loader import get_dart_indicator, load_dataset
 from utils.interpret import sat_methodology_note, sy_label
@@ -91,13 +91,17 @@ if not ap_lehs.empty:
         score_long["Score"] = score_long["Score"].str.replace("SCORE_", "")
         fig = px.bar(
             score_long, x="SY", y="Count", color="Score", barmode="stack",
+            category_orders={"Score": ["1", "2", "3", "4", "5"]},
             color_discrete_map={
-                "1": "#D32F2F", "2": "#F57C00", "3": "#FBC02D",
-                "4": "#388E3C", "5": "#1976D2",
+                "1": "#E08E8E",  # coral — lowest
+                "2": "#EFB27A",  # soft orange
+                "3": "#E9D08A",  # soft gold — the 3+ college-credit threshold
+                "4": "#A8D5BA",  # light green
+                "5": "#4CA66B",  # green — highest
             },
         )
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Tests")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(year_axis(fig), use_container_width=True)
         st.caption("Scores 3, 4, 5 are typically considered 'passing' / college-credit-eligible.")
 
 # AP equity: who's in AP?
@@ -181,7 +185,7 @@ if not ap_groups.empty:
             )
             fig = px.bar(
                 ap_subj_latest, x="PCT_3_5", y="SUBJ", orientation="h", text="label",
-                color="SUBJ_CAT",
+                color="SUBJ_CAT", color_discrete_sequence=px.colors.qualitative.Pastel,
             )
             fig.update_traces(textposition="outside", cliponaxis=False)
             fig.update_layout(
@@ -267,7 +271,7 @@ if not adv.empty:
                 yaxis_title="% of 11–12 graders completing an advanced course",
                 xaxis_title="School Year",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(year_axis(fig), use_container_width=True)
 
         # By subject area — where is LEHS rigor strong vs weak?
         SUBJ_AREA_COLS = {
@@ -339,7 +343,15 @@ if not mc_groups.empty:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                        yaxis_title="MassCore Completion Rate")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(year_axis(fig), use_container_width=True)
+    st.caption(
+        "MassCore is the **core-class** yardstick on this page — the full "
+        "college-prep sequence in English, math, science, history, and world "
+        "language. For how LEHS students actually *perform* in those core "
+        "subjects, see **[Academic Performance](/Academic_Performance?embed=true)** "
+        "(MCAS by subject); this page focuses on access to advanced and "
+        "post-secondary opportunities."
+    )
 
 st.divider()
 
@@ -448,7 +460,7 @@ if not sat_perf.empty:
                     xaxis_title="School Year",
                     yaxis_range=[300, 650],
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(year_axis(fig), use_container_width=True)
 
         # Subgroup breakdown — latest year
         sub = sat_perf[
@@ -478,7 +490,7 @@ if not sat_perf.empty:
             fig = px.bar(
                 sub_long, x="Score", y="STU_GRP", color="Subject",
                 orientation="h", barmode="group", text="label",
-                color_discrete_map={"Reading & Writing": "#1976D2", "Math": "#D32F2F"},
+                color_discrete_map={"Reading & Writing": "#6BAED6", "Math": "#E08E8E"},
                 category_orders={"STU_GRP": rw_order},
             )
             fig.update_traces(textposition="outside", cliponaxis=False)
@@ -572,22 +584,19 @@ if not early_credits.empty:
         if not ec_agg.empty:
             st.subheader(f"Credits earned by partner college (SY {latest_ec - 1}-{str(latest_ec)[-2:]})")
             ec_agg["pass_rate"] = ec_agg["EARNED_CREDIT_CNT"] / ec_agg["REG_CREDITS_CNT"]
-            fig = px.bar(
-                ec_agg, y="CEEB_NAME", x="EARNED_CREDIT_CNT", orientation="h",
-                color="pass_rate", color_continuous_scale="Greens",
-                hover_data={"STU_CNT": True, "REG_CREDITS_CNT": True, "pass_rate": ":.0%"},
-                text=ec_agg["EARNED_CREDIT_CNT"].astype(int).astype(str),
-            )
-            fig.update_traces(textposition="outside", cliponaxis=False)
-            fig.update_layout(
-                **DEFAULT_LAYOUT,
-                height=max(280, 36 * len(ec_agg)),
-                xaxis_title="Credits earned",
-                xaxis_range=[0, ec_agg["EARNED_CREDIT_CNT"].max() * 1.15],
-                yaxis_title="",
-                coloraxis_colorbar=dict(title="Pass rate"),
-            )
-            st.plotly_chart(fig, use_container_width=True)
+            display = ec_agg.sort_values("EARNED_CREDIT_CNT", ascending=False).rename(columns={
+                "CEEB_NAME":          "Partner College",
+                "STU_CNT":            "Students",
+                "REG_CREDITS_CNT":    "Credits Registered",
+                "EARNED_CREDIT_CNT":  "Credits Earned",
+                "pass_rate":          "Pass Rate",
+            })
+            display["Students"]           = display["Students"].astype(int)
+            display["Credits Registered"] = display["Credits Registered"].astype(int)
+            display["Credits Earned"]     = display["Credits Earned"].astype(int)
+            display["Pass Rate"]          = display["Pass Rate"].map("{:.0%}".format)
+            st.dataframe(display[["Partner College","Students","Credits Registered","Credits Earned","Pass Rate"]],
+                         use_container_width=True, hide_index=True)
 else:
     st.info("Early-college credit data not available yet.")
 
@@ -638,12 +647,12 @@ if not cco.empty:
                 f"{latest_cco_year} Lynn district cohort — {grad_total:,} grads"
             )
             color_map_outcome = {
-                "Total Missing":          "#90A4AE",
-                "In-State Public 4-Year": "#1976D2",
-                "In-State Public 2-Year": "#42A5F5",
-                "In-State Private":       LEHS_NAVY,
-                "Out-of-State":           "#7B1FA2",
-                "Total Employed":         "#388E3C",
+                "Total Missing":          "#B6C0C9",  # light gray
+                "In-State Public 4-Year": LEHS_NAVY,
+                "In-State Public 2-Year": "#A6C8E8",  # pastel sky
+                "In-State Private":       "#C5A8D6",  # pastel violet
+                "Out-of-State":           "#8FA3BF",  # muted blue-gray
+                "Total Employed":         "#B5D6A8",  # sage green
             }
             fig = px.bar(
                 itemized, y="OUTCOME_TYPE", x="OUTCOME_CNT", orientation="h",
@@ -688,40 +697,53 @@ st.caption(
 )
 
 ipeds = load_dataset("ipeds_destinations")
-if ipeds.empty:
-    st.info(
-        "Destination college data not yet populated. The ingest scaffold is "
-        "at scripts/05_download_ipeds.py — it queries College Scorecard's "
-        "free API; rate-limited demo key may return empty."
-    )
-else:
+# The College Scorecard / IPEDS join only has institution NAMES right now — every
+# metric column (grad rate, cost, Pell, demographics) is null until the ingest
+# runs with a real API key. Render the known destinations as a clean list and
+# flag the metrics as pending, rather than a table that's a wall of "—".
+_metric_cols = [c for c in ipeds.columns if c not in ("UNITID", "INSTITUTION")]
+_has_metrics = (not ipeds.empty) and any(ipeds[c].notna().any() for c in _metric_cols)
+
+if _has_metrics:
     display_cols = {
-        "INSTITUTION": "Institution",
-        "STATE": "State",
-        "SECTOR": "Sector",
-        "GRAD_RATE_150": "Grad rate (150%)",
-        "COST_IN_STATE": "In-state cost",
-        "COST_OUT_STATE": "Out-of-state cost",
-        "PELL_PCT": "% Pell recipients",
-        "BLACK_PCT": "% Black",
-        "HISP_PCT": "% Hispanic",
-        "WHITE_PCT": "% White",
-        "ASIAN_PCT": "% Asian",
+        "INSTITUTION": "Institution", "STATE": "State", "SECTOR": "Sector",
+        "GRAD_RATE_150": "Grad rate (150%)", "COST_IN_STATE": "In-state cost",
+        "COST_OUT_STATE": "Out-of-state cost", "PELL_PCT": "% Pell recipients",
+        "BLACK_PCT": "% Black", "HISP_PCT": "% Hispanic",
+        "WHITE_PCT": "% White", "ASIAN_PCT": "% Asian",
     }
     have = [c for c in display_cols if c in ipeds.columns]
     display = ipeds[have].rename(columns=display_cols).copy()
-    for c in ["Grad rate (150%)", "% Pell recipients", "% Black", "% Hispanic",
-              "% White", "% Asian"]:
+    for c in ["Grad rate (150%)", "% Pell recipients", "% Black", "% Hispanic", "% White", "% Asian"]:
         if c in display.columns:
             display[c] = display[c].apply(
-                lambda x: f"{x:.0%}" if pd.notna(x) and isinstance(x, (int, float)) else "—"
-            )
+                lambda x: f"{x:.0%}" if pd.notna(x) and isinstance(x, (int, float)) else "—")
     for c in ["In-state cost", "Out-of-state cost"]:
         if c in display.columns:
             display[c] = display[c].apply(
-                lambda x: f"${x:,.0f}" if pd.notna(x) and isinstance(x, (int, float)) else "—"
-            )
+                lambda x: f"${x:,.0f}" if pd.notna(x) and isinstance(x, (int, float)) else "—")
     st.dataframe(display, use_container_width=True, hide_index=True, height=420)
+elif not ipeds.empty and "INSTITUTION" in ipeds.columns:
+    _names = sorted(str(x) for x in ipeds["INSTITUTION"].dropna().unique())
+    st.info(
+        "**Institution-level detail (grad rate, cost, Pell %, demographics) isn't "
+        "loaded yet** — the College Scorecard / IPEDS ingest "
+        "(`scripts/05_download_ipeds.py`) needs an API key and a run. The "
+        f"destinations Lynn grads enroll in are known, though — **{len(_names)}** "
+        "institutions:"
+    )
+    _half = (len(_names) + 1) // 2
+    _lc, _rc = st.columns(2)
+    with _lc:
+        st.markdown("\n".join(f"- {n}" for n in _names[:_half]))
+    with _rc:
+        st.markdown("\n".join(f"- {n}" for n in _names[_half:]))
+else:
+    st.info(
+        "Destination college data not yet populated. The ingest scaffold is at "
+        "scripts/05_download_ipeds.py — it queries College Scorecard's free API; "
+        "a rate-limited demo key may return empty."
+    )
 
 # >>> auto: csv downloads <<<
 try:

@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.branding import sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
+from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE, year_axis
 from utils.constants import (
     LCHS_SCHOOL_CODE,
     LEHS_SCHOOL_CODE,
@@ -23,7 +23,7 @@ from utils.interpret import sy_label
 # effects from city-level demographics.
 LVTI_SCHOOL_CODE = "01630605"
 LCHS_COLOR = LEHS_GOLD
-LVTI_COLOR = "#26A69A"  # teal
+LVTI_COLOR = "#9CCFC4"  # muted teal
 
 st.set_page_config(page_title="Discipline & Climate | LEHS", page_icon="⚖️", layout="wide")
 sidebar_attribution()
@@ -88,7 +88,7 @@ if not susp_lehs.empty:
             yaxis_title="% suspended at least once",
             yaxis_ticksuffix="%",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(year_axis(fig), use_container_width=True)
 
 st.divider()
 
@@ -131,7 +131,7 @@ if not all_stu.empty:
                       line=dict(dash="dot", width=2))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                       yaxis_title="% Chronically Absent (10%+ missed)")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(year_axis(fig), use_container_width=True)
 
 # By subgroup — LEHS only (LCHS comparison on subgroups would clutter the chart)
 priority = ["All Students", "English Learners", "Hispanic or Latino",
@@ -159,7 +159,7 @@ if not sub_g.empty:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                        yaxis_title="% Chronically Absent")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(year_axis(fig), use_container_width=True)
 
     # ---------------------------------------------------------------------------
     # Latest year — chronic absence rates with 95% Wilson CIs by subgroup
@@ -366,7 +366,7 @@ if not att_rate.empty:
                       line=dict(dash="dot", width=2))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                       yaxis_title="Attendance rate")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(year_axis(fig), use_container_width=True)
 
 st.divider()
 
@@ -447,7 +447,7 @@ if not mobility.empty:
                     **DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                     yaxis_title=f"% {metric.lower()}", xaxis_title="School Year",
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(year_axis(fig), use_container_width=True)
 
         # Subgroup breakdown — latest year, sorted by churn descending
         sub = mobility[
@@ -486,15 +486,67 @@ if not mobility.empty:
 st.divider()
 
 # ---------------------------------------------------------------------------
-# Disproportionality view (DESE statereport SSDR)
+# Out-of-school suspension rate by student group — the plain-rate view. The
+# risk-ratio chart below answers "relative to all students"; this answers the
+# question a parent actually asks: what share of each group is suspended?
 # ---------------------------------------------------------------------------
 
-st.header("Disproportionality view")
+st.header("Who gets suspended — by student group")
+_dd = load_dataset("discipline_disaggregated")
+if not _dd.empty:
+    _dd = _dd.copy()
+    _dd["ORG_CODE"] = _dd["ORG_CODE"].astype(str).str.zfill(8)
+    _oss = _dd[
+        (_dd["ORG_CODE"] == LEHS_SCHOOL_CODE)
+        & (_dd["INDICATOR"] == "Out-of-School Suspension Rate")
+    ].copy()
+    _oss["VALUE"] = pd.to_numeric(_oss["VALUE"], errors="coerce")
+    _oss = _oss.dropna(subset=["VALUE", "GROUP"])
+    if not _oss.empty:
+        _oss_year = int(_oss["SY"].max())
+        _oss = _oss[_oss["SY"] == _oss_year]
+        _all_row = _oss[_oss["DIM"] == "all"]
+        _all_rate = float(_all_row["VALUE"].iloc[0]) if not _all_row.empty else None
+        _bars = _oss[_oss["DIM"] != "all"].drop_duplicates("GROUP").sort_values("VALUE")
+        if not _bars.empty:
+            st.caption(
+                f"Out-of-school suspension rate by student group, SY "
+                f"{sy_label(_oss_year)}. A parent reads ‘17% vs 9%’ more "
+                f"easily than a risk ratio — the dashed line is the school-wide "
+                f"rate. The relative view (risk ratios) is just below."
+            )
+            fig = go.Figure(go.Bar(
+                x=_bars["VALUE"], y=_bars["GROUP"], orientation="h",
+                text=_bars["VALUE"].apply(lambda v: f"{v:.0%}"),
+                textposition="outside", marker_color=LEHS_NAVY,
+            ))
+            fig.update_traces(cliponaxis=False)
+            fig.update_layout(
+                **DEFAULT_LAYOUT, xaxis_tickformat=".0%",
+                xaxis_title="Out-of-school suspension rate", yaxis_title="",
+                xaxis_range=[0, float(_bars["VALUE"].max()) * 1.25],
+            )
+            if _all_rate is not None:
+                fig.add_vline(
+                    x=_all_rate, line_dash="dash", line_color=LEHS_GOLD,
+                    annotation_text=f"All students {_all_rate:.0%}",
+                    annotation_position="top",
+                )
+            st.plotly_chart(fig, use_container_width=True)
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Disproportionality view (DESE statereport SSDR) — the relative-risk angle.
+# ---------------------------------------------------------------------------
+
+st.header("How much more likely? — relative risk by group")
 st.caption(
-    "Risk ratios compare each subgroup's discipline rate to the all-students "
-    "rate at the same school. A ratio >1 means that subgroup is disciplined "
-    "more often than average; <1 means less often. Source: DESE statereport "
-    "SSDR (School Safety + Discipline Report)."
+    "The same idea as the chart above, expressed as a **risk ratio**: each "
+    "group's discipline rate divided by the all-students rate at the same "
+    "school. A ratio above 1 means that group is disciplined more often than "
+    "average; below 1, less often. Source: DESE's School Safety + Discipline "
+    "Report (SSDR)."
 )
 
 disp = load_dataset("discipline_disproportionality")
@@ -524,34 +576,15 @@ else:
     else:
         fig = px.bar(sub.sort_values(["DIM", "GROUP"]), x="GROUP", y="RISK_RATIO",
                      color="DIM", barmode="group",
+                     color_discrete_sequence=px.colors.qualitative.Pastel,
                      title=f"{org_pick['ORG_NAME']} — {ind_pick} risk ratios")
         fig.add_hline(y=1.0, line_dash="dash", line_color="#444",
                       annotation_text="All-students baseline")
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Risk ratio (vs. all students)")
         st.plotly_chart(fig, use_container_width=True)
 
-st.divider()
-
-# ---------------------------------------------------------------------------
-# Federal CRDC indicators
-# ---------------------------------------------------------------------------
-
-st.header("Federal CRDC indicators")
-st.caption(
-    "Biennial federal Civil Rights Data Collection. Captures what DESE doesn't: "
-    "school-based arrests, law-enforcement referrals, restraint/seclusion. "
-    "Most recent release at script-write time was SY 2017-18. See the new "
-    "Federal CRDC page (sidebar) for the full deep-dive once data is wired in."
-)
-
+# Loaded for the downloads panel below; rendered on the dedicated Federal CRDC page.
 crdc = load_dataset("crdc_discipline")
-if crdc.empty:
-    st.info(
-        "CRDC bulk archive downloaded to data/raw/crdc/ — per-school row "
-        "extraction is a follow-up. See scripts/04_download_crdc.py."
-    )
-else:
-    st.dataframe(crdc.head(50), use_container_width=True)
 
 # >>> auto: csv downloads <<<
 try:

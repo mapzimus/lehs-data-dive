@@ -37,6 +37,10 @@ from utils.constants import (  # noqa: E402
     PROCESSED_DIR,
     RAW_DIR,
 )
+from utils.precise_sources import (  # noqa: E402
+    fetch_precise_ap,
+    fetch_precise_staff_race,
+)
 
 GIS_DIR = RAW_DIR / "gis"
 WEB_CRS = "EPSG:4326"  # plotly mapbox wants lat/lon
@@ -406,20 +410,37 @@ def _build_district_metrics_table() -> pd.DataFrame:
             out = out.merge(att_d, on="DIST_CODE", how="left")
 
     # ─── 5. AP performance (district aggregate — % scoring 3+) ────────────────
+    # `ap_pct_3plus` is sourced at FULL PRECISION from DESE 787a-3wen via the SODA
+    # JSON API (utils.precise_sources). The CSV bulk export rounds PCT_3_5 to the
+    # nearest 10%; the JSON resource API returns the raw value. `precise_ap` is
+    # fetched once here and reused by the year-keyed and group-keyed AP blocks below.
+    precise_ap = fetch_precise_ap()
     ap_path = e2c_raw / "ap_performance.csv"
+    ap = None
     if ap_path.exists():
         ap = pd.read_csv(ap_path, low_memory=False)
         ap["DIST_CODE"] = ap["DIST_CODE"].astype(str).str.zfill(8)
+        # tests_taken is an integer count (not display-rounded) — keep it from the CSV.
         ap_d = ap[
             (ap["ORG_TYPE"] == "District")
             & (ap["STU_GRP"] == "All Students")
             & (ap["SUBJ_CAT"].astype(str).str.lower() == "all subjects")
         ].sort_values("SY").groupby("DIST_CODE").tail(1)
-        if "PCT_3_5" in ap_d.columns:
-            ap_d["ap_pct_3plus"] = pd.to_numeric(ap_d["PCT_3_5"], errors="coerce")
+        if "TESTS_TAKEN" in ap_d.columns:
+            ap_d = ap_d.copy()
             ap_d["ap_tests_taken"] = pd.to_numeric(ap_d["TESTS_TAKEN"], errors="coerce")
-            out = out.merge(ap_d[["DIST_CODE", "ap_pct_3plus", "ap_tests_taken"]],
-                             on="DIST_CODE", how="left")
+            out = out.merge(ap_d[["DIST_CODE", "ap_tests_taken"]], on="DIST_CODE", how="left")
+    if not precise_ap.empty and "ap_pct_3plus" in precise_ap.columns:
+        out = out.merge(precise_ap[["DIST_CODE", "ap_pct_3plus"]], on="DIST_CODE", how="left")
+    elif ap is not None and "PCT_3_5" in ap.columns:
+        # Fallback: rounded CSV value only if SODA was unreachable.
+        ap_base = ap[
+            (ap["ORG_TYPE"] == "District")
+            & (ap["STU_GRP"] == "All Students")
+            & (ap["SUBJ_CAT"].astype(str).str.lower() == "all subjects")
+        ].sort_values("SY").groupby("DIST_CODE").tail(1).copy()
+        ap_base["ap_pct_3plus"] = pd.to_numeric(ap_base["PCT_3_5"], errors="coerce")
+        out = out.merge(ap_base[["DIST_CODE", "ap_pct_3plus"]], on="DIST_CODE", how="left")
 
     # ─── 6. MassCore completion ───────────────────────────────────────────────
     mc_path = e2c_raw / "masscore_completion.csv"
@@ -489,6 +510,20 @@ def _build_district_metrics_table() -> pd.DataFrame:
             "FE_PCT": "staff_female_pct",
         })
         out = out.merge(all_staff, on="DIST_CODE", how="left")
+
+    # Override the three staff race shares with FULL-PRECISION, headcount-weighted
+    # all-staff values from DESE fz9c-2g33 via SODA (utils.precise_sources). The
+    # CSV's WH/HL/BAA_PCT above are rounded to the nearest 10%. staff_fte_total,
+    # staff_female_pct and staff_asian_pct keep their CSV values (no gender, and
+    # we only override the three race shares carried in the academic geojson).
+    precise_staff = fetch_precise_staff_race()
+    if not precise_staff.empty:
+        out = out.merge(precise_staff, on="DIST_CODE", how="left", suffixes=("", "__precise"))
+        for col in ("staff_white_pct", "staff_hispanic_pct", "staff_black_pct"):
+            pc = f"{col}__precise"
+            if pc in out.columns:
+                out[col] = out[pc].combine_first(out[col]) if col in out.columns else out[pc]
+                out = out.drop(columns=pc)
 
     # ─── 9. Teacher data — student:teacher ratio + experienced % + in-field % ─
     td_path = e2c_raw / "teacher_data.csv"
@@ -629,8 +664,16 @@ def _build_district_metrics_table() -> pd.DataFrame:
             if not sub_yk.empty:
                 yk_frames.append(sub_yk)
 
-    # AP % scoring 3+ by year
-    if ap_path.exists():
+    # AP % scoring 3+ by year — full precision from SODA (precise_ap, fetched in
+    # Section 5). Falls back to the rounded CSV pivot only if SODA was unreachable.
+    if not precise_ap.empty:
+        ap_yk_cols = ["DIST_CODE"] + [
+            c for c in precise_ap.columns
+            if c.startswith("ap_pct_3plus__") and c.split("__")[1].isdigit()
+        ]
+        if len(ap_yk_cols) > 1:
+            yk_frames.append(precise_ap[ap_yk_cols].copy())
+    elif ap_path.exists():
         ap_yk_source = ap[
             (ap["ORG_TYPE"] == "District")
             & (ap["STU_GRP"] == "All Students")
@@ -690,8 +733,16 @@ def _build_district_metrics_table() -> pd.DataFrame:
     if not gk.empty:
         gk_frames.append(gk)
 
-    # AP scoring 3+ by group
-    if ap_path.exists():
+    # AP scoring 3+ by group — full precision from SODA (precise_ap). Falls back
+    # to the rounded CSV pivot only if SODA was unreachable.
+    if not precise_ap.empty:
+        ap_gk_cols = ["DIST_CODE"] + [
+            c for c in precise_ap.columns
+            if c.startswith("ap_pct_3plus__") and not c.split("__")[1].isdigit()
+        ]
+        if len(ap_gk_cols) > 1:
+            gk_frames.append(precise_ap[ap_gk_cols].copy())
+    elif ap_path.exists():
         ap_grp_source = ap[
             (ap["ORG_TYPE"] == "District")
             & (ap["SUBJ_CAT"].astype(str).str.lower() == "all subjects")

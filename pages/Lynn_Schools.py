@@ -21,6 +21,7 @@ from utils.charts import (
     LEHS_NAVY,
     SUBGROUP_PALETTE,
     data_downloads_panel,
+    year_axis,
 )
 from utils.constants import (
     IMAGES_DIR,
@@ -147,7 +148,7 @@ fig = px.line(
     markers=True,
 )
 fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Students", xaxis_title="School Year")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(year_axis(fig), use_container_width=True)
 
 st.caption(
     "Lynn English is by far the largest of the Lynn high schools, followed "
@@ -220,7 +221,7 @@ else:
             yaxis_title="% Meeting + Exceeding",
             xaxis_title="School Year",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(year_axis(fig), use_container_width=True)
 
 # ---------------------------------------------------------------------------
 # Graduation rates
@@ -250,7 +251,7 @@ else:
         yaxis_title="4-Year Graduation Rate",
         xaxis_title="Cohort Year",
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(year_axis(fig), use_container_width=True)
 
     latest_grad_year = int(grad_lynn["SY"].max())
     st.subheader(f"Cohort {latest_grad_year} — Outcome Breakdown")
@@ -269,9 +270,21 @@ else:
     fig = px.bar(
         latest_grad.reset_index().melt(id_vars="School", var_name="Outcome", value_name="Pct"),
         x="School", y="Pct", color="Outcome", barmode="stack",
+        color_discrete_map={
+            "Graduated": LEHS_NAVY,
+            "Still In School": LEHS_GOLD,
+            "GED": "#A8D5BA",
+            "Dropped Out": "#E08E8E",
+            "Non-Grad Completer": "#C2A99E",
+        },
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", xaxis_title="")
     st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        "The alternative academies (Frederick Douglass, Harold Durgin) don't report a "
+        "full 4-year cohort outcome breakdown, so only some of the five schools appear "
+        "in this chart."
+    )
 
 # ---------------------------------------------------------------------------
 # Key analytical question

@@ -1,5 +1,8 @@
 [theme]
-# Lynn English colors: navy blue + gold (school colors)
+# Lynn English colors: navy blue + gold (school colors). This is the default
+# (light) theme; users can switch to dark via the top-right ☰ → Settings →
+# Theme, and charts + inline text follow automatically (see utils/charts.py
+# _ThemeLayout and the theme-inheriting inline HTML).
 primaryColor = "#FFB81C"
 backgroundColor = "#FFFFFF"
 secondaryBackgroundColor = "#F0F4F8"

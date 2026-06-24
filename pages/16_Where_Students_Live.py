@@ -113,7 +113,7 @@ import json  # noqa: E402
 import pandas as pd  # noqa: E402
 import plotly.express as px  # noqa: E402
 
-from utils.charts import DEFAULT_LAYOUT  # noqa: E402
+from utils.charts import DEFAULT_LAYOUT, LEHS_NAVY  # noqa: E402
 
 _TRACTS_PATH = PROCESSED_DIR / "lynn_tracts.geojson"
 
@@ -144,14 +144,14 @@ if _TRACTS_PATH.exists():
         d["text"] = d[col].apply(lambda v: fmt.format(v))
         fig = px.bar(
             d, y="tract_label", x=col, orientation="h", text="text",
-            color=col, color_continuous_scale=palette,
         )
-        fig.update_traces(textposition="outside")
+        # Flat brand color — the bar length already encodes the value, so the
+        # color gradient (with its scale hidden) added only saturation, not info.
+        fig.update_traces(textposition="outside", marker_color=LEHS_NAVY)
         fig.update_layout(
             **DEFAULT_LAYOUT,
             xaxis_title=label,
             yaxis_title="",
-            coloraxis_showscale=False,
             height=480,
         )
         # Drive tickformat from data range, not column name. Columns like
@@ -172,11 +172,12 @@ if _TRACTS_PATH.exists():
 
     c1, c2 = st.columns(2)
     with c1:
-        st.subheader("% Low-income (ACS)")
-        st.caption("Households below the federal poverty threshold (5-year ACS).")
-        # No direct low_income tract col in the geojson — use foreign_born as
-        # a proxy demographic-stress indicator; if a low-income col exists in
-        # future, swap.
+        st.subheader("% Foreign-born (ACS)")
+        st.caption(
+            "Share of residents born outside the US (5-year ACS) — Lynn's "
+            "clearest tract-level demographic-stress indicator. (The ACS profile "
+            "we pull has no tract-level low-income column, so this stands in.)"
+        )
         _ranked_bar("foreign_born_pct", "% Foreign-born", "{:.0%}", "Purples")
     with c2:
         st.subheader("Median household income (ACS)")
@@ -191,10 +192,14 @@ if _TRACTS_PATH.exists():
         _ranked_bar("mental_distress_pct", "% mental distress", "{:.1f}%", "Reds")
 
     st.markdown(
-        "**Implication.** The student-residence concentration above maps onto "
-        "the city's lower-income, more-foreign-born, higher-health-burden "
-        "neighborhoods. That's a structural finding: school-level interventions "
-        "happen *inside* a community that already has community-level needs. "
+        "**Implication.** The student-residence concentration above appears to "
+        "map onto the city's lower-income, more-foreign-born, higher-health-"
+        "burden neighborhoods. A caveat on *reading* it: the tract bars are "
+        "ranked by each indicator, not by where LEHS students actually live, so "
+        "the overlap is suggestive rather than proven here — pinning it down "
+        "needs the student-residence-by-tract overlay (in progress). Still, the "
+        "direction is a structural finding: school-level interventions happen "
+        "*inside* a community that already carries community-level needs. "
         "See the [Lynn page](/Lynn_City?embed=true) (Neighborhoods tab) for the full "
         "statewide-comparison view of these same indicators."
     )
