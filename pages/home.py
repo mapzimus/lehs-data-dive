@@ -10,15 +10,18 @@ import base64
 from pathlib import Path
 
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
 from utils.branding import AUTHOR_NAME, AUTHOR_SITE, page_footer, sidebar_attribution
+from utils.charts import DEFAULT_LAYOUT, year_axis
 from utils.constants import (
     IMAGES_DIR,
     LEHS_GOLD,
     LEHS_NAVY,
     LEHS_SCHOOL_CODE,
     LYNN_DISTRICT_CODE,
+    SUBGROUP_PALETTE,
 )
 from utils.data_loader import load_dataset
 from utils.interpret import sy_label
@@ -386,6 +389,68 @@ with c_col:
 
 # Visual break between the three scope cards (data-heavy) and the
 # utility row below (supporting tools).
+st.divider()
+
+# ---------------------------------------------------------------------------
+# The big picture — two context graphics reused from deeper pages (owner ask)
+# so the landing page shows, not just lists: (1) LEHS's rising English-Learner
+# share, and (2) the 9th-grade -> year-2-of-college cohort funnel.
+# ---------------------------------------------------------------------------
+st.header("The big picture")
+_ctx_l, _ctx_r = st.columns(2, gap="medium")
+
+with _ctx_l:
+    st.markdown("**A changing student body — English Learner share**")
+    _el = enrollment[enrollment["ORG_CODE"] == LEHS_SCHOOL_CODE].sort_values("SY")
+    _el = _el.dropna(subset=["EL_PCT"]) if "EL_PCT" in _el.columns else _el.iloc[0:0]
+    if not _el.empty:
+        _fig_el = go.Figure(go.Scatter(
+            x=_el["SY"], y=_el["EL_PCT"], mode="lines",
+            line=dict(color=SUBGROUP_PALETTE["English Learner"], width=3),
+        ))
+        _fig_el.update_layout(**DEFAULT_LAYOUT, height=280, yaxis_tickformat=".0%",
+                              yaxis_title="% English Learner", xaxis_title="School Year")
+        year_axis(_fig_el)
+        st.plotly_chart(_fig_el, width="stretch", key="home_el_share")
+        st.caption(
+            "The English-Learner share at LEHS has roughly doubled since the "
+            "early 2000s. [See English Learners →](/ELL_Pipeline)"
+        )
+
+with _ctx_r:
+    _prog = load_dataset("student_progression_hs_to_postsec")
+    _y2 = pd.DataFrame()
+    if not _prog.empty:
+        _prog = _prog.copy()
+        _prog["ORG_CODE"] = _prog["ORG_CODE"].astype(str).str.zfill(8)
+        _y2 = _prog[
+            (_prog["ORG_CODE"] == LEHS_SCHOOL_CODE)
+            & (_prog["INDICATOR"] == "Student progression from high school through second year of postsecondary education")
+            & (_prog["STU_GRP"] == "All Students")
+        ].sort_values("COHORTYR")
+    if not _y2.empty and pd.notna(_y2.iloc[-1]["COHORT_CNT"]) and int(_y2.iloc[-1]["COHORT_CNT"]) > 0:
+        _row = _y2.iloc[-1]
+        _cn = int(_row["COHORT_CNT"])
+        _gn = int(_row["GRAD_CNT"]) if pd.notna(_row["GRAD_CNT"]) else 0
+        _en = int(_row["IMMEDIATEENR_CNT"]) if pd.notna(_row["IMMEDIATEENR_CNT"]) else 0
+        _pn = int(_row["PERSIST_CNT"]) if pd.notna(_row["PERSIST_CNT"]) else 0
+        st.markdown("**From 9th grade to year-2 of college — the cohort funnel**")
+        _fig_fn = go.Figure(go.Funnel(
+            y=["Entered 9th grade", "Graduated", "Enrolled in college", "Persisted to year 2"],
+            x=[_cn, _gn, _en, _pn],
+            text=[f"{c:,}<br>({c / _cn:.0%})" for c in [_cn, _gn, _en, _pn]],
+            textposition="inside", textfont=dict(color="white", size=13),
+            marker=dict(color=[LEHS_NAVY, "#8294AE", "#9CCFC4", LEHS_GOLD]),
+            connector=dict(line=dict(color="#B0BEC5", width=1)),
+        ))
+        _fig_fn.update_layout(**DEFAULT_LAYOUT, height=280)
+        st.plotly_chart(_fig_fn, width="stretch", key="home_cohort_funnel")
+        st.caption(
+            f"Of ~{_cn:,} 9th-graders, ~{_gn / _cn:.0%} graduate and "
+            f"~{_pn / _cn:.0%} are still in college a year later. "
+            "[See Success After HS →](/Success_After_HS)"
+        )
+
 st.divider()
 
 # --- Utility row: Maps + Data 101 side-by-side. Both are reference
