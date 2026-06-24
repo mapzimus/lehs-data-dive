@@ -24,8 +24,10 @@ st.info(
     "limits of what's measurable see **What We Still Don't Know**."
 )
 _ref1, _ref2 = st.columns(2)
-_ref1.page_link("pages/Data_Literacy.py", label="📊 Data 101 — reading the charts")
-_ref2.page_link("pages/Data_Gaps.py", label="🕳️ What We Still Don't Know")
+with _ref1:
+    st.page_link("pages/Data_Literacy.py", label="📊 Data 101 — reading the charts")
+with _ref2:
+    st.page_link("pages/Data_Gaps.py", label="🕳️ What We Still Don't Know")
 
 # Annual PDF download — built by scripts/13_build_annual_report.py
 from pathlib import Path
