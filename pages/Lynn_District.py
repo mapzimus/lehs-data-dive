@@ -24,6 +24,7 @@ from utils.charts import (
     LEHS_NAVY,
     SUBGROUP_PALETTE,
     data_downloads_panel,
+    year_axis,
 )
 from utils.constants import (
     GATEWAY_CITIES,
@@ -179,6 +180,7 @@ def _small_multiple(
                               line=dict(color=LEHS_NAVY, width=3)))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=ytick,
                       title=title, yaxis_title="", xaxis_title="SY")
+    year_axis(fig)
     return fig
 
 
@@ -229,6 +231,7 @@ with tab_snapshot:
         fig = px.line(district, x="SY", y="TOTAL_CNT", markers=True)
         fig.update_traces(line=dict(color=LEHS_NAVY, width=3))
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Students", xaxis_title="School Year")
+        year_axis(fig)
         st.plotly_chart(fig, width="stretch")
 
         st.header("Selected Populations Trend (District-wide)")
@@ -256,6 +259,7 @@ with tab_snapshot:
             },
         )
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share")
+        year_axis(fig)
         st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
@@ -280,6 +284,7 @@ with tab_snapshot:
                 )
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                    yaxis_title="% Meeting + Exceeding")
+                year_axis(fig)
                 st.plotly_chart(fig, width="stretch")
 
             elem_mcas = district_mcas[
@@ -297,6 +302,7 @@ with tab_snapshot:
                 )
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                    yaxis_title="Avg % M+E across grades")
+                year_axis(fig)
                 st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
@@ -317,6 +323,7 @@ with tab_snapshot:
             fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                yaxis_title="4-yr Graduation Rate",
                                xaxis_title="Cohort Year")
+            year_axis(fig)
             st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
@@ -339,6 +346,7 @@ with tab_snapshot:
             fig.update_traces(line=dict(color=LEHS_GOLD, width=3))
             fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                yaxis_title="% Chronically Absent (10%+ missed)")
+            year_axis(fig)
             st.plotly_chart(fig, width="stretch")
 
         # -------------------------------------------------------------------
@@ -364,6 +372,7 @@ with tab_snapshot:
                 fig.update_traces(line=dict(color=LEHS_NAVY, width=3))
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="$,.0f",
                                    yaxis_title="$ per pupil", xaxis_title="Fiscal Year")
+                year_axis(fig)
                 with c2:
                     st.plotly_chart(fig, width="stretch")
 
@@ -654,6 +663,7 @@ with tab_snapshot:
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".1%",
                                   yaxis_title="% of Lynn residents", xaxis_title="School Year",
                                   legend_title="Leaving via")
+                year_axis(fig)
                 st.plotly_chart(fig, width="stretch")
 
                 # Plain-language callout: charter outflow has roughly doubled.
@@ -716,6 +726,7 @@ with tab_snapshot:
                 fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                                   yaxis_title="% kindergartners in full-day",
                                   xaxis_title="School Year")
+                year_axis(fig)
                 st.plotly_chart(fig, width="stretch")
                 if not fdk_glitch.empty:
                     _gy = ", ".join(f"SY{int(y)}" for y in sorted(fdk_glitch["SY"]))

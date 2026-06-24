@@ -21,6 +21,7 @@ from utils.charts import (
     MCAS_YEARS,
     SUBGROUP_PALETTE,
     with_year_gaps,
+    year_axis,
     year_heatmap,
 )
 from utils.constants import (
@@ -203,6 +204,7 @@ if HAS_HISTORY:
     fig.update_traces(textposition="top center", textfont=dict(size=10))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                        yaxis_title="% Meeting or Exceeding")
+    year_axis(fig)
     st.plotly_chart(fig, width="stretch")
     st.caption(
         "MCAS was waived in spring 2020 and modified in 2021 — those years "
@@ -229,6 +231,7 @@ if HAS_HISTORY:
                   annotation_text="Meets Expectations (500)", annotation_position="right")
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Average scaled score",
                        xaxis_title="School Year")
+    year_axis(fig)
     st.plotly_chart(fig, width="stretch")
 
     st.divider()
@@ -248,10 +251,10 @@ latest = all_students[all_students["SY"] == latest_year]
 dist_rows = []
 for _, row in latest.iterrows():
     for level, col, color in [
-        ("Exceeding",          "E_PCT",  "#1B5E20"),
-        ("Meeting",            "M_PCT",  "#388E3C"),
-        ("Partially Meeting",  "PM_PCT", "#F57C00"),
-        ("Not Meeting",        "NM_PCT", "#D32F2F"),
+        ("Exceeding",          "E_PCT",  "#6FA593"),
+        ("Meeting",            "M_PCT",  "#9CCFC4"),
+        ("Partially Meeting",  "PM_PCT", "#E0C079"),
+        ("Not Meeting",        "NM_PCT", "#E89B9B"),
     ]:
         dist_rows.append({
             "Subject": SUBJECT_MAP.get(row["SUBJECT_CODE"], row["SUBJECT_CODE"]),
@@ -313,6 +316,7 @@ if not dist_yearly.empty:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                        yaxis_title="Share of test-takers", xaxis_title="School Year")
+    year_axis(fig)
     st.plotly_chart(fig, width="stretch")
 
 st.divider()
@@ -424,6 +428,7 @@ if HAS_HISTORY:
             fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat="+.0%",
                                yaxis_title="LEHS minus MA (percentage points)",
                                xaxis_title="School Year")
+            year_axis(fig)
             st.plotly_chart(fig, width="stretch")
 
 st.divider()
@@ -501,6 +506,7 @@ if HAS_HISTORY:
         yaxis_title=f"{SUBJECT_MAP[subject_choice]} — % M+E",
         xaxis_title="School Year",
     )
+    year_axis(fig)
     st.plotly_chart(fig, width="stretch")
 else:
     # Single-year fallback: horizontal bar of every subgroup's M+E.
@@ -566,6 +572,7 @@ if HAS_HISTORY:
                 yaxis_title="Gap to school-wide (pp)",
                 xaxis_title="School Year",
             )
+            year_axis(fig)
             st.plotly_chart(fig, width="stretch")
 
 # ---------------------------------------------------------------------------
@@ -914,6 +921,7 @@ if not ach_trend.empty:
                       annotation_text="Statewide median", annotation_position="right")
         fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Achievement percentile",
                           xaxis_title="School Year", yaxis_range=[0, 100])
+        year_axis(fig)
         st.plotly_chart(fig, width="stretch")
     else:
         latest_ach = ach_trend[ach_trend["SY"] == ach_trend["SY"].max()].copy()
@@ -948,10 +956,11 @@ if HAS_HISTORY:
         color_discrete_map=SUBJECT_COLOR, markers=True, text="label",
     )
     fig.update_traces(textposition="bottom center", textfont=dict(size=10))
-    fig.add_hline(y=0.95, line_dash="dash", line_color="#D32F2F",
+    fig.add_hline(y=0.95, line_dash="dash", line_color="#E89B9B",
                   annotation_text="DESE threshold (95%)", annotation_position="right")
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Participation rate",
                        xaxis_title="School Year", yaxis_range=[0.5, 1.05])
+    year_axis(fig)
     st.plotly_chart(fig, width="stretch")
 else:
     pcols = st.columns(3)
@@ -982,6 +991,7 @@ if HAS_HISTORY:
     fig.update_traces(textposition="top center", textfont=dict(size=9))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Students tested",
                        xaxis_title="School Year")
+    year_axis(fig)
     st.plotly_chart(fig, width="stretch")
 else:
     ccols = st.columns(3)

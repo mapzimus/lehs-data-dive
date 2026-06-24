@@ -301,11 +301,11 @@ if not cco.empty:
             )
             color_map_outcome = {
                 "Total Missing":          "#90A4AE",
-                "In-State Public 4-Year": "#1976D2",
-                "In-State Public 2-Year": "#42A5F5",
-                "In-State Private":       LEHS_NAVY,
-                "Out-of-State":           "#7B1FA2",
-                "Total Employed":         "#388E3C",
+                "In-State Public 4-Year": LEHS_NAVY,
+                "In-State Public 2-Year": "#A6C8E8",
+                "In-State Private":       "#8294AE",
+                "Out-of-State":           LEHS_GOLD,
+                "Total Employed":         "#9CCFC4",
             }
             fig = px.bar(
                 itemized, y="OUTCOME_TYPE", x="OUTCOME_CNT", orientation="h",

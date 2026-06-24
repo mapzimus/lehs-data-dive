@@ -307,7 +307,7 @@ team_df["W-L"] = team_df.apply(
 
 fig = px.bar(
     team_df, x="year_display", y="win_pct", text="W-L", color="win_pct",
-    color_continuous_scale=[(0, "#B71C1C"), (0.5, "#FBC02D"), (1, "#2E7D32")],
+    color_continuous_scale=[(0, "#E89B9B"), (0.5, "#E0C079"), (1, "#6FA593")],
     range_color=(0, 1),
 )
 fig.add_hline(y=0.5, line_dash="dash", line_color="#455A64",

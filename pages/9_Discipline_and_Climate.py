@@ -17,6 +17,7 @@ from utils.charts import (
     data_downloads_panel,
     span_years,
     with_year_gaps,
+    year_axis,
 )
 from utils.constants import (
     GENDER_PALETTE,
@@ -106,6 +107,7 @@ if not susp_lehs.empty:
             yaxis_title="% suspended at least once",
             yaxis_ticksuffix="%",
         )
+        year_axis(fig)
         st.plotly_chart(fig, width="stretch")
 
 st.divider()
@@ -156,6 +158,7 @@ if not all_stu.empty:
                       line=dict(dash="dot", width=2))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                       yaxis_title="% Chronically Absent (10%+ missed)")
+    year_axis(fig)
     st.plotly_chart(fig, width="stretch")
 
 # By subgroup — LEHS only (LCHS comparison on subgroups would clutter the chart)
@@ -184,6 +187,7 @@ if not sub_g.empty:
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                        yaxis_title="% Chronically Absent")
+    year_axis(fig)
     st.plotly_chart(fig, width="stretch")
 
     # ---------------------------------------------------------------------------
@@ -413,6 +417,7 @@ if not att_rate.empty:
                       line=dict(dash="dot", width=2))
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                       yaxis_title="Attendance rate")
+    year_axis(fig)
     st.plotly_chart(fig, width="stretch")
 
 st.divider()
@@ -494,6 +499,7 @@ if not mobility.empty:
                     **DEFAULT_LAYOUT, yaxis_tickformat=".0%",
                     yaxis_title=f"% {metric.lower()}", xaxis_title="School Year",
                 )
+                year_axis(fig)
                 st.plotly_chart(fig, width="stretch")
 
         # Subgroup breakdown — latest year, sorted by churn descending
@@ -589,6 +595,7 @@ else:
             yaxis_title="% suspended out-of-school",
             xaxis_title="School Year",
         )
+        year_axis(fig)
         st.plotly_chart(fig, width="stretch")
 
         st.caption(
@@ -977,6 +984,7 @@ else:
             yaxis_title="Annual dropout rate",
             xaxis_title="School Year",
         )
+        year_axis(fig)
         st.plotly_chart(fig, width="stretch")
 
         st.caption(

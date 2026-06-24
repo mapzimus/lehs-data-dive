@@ -165,7 +165,7 @@ import pandas as pd  # noqa: E402
 import plotly.express as px  # noqa: E402
 
 from utils.charts import DEFAULT_LAYOUT, csv_download  # noqa: E402
-from utils.constants import LEHS_GOLD, LEHS_NAVY  # noqa: E402
+from utils.constants import LEHS_GOLD, LEHS_NAVY, SEQ_BRAND  # noqa: E402
 from utils.data_loader import load_dataset  # noqa: E402
 from utils.geo_loader import tract_display_label  # noqa: E402
 
@@ -231,18 +231,18 @@ if _TRACTS_PATH.exists():
             "share — a published demographic indicator — rather than inventing a "
             "poverty figure."
         )
-        _ranked_bar("foreign_born_pct", "% Foreign-born", "{:.0%}", "Purples")
+        _ranked_bar("foreign_born_pct", "% Foreign-born", "{:.0%}", SEQ_BRAND)
     with c2:
         st.subheader("Median household income (ACS)")
-        _ranked_bar("median_household_income", "$ median household income", "${:,.0f}", "Greens_r")
+        _ranked_bar("median_household_income", "$ median household income", "${:,.0f}", SEQ_BRAND)
 
     c3, c4 = st.columns(2)
     with c3:
         st.subheader("CDC PLACES — % adults with asthma")
-        _ranked_bar("asthma_pct", "% asthma prevalence", "{:.1f}%", "Reds")
+        _ranked_bar("asthma_pct", "% asthma prevalence", "{:.1f}%", SEQ_BRAND)
     with c4:
         st.subheader("CDC PLACES — % adults with mental distress")
-        _ranked_bar("mental_distress_pct", "% mental distress", "{:.1f}%", "Reds")
+        _ranked_bar("mental_distress_pct", "% mental distress", "{:.1f}%", SEQ_BRAND)
 
     st.markdown(
         "**Implication.** The student-residence concentration above maps onto "
@@ -266,7 +266,7 @@ if _TRACTS_PATH.exists():
     _ranked_bar(
         "severe_burden_pct",
         "% of households cost-burdened (30%+ of income on housing)",
-        "{:.0%}", "Oranges",
+        "{:.0%}", SEQ_BRAND,
     )
 
     # One-click export of the tract table behind the four charts above —

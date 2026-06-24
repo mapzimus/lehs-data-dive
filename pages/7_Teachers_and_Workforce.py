@@ -487,7 +487,7 @@ if not teacher_data.empty:
             long, x="SY", y="Pct", color="Indicator", markers=True, text="label",
             color_discrete_map={
                 "% Experienced (3+ yrs)":   LEHS_NAVY,
-                "% In-field for subject":   "#388E3C",
+                "% In-field for subject":   "#6FA593",
                 "% Properly licensed":      LEHS_GOLD,
             },
         )
@@ -549,7 +549,7 @@ if not teacher_data.empty:
                         barmode="group", orientation="h", text="label",
                         color_discrete_map={
                             "Experienced Teachers": LEHS_NAVY,
-                            "In-Field Teachers":    "#388E3C",
+                            "In-Field Teachers":    "#6FA593",
                         },
                     )
                     fig.update_traces(textposition="outside", cliponaxis=False)

@@ -13,12 +13,13 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.branding import crosslink_callout, page_footer, sidebar_attribution
-from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE
+from utils.charts import DEFAULT_LAYOUT, LEHS_GOLD, LEHS_NAVY, SUBGROUP_PALETTE, year_axis
 from utils.constants import (
     LEHS_SCHOOL_CODE,
     LYNN_DISTRICT_CODE,
     PROCESSED_DIR,
     STATE_COLOR,
+    SUBJECT_PALETTE,
 )
 from utils.data_loader import load_dataset
 from utils.interpret import sy_label
@@ -80,6 +81,7 @@ fig.update_layout(
     yaxis_title="% English Learner",
     xaxis_title="School Year",
 )
+year_axis(fig)
 st.plotly_chart(fig, width="stretch")
 
 st.caption(
@@ -219,6 +221,7 @@ else:
             yaxis_title="% making progress",
             xaxis_title="School Year",
         )
+        year_axis(fig)
         st.plotly_chart(fig, width="stretch")
 
         # ----- Honest callout: LEHS RE1 sits far below district + state -----
@@ -387,6 +390,7 @@ else:
                     yaxis_title="% attaining proficiency",
                     xaxis_title="School Year",
                 )
+                year_axis(fig2)
                 st.plotly_chart(fig2, width="stretch")
                 st.caption(
                     "RE2 — the share **attaining** proficiency outright — is a "
@@ -447,6 +451,7 @@ for subject_code, subject_label in [("ELA", "English Language Arts"), ("MATH", "
     # movement is interpretable; readers can click it on in the legend.
     fig.update_traces(visible="legendonly",
                       selector=dict(name="Former English Learners"))
+    year_axis(fig)
     st.plotly_chart(fig, width="stretch")
     st.caption(
         "**Former English Learners is hidden by default — click it in the "
@@ -529,7 +534,7 @@ if fmr_path.exists():
                 fig = px.bar(
                     long, x="Former EL year", y="Pct", color="Subject",
                     barmode="group",
-                    color_discrete_map={"ELA": "#1976D2", "Math": "#D32F2F", "Science": "#388E3C"},
+                    color_discrete_map=SUBJECT_PALETTE,
                 )
                 fig.update_layout(
                     **DEFAULT_LAYOUT,

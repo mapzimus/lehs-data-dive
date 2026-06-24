@@ -18,6 +18,7 @@ from utils.charts import (
     SUBGROUP_PALETTE,
     span_years,
     with_year_gaps,
+    year_axis,
 )
 from utils.constants import LEHS_SCHOOL_CODE
 from utils.data_loader import get_dart_indicator, load_dataset
@@ -101,7 +102,7 @@ if cohort_n:
         go.Funnel(
             y=stages, x=counts, text=labels, textposition="inside",
             textfont=dict(color="white", size=14),
-            marker=dict(color=[LEHS_NAVY, "#1E3A6F", "#2F559A", LEHS_GOLD]),
+            marker=dict(color=[LEHS_NAVY, "#8294AE", "#9CCFC4", LEHS_GOLD]),
             connector=dict(line=dict(color="#B0BEC5", width=1)),
         )
     )
@@ -206,6 +207,7 @@ if not g_focus.empty:
         **DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="4-Year Grad Rate",
         xaxis_title="Cohort Year",
     )
+    year_axis(fig)
     st.plotly_chart(fig, width="stretch")
 
 crosslink_callout(
@@ -250,7 +252,7 @@ if not prog.empty and latest_cohort is not None:
         }
         stage_colors = {
             "Graduated": "#90A4AE",
-            "Enrolled in college": "#2F559A",
+            "Enrolled in college": LEHS_NAVY,
             "Persisted to year 2": LEHS_GOLD,
         }
         melted = sub_groups.melt(
@@ -327,6 +329,7 @@ if not g_both.empty:
     )
     fig.update_traces(connectgaps=False)
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Grad Rate")
+    year_axis(fig)
     st.plotly_chart(fig, width="stretch")
 
 st.divider()
@@ -360,14 +363,15 @@ if not pathway.empty:
         markers=True,
         color_discrete_map={
             "Any college (immediate)": LEHS_NAVY,
-            "2-year college":          "#1976D2",
-            "4-year college":          "#388E3C",
+            "2-year college":          "#A6C8E8",
+            "4-year college":          LEHS_NAVY,
             "Persisted 2 years":       LEHS_GOLD,
         },
     )
     fig.update_traces(connectgaps=False)
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="% of cohort",
                        yaxis_ticksuffix="%", yaxis_range=[0, 100])
+    year_axis(fig)
     st.plotly_chart(fig, width="stretch")
     st.caption(
         "**Indicator definitions** — "
@@ -414,8 +418,10 @@ if not plans_lehs.empty:
     fig = px.area(
         plans_long, x="SY", y="Pct", color="Plan",
         groupnorm=None,
+        color_discrete_sequence=list(SUBGROUP_PALETTE.values()),
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", yaxis_title="Share of seniors")
+    year_axis(fig)
     st.plotly_chart(fig, width="stretch")
 
 st.divider()
@@ -454,7 +460,7 @@ if not lehs_y2_all.empty:
         trend_long, x="COHORTYR", y="pct", color="stage", markers=True,
         color_discrete_map={
             "Graduated":            "#90A4AE",
-            "Enrolled in college":  "#2F559A",
+            "Enrolled in college":  LEHS_NAVY,
             "Persisted to year 2":  LEHS_GOLD,
         },
         category_orders={"stage": ["Graduated", "Enrolled in college", "Persisted to year 2"]},
@@ -468,6 +474,7 @@ if not lehs_y2_all.empty:
     )
     if not trend_long.empty:
         fig.update_yaxes(range=[0, max(trend_long["pct"].max() * 1.1, 1.0)])
+    year_axis(fig)
     st.plotly_chart(fig, width="stretch")
 
     # ---------------------------------------------------------------------------
@@ -505,6 +512,7 @@ if not lehs_y2_all.empty:
                 yaxis_title="Share of cohort obtaining a degree",
                 xaxis_title="Cohort year",
             )
+            year_axis(fig)
             st.plotly_chart(fig, width="stretch")
     else:
         st.caption("6-year degree-completion data not available for LEHS yet.")
@@ -561,6 +569,7 @@ if not earnings.empty:
                 yaxis_title="Average wages in grad year",
                 xaxis_title="High-school graduation cohort",
             )
+            year_axis(fig)
             st.plotly_chart(fig, width="stretch")
 
     if not e_lynn.empty:
@@ -636,15 +645,16 @@ if not chain_df.empty:
     fig = px.line(
         _chain_g.sort_values("SY"), x="SY", y="VALUE", color="Stage", markers=True,
         color_discrete_map={
-            "Chronic Absence":      "#D32F2F",
-            "9-10 Promotion":       "#F57C00",
+            "Chronic Absence":      "#E89B9B",
+            "9-10 Promotion":       "#E0C079",
             "4-yr Graduation":      LEHS_NAVY,
-            "Immediate College":    "#388E3C",
+            "Immediate College":    "#9CCFC4",
         },
     )
     fig.update_traces(connectgaps=False)
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_title="Rate (%)",
                        yaxis_ticksuffix="%", yaxis_range=[0, 100])
+    year_axis(fig)
     st.plotly_chart(fig, width="stretch")
 
 with st.expander("How to read this page · methodology"):

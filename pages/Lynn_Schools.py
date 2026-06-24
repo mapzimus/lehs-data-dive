@@ -334,6 +334,7 @@ else:
     fig = px.bar(
         latest_grad.reset_index().melt(id_vars="School", var_name="Outcome", value_name="Pct"),
         x="School", y="Pct", color="Outcome", barmode="stack",
+        color_discrete_sequence=list(SUBGROUP_PALETTE.values()),
     )
     fig.update_layout(**DEFAULT_LAYOUT, yaxis_tickformat=".0%", xaxis_title="")
     st.plotly_chart(fig, width="stretch")

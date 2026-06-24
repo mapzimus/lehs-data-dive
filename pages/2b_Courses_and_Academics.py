@@ -25,7 +25,7 @@ from utils.charts import (
     span_years,
     with_year_gaps,
 )
-from utils.constants import AP_SCORE_COLORS, LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE
+from utils.constants import AP_SCORE_COLORS, LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE, SUBJECT_PALETTE
 from utils.data_loader import load_dataset
 from utils.interpret import sat_methodology_note, sy_label
 from utils.stats import subgroup_summary_md
@@ -1103,7 +1103,7 @@ if not sat_perf.empty:
             fig = px.bar(
                 sub_long, x="Score", y="STU_GRP", color="Subject",
                 orientation="h", barmode="group", text="label",
-                color_discrete_map={"Reading & Writing": "#1976D2", "Math": "#D32F2F"},
+                color_discrete_map=SUBJECT_PALETTE,
                 category_orders={"STU_GRP": rw_order},
             )
             fig.update_traces(textposition="outside", cliponaxis=False)
