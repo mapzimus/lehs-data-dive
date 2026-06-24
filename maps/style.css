@@ -553,25 +553,34 @@ body.maps-page {
 /* ============================================================================
    Right side feature-detail panel (sticky on click)
    ============================================================================ */
+/* Owner direction: the detail panel sits bottom-center and stays open (it shows
+   a "click a feature" hint when nothing is selected) rather than being a
+   click-to-open right-side drawer. */
 .feature-panel {
     position: absolute;
-    top: 12px;
-    right: 12px;
-    width: 360px;
-    max-height: calc(100vh - var(--nav-height) - 24px);
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(680px, calc(100vw - 32px));
+    max-height: 42vh;
     background: var(--panel-bg);
     border: 1px solid var(--panel-border);
     border-radius: 10px;
     box-shadow: var(--panel-shadow);
     z-index: 8;
     backdrop-filter: blur(8px);
-    display: none;
+    display: flex;
     flex-direction: column;
     overflow: hidden;
     font-family: 'Inter', sans-serif;
 }
 .feature-panel.open {
     display: flex;
+}
+.feature-panel-hint {
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.5;
 }
 
 .feature-panel-header {
