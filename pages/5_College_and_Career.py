@@ -370,20 +370,36 @@ else:
         "WHITE_PCT": "% White",
         "ASIAN_PCT": "% Asian",
     }
-    have = [c for c in display_cols if c in ipeds.columns]
-    display = ipeds[have].rename(columns=display_cols).copy()
-    for c in ["Grad rate (150%)", "% Pell recipients", "% Black", "% Hispanic",
-              "% White", "% Asian"]:
-        if c in display.columns:
-            display[c] = display[c].apply(
-                lambda x: f"{x:.0%}" if pd.notna(x) and isinstance(x, (int, float)) else "—"
-            )
-    for c in ["In-state cost", "Out-of-state cost"]:
-        if c in display.columns:
-            display[c] = display[c].apply(
-                lambda x: f"${x:,.0f}" if pd.notna(x) and isinstance(x, (int, float)) else "—"
-            )
-    st.dataframe(display, width="stretch", hide_index=True, height=420)
+    # Drop any enrichment column that is entirely empty so we never render a
+    # wall of em-dashes — the College Scorecard demo key frequently returns
+    # institution names only. If nothing but names came back, show the names as
+    # a clean list with an honest note instead of a one-real-column table.
+    enrich_cols = [c for c in display_cols if c != "INSTITUTION" and c in ipeds.columns]
+    populated = [c for c in enrich_cols if ipeds[c].notna().any()]
+    if not populated:
+        st.info(
+            "We have the destination institution names below, but the College "
+            "Scorecard enrichment (grad rate, cost, demographics) isn't "
+            "populated in this build — so rather than a table of blanks, here's "
+            "the institution list."
+        )
+        _names = ipeds["INSTITUTION"].dropna().astype(str).tolist()
+        st.markdown("\n".join(f"- {n}" for n in _names))
+    else:
+        have = ["INSTITUTION"] + populated
+        display = ipeds[have].rename(columns=display_cols).copy()
+        for c in ["Grad rate (150%)", "% Pell recipients", "% Black", "% Hispanic",
+                  "% White", "% Asian"]:
+            if c in display.columns:
+                display[c] = display[c].apply(
+                    lambda x: f"{x:.0%}" if pd.notna(x) and isinstance(x, (int, float)) else "—"
+                )
+        for c in ["In-state cost", "Out-of-state cost"]:
+            if c in display.columns:
+                display[c] = display[c].apply(
+                    lambda x: f"${x:,.0f}" if pd.notna(x) and isinstance(x, (int, float)) else "—"
+                )
+        st.dataframe(display, width="stretch", hide_index=True, height=420)
 
 st.divider()
 

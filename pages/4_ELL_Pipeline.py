@@ -351,22 +351,32 @@ else:
                             f"**From progress to proficiency to exit — LEHS English "
                             f"Learners (SY {_hs_sy_lbl})**"
                         )
-                        fig_fn = go.Figure(go.Funnel(
-                            y=_fn_stages,
+                        # Grouped/independent bars, not a funnel: RE1/RE2/RE3 are
+                        # three separate percentages of different denominators
+                        # (RE3 can exceed RE2), so a funnel's nested-subset shape
+                        # misleads. Bars read each stage as its own rate.
+                        fig_fn = go.Figure(go.Bar(
                             x=_fn_vals,
+                            y=_fn_stages,
+                            orientation="h",
                             text=[f"{v:.0%}" for v in _fn_vals],
-                            textposition="inside",
-                            textfont=dict(color="white", size=14),
+                            textposition="auto",
                             marker=dict(color=[LEHS_GOLD, LEHS_NAVY, STATE_COLOR][:len(_fn_vals)]),
-                            connector=dict(line=dict(color="#B0BEC5", width=1)),
                         ))
-                        fig_fn.update_layout(**DEFAULT_LAYOUT, height=320)
+                        fig_fn.update_layout(**DEFAULT_LAYOUT, height=320,
+                                             xaxis_tickformat=".0%",
+                                             xaxis_title="Share of EL students",
+                                             yaxis_title="")
+                        fig_fn.update_yaxes(autorange="reversed")
                         st.plotly_chart(fig_fn, width="stretch")
                         st.caption(
-                            "RE3 (exited) tracks attainment rather than the much larger "
-                            "'making progress' pool — most ELs who clear the overall "
-                            "ACCESS threshold reclassify the same year, so the exit bar "
-                            "reflects how few reach proficiency, not a separate barrier."
+                            "These are three **independent** rates — each a share of "
+                            "all ELs, not nested stages — so one isn't a subset of "
+                            "another (RE3 can even exceed RE2). RE3 (exited) tracks "
+                            "attainment rather than the much larger 'making progress' "
+                            "pool: most ELs who clear the overall ACCESS threshold "
+                            "reclassify the same year, so the exit rate reflects how "
+                            "few reach proficiency, not a separate barrier."
                         )
 
         # ----- Companion RE2 (attained proficiency) trend -----
