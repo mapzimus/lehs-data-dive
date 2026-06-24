@@ -15,6 +15,18 @@ st.markdown(
     "fields, and spells out the suppression rules and important caveats."
 )
 
+# Owner direction: keep Methodology, "how to read the charts", and "what we
+# don't know" discoverable as one reference family. Rather than duplicate that
+# content, point to its dedicated pages up top.
+st.info(
+    "**The reference family:** this page covers *sources, fields, and "
+    "caveats*. For how to read the charts see **Data 101**, and for the honest "
+    "limits of what's measurable see **What We Still Don't Know**."
+)
+_ref1, _ref2 = st.columns(2)
+_ref1.page_link("pages/Data_Literacy.py", label="📊 Data 101 — reading the charts")
+_ref2.page_link("pages/Data_Gaps.py", label="🕳️ What We Still Don't Know")
+
 # Annual PDF download — built by scripts/13_build_annual_report.py
 from pathlib import Path
 _pdf_path = Path(__file__).resolve().parent.parent / "reports" / "state_of_lehs_2026.pdf"
