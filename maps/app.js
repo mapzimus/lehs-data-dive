@@ -549,12 +549,12 @@ const LEHS_ORG_CODE = "01630510";   // Lynn English High — the focus school
 
 // School TYPE → label + categorical color. Order drives the color legend.
 const SCHOOL_TYPES = [
-    { key: "ELE", label: "Elementary",   color: "#1976D2" },
-    { key: "MID", label: "Middle",       color: "#F57C00" },
-    { key: "SEC", label: "High / 2ndary",color: "#C62828" },
-    { key: "PRI", label: "Private",      color: "#00897B" },
-    { key: "CHA", label: "Charter",      color: "#7B1FA2" },
-    { key: "UNK", label: "Other",        color: "#607D8B" },
+    { key: "ELE", label: "Elementary",   color: "#5C74A6" },  // brand navy
+    { key: "MID", label: "Middle",       color: "#B68C1B" },  // brand gold
+    { key: "SEC", label: "High / 2ndary",color: "#A65C5C" },  // muted brick
+    { key: "PRI", label: "Private",      color: "#5C9C92" },  // muted teal
+    { key: "CHA", label: "Charter",      color: "#8C7AA6" },  // muted purple
+    { key: "UNK", label: "Other",        color: "#8595A6" },  // slate
 ];
 
 // Demographic color-by options (sequential ramp on a 0–1 fraction). low→high.
@@ -583,9 +583,9 @@ function _schoolRadiusOutput(floor, k, offset = 0) {
 function _schoolRadiusExpr(offset = 0) {
     return [
         "interpolate", ["linear"], ["zoom"],
-        9,  _schoolRadiusOutput(3.5, 0.30, offset),
-        12, _schoolRadiusOutput(5,   0.62, offset),
-        15, _schoolRadiusOutput(7,   1.05, offset),
+        9,  _schoolRadiusOutput(2.5, 0.22, offset),
+        12, _schoolRadiusOutput(3.5, 0.45, offset),
+        15, _schoolRadiusOutput(5,   0.78, offset),
     ];
 }
 const SCHOOL_RADIUS           = _schoolRadiusExpr(0);
@@ -636,9 +636,9 @@ function schoolColorExpression() {
 const SCHOOL_SIZE_LEGEND_ENROLLMENTS = [200, 800, 1700];
 function schoolDotRadius(enrollment, zoom) {
     const sqrtE = Math.sqrt(enrollment);
-    const r9  = Math.max(3.5, 0.30 * sqrtE);
-    const r12 = Math.max(5,   0.62 * sqrtE);
-    const r15 = Math.max(7,   1.05 * sqrtE);
+    const r9  = Math.max(2.5, 0.22 * sqrtE);
+    const r12 = Math.max(3.5, 0.45 * sqrtE);
+    const r15 = Math.max(5,   0.78 * sqrtE);
     if (zoom <= 9)  return r9;
     if (zoom <= 12) return r9  + (r12 - r9)  * (zoom - 9)  / 3;
     if (zoom <= 15) return r12 + (r15 - r12) * (zoom - 12) / 3;
@@ -938,6 +938,11 @@ function applyThemeBasemap(theme) {
         map.setPaintProperty("town-labels", "text-halo-color", dark ? "#000000" : "#ffffff");
         map.setPaintProperty("town-labels", "text-halo-width", dark ? 2.0 : 1.8);
     }
+    if (map.getLayer("tract-labels")) {
+        map.setPaintProperty("tract-labels", "text-color", dark ? "#ECEFF1" : "#1A2A4A");
+        map.setPaintProperty("tract-labels", "text-halo-color", dark ? "#000000" : "#ffffff");
+        map.setPaintProperty("tract-labels", "text-halo-width", dark ? 2.0 : 1.8);
+    }
     if (map.getLayer("schools-labels")) {
         map.setPaintProperty("schools-labels", "text-color", dark ? "#ECEFF1" : "#0A1F44");
         // Keep the gold halo on the focus school in both themes; others get a
@@ -1127,7 +1132,7 @@ function addLayers() {
     map.addLayer({
         id: "voctech-fill", type: "fill", source: "ccuv-voctech",
         paint: {
-            "fill-color": "#6a1b9a",
+            "fill-color": "#8C7AA6",
             "fill-opacity": 0.08,
         },
         layout: { visibility: state.showVoctechOverlay ? "visible" : "none" },
@@ -1135,7 +1140,7 @@ function addLayers() {
     map.addLayer({
         id: "voctech-outline", type: "line", source: "ccuv-voctech",
         paint: {
-            "line-color": "#6a1b9a",
+            "line-color": "#8C7AA6",
             "line-width": 1.8,
             "line-opacity": 0.85,
             "line-dasharray": [4, 2],
@@ -1147,7 +1152,7 @@ function addLayers() {
     map.addLayer({
         id: "charter-fill", type: "fill", source: "ccuv-charter",
         paint: {
-            "fill-color": "#00897B",
+            "fill-color": "#5C9C92",
             "fill-opacity": 0.08,
         },
         layout: { visibility: state.showCharterOverlay ? "visible" : "none" },
@@ -1171,7 +1176,7 @@ function addLayers() {
     });
     map.addLayer({
         id: "gateway-highlight-line", type: "line", source: "gateway-only",
-        paint: { "line-color": "#6a1b9a", "line-width": 2.2, "line-opacity": 0.95 },
+        paint: { "line-color": "#8C7AA6", "line-width": 2.2, "line-opacity": 0.95 },
         layout: { visibility: state.showGatewayHighlight ? "visible" : "none" },
     });
 
@@ -1205,6 +1210,27 @@ function addLayers() {
         minzoom: 10,
     });
 
+    // ── LYNN NEIGHBORHOOD NAMES ON TRACTS ────────────────────────────────────
+    // Owner direction: show neighborhood names on the census tracts (which are
+    // now the default level). Centroid labels from the tract `neighborhood`
+    // property; visible only while the tract level is active.
+    map.addLayer({
+        id: "tract-labels", type: "symbol", source: "tracts",
+        layout: {
+            "text-field": ["get", "neighborhood"],
+            "text-font": ["Noto Sans Bold"],
+            "text-size": 11,
+            "text-letter-spacing": 0.02,
+            "visibility": state.level === "tract" ? "visible" : "none",
+        },
+        paint: {
+            "text-color": "#1A2A4A",
+            "text-halo-color": "#ffffff",
+            "text-halo-width": 1.8,
+        },
+        minzoom: 10,
+    });
+
     // ── ALL MA PUBLIC SCHOOLS (~1700) — toggleable, small markers ────────────
     map.addLayer({
         id: "ma-schools-circles", type: "circle", source: "ma-schools",
@@ -1215,12 +1241,12 @@ function addLayers() {
             ],
             "circle-color": [
                 "match", ["get", "TYPE_DESC"],
-                "Charter",                       "#00897B",
-                "Public Voc/Tech/Ag Reg'l HS",   "#6a1b9a",
-                "Public Elementary",             "#1976D2",
-                "Public Middle",                 "#F57C00",
-                "Public Secondary",              "#C62828",
-                "#455A64",
+                "Charter",                       "#5C9C92",
+                "Public Voc/Tech/Ag Reg'l HS",   "#8C7AA6",
+                "Public Elementary",             "#5C74A6",
+                "Public Middle",                 "#B68C1B",
+                "Public Secondary",              "#A65C5C",
+                "#8595A6",
             ],
             "circle-stroke-color": "#ffffff",
             "circle-stroke-width": 0.8,
@@ -1410,10 +1436,22 @@ function openFeaturePanel(p, kind) {
     }
 }
 
-function closeFeaturePanel() {
+// The panel stays open (owner direction); "close" reverts it to the idle hint
+// instead of hiding it.
+function featurePanelHint() {
     const panel = document.getElementById("featurePanel");
-    panel.classList.remove("open");
-    panel.setAttribute("aria-hidden", "true");
+    if (!panel) return;
+    const title = document.getElementById("featurePanelTitle");
+    const body = document.getElementById("featurePanelBody");
+    if (title) title.textContent = "Map details";
+    if (body) body.innerHTML =
+        '<div class="feature-panel-hint">Click any tract, school, or town on the map to see its details here.</div>';
+    panel.classList.add("open");
+    panel.setAttribute("aria-hidden", "false");
+}
+
+function closeFeaturePanel() {
+    featurePanelHint();
 }
 
 function featureName(p, kind) {
@@ -1472,11 +1510,11 @@ function fpStackBar(segments) {
 // "Student composition" section as labeled bars — the headline equity metrics.
 function buildSchoolCompositionSection(p) {
     const bars = [
-        fpBarRow("English Learner", p.EL_PCT, "#43A047"),
-        fpBarRow("Low Income", p.LI_PCT, "#E53935"),
-        fpBarRow("High Needs", p.HN_PCT, "#8E24AA"),
-        fpBarRow("Students w/ Disabilities", p.SWD_PCT, "#5C6BC0"),
-        fpBarRow("First Lang. Not English", p.FLNE_PCT, "#00897B"),
+        fpBarRow("English Learner", p.EL_PCT, "#B5D6A8"),
+        fpBarRow("Low Income", p.LI_PCT, "#E8A8C2"),
+        fpBarRow("High Needs", p.HN_PCT, "#BDAFD9"),
+        fpBarRow("Students w/ Disabilities", p.SWD_PCT, "#C2A99E"),
+        fpBarRow("First Lang. Not English", p.FLNE_PCT, "#AAB4E8"),
     ].join("");
     if (!bars.trim()) return "";
     return `<div class="feature-panel-section"><h3>Student composition</h3>${bars}</div>`;
@@ -1492,11 +1530,11 @@ function buildPanelHtml(p, kind) {
             : `<div class="school-enroll-lbl" style="font-style:italic;">No DESE enrollment / demographics reported (private or charter).</div>`;
         // Race/ethnicity composition stacked bar (only when data present).
         const raceParts = [
-            { label: "Hispanic / Latino", v: p.HL_PCT,  color: "#F57C00" },
-            { label: "Black / African Am.", v: p.BAA_PCT, color: "#7B1FA2" },
-            { label: "Asian", v: p.AS_PCT, color: "#1976D2" },
-            { label: "White", v: p.WH_PCT, color: "#90A4AE" },
-            { label: "Multi / Other", v: p.MNHL_PCT, color: "#26A69A" },
+            { label: "Hispanic / Latino", v: p.HL_PCT,  color: "#F5C28B" },
+            { label: "Black / African Am.", v: p.BAA_PCT, color: "#E89B9B" },
+            { label: "Asian", v: p.AS_PCT, color: "#C5A8D6" },
+            { label: "White", v: p.WH_PCT, color: "#A6C8E8" },
+            { label: "Multi / Other", v: p.MNHL_PCT, color: "#9CCFC4" },
         ].filter(s => s.v != null && isFinite(+s.v) && +s.v > 0);
         return `
             ${isLehs
@@ -1631,6 +1669,9 @@ function buildPanelHtml(p, kind) {
 document.addEventListener("DOMContentLoaded", () => {
     const closeBtn = document.getElementById("featurePanelClose");
     if (closeBtn) closeBtn.addEventListener("click", closeFeaturePanel);
+
+    // Open the panel on the idle hint so it's present from first paint.
+    featurePanelHint();
 
     // ── Help & guide hub — opens via the labeled pill. Three tabs (the map
     //    controls cheat-sheet by default, a plain-language how-to, and a
@@ -2026,6 +2067,10 @@ function applyChoropleth() {
             map.setPaintProperty(layerId, "fill-color", paint);
         }
     });
+    // Neighborhood-name labels ride with the tract level only.
+    if (map.getLayer("tract-labels")) {
+        map.setLayoutProperty("tract-labels", "visibility", level === "tract" ? "visible" : "none");
+    }
     if (state.extrude3d) toggle3D();
 }
 
