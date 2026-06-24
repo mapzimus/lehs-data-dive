@@ -283,6 +283,34 @@ def span_years(df: pd.DataFrame, year_col: str = "SY") -> tuple[int, ...]:
     return tuple(range(int(yrs.min()), int(yrs.max()) + 1))
 
 
+def year_axis(fig: go.Figure) -> go.Figure:
+    """Force whole-year ticks on a numeric year x-axis.
+
+    Plotly subdivides a short numeric range (e.g. five school years) into
+    half-steps, producing nonsense ticks like ``2,021.5``. This pins the tick
+    interval to whole years and strips the decimal + thousands-separator comma
+    (``tickformat="d"``). For longer ranges it widens the interval so a 30-year
+    axis isn't a wall of labels. Call it right before ``st.plotly_chart`` on any
+    chart whose x is a school year (SY / COHORTYR). Categorical (string) year
+    axes are unaffected, so it's safe to call unconditionally on year charts.
+    """
+    xs: list = []
+    for tr in fig.data:
+        vals = getattr(tr, "x", None)
+        if vals is not None:
+            xs.extend(v for v in vals if v is not None)
+    dtick = 1
+    try:
+        numeric = [float(v) for v in xs]
+        if numeric:
+            span = max(numeric) - min(numeric)
+            dtick = 1 if span <= 12 else (2 if span <= 24 else (5 if span <= 60 else 10))
+    except (TypeError, ValueError):
+        dtick = 1
+    fig.update_xaxes(dtick=dtick, tickformat="d")
+    return fig
+
+
 def year_heatmap(
     pivot: pd.DataFrame,
     *,
