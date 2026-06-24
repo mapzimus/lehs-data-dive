@@ -617,7 +617,7 @@ for x, y, question, why in curated_pairs:
             x_label=axis_label(x), y_label=axis_label(y),
             x_tickformat=axis_tickformat(x), y_tickformat=axis_tickformat(y),
         )
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, width="stretch", key=f"corr_curated_{x}_{y}")
         st.caption(
             f"Pearson r = {stats['r']:+.3f} (p = {stats['p']:.3f}, n = {stats['n']}). "
             f"**Caveat:** correlation across {stats['n']} gateway-city high schools "
@@ -670,7 +670,7 @@ if len(data) >= 3:
         x_label=axis_label(x_var), y_label=axis_label(y_var),
         x_tickformat=axis_tickformat(x_var), y_tickformat=axis_tickformat(y_var),
     )
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, width="stretch", key="corr_custom_explorer")
 
     # Download exactly what's plotted: one row per point with the school
     # label(s) and the two selected metrics (plus SY in panel scope).
@@ -764,7 +764,7 @@ if len(lagged) >= 5:
         x_tickformat=axis_tickformat(x_var_lag),
         y_tickformat=axis_tickformat(y_var_lag),
     )
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, width="stretch", key="corr_lagged")
 
     stats_lag = pearson(lagged, "x_val", "y_val")
     reg_lag = regression_line(lagged, "x_val", "y_val")
