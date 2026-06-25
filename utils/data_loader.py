@@ -21,7 +21,7 @@ import streamlit as st
 from utils.constants import PROCESSED_DIR
 
 
-def _parquet_sig(path: Path) -> int:
+def _parquet_sig(path: Path) -> tuple[int, int]:
     """File fingerprint (mtime-ns + size) used as part of the cache key.
 
     When the parquet is rebuilt, this value changes, so the cached read below
@@ -29,13 +29,13 @@ def _parquet_sig(path: Path) -> int:
     """
     try:
         s = path.stat()
-        return hash((s.st_mtime_ns, s.st_size))
+        return (s.st_mtime_ns, s.st_size)
     except OSError:
-        return 0
+        return (0, 0)
 
 
 @st.cache_data(show_spinner=False)
-def _read_parquet_cached(path_str: str, sig: int) -> pd.DataFrame:
+def _read_parquet_cached(path_str: str, sig: tuple[int, int]) -> pd.DataFrame:
     # `sig` participates in the cache key (do NOT prefix with underscore, or
     # st.cache_data would ignore it). It changes whenever the file changes.
     return pd.read_parquet(path_str)

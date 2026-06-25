@@ -1,7 +1,7 @@
 """
 Download US Census ACS 5-year data at the **place** (city) level for Lynn, MA.
 
-This is the city-wide pull that backs `pages/18_Lynn_Overview.py`. The
+This is the city-wide pull that backs `pages/Lynn_City.py`. The
 tract-level pull at scripts/10_download_census_acs.py covers Lynn's 22 census
 tracts; this script gets the rolled-up city statistics, plus the deeper
 tables that aren't published at tract level (e.g., country-of-birth detail,
@@ -44,7 +44,7 @@ OUT_RAW.mkdir(parents=True, exist_ok=True)
 
 HEADERS = {"User-Agent": "lehs-data-dive/0.2 (github.com/mapzimus/lehs-data-dive)"}
 TIMEOUT = 60
-API_KEY = os.environ.get("CENSUS_API_KEY", "").strip() or "d15d12991cd2df124d8c3c00f1ffab7effd3389b"
+API_KEY = os.environ.get("CENSUS_API_KEY", "").strip()
 API_BASE = f"https://api.census.gov/data/{ACS_YEAR}/acs/acs5"
 PROFILE_BASE = f"https://api.census.gov/data/{ACS_YEAR}/acs/acs5/profile"
 SUBJECT_BASE = f"https://api.census.gov/data/{ACS_YEAR}/acs/acs5/subject"
@@ -56,8 +56,9 @@ def fetch(base: str, variables: list[str], desc: str) -> list[list]:
         "get": var_str,
         "for": f"place:{ACS_PLACE}",
         "in": f"state:{ACS_STATE}",
-        "key": API_KEY,
     }
+    if API_KEY:
+        params["key"] = API_KEY
     print(f"  {desc} ({len(variables)} vars)")
     try:
         r = requests.get(base, params=params, headers=HEADERS, timeout=TIMEOUT)
@@ -410,6 +411,23 @@ def fetch_age_pyramid() -> pd.DataFrame:
 
 def main() -> None:
     print(f"Lynn city ACS pull (year {ACS_YEAR})")
+    if not API_KEY:
+        print("=" * 70)
+        print("WARNING: CENSUS_API_KEY environment variable not set.")
+        print("=" * 70)
+        print()
+        print("Get a free key (instant, requires email):")
+        print("  https://api.census.gov/data/key_signup.html")
+        print()
+        print("Then set it in your shell before re-running this script:")
+        print("  PowerShell:  $env:CENSUS_API_KEY = 'YOUR_KEY_HERE'")
+        print("  Bash:        export CENSUS_API_KEY=YOUR_KEY_HERE")
+        print()
+        print("Without a key, this script exits gracefully and leaves existing")
+        print("processed Lynn city ACS parquet files untouched.")
+        print()
+        return
+
     headline = fetch_headline()
     bp = fetch_birthplaces()
     langs = fetch_languages()

@@ -8,9 +8,12 @@ name: Refresh data (semi-annual)
 #   2. Runs scripts/refresh_all.py end-to-end
 #   3. If any files under data/processed/ changed, opens a PR
 #
-# Required repo secret:
+# Required repo secret for a complete refresh:
 #   CENSUS_API_KEY — set under Settings → Secrets and variables → Actions
-#   (the Census ACS download step in scripts/10_download_census_acs.py needs it)
+#   (the tract + city ACS steps need it)
+# Recommended repo secret:
+#   COLLEGE_SCORECARD_KEY — without it, the IPEDS/Scorecard step skips and
+#   leaves the existing destination-college parquet untouched.
 
 on:
   schedule:

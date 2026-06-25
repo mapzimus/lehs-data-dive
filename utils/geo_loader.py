@@ -3,29 +3,53 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import geopandas as gpd
+import pandas as pd
 import streamlit as st
 
-from utils.constants import PROCESSED_DIR
+from utils.constants import ASSETS_DIR, PROCESSED_DIR
+
+
+def _file_sig(path: Path) -> tuple[int, int]:
+    """File fingerprint used to invalidate cached GeoJSON/CSV reads."""
+    try:
+        s = path.stat()
+        return (s.st_mtime_ns, s.st_size)
+    except OSError:
+        return (0, 0)
 
 
 @st.cache_data(show_spinner=False)
+def _read_geojson_cached(path_str: str, sig: tuple[int, int]) -> dict:
+    return json.loads(Path(path_str).read_text(encoding="utf-8"))
+
+
+@st.cache_data(show_spinner=False)
+def _read_geodataframe_cached(path_str: str, sig: tuple[int, int]) -> gpd.GeoDataFrame:
+    return gpd.read_file(path_str)
+
+
+@st.cache_data(show_spinner=False)
+def _read_tract_neighborhoods_cached(path_str: str, sig: tuple[int, int]) -> pd.DataFrame:
+    return pd.read_csv(path_str, dtype={"GEOID": str, "TRACTCE": str})
+
+
 def load_geojson(name: str) -> dict:
-    """Load a processed GeoJSON as a plain dict (for plotly choropleth_mapbox)."""
+    """Load a processed GeoJSON as a plain dict, auto-refreshing on file change."""
     path = PROCESSED_DIR / f"{name}.geojson"
     if not path.exists():
         return {"type": "FeatureCollection", "features": []}
-    return json.loads(path.read_text())
+    return _read_geojson_cached(str(path), _file_sig(path))
 
 
-@st.cache_data(show_spinner=False)
 def load_geodataframe(name: str) -> gpd.GeoDataFrame:
-    """Load a processed GeoJSON as a GeoDataFrame."""
+    """Load a processed GeoJSON as a GeoDataFrame, auto-refreshing on file change."""
     path = PROCESSED_DIR / f"{name}.geojson"
     if not path.exists():
         return gpd.GeoDataFrame()
-    return gpd.read_file(path)
+    return _read_geodataframe_cached(str(path), _file_sig(path))
 
 
 # ---------------------------------------------------------------------------
@@ -39,19 +63,14 @@ def load_geodataframe(name: str) -> gpd.GeoDataFrame:
 # ---------------------------------------------------------------------------
 
 
-@st.cache_data(show_spinner=False)
 def load_tract_neighborhoods():
     """Crosswalk DataFrame: GEOID, TRACTCE, NAMELSAD, neighborhood, confidence, notes."""
-    import pandas as pd
-
-    from utils.constants import ASSETS_DIR
-
     path = ASSETS_DIR / "curated" / "lynn_tract_neighborhoods.csv"
     if not path.exists():
         return pd.DataFrame(
             columns=["GEOID", "TRACTCE", "NAMELSAD", "neighborhood", "confidence", "notes"]
         )
-    return pd.read_csv(path, dtype={"GEOID": str, "TRACTCE": str})
+    return _read_tract_neighborhoods_cached(str(path), _file_sig(path))
 
 
 def _tract_number(namelsad: str) -> str:

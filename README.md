@@ -78,7 +78,7 @@ The Streamlit app reads everything from `data/processed/*.parquet` and `data/pro
 The full pipeline is orchestrated by **`scripts/refresh_all.py`** which runs every numbered script in order:
 
 ```powershell
-# Set the Census key once (needed by 10_download_census_acs.py)
+# Set the Census key once (needed by the ACS refresh steps: 10 and 14)
 $env:CENSUS_API_KEY = "your-key-here"
 
 # Optional but recommended — the College Scorecard step (05) silently
@@ -125,7 +125,7 @@ powershell -ExecutionPolicy Bypass -File deploy\sync_public_maps.ps1
 
 > **Hosting note (June 2026):** this repo and `ma-education-atlas` are private. The public site serves vendored serve-only copies from the `maxwellhowegis` repo (`Lynn-data-dive/maps/` and `ma-atlas/`) — there is no submodule and no GitHub Pages on this repo anymore. `deploy/sync_public_maps.ps1` is the publish step.
 
-A **GitHub Action** at `.github/workflows/refresh-data.yml` runs `scripts/refresh_all.py` on a semi-annual cron (January + July) and opens a PR with any changed parquets. Requires `CENSUS_API_KEY` configured as a repo secret (Settings → Secrets and variables → Actions).
+A **GitHub Action** at `.github/workflows/refresh-data.yml` runs `scripts/refresh_all.py` on a semi-annual cron (January + July) and opens a PR with any changed parquets. For a complete refresh, configure `CENSUS_API_KEY`; `COLLEGE_SCORECARD_KEY` is strongly recommended so the IPEDS/College Scorecard step can refresh instead of preserving the existing parquet.
 
 ---
 
