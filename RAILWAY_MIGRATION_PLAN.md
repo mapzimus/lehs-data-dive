@@ -63,9 +63,9 @@ PR #107 introduced the Railway deployment files.
    websocket connection, browser console, legacy redirect, and standalone
    maps path.
 
-8. Remove the obsolete Streamlit keepalive workflow and
-   `scripts/keepalive_ping.py` after Railway and the portfolio iframe pass
-   verification.
+8. Remove the obsolete Streamlit keepalive artifacts after Railway and the
+   portfolio iframe pass verification. Completed during this cutover after
+   the live checks passed.
 
 ## Canonical wrapper
 
