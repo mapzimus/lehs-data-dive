@@ -1,4 +1,4 @@
-# Deploying the LEHS Data Dive to maxwellhowegis.com/Lynn-data-dive
+# Deploying the LEHS Data Dive
 
 End state: visitors hit **`https://maxwellhowegis.com/Lynn-data-dive`** and see the
 full dashboard embedded inline on a child page of your existing GitHub Pages site.
@@ -11,8 +11,8 @@ GitHub Pages (maxwellhowegis.com)
             ↓
             iframe embed of
             ↓
-Streamlit Community Cloud
-    └── lynn-data-dive.streamlit.app  ← actual dashboard, served from your GitHub repo
+Railway (always-on service)
+    └── generated Railway domain      ← backend URL is not shown in the address bar
             ↓
             sourced from
             ↓
@@ -24,31 +24,17 @@ No additional download step is required at app start.
 
 ---
 
-## Step 1 — Deploy to Streamlit Community Cloud (free)
+## Step 1 — Deploy to Railway
 
-1. Go to <https://share.streamlit.io/> and sign in with GitHub.
-2. Click **"New app"** (top right).
-3. Fill in:
-   - **Repository**: `mapzimus/lehs-data-dive`
-   - **Branch**: `main`
-   - **Main file path**: `Home.py`
-   - **App URL** (custom subdomain): `lehs-data-dive` *(or whatever you like)*
-4. Click **"Advanced settings"**:
-   - **Python version**: `3.12`
-   - Leave everything else default
-5. Click **"Deploy!"**.
+1. Go to <https://railway.com/new> and sign in with GitHub.
+2. Choose **Deploy from GitHub repo**, then select `mapzimus/lehs-data-dive`.
+3. Railway detects `railway.json` and builds the included `Dockerfile`.
+4. In the service's **Settings → Networking**, click **Generate Domain**.
+5. Open the generated URL and confirm the dashboard loads.
 
-First deploy takes ~5–10 minutes (installs all dependencies from `requirements.txt`).
-When it finishes, you'll have a public URL like `https://lynn-data-dive.streamlit.app`.
-
-**If deployment fails** because of `geopandas` install errors, add a file at the
-repo root called `packages.txt` with one line:
-
-```
-libgeos-dev
-```
-
-…then commit, push, and click "Reboot app" in Streamlit Cloud.
+The service listens on Railway's injected `PORT`, exposes Streamlit's health endpoint,
+and restarts automatically after failures. Keep at least one replica running so the
+dashboard never sleeps.
 
 ---
 
@@ -62,13 +48,14 @@ This step lives in **your maxwellhowegis.com repository**, not the `lehs-data-di
 3. Create a folder `Lynn-data-dive/` at the repo root.
 4. Inside that folder, drop the `index.html` file in this repo at
    `deploy/maxwellhowegis-Lynn-data-dive.html` (rename to `index.html`).
-5. **Edit one line** in `index.html`: change
+5. **Edit one line** in `index.html`: set
 
    ```html
-   const STREAMLIT_URL = "https://lynn-data-dive.streamlit.app";
+   <iframe src="https://YOUR-RAILWAY-DOMAIN/?embed=true">
    ```
 
-   …to your actual Streamlit Cloud URL from Step 1.
+   …using the generated Railway URL from Step 1. The browser address remains
+   `maxwellhowegis.com/Lynn-data-dive/`; visitors do not navigate to Railway.
 6. Commit and push.
 7. GitHub Pages republishes within 1–2 minutes. Visit
    <https://maxwellhowegis.com/Lynn-data-dive> to verify.
@@ -97,16 +84,15 @@ git commit -m "Refresh data — SY 20XX–YY"
 git push
 ```
 
-Streamlit Cloud auto-redeploys within ~30 seconds of the push.
+Railway automatically rebuilds and redeploys after a push to the connected branch.
 
 ---
 
 ## Notes
 
-- The Streamlit app is **public** — anyone with the URL can view it. There's
+- The Streamlit app is **public** — anyone with the backend URL can view it. There's
   no login layer (intentional, since this is meant to be a public resource).
-- The Streamlit Cloud **free tier** allows 1 app per workspace, 1 GB RAM, and
-  community-shared compute. Should be plenty for this dashboard.
+- Railway usage is billed according to the selected plan and service resources.
 - **Catchment Research** page images (the static PNGs from your PDF) are in
   `data/processed/lehs_research/` and committed to the repo. They render at
   full resolution inside the deployed app.
