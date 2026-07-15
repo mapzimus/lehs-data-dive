@@ -1,0 +1,11 @@
+.git
+.github
+.gitignore
+.python-version
+dev
+reports
+scripts
+keepalive-last.png
+**/__pycache__
+**/*.py[cod]
+**/.DS_Store

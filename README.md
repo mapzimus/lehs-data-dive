@@ -4,7 +4,7 @@ A public, integrated data dashboard for **Lynn English High School** (Lynn, MA) 
 
 | Where | URL |
 |---|---|
-| Live dashboard | https://lynn-data-dive.streamlit.app |
+| Live dashboard | https://maxwellhowegis.com/Lynn-data-dive/ |
 | Lynn-focused map | https://maxwellhowegis.com/Lynn-data-dive/maps/ |
 | MA Education Atlas (statewide companion) | https://maxwellhowegis.com/ma-atlas/ |
 | Portfolio context | https://maxwellhowegis.com/ |
