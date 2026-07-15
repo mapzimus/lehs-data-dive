@@ -4,7 +4,7 @@ A public, integrated data dashboard for **Lynn English High School** (Lynn, MA) 
 
 | Where | URL |
 |---|---|
-| Live dashboard | https://maxwellhowegis.com/Lynn-data-dive/ |
+| Live dashboard | https://maxwellhowegis.com/lynndata/ |
 | Lynn-focused map | https://maxwellhowegis.com/Lynn-data-dive/maps/ |
 | MA Education Atlas (statewide companion) | https://maxwellhowegis.com/ma-atlas/ |
 | Portfolio context | https://maxwellhowegis.com/ |
@@ -12,7 +12,8 @@ A public, integrated data dashboard for **Lynn English High School** (Lynn, MA) 
 
 This project aggregates every relevant public dataset DESE publishes — MCAS, demographics, attendance, discipline, finance, teacher workforce, college outcomes — into a single school-level narrative with cross-domain correlation analysis no DESE tool currently provides. It is paired with the **MA Education Atlas**, a statewide MapLibre choropleth in the companion repo.
 
-**Status:** Live. 20+ dashboard pages, weekly content updates as DESE refreshes data.
+**Status:** Live on an always-on Railway backend, embedded at the portfolio URL above.
+20+ dashboard pages, with content updates as DESE refreshes data.
 
 ---
 

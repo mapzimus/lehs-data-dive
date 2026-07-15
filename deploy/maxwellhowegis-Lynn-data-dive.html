@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lynn Data Dive | Maxwell Howe</title>
   <meta name="description" content="An interactive, integrated data exploration of Lynn English High School and the 26 Massachusetts Gateway Cities. Built by Maxwell Howe.">
+  <link rel="canonical" href="https://maxwellhowegis.com/lynndata/">
   <meta property="og:title" content="LEHS Data Dive — Lynn English High School">
   <meta property="og:description" content="Demographics, MCAS, ELL pipeline, graduation, college outcomes, finance, teacher workforce, discipline, community context, maps, and cross-domain correlation analysis for Lynn English High School.">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://maxwellhowegis.com/Lynn-data-dive/">
+  <meta property="og:url" content="https://maxwellhowegis.com/lynndata/">
 
   <style>
-    /* Reset margins so the iframe is full-bleed */
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
@@ -23,7 +23,6 @@
       background: #fafafa;
     }
 
-    /* Optional thin header bar — links back to main site */
     .topbar {
       position: fixed;
       top: 0; left: 0; right: 0;
@@ -46,7 +45,6 @@
     .topbar a:hover { text-decoration: underline; }
     .topbar .title { font-weight: 600; }
 
-    /* The iframe fills everything below the topbar */
     .frame-wrap {
       position: fixed;
       top: 36px;
@@ -61,7 +59,6 @@
       display: block;
     }
 
-    /* Loading state, hidden once iframe loads */
     .loading {
       position: fixed;
       top: 50%;
@@ -83,7 +80,6 @@
       to { transform: rotate(360deg); }
     }
 
-    /* Mobile note — Streamlit dashboards are dense, recommend desktop */
     .mobile-note {
       display: none;
       position: fixed;
@@ -117,14 +113,15 @@
 
   <div class="frame-wrap">
     <!--
-      Streamlit Cloud subdomain: lynn-data-dive.streamlit.app
-      (claimed in share.streamlit.io 2026-05-21 — replaced the
-      auto-generated "lehs-data-dive-xxs7apjjjctcjaswhlzgeu" URL).
-      Append `?embed=true` to hide the Streamlit menu/footer.
+      Railway hosts the always-on Streamlit backend. The public browser URL
+      remains https://maxwellhowegis.com/lynndata/.
+      Append ?embed=true to hide the Streamlit menu/footer.
+      Master copy of this file lives at:
+      mapzimus/lehs-data-dive → deploy/maxwellhowegis-Lynn-data-dive.html
     -->
     <iframe
       id="lehs-frame"
-      src="https://lynn-data-dive.streamlit.app/?embed=true"
+      src="https://lehs-data-dive-production.up.railway.app/?embed=true"
       onload="document.getElementById('loading').style.display='none'"
       allow="fullscreen"
       title="LEHS Data Dive">

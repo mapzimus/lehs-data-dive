@@ -136,7 +136,7 @@ def cover_page() -> list:
     flow.append(Paragraph(
         "An independent data narrative drawn from public DESE, federal CRDC, "
         "Census ACS, IPEDS, EPA, and CDC sources. Companion to "
-        "<b>lynn-data-dive.streamlit.app</b>.",
+        "<b>maxwellhowegis.com/lynndata/</b>.",
         BODY,
     ))
     flow.append(Spacer(1, 0.8 * inch))
