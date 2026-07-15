@@ -286,11 +286,10 @@ streamlit run Home.py
 st.markdown(
     """
 **Live versions:**
-- **Dashboard** — https://maxwellhowegis.com/Lynn-data-dive/
+- **Dashboard** — https://maxwellhowegis.com/lynndata/
 - **MA Education Atlas** (standalone statewide map) — https://maxwellhowegis.com/ma-atlas/
 - **Source code** — https://github.com/mapzimus/lehs-data-dive
 """
 )
 
 page_footer()
-
