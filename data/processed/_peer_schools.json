@@ -64,277 +64,282 @@
       "name": "Attleboro High",
       "school_code": "00160505",
       "district_code": "00160000",
-      "total_stu_cnt": 18484,
+      "total_stu_cnt": 46711,
       "runner_up": {
         "ORG_NAME": "Attleboro Community Academy",
         "ORG_CODE": "00160515",
         "DIST_CODE": "00160000",
-        "STU_CNT": 85.0
+        "STU_CNT": 85
       }
     },
     "Barnstable": {
       "name": "Barnstable High",
       "school_code": "00200505",
       "district_code": "00200000",
-      "total_stu_cnt": 12820,
+      "total_stu_cnt": 34057,
       "runner_up": null
     },
     "Brockton": {
       "name": "Brockton High",
       "school_code": "00440505",
       "district_code": "00440000",
-      "total_stu_cnt": 30150,
+      "total_stu_cnt": 91308,
       "runner_up": {
         "ORG_NAME": "PROMISE College and Career Academy",
         "ORG_CODE": "00440525",
         "DIST_CODE": "00440000",
-        "STU_CNT": 1875.0
+        "STU_CNT": 1875
       }
     },
     "Chelsea": {
       "name": "Chelsea High",
       "school_code": "00570505",
       "district_code": "00570000",
-      "total_stu_cnt": 16702,
+      "total_stu_cnt": 42117,
       "runner_up": null
     },
     "Chicopee": {
       "name": "Chicopee Comprehensive High School",
       "school_code": "00610510",
       "district_code": "00610000",
-      "total_stu_cnt": 11349,
+      "total_stu_cnt": 30420,
       "runner_up": {
         "ORG_NAME": "Chicopee High",
         "ORG_CODE": "00610505",
         "DIST_CODE": "00610000",
-        "STU_CNT": 8701.0
+        "STU_CNT": 23200
       }
     },
     "Everett": {
       "name": "Everett High",
       "school_code": "00930505",
       "district_code": "00930000",
-      "total_stu_cnt": 11151,
+      "total_stu_cnt": 58919,
       "runner_up": null
     },
     "Fall River": {
       "name": "B M C Durfee High",
       "school_code": "00950505",
       "district_code": "00950000",
-      "total_stu_cnt": 11881,
+      "total_stu_cnt": 62209,
       "runner_up": {
         "ORG_NAME": "Resiliency Preparatory Academy",
         "ORG_CODE": "00950525",
         "DIST_CODE": "00950000",
-        "STU_CNT": 236.0
+        "STU_CNT": 574
       }
     },
     "Fitchburg": {
       "name": "Fitchburg High",
       "school_code": "00970505",
       "district_code": "00970000",
-      "total_stu_cnt": 6388,
+      "total_stu_cnt": 32990,
       "runner_up": {
         "ORG_NAME": "Goodrich Academy",
         "ORG_CODE": "00970510",
         "DIST_CODE": "00970000",
-        "STU_CNT": 389.0
+        "STU_CNT": 648
       }
     },
     "Haverhill": {
       "name": "Haverhill High",
       "school_code": "01280505",
       "district_code": "01280000",
-      "total_stu_cnt": 8878,
+      "total_stu_cnt": 45664,
       "runner_up": {
         "ORG_NAME": "Gateway Academy",
         "ORG_CODE": "01280515",
         "DIST_CODE": "01280000",
-        "STU_CNT": 20.0
+        "STU_CNT": 546
       }
     },
     "Holyoke": {
       "name": "Holyoke High",
       "school_code": "01370505",
       "district_code": "01370000",
-      "total_stu_cnt": 7369,
+      "total_stu_cnt": 39773,
       "runner_up": null
     },
     "Lawrence": {
       "name": "Lawrence High School",
       "school_code": "01490515",
       "district_code": "01490000",
-      "total_stu_cnt": 16488,
+      "total_stu_cnt": 85162,
       "runner_up": {
         "ORG_NAME": "School for Exceptional Studies",
         "ORG_CODE": "01490537",
         "DIST_CODE": "01490000",
-        "STU_CNT": 230.0
+        "STU_CNT": 441
       }
     },
     "Leominster": {
       "name": "Leominster High School",
       "school_code": "01530505",
       "district_code": "01530000",
-      "total_stu_cnt": 4665,
+      "total_stu_cnt": 26896,
       "runner_up": {
         "ORG_NAME": "Center For Technical Education Innovation",
         "ORG_CODE": "01530605",
         "DIST_CODE": "01530000",
-        "STU_CNT": 3334.0
+        "STU_CNT": 17259
       }
     },
     "Lowell": {
       "name": "Lowell High",
       "school_code": "01600505",
       "district_code": "01600000",
-      "total_stu_cnt": 17639,
-      "runner_up": null
+      "total_stu_cnt": 82531,
+      "runner_up": {
+        "ORG_NAME": "The Career Academy",
+        "ORG_CODE": "01600515",
+        "DIST_CODE": "01600000",
+        "STU_CNT": 459
+      }
     },
     "Lynn": {
-      "name": "Classical High",
-      "school_code": "01630505",
+      "name": "Lynn English High",
+      "school_code": "01630510",
       "district_code": "01630000",
-      "total_stu_cnt": 9683,
+      "total_stu_cnt": 55345,
       "runner_up": {
-        "ORG_NAME": "Lynn English High",
-        "ORG_CODE": "01630510",
+        "ORG_NAME": "Classical High",
+        "ORG_CODE": "01630505",
         "DIST_CODE": "01630000",
-        "STU_CNT": 9082.0
+        "STU_CNT": 49612
       }
     },
     "Malden": {
       "name": "Malden High",
       "school_code": "01650505",
       "district_code": "01650000",
-      "total_stu_cnt": 7933,
+      "total_stu_cnt": 44132,
       "runner_up": null
     },
     "Methuen": {
       "name": "Methuen High",
       "school_code": "01810505",
       "district_code": "01810000",
-      "total_stu_cnt": 8181,
+      "total_stu_cnt": 48522,
       "runner_up": null
     },
     "New Bedford": {
       "name": "New Bedford High",
       "school_code": "02010505",
       "district_code": "02010000",
-      "total_stu_cnt": 13952,
+      "total_stu_cnt": 75018,
       "runner_up": {
         "ORG_NAME": "Whaling City Junior/Senior High School",
         "ORG_CODE": "02010515",
         "DIST_CODE": "02010000",
-        "STU_CNT": 107.0
+        "STU_CNT": 414
       }
     },
     "Peabody": {
       "name": "Peabody Veterans Memorial High",
       "school_code": "02290510",
       "district_code": "02290000",
-      "total_stu_cnt": 6342,
+      "total_stu_cnt": 35923,
       "runner_up": {
         "ORG_NAME": "Peabody Personalized Remote Education Program (Peabody P.R.E.P.)",
         "ORG_CODE": "02290705",
         "DIST_CODE": "02290000",
-        "STU_CNT": 58.0
+        "STU_CNT": 147
       }
     },
     "Pittsfield": {
       "name": "Taconic High",
       "school_code": "02360510",
       "district_code": "02360000",
-      "total_stu_cnt": 3841,
+      "total_stu_cnt": 21198,
       "runner_up": {
         "ORG_NAME": "Pittsfield High",
         "ORG_CODE": "02360505",
         "DIST_CODE": "02360000",
-        "STU_CNT": 3200.0
+        "STU_CNT": 15892
       }
     },
     "Quincy": {
       "name": "North Quincy High",
       "school_code": "02430510",
       "district_code": "02430000",
-      "total_stu_cnt": 7825,
+      "total_stu_cnt": 38205,
       "runner_up": {
         "ORG_NAME": "Quincy High",
         "ORG_CODE": "02430505",
         "DIST_CODE": "02430000",
-        "STU_CNT": 6979.0
+        "STU_CNT": 38164
       }
     },
     "Revere": {
       "name": "Revere High",
       "school_code": "02480505",
       "district_code": "02480000",
-      "total_stu_cnt": 9841,
+      "total_stu_cnt": 53151,
       "runner_up": {
         "ORG_NAME": "CityLab Innovation High School",
         "ORG_CODE": "02480520",
         "DIST_CODE": "02480000",
-        "STU_CNT": 709.0
+        "STU_CNT": 1393
       }
     },
     "Salem": {
       "name": "Salem High",
       "school_code": "02580505",
       "district_code": "02580000",
-      "total_stu_cnt": 3664,
+      "total_stu_cnt": 20699,
       "runner_up": {
         "ORG_NAME": "New Liberty Innovation School",
         "ORG_CODE": "02580510",
         "DIST_CODE": "02580000",
-        "STU_CNT": 112.0
+        "STU_CNT": 112
       }
     },
     "Springfield": {
       "name": "Springfield Central High",
       "school_code": "02810500",
       "district_code": "02810000",
-      "total_stu_cnt": 8480,
+      "total_stu_cnt": 46459,
       "runner_up": {
         "ORG_NAME": "Roger L. Putnam Vocational Technical Academy",
         "ORG_CODE": "02810620",
         "DIST_CODE": "02810000",
-        "STU_CNT": 7689.0
+        "STU_CNT": 39832
       }
     },
     "Taunton": {
       "name": "Taunton High",
       "school_code": "02930505",
       "district_code": "02930000",
-      "total_stu_cnt": 10190,
+      "total_stu_cnt": 50865,
       "runner_up": {
         "ORG_NAME": "Taunton Public Virtual Academy (TPVA)",
         "ORG_CODE": "02930705",
         "DIST_CODE": "02930000",
-        "STU_CNT": 20.0
+        "STU_CNT": 20
       }
     },
     "Westfield": {
       "name": "Westfield High",
       "school_code": "03250505",
       "district_code": "03250000",
-      "total_stu_cnt": 4129,
+      "total_stu_cnt": 23752,
       "runner_up": {
         "ORG_NAME": "Westfield Technical Academy",
         "ORG_CODE": "03250605",
         "DIST_CODE": "03250000",
-        "STU_CNT": 2676.0
+        "STU_CNT": 14439
       }
     },
     "Worcester": {
       "name": "South High Community",
       "school_code": "03480520",
       "district_code": "03480000",
-      "total_stu_cnt": 9029,
+      "total_stu_cnt": 42093,
       "runner_up": {
-        "ORG_NAME": "Doherty Memorial High",
-        "ORG_CODE": "03480512",
+        "ORG_NAME": "Worcester Technical High",
+        "ORG_CODE": "03480605",
         "DIST_CODE": "03480000",
-        "STU_CNT": 7897.0
+        "STU_CNT": 41910
       }
     }
   }
