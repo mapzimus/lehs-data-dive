@@ -12,6 +12,7 @@ numpy>=1.26
 scipy>=1.13
 statsmodels>=0.14
 pyarrow>=15.0
+openpyxl>=3.1  # pandas engine for the DESE accountability xlsx workbooks (scripts/16, 19)
 
 # HTTP + parsing (used at runtime for any in-app fetching/parsing)
 requests>=2.31

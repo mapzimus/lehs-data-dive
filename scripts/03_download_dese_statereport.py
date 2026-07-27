@@ -159,16 +159,26 @@ def main() -> None:
                 print(f"    [OK] saved {out.name}")
 
     if not fetched_any:
-        print("\n  No live data returned; writing schema-valid empty parquets so")
-        print("  downstream pages don't crash. Update SSDR_URL / parsing once the")
-        print("  current statereport endpoint is confirmed.\n")
+        print("\n  No live data returned from the statereport endpoint.")
+
+    # The REAL processed discipline parquets are built from the E2C SODA
+    # dataset (2kca-w7rq) by scripts/build_gap_datasets.py. Only scaffold
+    # schema-valid empty files when they don't exist yet (first bootstrap) —
+    # overwriting real data with an all-NA placeholder broke the Discipline
+    # page after a full refresh (found 2026-07).
+    disagg_path = PROCESSED_DIR / "discipline_disaggregated.parquet"
+    dispro_path = PROCESSED_DIR / "discipline_disproportionality.parquet"
+    if disagg_path.exists() and dispro_path.exists():
+        print("  Processed discipline parquets already exist — leaving them for")
+        print("  build_gap_datasets.py to rebuild from the E2C SODA source.")
+        return
 
     disagg = build_empty_disaggregated()
-    disagg.to_parquet(PROCESSED_DIR / "discipline_disaggregated.parquet", index=False)
+    disagg.to_parquet(disagg_path, index=False)
     print(f"  Wrote discipline_disaggregated.parquet ({len(disagg):,} rows)")
 
     dispro = build_disproportionality(disagg)
-    dispro.to_parquet(PROCESSED_DIR / "discipline_disproportionality.parquet", index=False)
+    dispro.to_parquet(dispro_path, index=False)
     print(f"  Wrote discipline_disproportionality.parquet ({len(dispro):,} rows)")
 
 
