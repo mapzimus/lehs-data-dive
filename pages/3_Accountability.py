@@ -690,7 +690,7 @@ with st.expander("Methodology & sources"):
 st.markdown(
     "**These indicators are built from data explored elsewhere in this dashboard:** "
     "[📊 MCAS](/Academic_Performance) · "
-    "[🎓 Success After HS (grad / dropout)](/Success_After_HS) · "
+    "[🎓 Success After HS (grad / dropout)](/College_and_Career) · "
     "[🏫 Discipline & Climate (absence)](/Discipline_and_Climate) · "
     "[🌐 English Learners (ELP progress)](/ELL_Pipeline) · "
     "[🧭 Courses & Academics (advanced coursework)](/Courses_and_Academics)"

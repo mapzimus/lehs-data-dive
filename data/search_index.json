@@ -4,6 +4,7 @@
     "url_path": "",
     "sections": [
       "Where do you want to start?",
+      "The big picture",
       "Or pick by role",
       "What is this dashboard?",
       "Questions you can answer here",
@@ -23,6 +24,22 @@
     ]
   },
   {
+    "title": "Search",
+    "url_path": "Search",
+    "sections": [
+      "Search the dashboard"
+    ]
+  },
+  {
+    "title": "What Changed This Year",
+    "url_path": "What_Changed",
+    "sections": [
+      "🆕 What Changed This Year",
+      "Biggest movers, latest year over prior year",
+      "Year-over-year change by metric"
+    ]
+  },
+  {
     "title": "School Profile",
     "url_path": "School_Profile",
     "sections": [
@@ -35,20 +52,10 @@
       "State accountability status",
       "Where LEHS students live",
       "📜 Want the story behind the numbers?",
+      "English Learner access & progress",
       "Student mobility",
       "Student attrition",
       "Attendance & Chronic Absenteeism"
-    ]
-  },
-  {
-    "title": "Feeder Schools",
-    "url_path": "Feeder_Middle_Schools",
-    "sections": [
-      "🎒 Feeder Middle Schools & Enrollment Outlook",
-      "Feeder middle schools — latest snapshot",
-      "LEHS enrollment over time",
-      "LEHS enrollment projection",
-      "How the projection works"
     ]
   },
   {
@@ -57,10 +64,10 @@
     "sections": [
       "MCAS",
       "📊 MCAS Results — Grade 10",
-      "Subgroup Performance",
       "🌱 Growth — Student Growth Percentile (SGP)",
       "Reading These Results — Participation, Cohort Size & Ranking",
       "🧩 MCAS Alternate Assessment",
+      "Subgroup Performance",
       "% Meeting or Exceeding — Trend by Subject"
     ]
   },
@@ -114,23 +121,16 @@
     ]
   },
   {
-    "title": "College & Career",
+    "title": "College, Career & Beyond",
     "url_path": "College_and_Career",
     "sections": [
+      "College, Career & Beyond",
       "College & Career Readiness",
       "Headline Metrics",
       "Pathway Programs",
       "Early College Credits — Lynn District",
       "What happens to Lynn graduates? — Outcome breakdown",
       "Where Lynn grads land — destination college profiles",
-      "Early College participation — by partner college",
-      "LEHS students in designated pathways, by year"
-    ]
-  },
-  {
-    "title": "Success After HS",
-    "url_path": "Success_After_HS",
-    "sections": [
       "Success After High School",
       "Headline Pipeline Metrics",
       "4-Year Graduation Rate by Student Group",
@@ -140,7 +140,9 @@
       "Earnings of Lynn HS Graduates — Industry View",
       "Early Warning Chain",
       "Pipeline Trend — Multiple 9th-grade Cohorts",
-      "Degree Completion — 6-Year View"
+      "Degree Completion — 6-Year View",
+      "Early College participation — by partner college",
+      "LEHS students in designated pathways, by year"
     ]
   },
   {
@@ -158,8 +160,7 @@
       "Experienced + In-Field Teachers — Lynn District",
       "Average Class Size at LEHS — by Subject",
       "Support-staff ratios",
-      "Educator Age Profile",
-      "LEHS retention — teachers vs. principals over time"
+      "Educator Age Profile"
     ]
   },
   {
@@ -178,9 +179,10 @@
     ]
   },
   {
-    "title": "Discipline & Climate",
+    "title": "Discipline & Wellbeing",
     "url_path": "Discipline_and_Climate",
     "sections": [
+      "Discipline, Climate & Wellbeing",
       "Discipline, Climate & Safety",
       "Out-of-School Suspension Rate",
       "Chronic Absenteeism",
@@ -193,13 +195,7 @@
       "Disproportionality view",
       "Discipline, disaggregated (federal CRDC)",
       "Annual Dropout Rate",
-      "Instructional Days Lost to Discipline"
-    ]
-  },
-  {
-    "title": "Student Wellbeing",
-    "url_path": "Wellbeing",
-    "sections": [
+      "Instructional Days Lost to Discipline",
       "🌱 Student & Community Wellbeing",
       "Engagement proxy — chronic absenteeism",
       "School support staff",
@@ -208,14 +204,21 @@
     ]
   },
   {
-    "title": "Where Students Live",
+    "title": "Where Students Come From",
     "url_path": "Where_Students_Live",
     "sections": [
+      "Where Students Come From",
       "Where Our Students Live",
       "Residential Density of LEHS Students",
+      "Which neighborhoods — and who that makes the student body",
       "Cross-Reference: Community Context",
       "Housing affordability",
-      "Housing-cost burden by tract",
+      "🎒 Feeder Middle Schools & Enrollment Outlook",
+      "Feeder middle schools — latest snapshot",
+      "LEHS enrollment over time",
+      "LEHS enrollment projection",
+      "How the projection works",
+      "Housing-cost burden by Lynn neighborhood",
       "% Foreign-born (ACS)",
       "Median household income (ACS)",
       "CDC PLACES — % adults with asthma",
@@ -268,7 +271,7 @@
     ]
   },
   {
-    "title": "District",
+    "title": "Lynn District",
     "url_path": "Lynn_District",
     "sections": [
       "Lynn Public Schools — District",
@@ -288,11 +291,11 @@
       "Performance comparison — attendance + MCAS proficiency",
       "District totals",
       "Grade 10 — All Students, by Subject",
-      "Grades 3-8 — Average % M+E (across grades)"
+      "Grades 3-8 — Average % Meeting + Exceeding (across grades)"
     ]
   },
   {
-    "title": "City",
+    "title": "Lynn City",
     "url_path": "Lynn_City",
     "sections": [
       "Lynn, Massachusetts — City",
@@ -313,11 +316,11 @@
       "Education context",
       "History highlights",
       "Where to go next",
-      "Census ACS — Lynn's 22 Census Tracts",
+      "Census ACS — Lynn's 22 Neighborhoods",
       "See the same data geographically",
       "Environmental justice + community health",
       "Housing market — Lynn vs. MA vs. US trend",
-      "Variation Across Lynn's Census Tracts",
+      "Variation Across Lynn's Neighborhoods",
       "EPA EJScreen — environmental burden",
       "CDC PLACES — chronic-disease prevalence",
       "Linguistic Landscape"
@@ -327,6 +330,7 @@
     "title": "Lynn Schools",
     "url_path": "Lynn_Schools",
     "sections": [
+      "Lynn Schools",
       "Lynn Schools — Side by Side",
       "Lynn High Schools — Side by Side",
       "Latest Year Scorecard",
@@ -337,13 +341,7 @@
       "Grade Retention — Students Held Back",
       "English Learners — ACCESS Progress by School",
       "Discipline Context — Suspension Rates by School",
-      "Key Analytical Question"
-    ]
-  },
-  {
-    "title": "Lynn HS Options",
-    "url_path": "Lynn_HS_Options",
-    "sections": [
+      "Key Analytical Question",
       "🏫 Lynn High School Options",
       "Scorecard",
       "Headline metrics"
@@ -375,15 +373,6 @@
     ]
   },
   {
-    "title": "What Changed This Year",
-    "url_path": "What_Changed",
-    "sections": [
-      "🆕 What Changed This Year",
-      "Biggest movers, latest year over prior year",
-      "Year-over-year change by metric"
-    ]
-  },
-  {
     "title": "Stories",
     "url_path": "Stories",
     "sections": [
@@ -391,9 +380,19 @@
     ]
   },
   {
-    "title": "Data 101",
-    "url_path": "Data_101",
+    "title": "About the Data",
+    "url_path": "Methodology",
     "sections": [
+      "About the Data",
+      "Methodology & Data Sources",
+      "About this dashboard",
+      "Data sources",
+      "DESE accountability workbooks",
+      "Naming conventions",
+      "Field glossary — the columns you'll meet",
+      "Peer cohort framework",
+      "Important caveats",
+      "How to reproduce / refresh",
       "Data 101 — Reading the Charts",
       "1. What is a dataset?",
       "2. Chart types and what each one is for",
@@ -405,27 +404,7 @@
       "🔥 Heatmap — *patterns across two dimensions*",
       "3. How to read a percentage",
       "4. Common pitfalls — what to watch for",
-      "5. Try it yourself"
-    ]
-  },
-  {
-    "title": "Methodology",
-    "url_path": "Methodology",
-    "sections": [
-      "Methodology & Data Sources",
-      "Data sources",
-      "DESE accountability workbooks",
-      "Naming conventions",
-      "Field glossary — the columns you'll meet",
-      "Peer cohort framework",
-      "Important caveats",
-      "How to reproduce / refresh"
-    ]
-  },
-  {
-    "title": "What We Don't Know",
-    "url_path": "Data_Gaps",
-    "sections": [
+      "5. Try it yourself",
       "What We Still Don't Know",
       "1. Student wellbeing & mental health",
       "2. Charter schools (e.g. KIPP Academy Lynn)",
@@ -435,14 +414,8 @@
       "6. Small-group suppression",
       "7. Lagging & paused data series",
       "8. Environmental-justice indicators (EJScreen)",
-      "At a glance"
-    ]
-  },
-  {
-    "title": "Corrections",
-    "url_path": "Corrections",
-    "sections": [
-      "Corrections"
+      "At a glance",
+      "Methodology"
     ]
   }
 ]
