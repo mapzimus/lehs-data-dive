@@ -23,6 +23,11 @@ STEPS = [
     ("06_extract_local_files.py",          "Parse reporting-element4.xlsx + state.docx"),
     ("07_identify_peer_schools.py",        "Resolve sibling + gateway school codes"),
     ("08_build_master_panel.py",           "Join everything --> master Parquet"),
+    # Rebuilds the gap datasets (el_access, school_choice, grade retention,
+    # AP participation, teacher attendance, ...) AND the real disaggregated
+    # discipline parquets from the E2C SODA source. Must run on every refresh —
+    # without it the discipline files stay at whatever step 03 scaffolded.
+    ("build_gap_datasets.py",              "Rebuild gap datasets + real discipline parquets"),
     ("09_download_massgis.py",             "Download MassGIS shapefiles"),
     ("10_download_census_acs.py",          "Download Census ACS tract data"),
     # 12 (community health) must run BEFORE 11 (build geo), because 11 joins

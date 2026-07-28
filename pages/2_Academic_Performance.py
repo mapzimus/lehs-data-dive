@@ -378,7 +378,7 @@ with overview_tab:
             "meaningful.**"
         )
         st.page_link(
-            "pages/Lynn_Schools.py",
+            "pages/Lynn_Schools_Compared.py",
             label="Compare LEHS to Classical, Tech & the academies → Lynn Schools",
         )
 
@@ -883,7 +883,7 @@ def render_subject(code):
         "Stars show how confident we are (`*` p<0.05, `**` p<0.01, `***` p<0.001, from a "
         "two-proportion z-test vs. the school-wide rate)."
     )
-    st.page_link("pages/Data_Literacy.py", label="New to statistical significance? → Data 101")
+    st.page_link("pages/About_the_Data.py", label="New to statistical significance? → Data 101")
 
     latest_sub = sub[sub["SY"] == sub["SY"].max()].copy()
     if not latest_sub.empty and "All Students" in latest_sub["STU_GRP"].values:
