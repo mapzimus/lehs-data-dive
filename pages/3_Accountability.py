@@ -82,6 +82,13 @@ targets = load_dataset("accountability_targets")
 pctl = load_dataset("accountability_percentiles")
 bench = load_dataset("accountability_benchmarks")
 
+# Targets workbooks can stack multiple release years (thick research file +
+# thin next-cycle file). Charts/tables want one row per indicator×group, so
+# keep only the newest SY when present.
+if not targets.empty and "SY" in targets.columns:
+    _targets_sy = int(targets["SY"].max())
+    targets = targets[targets["SY"] == _targets_sy].copy()
+
 st.title("State Accountability")
 st.markdown(
     "Every Massachusetts school gets an annual **accountability determination** "
@@ -642,7 +649,12 @@ if not strip.empty:
                       xaxis=dict(title="Percentile (1–99)", range=[0, 100]), legend_title="",
                       height=320)
     st.plotly_chart(fig, width="stretch")
-    st.caption("Every peer school in the dataset, plotted by its 2025 accountability percentile.")
+    _pctl_sy = int(pctl["SY"].max()) if not pctl.empty and "SY" in pctl.columns else None
+    _pctl_label = f"{_pctl_sy} " if _pctl_sy else ""
+    st.caption(
+        f"Every peer school in the dataset, plotted by its {_pctl_label}"
+        "accountability percentile."
+    )
 
 # Sibling table
 peers = summary[summary["ORG_CODE"].isin(set(LYNN_SIBLING_HS.values()))].copy()

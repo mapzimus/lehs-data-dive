@@ -119,7 +119,7 @@ E2C_DATASETS = {
 # Year ranges
 # ---------------------------------------------------------------------------
 
-CURRENT_SCHOOL_YEAR = 2026   # SY2025-26 (ended June 2026)
+CURRENT_SCHOOL_YEAR = 2026   # SY2025-26 (ended June 2026; Aug 2026 = start of SY26-27)
 EARLIEST_YEAR = 2017          # most datasets start here
 ENROLLMENT_EARLIEST = 1994    # demographic file goes back furthest
 

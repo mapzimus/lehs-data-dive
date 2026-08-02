@@ -137,9 +137,11 @@ The **[State Accountability](/Accountability?embed=true)** page is built from
    district rows used as benchmarks → `accountability_benchmarks.parquet`.
 3. **`accountability-targets-{year}.xlsx`** — baselines plus this-year and
    next-year targets with annual increments, per school × student group →
-   `accountability_targets.parquet`. Note the direction: **dropout and
-   chronic-absenteeism targets decrease** — they are reduction targets, so a
-   lower number is the goal.
+   `accountability_targets.parquet`. DESE ships a thick research file and a
+   thinner next-cycle file (the **2026** release landed July 31, 2026); the
+   ingest keeps both years and the Accountability page shows the newest.
+   Note the direction: **dropout and chronic-absenteeism targets decrease** —
+   they are reduction targets, so a lower number is the goal.
 4. / 5. **`school-percentile-{year}.xlsx`** and
    **`student-group-percentile-{year}.xlsx`** — the statewide percentile
    build-up per indicator. Percentiles blend **three years of data, weighted
