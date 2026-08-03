@@ -2,6 +2,10 @@
 
 Updates to the dashboard, newest first.
 
+### 2026-08-02 — 2026 accountability targets now live
+
+SY2025-26 is closed. DESE's July 31 release of the 2026 Accountability Targets and 2027 Increments workbook is now in the dashboard — the State Accountability page shows the newest baselines and next-year steps for each indicator and student group.
+
 ### 2026-06-13 — New pages: Lynn HS Options, Wellbeing, Feeder Schools, and more
 
 A big additions release: a side-by-side of Lynn's public high schools, a student & community wellbeing page, feeder-middle-school profiles with an enrollment projection, a "what changed this year" overview, a data-gaps and corrections log, Stories, and a housing-affordability section.

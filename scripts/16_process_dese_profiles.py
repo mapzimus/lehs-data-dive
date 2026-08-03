@@ -54,61 +54,199 @@ _INDICATOR_CATALOG: list[tuple[str, str, str, str]] = [
 # interleaves a non-high-school family for K-12 schools.
 _HS_FAMILY_RE = re.compile(r"-\s*High [Ss]chool\s*:")
 
-# accountability-targets-{year}.xlsx, sheet "Targets and Increments". One entry
-# per scored indicator (no Growth/SGP targets exist). Column names are EXACT —
-# note the double space in the dropout reduction header and the trailing space
-# in the ELP "% Making Progress Target " headers. `direction` is +1 when higher
-# is better, -1 for dropout/chronic-absenteeism (their increment columns are
-# labeled "Reduction"). `mode`: "peryear" indicators (achievement) carry a
-# separate increment column per year; "single" indicators apply one annual
-# increment 2025→2027.
-_TARGETS_CATALOG: list[dict] = [
-    dict(indicator="ELA Achievement", unit="scaled_score", direction=1, mode="peryear",
-         latest_target="2025 ELA Achievement Target", latest_year=2025,
-         incr_plus1="2026 ELA Increment", incr_plus2="2027 ELA Increment",
-         path="2025 ELA Path", n="2024 ELA # Included",
-         baseline="2024 ELA Achievement Baseline", baseline_year=2024),
-    dict(indicator="Math Achievement", unit="scaled_score", direction=1, mode="peryear",
-         latest_target="2025 Math Achievement Target", latest_year=2025,
-         incr_plus1="2026 Math Increment", incr_plus2="2027 Math Increment",
-         path="2025 Math Path", n="2024 Math # Included",
-         baseline="2024 Math Achievement Baseline", baseline_year=2024),
-    dict(indicator="Science Achievement", unit="scaled_score", direction=1, mode="peryear",
-         latest_target="2025 Science Achievement Target", latest_year=2025,
-         incr_plus1="2026 Science Increment", incr_plus2="2027 Science Increment",
-         path="2025 Science Path", n="2024 Science # Included",
-         baseline="2024 Science Achievement Baseline", baseline_year=2024),
-    dict(indicator="4-Year Graduation", unit="pct", direction=1, mode="single",
-         latest_target="2024 4-Yr Grad Rate Target (%)", latest_year=2024,
-         incr_single="Annual 4-Yr Grad Rate Increment (%) (2024-2026)",
-         path=None, n="2023 4-Yr Grad Rate # Included",
-         baseline="2023 4-Yr Grad Rate Baseline (%)", baseline_year=2023),
-    dict(indicator="Extended Engagement", unit="pct", direction=1, mode="single",
-         latest_target="2023 Extended Engagement Rate Target (%)", latest_year=2023,
-         incr_single="Annual Extended Engagement Rate Increment (%) (2023-2025)",
-         path=None, n="2022 Extended Engagement Rate # Included",
-         baseline="2022 Extended Engagement Rate Baseline (%)", baseline_year=2022),
-    dict(indicator="Annual Dropout", unit="pct", direction=-1, mode="single",
-         latest_target="2024 Annual Dropout Rate Target (%)", latest_year=2024,
-         incr_single="Annual  Dropout Rate Reduction (%)",   # NOTE: double space
-         path=None, n="2023 Annual Dropout Rate # Included",
-         baseline="2023 Annual Dropout Rate Baseline (%)", baseline_year=2023),
-    dict(indicator="Advanced Coursework", unit="pct", direction=1, mode="single",
-         latest_target="2025 Advanced Coursework Completion Rate Target (%)", latest_year=2025,
-         incr_single="Annual Advanced Coursework Completion Rate Increment (%) (2025-2027)",
-         path=None, n="2024 Advanced Coursework Completion Rate # Included",
-         baseline="2024 Advanced Coursework Completion Rate Baseline (%)", baseline_year=2024),
-    dict(indicator="ELP Progress", unit="pct", direction=1, mode="single",
-         latest_target="2025 % Making Progress Target ", latest_year=2025,  # trailing space
-         incr_single="Annual % Making Progress Increment (2025-2027)",
-         path=None, n="2024 ACCESS # Included",
-         baseline="2024 % Making Progress Baseline", baseline_year=2024),
-    dict(indicator="Chronic Absenteeism", unit="pct", direction=-1, mode="single",
-         latest_target="2025 Chronic Absenteeism Rate Target (%)", latest_year=2025,
-         incr_single="Annual Chronic Absenteeism Rate Reduction (%) (2025-2027)",
-         path=None, n="2024 Chronic Absenteeism Rate # Included",
-         baseline="2024 Chronic Absenteeism Rate Baseline (%)", baseline_year=2024),
-]
+# accountability-targets-{year}.xlsx, sheet "Targets and Increments".
+# Column names embed years and shift each release. DESE publishes two shapes:
+#   * thick research file (e.g. 2025, ~70 cols) — prior + current cycle
+#   * thin next-cycle file (e.g. 2026, ~49 cols) — current cycle only
+# `_targets_catalog_for_columns` resolves headers from whatever is present.
+# `direction` is +1 when higher is better, -1 for dropout/chronic-absenteeism.
+# `mode`: "peryear" (achievement) uses separate increment columns; "single"
+# applies one annual increment. Note the double space in some dropout
+# reduction headers and the trailing space on ELP "% Making Progress Target ".
+
+
+def _first_present(cols: set[str], candidates: list[str]) -> str | None:
+    for name in candidates:
+        if name in cols:
+            return name
+    return None
+
+
+def _targets_catalog_for_columns(cols: set[str]) -> list[dict] | None:
+    """Build the indicator catalog for one targets workbook from its headers."""
+    # Newest ELA achievement target year present drives the achievement block.
+    ach_years = sorted(
+        (int(m.group(1)) for c in cols
+         if (m := re.match(r"^(\d{4}) ELA Achievement Target$", c))),
+        reverse=True,
+    )
+    if not ach_years:
+        return None
+    ach_y = ach_years[0]
+    base_y = ach_y - 1
+
+    catalog: list[dict] = []
+    for subject, indicator in [
+        ("ELA", "ELA Achievement"),
+        ("Math", "Math Achievement"),
+        ("Science", "Science Achievement"),
+    ]:
+        latest = f"{ach_y} {subject} Achievement Target"
+        baseline = f"{base_y} {subject} Achievement Baseline"
+        path = f"{ach_y} {subject} Path"
+        n = f"{base_y} {subject} # Included"
+        # Thick files expose incr for ach_y itself plus ach_y+1/+2; thin
+        # next-cycle files typically only have ach_y and ach_y+1. Project
+        # forward from the published target using the *next* increments.
+        # Prefer ach_y+1 for PLUS1 (matching the thick-file convention that
+        # skips the same-year increment already baked into the target).
+        incr1 = _first_present(cols, [
+            f"{ach_y + 1} {subject} Increment",
+            f"{ach_y} {subject} Increment",
+        ])
+        # PLUS2 only when a distinct further-year increment exists.
+        incr2 = None
+        cand2 = f"{ach_y + 2} {subject} Increment"
+        if cand2 in cols:
+            incr2 = cand2
+        elif incr1 and incr1 != f"{ach_y + 1} {subject} Increment":
+            # We fell back to same-year incr for PLUS1; ach_y+1 can be PLUS2.
+            incr2 = _first_present(cols, [f"{ach_y + 1} {subject} Increment"])
+        if not {latest, baseline, n} <= cols or incr1 is None:
+            return None
+        catalog.append(dict(
+            indicator=indicator, unit="scaled_score", direction=1, mode="peryear",
+            latest_target=latest, latest_year=ach_y,
+            incr_plus1=incr1, incr_plus2=incr2,
+            path=path if path in cols else None,
+            n=n, baseline=baseline, baseline_year=base_y,
+        ))
+
+    # Lagging completion indicators — years trail achievement by 1–2.
+    grad_years = sorted(
+        (int(m.group(1)) for c in cols
+         if (m := re.match(r"^(\d{4}) 4-Yr Grad Rate Target \(%\)$", c))),
+        reverse=True,
+    )
+    if not grad_years:
+        return None
+    g_y = grad_years[0]
+    grad_incr = _first_present(cols, [
+        f"Annual 4-Yr Grad Rate Increment (%) ({g_y}-{g_y + 2})",
+        f"Annual 4-Yr Grad Rate Increment (%) ({g_y}-{g_y + 1})",
+        f"Annual 4-Yr Grad Rate Increment (%) ({g_y - 1}-{g_y + 1})",
+        f"Annual 4-Yr Grad Rate Increment (%) ({g_y - 1}-{g_y})",
+    ])
+    catalog.append(dict(
+        indicator="4-Year Graduation", unit="pct", direction=1, mode="single",
+        latest_target=f"{g_y} 4-Yr Grad Rate Target (%)", latest_year=g_y,
+        incr_single=grad_incr,
+        path=None, n=f"{g_y - 1} 4-Yr Grad Rate # Included",
+        baseline=f"{g_y - 1} 4-Yr Grad Rate Baseline (%)", baseline_year=g_y - 1,
+    ))
+
+    eng_years = sorted(
+        (int(m.group(1)) for c in cols
+         if (m := re.match(r"^(\d{4}) Extended Engagement Rate Target \(%\)$", c))),
+        reverse=True,
+    )
+    if not eng_years:
+        return None
+    e_y = eng_years[0]
+    eng_incr = _first_present(cols, [
+        f"Annual Extended Engagement Rate Increment (%) ({e_y}-{e_y + 2})",
+        f"Annual Extended Engagement Rate Increment (%) ({e_y}-{e_y + 1})",
+    ])
+    catalog.append(dict(
+        indicator="Extended Engagement", unit="pct", direction=1, mode="single",
+        latest_target=f"{e_y} Extended Engagement Rate Target (%)", latest_year=e_y,
+        incr_single=eng_incr,
+        path=None, n=f"{e_y - 1} Extended Engagement Rate # Included",
+        baseline=f"{e_y - 1} Extended Engagement Rate Baseline (%)", baseline_year=e_y - 1,
+    ))
+
+    drop_years = sorted(
+        (int(m.group(1)) for c in cols
+         if (m := re.match(r"^(\d{4}) Annual Dropout Rate Target \(%\)$", c))),
+        reverse=True,
+    )
+    if not drop_years:
+        return None
+    d_y = drop_years[0]
+    # Thick 2025 file: "Annual  Dropout Rate Reduction (%)" (leading double space,
+    # no year). Thin 2026 file: "{year} Annual  Dropout Rate Reduction (%)".
+    drop_incr = _first_present(cols, [
+        f"{d_y} Annual  Dropout Rate Reduction (%)",
+        f"{d_y} Annual Dropout Rate Reduction (%)",
+        "Annual  Dropout Rate Reduction (%)",
+        "Annual Dropout Rate Reduction (%)",
+    ])
+    catalog.append(dict(
+        indicator="Annual Dropout", unit="pct", direction=-1, mode="single",
+        latest_target=f"{d_y} Annual Dropout Rate Target (%)", latest_year=d_y,
+        incr_single=drop_incr,
+        path=None, n=f"{d_y - 1} Annual Dropout Rate # Included",
+        baseline=f"{d_y - 1} Annual Dropout Rate Baseline (%)", baseline_year=d_y - 1,
+    ))
+
+    for indicator, target_pat, target_fmt, base_fmt, n_fmt, incr_fmts in [
+        ("Advanced Coursework",
+         r"^(\d{4}) Advanced Coursework Completion Rate Target \(%\)$",
+         "{y} Advanced Coursework Completion Rate Target (%)",
+         "{y} Advanced Coursework Completion Rate Baseline (%)",
+         "{y} Advanced Coursework Completion Rate # Included",
+         [
+             "Annual Advanced Coursework Completion Rate Increment (%) ({y}-{y2})",
+             "Annual Advanced Coursework Completion Rate Increment (%) ({y}-{y1})",
+         ]),
+        ("ELP Progress",
+         r"^(\d{4}) % Making Progress Target $",
+         "{y} % Making Progress Target ",
+         "{y} % Making Progress Baseline",
+         "{y} ACCESS # Included",
+         [
+             "Annual % Making Progress Increment ({y}-{y2})",
+             "Annual % Making Progress Increment ({y}-{y1})",
+         ]),
+        ("Chronic Absenteeism",
+         r"^(\d{4}) Chronic Absenteeism Rate Target \(%\)$",
+         "{y} Chronic Absenteeism Rate Target (%)",
+         "{y} Chronic Absenteeism Rate Baseline (%)",
+         "{y} Chronic Absenteeism Rate # Included",
+         [
+             "Annual Chronic Absenteeism Rate Reduction (%) ({y}-{y2})",
+             "Annual Chronic Absenteeism Rate Reduction (%) ({y}-{y1})",
+         ]),
+    ]:
+        years = sorted(
+            (int(m.group(1)) for c in cols if (m := re.match(target_pat, c))),
+            reverse=True,
+        )
+        if not years:
+            return None
+        y = years[0]
+        incr = _first_present(cols, [
+            fmt.format(y=y, y1=y + 1, y2=y + 2) for fmt in incr_fmts
+        ])
+        direction = -1 if indicator == "Chronic Absenteeism" else 1
+        catalog.append(dict(
+            indicator=indicator, unit="pct", direction=direction, mode="single",
+            latest_target=target_fmt.format(y=y), latest_year=y,
+            incr_single=incr,
+            path=None, n=n_fmt.format(y=y - 1),
+            baseline=base_fmt.format(y=y - 1), baseline_year=y - 1,
+        ))
+
+    # Require every catalog entry's critical columns to be present.
+    for e in catalog:
+        need = {e["latest_target"], e["baseline"], e["n"]}
+        if e["mode"] == "single":
+            if not e.get("incr_single") or not need <= cols:
+                return None
+        else:
+            if e.get("incr_plus1") is None or not need <= cols:
+                return None
+    return catalog
 
 # {school,student-group}-percentile-{year}.xlsx, sheet "HS " (trailing space).
 # 143 positional columns: 0-7 ID block, three 44-col year blocks (base offsets
@@ -559,11 +697,11 @@ def process_accountability_targets() -> None:
     """Per-school×group baselines + next-year improvement targets -> one parquet.
 
     Source: accountability-targets-{year}.xlsx, sheet "Targets and Increments"
-    (the 70-column research file; the thinner 49-column next-cycle file is
-    skipped because its required columns are absent). Powers the page's
-    "what 2026 has to look like" section: TARGET_LATEST is the most recent
-    published target; TARGET_PLUS1/PLUS2 apply DESE's annual increment in the
-    indicator's improvement DIRECTION (dropout/chronic-absenteeism reduce).
+    (thick research file and thin next-cycle file both supported via
+    header detection). Powers the page's "what next year has to look like"
+    section: TARGET_LATEST is the most recent published target;
+    TARGET_PLUS1/PLUS2 apply DESE's annual increment in the indicator's
+    improvement DIRECTION (dropout/chronic-absenteeism reduce).
     """
     files = sorted(ACCOUNTABILITY_RAW.glob("accountability-targets-*.xlsx"))
     if not files:
@@ -575,11 +713,10 @@ def process_accountability_targets() -> None:
         m = re.search(r"(\d{4})", path.stem)
         sy = int(m.group(1)) if m else None
         df = pd.read_excel(path, sheet_name="Targets and Increments", header=1, dtype=str)
-        cols = set(df.columns)
-        needed = {e["latest_target"] for e in _TARGETS_CATALOG}
-        if not needed <= cols:
-            print(f"  [WARN] {path.name}: missing target columns "
-                  f"(thin/next-cycle file?), skipping")
+        cols = set(str(c) for c in df.columns)
+        catalog = _targets_catalog_for_columns(cols)
+        if not catalog:
+            print(f"  [WARN] {path.name}: could not resolve target columns, skipping")
             continue
         df = df.rename(columns={
             "District Code": "DIST_CODE", "School Code": "ORG_CODE",
@@ -596,7 +733,7 @@ def process_accountability_targets() -> None:
                     ["SY", "ORG_CODE", "ORG_NAME", "DIST_CODE", "DIST_NAME",
                      "GROUP", "GRADESPAN", "REGION"] if k in row}
             meta["SY"] = sy
-            for e in _TARGETS_CATALOG:
+            for e in catalog:
                 latest = _num(row.get(e["latest_target"]))
                 d = e["direction"]
                 if e["mode"] == "single":
@@ -606,7 +743,9 @@ def process_accountability_targets() -> None:
                 else:  # peryear (achievement)
                     annual = _num(row.get(e["incr_plus1"]))
                     plus1 = latest + d * annual
-                    plus2 = plus1 + d * _num(row.get(e["incr_plus2"]))
+                    incr2 = e.get("incr_plus2")
+                    plus2 = (plus1 + d * _num(row.get(incr2))
+                             if incr2 else float("nan"))
                 if e["unit"] == "pct":  # rates stay inside [0, 100]
                     plus1 = min(max(plus1, 0.0), 100.0) if pd.notna(plus1) else plus1
                     plus2 = min(max(plus2, 0.0), 100.0) if pd.notna(plus2) else plus2
@@ -623,14 +762,17 @@ def process_accountability_targets() -> None:
                 })
         if records:
             frames.append(pd.DataFrame.from_records(records))
-            print(f"  {path.name}: SY{sy} -> {len(records):,} target rows")
+            print(f"  {path.name}: SY{sy} -> {len(records):,} target rows "
+                  f"(ach target year "
+                  f"{catalog[0]['latest_year']})")
     if not frames:
         print("  [SKIP] accountability targets — no parseable file")
         return
     combined = pd.concat(frames, ignore_index=True)
     out_path = PROCESSED_DIR / "accountability_targets.parquet"
     combined.to_parquet(out_path, index=False)
-    print(f"  [OK] -> {out_path.name}  ({len(combined):,} rows)")
+    print(f"  [OK] -> {out_path.name}  ({len(combined):,} rows; "
+          f"SY {sorted(combined['SY'].dropna().unique().tolist())})")
 
 
 def process_accountability_percentiles() -> None:
