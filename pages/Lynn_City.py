@@ -45,12 +45,14 @@ st.markdown(
 #
 # `lynn_city_stats` is a one-row Lynn-only ACS profile with no statewide
 # columns, so the MA comparison values are curated here from published ACS
-# 2019–2023 5-year tables — the same vintage as Lynn's profile. Each entry
-# carries the ACS table it comes from; values are approximate published
-# figures and are labeled "ACS 2023 5-yr" wherever they render.
+# tables. Keep MA_ACS_YEAR on the same vintage as those source tables.
+# Lynn-specific captions below use `acs_year` from lynn_city_stats so they
+# follow a data refresh.
 # ---------------------------------------------------------------------------
 
-MA_ACS_VINTAGE = "ACS 2023 5-yr"
+MA_ACS_YEAR = 2023
+MA_ACS_SPAN = f"{MA_ACS_YEAR - 4}–{MA_ACS_YEAR}"
+MA_ACS_VINTAGE = f"ACS {MA_ACS_YEAR} 5-yr"
 MA_BENCHMARKS = {
     "median_household_income": {"value": 99_858, "table": "DP03",
                                 "label": "Median household income"},
@@ -82,7 +84,24 @@ def _ma_cite(*keys: str) -> str:
     tables = ", ".join(dict.fromkeys(
         MA_BENCHMARKS[k]["table"] for k in keys if k in MA_BENCHMARKS
     ))
-    return f"ACS tables {tables} · 2019–2023 5-year estimates"
+    return f"ACS tables {tables} · {MA_ACS_SPAN} 5-year estimates"
+
+
+def _lynn_acs_vintage() -> tuple[int, str]:
+    """Year + span from lynn_city_stats.acs_year, falling back to the MA vintage."""
+    city = load_dataset("lynn_city_stats")
+    year = MA_ACS_YEAR
+    if not city.empty and "acs_year" in city.columns:
+        try:
+            parsed = int(city.iloc[0]["acs_year"])
+        except (TypeError, ValueError):
+            parsed = None
+        if parsed is not None and not pd.isna(parsed):
+            year = parsed
+    return year, f"{year - 4}–{year}"
+
+
+LYNN_ACS_YEAR, LYNN_ACS_SPAN = _lynn_acs_vintage()
 
 
 tab_city, tab_nbhds = st.tabs(["Citywide", "Neighborhoods"])
@@ -109,6 +128,7 @@ with tab_city:
         )
     else:
         row = city.iloc[0]
+        acs_year, acs_span = LYNN_ACS_YEAR, LYNN_ACS_SPAN
 
         def _num(col, default=None):
             v = row.get(col)
@@ -133,7 +153,7 @@ with tab_city:
         with c1:
             st.metric("Total population",
                       f"{int(_num('pop_total') or 0):,}",
-                      help="US Census ACS 5-year 2019–2023, place-level estimate")
+                      help=f"US Census ACS 5-year {acs_span}, place-level estimate")
         with c2:
             st.metric("Median age", f"{_num('median_age'):.1f}" if _num('median_age') else "—")
         with c3:
@@ -377,7 +397,7 @@ with tab_city:
         with c1:
             st.metric("Median household income",
                       _fmt_money(_num("median_household_income")),
-                      help="ACS 2019–2023 in 2023 inflation-adjusted dollars")
+                      help=f"ACS {acs_span} in {acs_year} inflation-adjusted dollars")
         with c2:
             st.metric("Mean household income", _fmt_money(_num("mean_household_income")))
         with c3:
@@ -429,7 +449,7 @@ with tab_city:
         )
 
         st.caption(
-            "**Compared to MA state averages** (ACS 2023): MA median household income "
+            f"**Compared to MA state averages** ({MA_ACS_VINTAGE}): MA median household income "
             "~$97,000 · MA poverty rate ~10% · MA child poverty ~12%. Lynn sits below "
             "state median income and above state poverty rates — a pattern shared across "
             "the 26 Gateway Cities."
@@ -846,7 +866,7 @@ with tab_nbhds:
 
         st.header("Census ACS — Lynn's 22 Neighborhoods")
         st.caption(
-            "5-year ACS estimates (2019–2023). Lynn has 22 census tracts; each is a "
+            f"5-year ACS estimates ({LYNN_ACS_SPAN}). Lynn has 22 census tracts; each is a "
             "neighborhood-scale unit of ~3–6K residents. Variation across these "
             "tracts shows how Lynn is not demographically uniform."
         )

@@ -35,7 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from utils.constants import RAW_DIR  # noqa: E402
 
-ACS_YEAR = 2023  # most recent ACS 5-year as of 2026 (covers 2019-2023)
+ACS_YEAR = 2024  # 2020-2024 ACS 5-year (released Jan 29, 2026); requires CENSUS_API_KEY
 ACS_STATE = "25"  # MA
 ACS_COUNTY = "009"  # Essex County (where Lynn is)
 

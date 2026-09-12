@@ -18,7 +18,7 @@ from utils.charts import (
     year_axis,
 )
 from utils.constants import LEHS_SCHOOL_CODE, LYNN_DISTRICT_CODE, STATE_COLOR
-from utils.data_loader import load_dataset
+from utils.data_loader import latest_sy, load_dataset
 from utils.interpret import sy_label
 
 # Per Max's editorial direction: this page is LEHS-focused. School-to-school
@@ -417,17 +417,19 @@ if not retention.empty:
 st.divider()
 
 # ---------------------------------------------------------------------------
-# Staff attendance (2hei-cc7k, SY2025) — staff present vs scheduled days
+# Staff attendance (2hei-cc7k) — staff present vs scheduled days
 # ---------------------------------------------------------------------------
 
 st.header("Staff Attendance")
-st.caption(
-    "DESE's staff-attendance rate: the share of scheduled days staff were "
-    "present (SY 2024-25, the only year DESE has published). Staff absence is a "
-    "direct driver of lost instructional time and substitute coverage."
-)
 
 staff_attend = load_dataset("teacher_attendance")
+_sa_year = latest_sy(staff_attend)
+_sa_label = f"SY {sy_label(_sa_year)}" if _sa_year else "the latest published year"
+st.caption(
+    "DESE's staff-attendance rate: the share of scheduled days staff were "
+    f"present ({_sa_label}). Staff absence is a "
+    "direct driver of lost instructional time and substitute coverage."
+)
 if staff_attend.empty:
     st.info("Staff-attendance data is temporarily unavailable.")
 else:
@@ -636,7 +638,16 @@ if not class_size.empty:
             if not overall.empty:
                 st.metric(f"Average class (SY {latest_cs_year})",
                           f"{overall['AVG_CLSS_CNT'].iloc[0]:.1f} students")
-            st.metric("State average (SY 2025)", "17.2 students")
+            state_cs = class_size[
+                (class_size["ORG_TYPE"] == "State")
+                & (class_size["SY"] == latest_cs_year)
+                & (class_size["SUBJ"].astype(str).str.lower().isin(["all", "all subjects"]))
+            ]
+            if not state_cs.empty:
+                st.metric(
+                    f"State average (SY {latest_cs_year})",
+                    f"{float(state_cs['AVG_CLSS_CNT'].iloc[0]):.1f} students",
+                )
         # By subject
         by_subj = latest[~latest["SUBJ"].astype(str).str.lower().isin(["all", "all subjects"])]
         # LEHS doesn't teach every DESE subject category (e.g. the CH74-* career

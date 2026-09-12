@@ -97,16 +97,23 @@ st.divider()
 # WIDA ACCESS statewide context
 # ---------------------------------------------------------------------------
 
-st.header("WIDA ACCESS — Statewide Context (2025)")
+wida_path = PROCESSED_DIR / "wida_state_summary.json"
+wida = json.loads(wida_path.read_text()) if wida_path.exists() else {}
+_wida_year = None
+for _token in str(wida.get("report", "")).replace("—", " ").split():
+    if _token.isdigit() and len(_token) == 4 and _token.startswith("20"):
+        _wida_year = _token
+        break
+_wida_year_label = _wida_year or "latest"
+
+st.header(f"WIDA ACCESS — Statewide Context ({_wida_year_label})")
 st.caption(
     "ACCESS for ELLs is the annual English language proficiency assessment. "
     "Statewide aggregates from MA DESE's WIDA report are shown below; "
     "school- and district-level outcomes for Lynn and LEHS follow in the next section."
 )
 
-wida_path = PROCESSED_DIR / "wida_state_summary.json"
-if wida_path.exists():
-    wida = json.loads(wida_path.read_text())
+if wida:
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         st.metric("MA ELs enrolled K-12", f"{wida['total_ell_k12_enrolled']:,}")
@@ -131,7 +138,7 @@ if wida_path.exists():
     ))
     fig.update_layout(
         **DEFAULT_LAYOUT,
-        title="MA statewide avg WIDA score by domain (2025)",
+        title=f"MA statewide avg WIDA score by domain ({_wida_year_label})",
         yaxis=dict(title="Score (1-6)", range=[0, 6.5]),
     )
     # Widen right margin so the threshold-line annotation has room
@@ -499,16 +506,19 @@ st.divider()
 # ---------------------------------------------------------------------------
 
 st.header("Former English Learners — by Year Since Exit (Lynn District)")
-st.caption(
-    "DESE Reporting Element 4 tracks former EL students for up to 4 years "
-    "after they exit EL status. Data shown is **Lynn district aggregate** for 2025."
-)
 
 fmr_path = PROCESSED_DIR / "former_el_mcas_lynn.csv"
 if fmr_path.exists():
     fmr = pd.read_csv(fmr_path)
 
     if not fmr.empty:
+        _fmr_year = pd.to_numeric(fmr.get("Year"), errors="coerce").dropna()
+        _fmr_label = str(int(_fmr_year.max())) if not _fmr_year.empty else "the latest year"
+        st.caption(
+            "DESE Reporting Element 4 tracks former EL students for up to 4 years "
+            "after they exit EL status. Data shown is **Lynn district aggregate** "
+            f"for {_fmr_label}."
+        )
         # Coerce % columns to numeric (they're strings from xlsx)
         for col in ["ELA  E+M %", "Math  E+M %", "STE  E+M %",
                     "ELA Tested #", "Math Tested #", "STE Tested #"]:

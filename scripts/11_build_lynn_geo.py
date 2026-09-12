@@ -32,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from utils.constants import (  # noqa: E402
     ASSETS_DIR,
+    CURRENT_SCHOOL_YEAR,
     GATEWAY_CITIES,
     LEHS_SCHOOL_CODE,
     LYNN_DISTRICT_CODE,
@@ -324,7 +325,7 @@ def load_lynn_tracts(lynn_town: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 # binds a slider to this range. Years outside it fall back to "latest".
 # Extended back to 1994 so enrollment trends can show the long view; most
 # other metrics only have data from 2017+, slider degrades gracefully.
-YEAR_KEYED_RANGE = list(range(1994, 2027))  # SY 1994 through SY 2026
+YEAR_KEYED_RANGE = list(range(1994, CURRENT_SCHOOL_YEAR + 1))  # SY 1994 through latest data year
 
 # Student-group filter schema. DESE's STU_GRP strings → short codes baked
 # into the column names. The map app uses these codes when looking up
@@ -397,10 +398,10 @@ def _build_district_metrics_table() -> pd.DataFrame:
     The schema includes BOTH:
       - Latest-year columns (e.g. EL_PCT, grad_4yr) — used by side panel,
         popups, and the choropleth when no year is selected
-      - Year-keyed columns (e.g. EL_PCT__2017, EL_PCT__2018, …, EL_PCT__2026)
+      - Year-keyed columns (e.g. EL_PCT__2017, EL_PCT__2018, …)
         — used by the year slider + animation to show how values change
 
-    Year-keyed coverage spans 2017-2026 for the metrics where year-keying
+    Year-keyed coverage spans 2017 through CURRENT_SCHOOL_YEAR for metrics where year-keying
     is analytically valuable (demographics, MCAS, graduation, per-pupil,
     AP). Stable-over-time metrics (class size, teacher in-field) stay
     latest-year only to keep file size manageable.

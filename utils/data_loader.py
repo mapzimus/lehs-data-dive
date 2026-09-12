@@ -53,6 +53,14 @@ def load_dataset(name: str) -> pd.DataFrame:
     return _load(PROCESSED_DIR / f"{name}.parquet")
 
 
+def latest_sy(df: pd.DataFrame, year_col: str = "SY") -> int | None:
+    """Newest school-year integer in a frame, or None if it has no year data."""
+    if df is None or df.empty or year_col not in df.columns:
+        return None
+    years = pd.to_numeric(df[year_col], errors="coerce").dropna()
+    return int(years.max()) if not years.empty else None
+
+
 def get_dart_indicator(
     org_codes: list[str] | tuple[str, ...] | str,
     indicator: str,
