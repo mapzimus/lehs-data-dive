@@ -35,7 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from utils.constants import PROCESSED_DIR, RAW_DIR  # noqa: E402
 
-ACS_YEAR = 2023
+ACS_YEAR = 2024  # 2020-2024 ACS 5-year (released Jan 29, 2026); requires CENSUS_API_KEY
 ACS_STATE = "25"
 ACS_PLACE = "37490"  # Lynn city, MA (verified via Census API place lookup)
 

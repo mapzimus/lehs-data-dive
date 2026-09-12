@@ -226,12 +226,12 @@ def peer_dot_scatter(
     return fig
 
 
-# MCAS Grade-10 results exist for 2017, 2018, 2019, (no 2020 — COVID), 2021-2025
-# in the mcas_achievement dataset (verified 2026-06-05; 2026 not yet released).
-# `with_year_gaps()` reindexes to this tuple, so it MUST cover the full span or
-# the earliest years are silently dropped — 2017/2018 were being lost when this
-# started at 2019. 2020 is kept as an explicit member so the line BREAKS (NaN)
-# at the COVID gap rather than drawing straight across it.
+# Fallback MCAS year axis when a page hasn't derived the span from the loaded
+# parquet yet. Prefer `span_years(mcas)` at the call site so a new DESE year
+# (or a longer history pull) extends the axis automatically. 2020 is kept as
+# an explicit member so the line BREAKS (NaN) at the COVID waiver rather than
+# drawing straight across it. `with_year_gaps()` reindexes to this tuple, so
+# the span MUST cover the full history or early years are silently dropped.
 MCAS_YEARS = (2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025)
 
 

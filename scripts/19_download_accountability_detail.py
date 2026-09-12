@@ -58,7 +58,7 @@ STEMS = [
 
 # Determination years to attempt, newest first. A 404 just means that year is
 # archived elsewhere (or not yet published) — we skip it quietly.
-YEARS = [2026, 2025, 2024, 2023]
+YEARS = [2027, 2026, 2025, 2024, 2023]
 
 
 def download(stem: str, year: int) -> bool:

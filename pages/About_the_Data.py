@@ -15,8 +15,13 @@ from utils.constants import SEQ_BRAND
 from utils.branding import crosslink_callout, page_footer, sidebar_attribution
 from utils.constants import LEHS_NAVY
 from utils.constants import PROJECT_ROOT  # PROJECT_ROOT exists in utils/constants.py
+from utils.data_loader import latest_sy, load_dataset
+from utils.interpret import sy_label
 st.set_page_config(page_title="About the Data | LEHS", page_icon="📚", layout="wide")
 sidebar_attribution()
+
+_latest_data_sy = latest_sy(load_dataset("enrollment_demographics"))
+_latest_ay = sy_label(_latest_data_sy).replace("-", "–") if _latest_data_sy else "2025–26"
 
 st.title("About the Data")
 st.markdown(
@@ -194,7 +199,7 @@ scope. "Lynn" alone never refers to LEHS.
     st.header("Field glossary — the columns you'll meet")
 
     st.markdown(
-        """
+        f"""
 The processed datasets share a small set of DESE field names. The ones
 worth knowing:
 
@@ -205,7 +210,7 @@ worth knowing:
   the `State`. The same metric is reported at all three levels, so this
   is how a school number is told apart from its district rollup.
 - **`SY`** — the **school year**, stored as the spring/ending calendar
-  year. `SY = 2026` means the **2025–26** school year (the latest in the
+  year. `SY = {_latest_data_sy or 2026}` means the **{_latest_ay}** school year (the latest in the
   data); `SY = 2024` means 2023–24, ending June 2024.
 - **`STU_GRP`** — the **student group** a row covers: `All Students`, or
   a subgroup such as `English Learner`, `Low Income`, `Students w/

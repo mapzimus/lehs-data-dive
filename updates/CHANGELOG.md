@@ -2,6 +2,10 @@
 
 Updates to the dashboard, newest first.
 
+### 2026-09-12 — FY2025 spending and mid-2026 housing now in
+
+School and district expenditure files now include FY2025 (LEHS per-pupil spending is in the dashboard through that year), and the Lynn housing series is refreshed through July 2026. Year labels on MCAS, English Learners, Teachers, and About the Data now follow the latest year in each dataset, so the next DESE release will show up without a copy edit. Spring 2026 MCAS, 2026 graduation rates, and 2026–27 October enrollment are not public yet.
+
 ### 2026-08-02 — 2026 accountability targets now live
 
 SY2025-26 is closed. DESE's July 31 release of the 2026 Accountability Targets and 2027 Increments workbook is now in the dashboard — the State Accountability page shows the newest baselines and next-year steps for each indicator and student group.

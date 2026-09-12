@@ -18,8 +18,9 @@ from utils.charts import (
     DEFAULT_LAYOUT,
     LEHS_GOLD,
     LEHS_NAVY,
-    MCAS_YEARS,
+    MCAS_YEARS as MCAS_YEARS_FALLBACK,
     SUBGROUP_PALETTE,
+    span_years,
     with_year_gaps,
     year_axis,
     year_heatmap,
@@ -104,10 +105,12 @@ if lehs.empty:
     st.error("No LEHS Grade 10 MCAS data found.")
     st.stop()
 
-# LEHS has Grade-10 MCAS for 2019 and 2021-2025 (no 2020 — MCAS was waived
-# that spring). HAS_HISTORY stays as a cheap defensive contract for the trend
-# sections; the single-year fallbacks remain in case a future filter ever
-# narrows the data again.
+# Axis span comes from the loaded parquet so a new DESE year (or a longer
+# history pull) extends charts automatically. 2020 stays in the span as a
+# NaN gap — MCAS was waived that spring. HAS_HISTORY is a cheap defensive
+# contract for the trend sections; single-year fallbacks remain in case a
+# future filter ever narrows the data again.
+MCAS_YEARS = span_years(mcas) or MCAS_YEARS_FALLBACK
 N_YEARS = lehs["SY"].nunique()
 HAS_HISTORY = N_YEARS >= 3
 
@@ -994,7 +997,7 @@ def render_subject(code):
             # --- 3-way SGP trend: LEHS vs Lynn district vs Massachusetts (all 6 years) ---
             def _sgp_series(frame, scope):
                 s = frame[(frame["SUBJECT_CODE"] == code) & (frame["AVG_SGP"].notna())][["SY", "AVG_SGP"]]
-                s = with_year_gaps(s, "AVG_SGP")
+                s = with_year_gaps(s, "AVG_SGP", years=MCAS_YEARS)
                 s["Scope"] = scope
                 return s
 
