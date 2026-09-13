@@ -357,8 +357,8 @@ real enrollment dataset behind this dashboard:
             "School Year": ["2024–25", "2025–26"],
             "School": ["Lynn English High"] * 2,
             "Total Students": [2_062, 1_727],
-            "% English Learners": ["40%", "42%"],
-            "% Low Income": ["74%", "75%"],
+            "% English Learners": ["43%", "42%"],
+            "% Low Income": ["75%", "75%"],
         }
     )
     st.dataframe(demo_dataset, hide_index=True, width="stretch")
