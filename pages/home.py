@@ -57,10 +57,10 @@ st.markdown(
       }}
     </style>
     <div class="mobile-section-hint">
-      <strong>On mobile?</strong> Tap the gold-outlined arrow button
-      in the <strong>top-left corner</strong> to open the sections menu
-      (the dashboard is organized into four groups: The School, Lynn,
-      Comparison, About — plus Maps at the top).
+      <strong>On mobile?</strong> Tap the gold-outlined arrow in the
+      <strong>top-left corner</strong> to open the menu. Pages are
+      grouped as The School, Students &amp; Community, Comparison,
+      and About — plus Home, Maps, and Search at the top.
     </div>
     """,
     unsafe_allow_html=True,
@@ -89,8 +89,9 @@ with col_author:
     )
 
 st.markdown(
-    "A public, interactive data exploration tool centered on Lynn English "
-    "High School (LEHS) — Lynn, Massachusetts."
+    "Public numbers about **Lynn English High School** — and the district "
+    "and city around it — in one place. Free to use. Not an official "
+    "Lynn Public Schools or state website."
 )
 
 st.divider()
@@ -183,10 +184,8 @@ lehs_sy = int(lehs_row["SY"]) if lehs_row is not None else None
 
 st.header("Where do you want to start?")
 st.markdown(
-    "Three nested views of the same place — **Lynn English** the school, "
-    "**Lynn Public Schools** the district, and **Lynn** the city around them. "
-    "Open whichever one you're curious about; jumping between them is always "
-    "one click away in the sidebar."
+    "Start with the **school**, the **district**, or the **city**. They are "
+    "three views of the same place. Switch anytime in the sidebar."
 )
 
 s_col, d_col, c_col = st.columns(3, gap="medium")
@@ -353,8 +352,7 @@ with c_col:
     # Citywide rolls everything up; Neighborhoods drops to Lynn's 22
     # census tracts (ACS + EJScreen + CDC PLACES).
     st.caption(
-        "Lynn, MA · coastal Gateway city · "
-        "**Citywide + Neighborhoods (22 census tracts)** tabs"
+        "Lynn, MA · a coastal Gateway City · city snapshot plus neighborhood maps"
     )
     pop = _city_num("pop_total")
     mhi = _city_num("median_household_income")
@@ -434,7 +432,7 @@ with _ctx_r:
         _gn = int(_row["GRAD_CNT"]) if pd.notna(_row["GRAD_CNT"]) else 0
         _en = int(_row["IMMEDIATEENR_CNT"]) if pd.notna(_row["IMMEDIATEENR_CNT"]) else 0
         _pn = int(_row["PERSIST_CNT"]) if pd.notna(_row["PERSIST_CNT"]) else 0
-        st.markdown("**From 9th grade to year-2 of college — the cohort funnel**")
+        st.markdown("**From 9th grade to year 2 of college**")
         _fig_fn = go.Figure(go.Funnel(
             y=["Entered 9th grade", "Graduated", "Enrolled in college", "Persisted to year 2"],
             x=[_cn, _gn, _en, _pn],
@@ -461,9 +459,9 @@ maps_col, learn_col = st.columns(2, gap="medium")
 with maps_col:
     st.markdown("#### 🗺️ Maps")
     st.caption(
-        "Interactive MapLibre experiences — Lynn-focused (school pins + "
-        "tract demographics) and statewide MA Education Atlas. "
-        "**1,800+ MA schools · 351 municipalities · 22 Lynn census tracts.**"
+        "Two maps: one of Lynn (schools and neighborhoods) and one of all "
+        "Massachusetts. **1,800+ schools · 351 cities and towns · "
+        "22 Lynn neighborhoods.**"
     )
     st.page_link(
         "pages/Maps.py",
@@ -474,12 +472,9 @@ with maps_col:
 with learn_col:
     st.markdown("#### 📊 Data 101")
     st.caption(
-        "New to dashboards? **Start here.** A beginner-friendly guide to "
-        "what a dataset is, how to read each chart type (bar, line, "
-        "histogram, scatter, choropleth, heatmap), what percentages "
-        "actually mean, and the most common ways charts mislead. "
-        "Built for LEHS students and anyone who's never opened a "
-        "dashboard before — the **Data 101** tab on About the Data."
+        "New to charts? **Start here.** A short guide to reading bars, "
+        "lines, maps, and percentages — written for students and anyone "
+        "opening this site for the first time."
     )
     st.page_link(
         "pages/About_the_Data.py",
@@ -497,37 +492,37 @@ st.divider()
 
 st.header("Or pick by role")
 st.markdown(
-    "The scopes above answer *what* you want to see. These three paths "
-    "answer *who you are* — tailored entry points for families, teachers, "
-    "and the school committee."
+    "Skip the cards above and start from your job: a parent choosing a "
+    "school, a teacher planning support, or a committee member looking "
+    "at the whole district."
 )
 
 p_col, t_col, sc_col = st.columns(3)
 
 with p_col:
     st.markdown("### For families")
-    st.caption("Choosing a school, understanding outcomes, comparing to siblings.")
+    st.caption("Who goes to Lynn English, how students do, and how it compares to the other Lynn high schools.")
     st.page_link("pages/1_School_Profile.py", label="School Profile — who attends LEHS today")
-    st.page_link("pages/2_Academic_Performance.py", label="MCAS — scores, growth, subgroup gaps")
-    st.page_link("pages/College_Career_Beyond.py", label="College, Career & Beyond — does the promise hold up?")
-    st.page_link("pages/Lynn_Schools_Compared.py", label="Lynn Schools — LEHS vs. its sibling high schools")
+    st.page_link("pages/2_Academic_Performance.py", label="MCAS — test scores and growth")
+    st.page_link("pages/College_Career_Beyond.py", label="College, Career & Beyond — life after graduation")
+    st.page_link("pages/Lynn_Schools_Compared.py", label="Lynn Schools — English vs. Classical, Tech, and the others")
 
 with t_col:
     st.markdown("### For teachers")
-    st.caption("Instructional planning, student insight, subgroup gaps.")
-    st.page_link("pages/2_Academic_Performance.py", label="MCAS — results by subject, growth, gaps")
-    st.page_link("pages/4_ELL_Pipeline.py", label="English Learners — LEHS's central narrative")
-    st.page_link("pages/Discipline_Climate_Wellbeing.py", label="Discipline & Wellbeing — chronic absence by group")
-    st.page_link("pages/7_Teachers_and_Workforce.py", label="Teachers & Workforce — who's in the building")
+    st.caption("Test results, English Learners, attendance, and who is on staff.")
+    st.page_link("pages/2_Academic_Performance.py", label="MCAS — results by subject and student group")
+    st.page_link("pages/4_ELL_Pipeline.py", label="English Learners — the school's largest story")
+    st.page_link("pages/Discipline_Climate_Wellbeing.py", label="Discipline & Wellbeing — who is out of school, and why")
+    st.page_link("pages/7_Teachers_and_Workforce.py", label="Teachers & Workforce — who works at LEHS")
 
 with sc_col:
     st.markdown("### For school committee")
-    st.caption("Peer comparison and dollar-for-outcome leverage across the district.")
-    st.page_link("pages/Lynn_District.py", label="Lynn District — LPS as a whole")
-    st.page_link("pages/8_Finance.py", label="Finance — per-pupil spending by category")
-    st.page_link("pages/Lynn_Schools_Compared.py", label="Lynn Schools — vs. same-district siblings")
-    st.page_link("pages/Gateway_Peer_Comparison.py", label="Gateway Cities — 26-city scorecard")
-    st.page_link("pages/Correlation_Lab.py", label="Cross-Topic Explorer — what moves with what")
+    st.caption("District-wide numbers, spending, and how Lynn English compares with similar cities.")
+    st.page_link("pages/Lynn_District.py", label="Lynn District — all 26 schools together")
+    st.page_link("pages/8_Finance.py", label="Finance — where the money goes")
+    st.page_link("pages/Lynn_Schools_Compared.py", label="Lynn Schools — English vs. the other Lynn high schools")
+    st.page_link("pages/Gateway_Peer_Comparison.py", label="Gateway Cities — Lynn vs. 25 similar cities")
+    st.page_link("pages/Correlation_Lab.py", label="Cross-Topic Explorer — which numbers tend to rise together")
 
 st.caption(
     "These are starting points, not the only useful pages. The full sidebar "
@@ -544,19 +539,14 @@ st.header("What is this dashboard?")
 
 st.markdown(
     """
-**The LEHS Data Dive pulls together every publicly available dataset relevant
-to Lynn English High School and renders it as a single navigable analysis.**
-It's designed for the people who actually need to *understand* the school —
-families choosing schools, educators planning supports, journalists looking
-for context, researchers studying urban education, and the Lynn community
-itself.
+**This site puts the public numbers about Lynn English in one place.**
+It is for families choosing a school, teachers planning support,
+journalists looking for context, and anyone in Lynn who wants a clear
+picture — not a pile of separate state websites.
 
-It exists because the official sources are fragmented: MCAS scores live in
-one DESE Power BI dashboard, enrollment in another, finance in a third,
-educator data in a fourth, federal civil-rights data in a fifth, Census
-community context in a sixth. **Pulling them together at the school level
-is the difference between a stack of separate facts and a coherent picture
-of one school.**
+The official sources are spread out. Test scores sit in one state tool,
+enrollment in another, spending in a third, teacher data in a fourth.
+**Together, those pieces tell a story that no single site shows.**
 """
 )
 
@@ -569,30 +559,31 @@ c1, c2 = st.columns(2)
 with c1:
     st.markdown(
         """
-**Data scope**
-- **50+ datasets across ~10 public sources** — the bulk from MA DESE's E2C
-  Hub (MCAS, graduation, AP, attendance, finance, staffing, plans of
-  graduates, pathways, postsecondary outcomes), plus federal civil-rights,
-  Census, and athletics data. See **Methodology** for the full source list.
-- **Original research**: Maxwell Howe's catchment + absenteeism geospatial
-  study using aggregated Lynn Public Schools enrollment data
-- **Federal data**: US Census ACS 5-year for Lynn tracts, MassGIS shapefiles
-- **Historical depth**: enrollment back to **1992–93**, MCAS back to 2017,
-  graduation cohorts back to 2005
+**What's in here**
+- **50+ public datasets from about 10 sources** — mostly Massachusetts
+  DESE (tests, graduation, AP, attendance, spending, staffing, college
+  outcomes), plus federal civil-rights data, Census, and athletics.
+  Full list on **About the Data**.
+- **Lynn-only maps** of where students live and how absence varies
+  by neighborhood (from aggregated district records)
+- **Census and map layers** for the city of Lynn
+- **History**: enrollment back to **1992–93**, MCAS back to 2017,
+  graduation rates back to 2005
 """
     )
 
 with c2:
     st.markdown(
         """
-**Three peer cohorts** for comparing LEHS:
-- **Same district** *(closest comparison)* — LEHS vs. its sibling
-  Lynn high schools. Same city, same policies → school-level effects show through.
-- **Same system** — LEHS within LPS as a whole, including all 26
-  schools and elementary feeders.
-- **Same role, different city** — LEHS vs. the main public high
-  school in each of MA's 26 Gateway cities (Brockton, Lawrence,
-  Chelsea, Lowell, Holyoke, Springfield, +19).
+**Three ways to compare Lynn English**
+- **Other Lynn high schools** — Classical, Tech, and the smaller
+  academies. Same city and same rules, so differences are about the
+  schools themselves.
+- **The whole district** — Lynn English next to all 26 Lynn Public
+  Schools, including the elementary and middle schools that feed it.
+- **Similar cities** — the main public high school in each of
+  Massachusetts' 26 Gateway Cities (Lawrence, Chelsea, Lowell,
+  Holyoke, Springfield, and 21 others).
 """
     )
     st.page_link("pages/Lynn_Schools_Compared.py", label="→ Lynn Schools (same district)")
@@ -609,25 +600,22 @@ st.header("Questions you can answer here")
 
 st.markdown(
     """
-- **How is LEHS doing?** — Headline metrics, trends, and peer comparison
-  on **School Profile** and **MCAS**.
-- **What does LEHS's English Learner pipeline actually look like?** —
-  From WIDA proficiency through MCAS, graduation, and into former-EL
-  years on **English Learners**.
-- **Where does the budget go, and does it buy what we hope?** —
-  Per-pupil spending by category on **Finance**, plus cross-domain
-  analysis on **Cross-Topic Explorer**.
-- **Who works at LEHS, and how does the teacher body match the student
-  body?** — **Teachers & Workforce**.
-- **Where do LEHS students live, and does distance from school predict
-  absence?** — **Where Students Come From** *(aggregated maps)*.
-- **What can Lynn learn from Lawrence, Chelsea, Holyoke, and other peer
-  cities?** — Side-by-side scorecards on **Gateway Cities**.
-- **What patterns emerge when you cross-reference everything?** —
-  **Cross-Topic Explorer** lets you pick any two metrics and see how they
-  relate across the 26 gateway-city high schools.
+- **How is Lynn English doing?** — Snapshot and trends on
+  **School Profile** and **MCAS**.
+- **How are English Learners doing?** — From the ACCESS English test
+  through MCAS and graduation, on **English Learners**.
+- **Where does the money go?** — Spending per student on **Finance**.
+- **Who teaches here?** — Staffing and teacher diversity on
+  **Teachers & Workforce**.
+- **Where do students live?** — Neighborhood maps on
+  **Where Students Come From**.
+- **How does Lynn compare with Lawrence, Chelsea, or Holyoke?** —
+  Side-by-side numbers on **Gateway Cities**.
+- **Do two numbers tend to move together?** — Pick any pair on
+  **Cross-Topic Explorer**. Remember: moving together is not the same
+  as one causing the other.
 
-*Jump to any of these from the index just below, or the sidebar.*
+*Use the list below or the sidebar to jump in.*
 """
 )
 
@@ -640,10 +628,8 @@ st.divider()
 st.header("All sections")
 
 st.markdown(
-    "The sidebar is organized into four groups — The School, Students & "
-    "Community, Comparison, and About — plus Home, Maps, and Search pinned "
-    "at the top. Pick anything that's relevant to what you're trying to "
-    "figure out."
+    "The sidebar has four groups — The School, Students & Community, "
+    "Comparison, and About — plus Home, Maps, and Search at the top."
 )
 
 c1, c2 = st.columns(2)
@@ -659,7 +645,7 @@ with c1:
     st.page_link("pages/2_Academic_Performance.py", label="MCAS — Grade-10 results, growth, gaps")
     st.page_link("pages/2b_Courses_and_Academics.py", label="Courses & Academics — G9 passing, AP, SAT, course access")
     st.page_link("pages/3_Accountability.py", label="State Accountability — DESE determination breakdown")
-    st.page_link("pages/4_ELL_Pipeline.py", label="English Learners (central narrative)")
+    st.page_link("pages/4_ELL_Pipeline.py", label="English Learners — ACCESS, MCAS, and after reclassification")
     st.page_link("pages/College_Career_Beyond.py", label="College, Career & Beyond — pathways + life after graduation")
     st.page_link("pages/7_Teachers_and_Workforce.py", label="Teachers & Workforce — diversity, staffing")
     st.page_link("pages/8_Finance.py", label="Finance — per-pupil spending breakdowns")

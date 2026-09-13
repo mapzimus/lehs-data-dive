@@ -7,6 +7,12 @@
 #   reason:  why (source update, parsing bug, definition change, etc.)
 #   source:  optional citation/PR link
 corrections:
+  - date: 2026-09-13
+    page: Stories / About the Data / Maps
+    change: "Rewrote visitor-facing explanations in plainer language. Fixed Stories links that still pointed at pages merged into Where Students Come From and Lynn Schools. Fixed the Corrections tab title (it had said Methodology). Pointed the Maps Data 101 link at About the Data. Replaced a Data 101 sample table that showed enrollment rising when recent years show a drop."
+    reason: "Copy audit — easier language for families and students, and a few stale links and labels after the 2026 page merge."
+    source: "information-clarity pass"
+
   - date: 2026-06-05
     page: Academic Performance (MCAS Grade 10)
     change: "Restored 2017 and 2018 to the Grade-10 MCAS trend; the line previously started at 2019, silently dropping the two earliest years."

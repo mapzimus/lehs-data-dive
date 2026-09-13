@@ -24,28 +24,24 @@ sidebar_attribution()
 
 st.title("Cross-Topic Explorer")
 st.markdown(
-    "Because every dataset lives in the same data model joined on (school, year), "
-    "we can ask questions DESE's siloed tools can't. Pick any two metrics "
-    "below to explore relationships across the 26 gateway-city high schools "
-    "(one main high school per city, with Lynn English representing Lynn). "
-    "The scatter plots break Lynn out into four colored dots — **LEHS** "
-    "(gold star), **Lynn Classical**, **Lynn Tech**, and **Lynn Public Schools "
-    "as a district** — against the grey gateway-peer cloud, so you can see how "
-    "LEHS lands next to its same-city siblings and the district aggregate."
+    "Pick any two numbers and see whether they tend to rise or fall "
+    "together across the **26 Gateway City high schools** (one main high "
+    "school per city; Lynn English stands in for Lynn). Each chart shows "
+    "four Lynn dots — **LEHS** (gold star), **Classical**, **Tech**, and "
+    "**Lynn Public Schools as a district** — against the other cities in "
+    "grey."
 )
 
 st.caption(
-    "**Note:** Correlation is not causation. Patterns here are starting points "
-    "for questions, not proof of cause and effect."
+    "**Moving together is not the same as causing.** Patterns here are "
+    "starting points for questions, not proof."
 )
 st.caption(
-    "**A concrete confounder to keep in mind:** the gateway cities differ "
-    "sharply in who they enroll — English-learner share and low-income share "
-    "vary widely from city to city — and those shared demographics can drive "
-    "*both* axes of a scatter at once. Two metrics can look tightly linked "
-    "simply because each tracks the same underlying population mix, not "
-    "because one moves the other. This tool surfaces patterns worth "
-    "investigating; it cannot say what causes them."
+    "**One thing that can fool you:** these cities enroll very different "
+    "shares of English Learners and low-income students. Those shared "
+    "facts can push *both* numbers on a chart at once. Two measures can "
+    "look tightly linked just because they track the same mix of "
+    "students — not because one moves the other."
 )
 
 # ---------------------------------------------------------------------------
@@ -461,10 +457,10 @@ latest_gateway = latest[latest["peer_role"].isin(["LEHS", "Other Gateway HS"])].
 
 st.header("Strongest Relationships Right Now")
 st.caption(
-    "Every numeric metric pair in the panel, scanned on the latest year per "
-    "school. Top 5 by |r|; pairs with |r| < 0.40, fewer than 10 schools, or a "
-    "trivial mechanical link are dropped. The confounder note above applies "
-    "doubly here — a strong r is a pattern, not a cause."
+    "Every pair of numbers, using the latest year at each school. The five "
+    "strongest links are listed. Weak links, tiny samples, and pairs that "
+    "are basically the same number twice are left out. A strong link is "
+    "still a pattern, not a cause."
 )
 
 # Pairs that are mechanically or definitionally linked — the same instrument

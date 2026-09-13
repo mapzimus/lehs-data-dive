@@ -36,8 +36,8 @@ sidebar_attribution()
 
 st.title("Lynn English High School — Profile")
 st.markdown(
-    "Demographics, enrollment trends, and headline metrics for LEHS, going "
-    "back to the 1992–93 school year."
+    "Who attends Lynn English, how enrollment has changed, and the headline "
+    "numbers — back to the 1992–93 school year."
 )
 
 # ---------------------------------------------------------------------------

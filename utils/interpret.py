@@ -73,23 +73,22 @@ def sgp_methodology_note() -> str:
     COVID-baseline SGP for SY 2019-2021 (cohort-referenced thereafter).
     """
     return (
-        "**About SGP (Student Growth Percentile):** measures a student's growth "
-        "vs. academic peers who scored similarly the prior year — 50 = average "
-        "growth, higher = faster growth. DESE reports AVG_SGP as the median in "
-        "SY 2017 and as the mean from SY 2018 onward, and the SY 2019–2021 "
-        "values use a COVID-era baseline. Treat trend lines across those years "
-        "as directional rather than precise."
+        "**About SGP (Student Growth Percentile):** how much a student grew "
+        "compared with others who scored similarly the year before. "
+        "**50 = typical growth**; higher means faster. The state reported "
+        "this as a median in 2016–17 and as an average from 2017–18 on, "
+        "and 2018–19 through 2020–21 used a COVID-era baseline. Treat "
+        "lines across those years as a direction, not an exact measure."
     )
 
 
 def chronic_absenteeism_methodology_note() -> str:
     """Note for any chart showing PCT_CHRON_ABS_10 / PCT_CHRON_ABS_20."""
     return (
-        "**Chronic absenteeism** is DESE's accountability measure: the share "
-        "of students who missed **10% or more of enrolled school days** in a "
-        "given year (about 18 days in a 180-day calendar). It includes both "
-        "excused and unexcused absences. A separate ≥20% threshold is also "
-        "published for students missing roughly a month or more."
+        "**Chronic absenteeism** is the share of students who missed "
+        "**10% or more of the days they were enrolled** (about 18 days "
+        "in a 180-day year). Excused and unexcused days both count. The "
+        "state also publishes a ≥20% figure — roughly a month or more."
     )
 
 
@@ -104,10 +103,10 @@ def sat_methodology_note() -> str:
     includes students who would not have self-selected into the test.
     """
     return (
-        "**About SAT scores:** the test was redesigned in 2016; from SY 2017 "
-        "onward DESE reports a single combined Reading & Writing score plus "
-        "Math (each scaled 200–800), and pre-2017 rows show Math only. When "
-        "the **takers count jumps sharply** (e.g., a school-day SAT mandate), "
-        "scores typically fall: the testing pool now includes students who "
-        "previously opted out, not because the school got worse."
+        "**About SAT scores:** the test changed in 2016. From 2016–17 on, "
+        "the state reports Reading & Writing plus Math (each 200–800). "
+        "Earlier rows show Math only. When the **number of testers jumps** "
+        "(for example, a school-day SAT for everyone), average scores "
+        "usually drop — more students are testing, not because the school "
+        "got worse."
     )

@@ -24,11 +24,11 @@ sidebar_attribution()
 
 st.title("College, Career & Beyond")
 st.markdown(
-    "How LEHS students prepare for what comes after high school — and how "
-    "they actually fare once they get there. **Preparing in HS** covers "
-    "pathways, early college, and MassCore; **After Graduation** follows "
-    "graduates into college enrollment, persistence, completion, and the "
-    "workforce."
+    "How Lynn English students prepare for life after high school — and "
+    "what happens next. **Preparing in HS** covers career pathways, early "
+    "college, and MassCore (the state's recommended course set). **After "
+    "Graduation** follows graduates into college, staying in college, "
+    "finishing, and work."
 )
 _tab_0, _tab_1 = st.tabs(['🎓 Preparing in HS', '🚀 After Graduation'])
 
@@ -36,9 +36,8 @@ with _tab_0:
     # ==== from pages/5_College_and_Career.py ====
     st.header("College & Career Readiness")
     st.markdown(
-        "Pathway programs (CTE, Early College, Innovation Pathways), FAFSA "
-    "completion, and what actually happens to Lynn graduates — enrollment, "
-    "employment, and destination colleges."
+        "Career pathways, early college, FAFSA completion, and what happens "
+        "to graduates — college, work, and which colleges they attend."
     )
     st.page_link(
         "pages/2b_Courses_and_Academics.py",
@@ -440,11 +439,10 @@ with _tab_1:
     # ==== from pages/6_Success_After_HS.py ====
     st.header("Success After High School")
     st.markdown(
-        "**The headline question every parent, teacher, and school committee "
-    "member asks: of every 100 9th-graders who walk into LEHS, how many "
-    "graduate, how many enroll in college, and how many are still there "
-    "a year later?** This page follows the full pipeline from 9th-grade "
-    "entry through degree completion and into the workforce."
+        "**Of every 100 9th-graders who walk into Lynn English, how many "
+        "graduate, how many start college, and how many are still there a "
+        "year later?** This tab follows that path through a degree and "
+        "into work."
     )
 
     dart = load_dataset("dart_success_after_hs")

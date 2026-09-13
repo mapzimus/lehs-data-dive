@@ -47,8 +47,9 @@ def _lehs_row(df: pd.DataFrame) -> "pd.Series | None":
 
 st.title("Teachers & Workforce")
 st.markdown(
-    "Teacher diversity, FTE counts, retention, experience, in-field rates, "
-    "and class size — drawn from DESE's staffing and educator datasets."
+    "Who works at Lynn English: teacher diversity, how many staff (in "
+    "full-time equivalents), who stays, years of experience, in-field "
+    "rates, and class size."
 )
 st.caption(
     "**FTE** = full-time equivalent. One full-time staff member = 1.0 FTE; "

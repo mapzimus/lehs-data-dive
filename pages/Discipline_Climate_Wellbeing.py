@@ -35,6 +35,11 @@ st.set_page_config(page_title="Discipline, Climate & Wellbeing | LEHS", page_ico
 sidebar_attribution()
 
 st.title("Discipline, Climate & Wellbeing")
+st.markdown(
+    "Who is suspended, who is chronically absent, and the limited public "
+    "signals we have about student wellbeing. The second tab is honest "
+    "about what we cannot measure."
+)
 _tab_0, _tab_1 = st.tabs(['🚸 Discipline & Climate', '💚 Student Wellbeing'])
 
 with _tab_0:
@@ -55,9 +60,9 @@ with _tab_0:
 
     st.header("Discipline, Climate & Safety")
     st.markdown(
-        "Out-of-school suspension rates and chronic absenteeism at LEHS, with "
-    "by-subgroup breakdowns and same-district contrast against Lynn Classical "
-    "and Lynn Tech where the data supports it."
+        "Out-of-school suspensions and chronic absence at Lynn English, "
+        "broken out by student group, and compared with Classical and Lynn "
+        "Tech when the numbers exist."
     )
 
     attendance = load_dataset("student_attendance")
@@ -281,21 +286,20 @@ with _tab_0:
     # Geographic distribution of chronic absenteeism (original research)
     # ---------------------------------------------------------------------------
 
-    st.header("Where the Absence Comes From — Geographic Analysis")
+    st.header("Where the Absence Comes From")
     st.markdown(
-        "The headline absenteeism rate is one number for the whole school. This "
-    "analysis — **original geospatial research by Maxwell Howe** combining "
-    "LEHS student addresses with daily attendance records — answers the "
-    "harder question: *which neighborhoods drive that number, and how "
-    "strongly does distance from school predict whether a student shows up?*"
+        "The school-wide absence rate is one number. These maps — **original "
+        "research by Maxwell Howe** using student addresses and daily "
+        "attendance — ask a harder question: *which neighborhoods drive "
+        "that number, and does living farther from school mean a student "
+        "is more likely to miss days?*"
     )
 
     st.caption(
-        "Source: LEHS student addresses (Lynn Public Schools, provided via a data "
-    "request) combined with daily attendance records. All maps below are "
-    "aggregated — KDE density surfaces, 100m/150m grid cells, hexbins, or "
-    "statistical distributions — not individual locations. See *Where Our "
-    "Students Live* (sidebar) for the residential-pattern view."
+        "Source: Lynn English student addresses (Lynn Public Schools, via a "
+        "data request) plus daily attendance. Maps are grouped into grids "
+        "and neighborhoods — never individual homes. See "
+        "*Where Students Come From* for the residential pattern."
     )
 
     _RESEARCH_IMG_DIR = PROCESSED_DIR / "lehs_research"
@@ -937,12 +941,10 @@ with _tab_0:
 
     st.header("Annual Dropout Rate")
     st.caption(
-        "The **annual dropout rate** is the share of enrolled students in grades "
-    "9-12 who left school during a single year without graduating or "
-    "transferring to another program. It is a one-year flow (not the cumulative "
-    "or cohort rate), so it tends to be smaller than the headline four-year "
-    "figures — but its year-to-year movement is an early-warning signal. "
-    "Source: DESE Education-to-Career (Dropout Report)."
+        "Share of students in grades 9–12 who left during **one year** "
+        "without graduating or transferring. That is different from the "
+        "four-year graduation rate, so the number is usually smaller. A "
+        "jump year to year is an early warning. Source: DESE Dropout Report."
     )
 
     dropout = load_dataset("dropout")
@@ -1286,17 +1288,16 @@ with _tab_1:
 
     st.header("🌱 Student & Community Wellbeing")
     st.markdown(
-        "Massachusetts doesn't publish a school-level student wellbeing survey in "
-    "this pipeline, so this page assembles the closest available signals — each "
-    "labeled for what it is. None of the sections below is a direct measure of "
-    "Lynn English students' mental health. They are **proxies**: attendance "
-    "(an engagement signal), the staff a school employs to support students, "
-    "and the adult health profile of the neighborhoods students live in."
+        "Massachusetts does not publish a Lynn English student wellbeing "
+        "survey in the public files this site uses. What follows are the "
+        "**closest stand-ins**, each labeled for what it actually is: "
+        "attendance, support staff, and adult health in the neighborhoods "
+        "students live in. None of these is a direct measure of student "
+        "mental health."
     )
     st.markdown(
-        "A youth health/risk-behavior survey (e.g., MYRBS) would fill this gap "
-    "directly. It isn't in the data pipeline yet — see "
-    "[What We Don't Know](/Methodology) for what the dashboard can and can't show."
+        "A youth health survey would fill this gap. It is not in the public "
+        "files yet — see [What We Don't Know](/Methodology)."
     )
 
     # ---------------------------------------------------------------------------

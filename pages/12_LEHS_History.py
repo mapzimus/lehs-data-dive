@@ -47,11 +47,10 @@ sidebar_attribution()
 
 st.title("📜 A history of Lynn English")
 st.markdown(
-    "The school that the rest of this dashboard talks about as data has "
-    "**130+ years** of physical buildings, fires, rebuilds, parades, "
-    "world-champion alumni, and civic memory behind it. This page is "
-    "the narrative side. The data side lives on "
-    "**[School Profile](/School_Profile?embed=true)** and every page beyond it."
+    "Lynn English is more than a spreadsheet. This page is **130+ years** "
+    "of buildings, fires, rebuilds, parades, and alumni. The numbers live "
+    "on **[School Profile](/School_Profile?embed=true)** and the pages "
+    "around it."
 )
 
 _hero_l, _hero_r = st.columns([2, 1], gap="medium")

@@ -28,13 +28,11 @@ sidebar_attribution()
 
 st.title("Gateway Peer Comparison")
 st.markdown(
-    "LEHS benchmarked against the main comprehensive high school in each of "
-    "the other 25 Massachusetts Gateway Cities — similar urban contexts and "
-    "demographic profiles. The two scatters below also break Lynn out into "
-    "four separate points — **LEHS**, **Lynn Classical**, **Lynn Tech**, and "
-    "**Lynn Public Schools as a district** — so you can see how the school "
-    "compares to its same-city siblings and to the district aggregate, not "
-    "only to the other 25 cities."
+    "Lynn English next to the main public high school in each of the other "
+    "**25 Massachusetts Gateway Cities** — similar urban districts. Charts "
+    "also show **Classical**, **Lynn Tech**, and **Lynn Public Schools as "
+    "a district**, so you can see Lynn English next to its sister schools "
+    "and the district, not only other cities."
 )
 
 # Load the peer-schools manifest
@@ -652,11 +650,10 @@ if (
 # ---------------------------------------------------------------------------
 
 crosslink_callout(
-    "**Raw peer metrics here; the state's weighted determination there.** "
-    "This page lines up unadjusted rates across the gateway-city main high "
-    "schools. The Accountability page shows how DESE weighs those same "
-    "outcomes — achievement, growth, attendance, graduation — into Lynn "
-    "English's official classification, criterion-referenced score, and "
+    "**Plain rates here; the official report card there.** This page "
+    "lines up raw numbers across Gateway City high schools. The "
+    "Accountability page shows how the state combines tests, growth, "
+    "attendance, and graduation into Lynn English's rating and "
     "statewide percentile.",
     url_path="Accountability",
     label="State Accountability →",

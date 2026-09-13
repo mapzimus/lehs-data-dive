@@ -68,9 +68,9 @@ def load_stories() -> list[dict]:
 
 st.title("📖 Stories")
 st.markdown(
-    "Short, factual reads that walk through what the data shows about Lynn English "
-    "High — one thread at a time. Each story is grounded in the dashboard's own "
-    "numbers and ends by pointing to the page where you can check them yourself."
+    "Short reads about what the numbers show at Lynn English — one topic at "
+    "a time. Each story uses this site's own data and ends with a link so "
+    "you can check the charts yourself."
 )
 
 st.divider()

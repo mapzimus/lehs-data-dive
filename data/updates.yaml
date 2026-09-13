@@ -7,6 +7,14 @@
 #   title:  short headline
 #   body:   one or two sentences, plain language
 updates:
+  - date: 2026-09-13
+    title: "Clearer language on Home, About, and Stories"
+    body: >
+      Visitor-facing copy is shorter and more everyday. Home, About the Data,
+      Stories, and page intros drop analyst jargon. Stories links now point
+      at the merged pages. The Corrections tab is labeled Corrections (it
+      had said Methodology). Data 101's sample enrollment table matches the
+      recent drop instead of a rising trend.
   - date: 2026-09-12
     title: "FY2025 spending and mid-2026 housing now in"
     body: >

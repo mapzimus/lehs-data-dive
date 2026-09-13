@@ -47,12 +47,10 @@ with _hdr_l:
 with _hdr_r:
     st.title("Lynn Public Schools — District")
     st.markdown(
-        "A district-wide view of Lynn Public Schools (LPS) — the system that "
-        "includes LEHS, Classical, Tech, and all elementary and middle schools. "
-        "**Snapshot** shows district-level trends. **All Schools** lets you "
-        "filter every school in the district. For school-to-school comparison "
-        "(LEHS vs. Classical, Tech, Frederick Douglass, Harold Durgin) see "
-        "[Lynn Schools](/Lynn_Schools?embed=true) under the Compare group."
+        "Lynn Public Schools as a whole — English, Classical, Tech, and every "
+        "elementary and middle school. **Snapshot** is district-wide trends. "
+        "**All Schools** lets you filter each building. For high school vs. "
+        "high school, see [Lynn Schools](/Lynn_Schools?embed=true)."
     )
 
 # ---------------------------------------------------------------------------

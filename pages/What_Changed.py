@@ -205,15 +205,14 @@ def build_movers() -> pd.DataFrame:
 
 st.title("🆕 What Changed This Year")
 st.markdown(
-    "This page is a living snapshot of the **biggest year-over-year movements** "
-    "at Lynn English High (LEHS) across the major public datasets. Each metric "
-    "compares the **latest two available years** for *All Students*. Because "
-    "different datasets update on different schedules, the \"latest year\" is "
-    "**not the same for every metric** — each row is labeled with its own year."
+    "The **biggest one-year changes** at Lynn English, across the main public "
+    "numbers. Each row compares the **latest two years** for All Students. "
+    "Sources update on different calendars, so \"latest year\" is **not the "
+    "same on every row** — each one is labeled."
 )
 
 with st.container(border=True):
-    st.markdown("**📄 School Committee briefing** — a one-page PDF of LEHS's headline numbers.")
+    st.markdown("**📄 School Committee briefing** — one page of LEHS headline numbers.")
     try:
         st.download_button("⬇ Download briefing (PDF)", data=build_briefing_pdf(),
                            file_name="lehs_briefing.pdf", mime="application/pdf",
@@ -280,10 +279,10 @@ table = pd.DataFrame(
 )
 st.dataframe(table, width="stretch", hide_index=True)
 st.caption(
-    "**MA (same yr)** is the statewide figure for the same latest year, so you "
-    "can see whether LEHS's *level* (not just its move) sits above or below the "
-    "state. Shown only for rate metrics — a statewide *count* (e.g. AP takers, "
-    "total enrollment) is not a per-school benchmark, so those read “—”."
+    "**MA (same yr)** is the statewide rate for the same year, so you can "
+    "see whether LEHS sits above or below the state — not only how much it "
+    "moved. Shown only for rates. Statewide *counts* (AP takers, total "
+    "enrollment) are not a fair school comparison, so those read “—”."
 )
 
 # Plain-language line for the single largest move.

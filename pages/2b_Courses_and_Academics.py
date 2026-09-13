@@ -48,10 +48,9 @@ def _lehs_row(df: pd.DataFrame) -> "pd.Series | None":
 
 st.title("Courses & Academics")
 st.markdown(
-    "How students are doing in their **courses** — the day-to-day classwork "
-    "rather than the state test: Grade 9 passing rates, who gets access to "
-    "computer-science, arts, and advanced coursework, AP results and "
-    "participation, SAT scores, and grade retention."
+    "Day-to-day classwork, not the state test: Grade 9 passing rates, who "
+    "gets computer science, arts, and advanced courses, AP and SAT "
+    "results, and who is held back a grade."
 )
 st.page_link(
     "pages/2_Academic_Performance.py",
