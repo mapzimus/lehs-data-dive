@@ -30,9 +30,9 @@ sidebar_attribution()
 
 st.title("Lynn Schools")
 st.markdown(
-    "Side-by-side views of the schools inside Lynn Public Schools: an "
-    "**analytical comparison** of every Lynn school, and a **family-facing "
-    "guide** to the high schools a Lynn student actually chooses between."
+    "Lynn Public Schools side by side: one tab compares the schools with "
+    "charts, and the other is a **family guide** to the high schools a "
+    "Lynn student actually chooses among."
 )
 _tab_0, _tab_1 = st.tabs(['📊 Compare Lynn Schools', '🎒 Lynn HS Options (for families)'])
 
@@ -40,12 +40,11 @@ with _tab_0:
     # ==== from pages/Lynn_Schools.py ====
     st.header("Lynn Schools — Side by Side")
     st.markdown(
-        "**The most analytically powerful peer view.** Lynn's high schools share "
-    "the same district, same policies, and draw from the same student pool. "
-    "Differences between them isolate school-level practices rather than "
-    "city-level factors. For the district-wide picture (LPS as a system), "
-    "see [Lynn District](/Lynn_District?embed=true). For comparison against the other "
-    "25 MA Gateway Cities, see [Gateway Cities](/Gateway_Peer_Comparison?embed=true)."
+        "Lynn's high schools share the same district, the same rules, and "
+        "largely the same city. Differences between them are more about the "
+        "schools than about Lynn as a whole. For the whole district, see "
+        "[Lynn District](/Lynn_District?embed=true). For other Massachusetts "
+        "cities, see [Gateway Cities](/Gateway_Peer_Comparison?embed=true)."
     )
 
     # ---------------------------------------------------------------------------
@@ -114,10 +113,10 @@ with _tab_0:
 
     st.header("Lynn High Schools — Side by Side")
     st.markdown(
-        "Comparison across Lynn's five high schools that report MCAS data: "
-    "**Lynn English** (the focus), **Lynn Classical**, **Lynn Tech** "
-    "(vocational), **Frederick Douglass Collegiate Academy** (alternative), "
-    "and **Harold Durgin Success Academy** (alternative)."
+        "Lynn's five high schools that report MCAS: **Lynn English** (this "
+        "site's focus), **Lynn Classical**, **Lynn Tech** (career and "
+        "technical), **Fredrick Douglass Collegiate Academy** (alternative), "
+        "and **Harold Durgin Success Academy** (alternative)."
     )
 
     # School-identity strip: logos for the three comprehensive HS that have
@@ -671,17 +670,16 @@ with _tab_0:
     # Key analytical question
     # ---------------------------------------------------------------------------
 
-    st.subheader("Key Analytical Question")
+    st.subheader("The question this page is for")
     st.markdown(
         """
-**When student populations are similar (or after controlling for them), what's
-different about the schools' outcomes?**
+**If the students are similar, why do the schools' results differ?**
 
-The Lynn HS sibling comparison isolates school-level practices from city-level
-demographic factors. Use the [English Learners](/ELL_Pipeline?embed=true) page to drill
-into how each Lynn HS serves English Learners specifically — Lynn Tech, the
-alternative academies, and the two comprehensive HS may all show different
-patterns despite operating under the same district leadership.
+These schools share a district and a city. Differences here are more
+about the schools than about Lynn as a whole. The
+[English Learners](/ELL_Pipeline?embed=true) page is a good next stop —
+Tech, the academies, and the two comprehensive high schools may serve
+English Learners very differently even under the same district.
 """
     )
 
@@ -862,13 +860,12 @@ with _tab_1:
 
     st.header("🏫 Lynn High School Options")
     st.markdown(
-        "These are the public high schools a Lynn family chooses among, shown side by "
-    "side on the same outcome metrics. **Lynn English** and **Classical** are the two "
-    "large comprehensive high schools. **Lynn Tech (LVTI)** is a career/technical school "
-    "with a different mission — its program mix and selective-ish admissions shape every "
-    "comparison below, so read its numbers in that light. **Fredrick Douglass Collegiate "
-    "Academy** is a smaller alternative academy; its small enrollment makes rate-based "
-    "metrics (graduation, MCAS) noisier year to year."
+        "The public high schools a Lynn family usually chooses among, on the "
+        "same numbers. **Lynn English** and **Classical** are the two large "
+        "comprehensive high schools. **Lynn Tech (LVTI)** is a career and "
+        "technical school with a different mission — read its numbers in "
+        "that light. **Fredrick Douglass Collegiate Academy** is smaller, so "
+        "rates like graduation and MCAS jump around more from year to year."
     )
     st.caption(
         "Figures are the most recent year published per dataset (years differ slightly by "
@@ -876,11 +873,11 @@ with _tab_1:
     )
 
     st.info(
-        "**KIPP Academy Lynn is not shown here.** As a Commonwealth charter school, KIPP "
-    "Academy Lynn is governed and reported separately from Lynn Public Schools and does "
-    "not appear in the DESE district datasets behind this dashboard. We do not estimate "
-    "or fabricate its numbers — a family weighing KIPP should consult its DESE school "
-    "profile directly."
+        "**KIPP Academy Lynn is not shown here.** It is a Commonwealth "
+        "charter — run and reported separately from Lynn Public Schools — "
+        "so it is not in the state district files behind this site. We do "
+        "not guess its numbers. A family considering KIPP should look up "
+        "its DESE school profile."
     )
 
     # ---------------------------------------------------------------------------

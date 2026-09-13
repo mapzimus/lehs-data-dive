@@ -41,11 +41,11 @@ sidebar_attribution()
 
 st.title("MCAS")
 st.markdown(
-    "MCAS Grade 10 results in English Language Arts, Mathematics, and Science — "
-    "headline rates, the full achievement-level distribution, multi-year subgroup "
-    "gaps, growth percentiles, and benchmarks vs. Lynn district and Massachusetts."
+    "Grade 10 MCAS in English, Math, and Science: how many students meet "
+    "the standard, the full score breakdown, gaps by student group, "
+    "growth, and how Lynn English compares with the district and the state."
 )
-st.markdown("These assessments feed the state accountability determination — see [State Accountability](/Accountability).")
+st.markdown("These tests feed the state report card — see [State Accountability](/Accountability).")
 st.page_link(
     "pages/2b_Courses_and_Academics.py",
     label="Looking for AP, SAT, and course data? → Courses & Academics",
@@ -54,22 +54,21 @@ st.page_link(
 st.divider()
 st.header("📊 MCAS Results — Grade 10")
 st.markdown(
-    "MCAS is the state's annual test. Every Grade-10 student is sorted into one of "
+    "MCAS is the state's yearly test. Every Grade 10 student lands in one of "
     "four levels — **Exceeding, Meeting, Partially Meeting,** or **Not Meeting** "
-    "grade-level expectations — in English, Math, and Science. Read this section in "
-    "two halves: **achievement** (where students *land*) and **growth** (how fast "
-    "they're *improving*). They tell different — and equally important — stories."
+    "expectations — in English, Math, and Science. Read this page in two parts: "
+    "**achievement** (where students *land*) and **growth** (how fast they are "
+    "*improving*). They tell different stories, and both matter."
 )
 with st.expander("📖 What the MCAS terms mean"):
     st.markdown(
-        "- **Achievement level** — every student lands in one of four bands: "
-        "Exceeding, Meeting, Partially Meeting, or Not Meeting grade-level expectations.\n"
-        "- **% M+E** — the share **M**eeting *or* **E**xceeding (the top two levels). The headline number.\n"
-        "- **Scaled score** — a 440–560 score where **500 = Meeting**. Compare a subject to its own 500 line, not across subjects.\n"
-        "- **Achievement percentile** — LEHS's *rank* against every MA school (1–99). A rank, not a score; 50 = the statewide median.\n"
-        "- **SGP (Student Growth Percentile)** — how fast students grew vs. peers who started at the same place. **50 = a typical year.** See the Growth section.\n"
-        "- **Participation** — the share of enrolled students who actually tested (% M+E counts non-testers against the school).\n"
-        "- **The 2020 gap** — MCAS was waived in spring 2020, so there is no 2020 data point anywhere on this page."
+        "- **Achievement level** — one of four bands: Exceeding, Meeting, Partially Meeting, or Not Meeting expectations.\n"
+        "- **% Meeting or Exceeding** — the share in the top two levels. The headline number.\n"
+        "- **Scaled score** — 440–560, where **500 = Meeting**. Compare a subject to its own 500 line, not across subjects.\n"
+        "- **Achievement percentile** — Lynn English's *rank* among Massachusetts schools (1–99). A rank, not a score; 50 is the middle of the state.\n"
+        "- **SGP (Student Growth Percentile)** — how fast students grew vs. others who started in the same place. **50 = a typical year.**\n"
+        "- **Participation** — the share of enrolled students who actually tested. Students who skip the test count against the school.\n"
+        "- **The 2020 gap** — MCAS was cancelled in spring 2020, so there is no 2020 point on this page."
     )
 
 mcas = load_dataset("mcas_achievement")

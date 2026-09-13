@@ -91,13 +91,11 @@ if not targets.empty and "SY" in targets.columns:
 
 st.title("State Accountability")
 st.markdown(
-    "Every Massachusetts school gets an annual **accountability determination** "
-    "from DESE — a classification, a 1–99 percentile, and a *target-progress "
-    "percentage* (how far the school has moved toward its state-set goals, on a "
-    "0–100% scale) that rolls up roughly a dozen indicators. This page breaks "
-    "that down to the indicator-and-student-group level: how the score is built, "
-    "where LEHS sits statewide, what next year's targets require, the long-run "
-    "trend behind each indicator, and how LEHS compares to its district and the state."
+    "Every Massachusetts school gets a yearly **state report card** from "
+    "DESE: a rating, a percentile from 1–99, and a *progress toward goals* "
+    "score (0–100%) built from about a dozen measures. This page opens that "
+    "up — how the score is built, where Lynn English sits in the state, "
+    "what next year's goals ask for, and how each piece has changed."
 )
 
 if summary.empty or indicators.empty:

@@ -40,10 +40,9 @@ sidebar_attribution()
 st.title("🗺️ Maps")
 
 st.markdown(
-    "Two interactive maps to explore Lynn and Massachusetts by geography. "
-    "Click any shape or school to drill into the data; pan, zoom, filter, "
-    "and export. Built as standalone apps so they have room to breathe — "
-    "**each map opens in a new tab.**"
+    "Two maps — Lynn, and all of Massachusetts. Click a shape or a school "
+    "to see the numbers. Pan, zoom, filter, and export. Each map **opens "
+    "in a new tab** so it has room to work."
 )
 
 st.divider()
@@ -143,8 +142,7 @@ c_lynn, c_atlas = st.columns(2, gap="large")
 with c_lynn:
     st.subheader("🏙️ Lynn Maps")
     st.caption(
-        "Lynn-focused launch of the same engine that powers the MA Atlas, "
-        "centered on the city and its census tracts."
+        "Lynn schools and neighborhoods — the city-scale map."
     )
 
     _preview_or_placeholder(
@@ -163,26 +161,25 @@ with c_lynn:
     )
 
     st.caption(
-        "**How to read it:** click any census tract for its community-health "
-        "profile, or click a school dot for enrollment and outcomes — darker "
-        "shading means a higher value for the selected layer."
+        "**How to read it:** click a neighborhood for its profile, or a "
+        "school dot for enrollment and outcomes. Darker usually means a "
+        "higher number."
     )
 
     st.markdown(
         """
 **What's in it**
-- All **22 Lynn census tracts** as togglable polygons
-- Every Lynn public school pinned — LEHS highlighted in gold,
-  dot size scaled by enrollment
-- **5 tract-level ACS layers**: median household income,
-  % non-English at home, % foreign-born, % bachelor's-or-higher,
-  % severely rent-burdened
-- The same **35+ district / municipality choropleths** the MA Atlas
-  carries (MCAS, graduation, demographics, finance, workforce), so
-  you can compare Lynn to its neighbors and to other Gateway cities
-- Surrounding MA municipalities for spatial context
-- Year slider 2017–2026 · student-group filter · multiple color
-  palettes · Jenks / quantile / equal-interval / continuous breaks
+- All **22 Lynn neighborhoods** (census tracts)
+- Every Lynn public school — Lynn English in gold, larger dots
+  for larger schools
+- **5 neighborhood layers**: typical household income, % who
+  speak a language other than English at home, % foreign-born,
+  % with a bachelor's degree or higher, % paying a very high
+  share of income in rent
+- The same **35+ town and district layers** as the statewide
+  map (tests, graduation, who attends, spending, teachers)
+- Neighboring towns for context
+- Year slider 2017–2026, student-group filter, and color options
 """
     )
 
@@ -190,11 +187,11 @@ with c_lynn:
         """
 **Use this map when you want to:**
 - See how income, language, or rent burden varies
-  **tract-by-tract** across Lynn
-- Compare Lynn's stats against its immediate neighbors (Saugus,
-  Swampscott, Marblehead, Nahant) or against the rest of MA
-- Show neighborhood-scale inequality to a school committee or board
-- Pin LEHS in context with every other Lynn school
+  **neighborhood by neighborhood**
+- Compare Lynn with Saugus, Swampscott, Marblehead, Nahant, or
+  the rest of Massachusetts
+- Show neighborhood differences to a school committee
+- See Lynn English next to every other Lynn school
 """
     )
 
@@ -230,33 +227,28 @@ with c_atlas:
     st.markdown(
         """
 **What's in it**
-- All **351 MA municipalities** as polygons
-- **274 academic school districts** (dissolved town polygons)
-- **82 charter schools**, **26 regional vocational** overlays
-- **1,817 MA public schools** as togglable points
-- Sticky right-side detail panel on every click
-- **40+ joined metrics**: MCAS, graduation, AP, college plans,
-  per-pupil spending, teacher workforce, retention, demographics
-- Year slider 2017–2026 with animation playback
-- Student-group filter (9 groups: Hispanic, Black, Asian, White,
-  English Learners (ELL), Former English Learners, Low Income,
-  students with disabilities (SWD), High Needs)
-- Multiple color palettes including a **bivariate** mode (two
-  metrics shaded on one map)
-- Jenks natural breaks · quantile · equal-interval · continuous
-- **PNG export** with scope options (current view, whole state,
-  selected feature, or by name)
+- All **351 Massachusetts cities and towns**
+- **274 school districts**, plus charter and regional vocational
+  schools
+- **1,817 public schools** as dots you can turn on or off
+- A side panel with the numbers when you click
+- **40+ measures**: MCAS, graduation, AP, college plans, spending
+  per student, teachers, and who attends
+- Year slider 2017–2026, student-group filter, and a **two-color**
+  mode that shades two numbers on one map
+- Save as a PNG
 """
     )
 
     st.markdown(
         """
 **Use this map when you want to:**
-- Benchmark LEHS against **the 26 MA Gateway cities** by any metric
-- See how the state's school spending stratifies geographically
-- Track one metric across all 351 towns over the past decade
-- Pair two metrics on the same map (bivariate mode) to see how
-  they cluster — e.g., per-pupil spending against MCAS
+- Compare Lynn English with the **26 Gateway Cities** on any
+  number
+- See how school spending varies across the state
+- Watch one number across all 351 towns over the past decade
+- Put two numbers on the same map — for example spending next
+  to MCAS
 """
     )
 
@@ -270,21 +262,17 @@ st.subheader("📖 Reading these maps")
 
 st.markdown(
     """
-Both maps use **choropleth shading**: each shape is colored by a value
-— darker means more, lighter means less. Pick a metric from the
-layer panel and the whole map re-shades. Click any shape to see the
-underlying numbers in the detail panel.
+Both maps **color each shape by a number** — darker usually means
+more. Pick a layer and the map recolors. Click any shape to see the
+numbers.
 
-**A note on map design.** These maps shade polygons (towns, tracts,
-districts) instead of using bubbles whose *size* represents a value.
-Bubble-size maps look dramatic but can mislead — a bubble that's
-twice as wide is four times the area, which most people read as a
-much bigger number than it actually is. Polygon shading keeps the
-geography honest.
+**Why color, not bubbles?** A bubble twice as wide covers four times
+the area, which most people read as a much bigger number than it is.
+Coloring towns and neighborhoods keeps the map honest.
 
-**New to reading maps and charts?** Start at
-**[Data 101](/Data_101?embed=true)** — it covers the choropleth pattern plus the
-other chart types this dashboard uses, with live examples.
+**New to maps and charts?** Start at
+**[Data 101](/Methodology?embed=true)** — the Data 101 tab walks
+through this pattern and the other chart types on the site.
 """
 )
 

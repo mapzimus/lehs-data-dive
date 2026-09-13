@@ -27,9 +27,9 @@ sidebar_attribution()
 
 st.title("Where Students Come From")
 st.markdown(
-    "The two pipelines that shape who walks through LEHS's doors: the "
-    "**neighborhoods** students live in, and the **middle schools** that "
-    "feed the school — including the enrollment projection."
+    "Who walks through the door: the **neighborhoods** students live in, "
+    "and the **middle schools** that feed Lynn English — plus a look at "
+    "enrollment ahead."
 )
 _tab_0, _tab_1 = st.tabs(['🏘️ Where Students Live', '🏫 Feeder Schools & Projection'])
 
@@ -37,18 +37,14 @@ with _tab_0:
     # ==== from pages/11_Where_Students_Live.py ====
     st.header("Where Our Students Live")
     st.markdown(
-        "**Where does the LEHS student body actually live?** The school's "
-    "official boundary is one thing; the residential pattern of the kids "
-    "who walk through the door every day is another. This page surfaces "
-    "the second."
+        "The official attendance area is one thing. Where students "
+        "**actually live** is another. This tab is the second."
     )
     st.markdown(
-        "This page focuses on the **residence pattern itself**. Two follow-on "
-    "questions live on neighboring pages: *how does distance from school "
-    "predict attendance?* is now part of "
-    "[Discipline & Climate](/Discipline_and_Climate?embed=true), and *what is the "
-    "community context around those addresses?* lives on the "
-    "[Lynn page](/Lynn_City?embed=true) (Neighborhoods tab)."
+        "Does distance from school predict absence? That is on "
+        "[Discipline & Climate](/Discipline_and_Climate?embed=true). "
+        "What those neighborhoods are like is on "
+        "[Lynn City](/Lynn_City?embed=true) (Neighborhoods tab)."
     )
 
     # ---------------------------------------------------------------------------
@@ -463,17 +459,16 @@ with _tab_1:
 
     st.header("🎒 Feeder Middle Schools & Enrollment Outlook")
     st.markdown(
-        "Before students arrive at Lynn's high schools, they spend their middle-school "
-    "years at one of the district's three large middle schools — **Breed**, "
-    "**Pickering**, and **Thurgood Marshall**. This page profiles those feeder schools "
-    "and then takes a data-driven look at where **Lynn English (LEHS)** enrollment is "
-    "heading over the next few years."
+        "Most Lynn English students come from three middle schools — "
+        "**Breed**, **Pickering**, and **Thurgood Marshall**. This tab "
+        "profiles those schools and looks at where Lynn English enrollment "
+        "is heading."
     )
     st.caption(
-        "The projection here is a simple **grade-progression model** built on public, "
-    "aggregate enrollment counts — not a roster-level forecast. It cannot see individual "
-    "students, school choice, or migration. Treat it as a transparent baseline, not a "
-    "precise prediction. [What we don't know →](/Methodology)"
+        "The outlook is a simple **grade-to-grade** estimate from public "
+        "headcounts — not a student-by-student forecast. It cannot see "
+        "school choice or families moving. Treat it as a baseline, not a "
+        "precise prediction. [What we don't know →](/Methodology)"
     )
 
     if feeder_rows.empty and lehs.empty:

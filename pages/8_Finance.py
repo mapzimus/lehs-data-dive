@@ -32,11 +32,10 @@ sidebar_attribution()
 
 st.title("Finance & Resource Allocation")
 st.markdown(
-    "School-level expenditures by category, teacher compensation, and "
-    "federal-vs-state-and-local funding split — drawn from DESE's School "
-    "Expenditures by Spending Category dataset. Where chart contrasts "
-    "appear, they include Lynn Classical (LCHS) and Lynn Tech (LVTI) "
-    "alongside LEHS — same district, same budget rules."
+    "Where the money goes at Lynn English — spending by category, teacher "
+    "pay, and how much comes from federal vs. state and local funds. "
+    "Comparison charts include Classical and Lynn Tech: same district, "
+    "same budget rules."
 )
 
 school_exp = load_dataset("school_expenditures")

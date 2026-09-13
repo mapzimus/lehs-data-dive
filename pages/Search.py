@@ -33,8 +33,8 @@ def _load_index() -> list[dict]:
 
 st.title("Search the dashboard")
 st.markdown(
-    "Search across every page title and section heading. Useful when you know "
-    "what you're looking for but not which page it lives on."
+    "Search every page title and section heading — useful when you know "
+    "the topic but not the page."
 )
 
 index = _load_index()

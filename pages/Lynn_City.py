@@ -33,11 +33,10 @@ sidebar_attribution()
 
 st.title("Lynn, Massachusetts — City")
 st.markdown(
-    "A wider community view of the city Lynn English serves. Where the rest "
-    "of this dashboard tracks the school, this page tracks **the place**. "
-    "**Citywide** is the rolled-up city profile (demographics, economy, "
-    "housing, history). **Neighborhoods** drops to Lynn's 22 census tracts "
-    "and the environmental + health layers that vary across them."
+    "The city around Lynn English — not the school itself. **Citywide** is "
+    "who lives in Lynn, jobs, housing, and history. **Neighborhoods** is "
+    "Lynn's 22 census tracts (small neighborhood areas) and how health "
+    "and environment differ across them."
 )
 
 # ---------------------------------------------------------------------------

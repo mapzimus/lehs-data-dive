@@ -29,9 +29,10 @@ sidebar_attribution()
 
 st.title("English Learners")
 st.markdown(
-    "Lynn serves one of the highest concentrations of English Learners in "
-    "Massachusetts. This section follows EL students from initial ACCESS "
-    "scores through MCAS and into the years after they reclassify."
+    "Lynn has one of the highest shares of English Learners in "
+    "Massachusetts. This page follows those students from the ACCESS "
+    "English test, through MCAS, and into the years after they exit "
+    "English Learner status."
 )
 
 enrollment = load_dataset("enrollment_demographics")
@@ -85,10 +86,10 @@ year_axis(fig)
 st.plotly_chart(fig, width="stretch")
 
 st.caption(
-    "The EL share at LEHS has more than doubled since the early 2000s — a "
-    "dramatic shift in who the school serves and what supports are required. "
-    "For cross-school comparison, see "
-    "[Lynn Schools](/Lynn_Schools?embed=true) (Compare group)."
+    "The English Learner share at Lynn English has more than doubled "
+    "since the early 2000s. That changes who the school serves and what "
+    "support it needs. Compare with the other Lynn high schools on "
+    "[Lynn Schools](/Lynn_Schools?embed=true)."
 )
 
 st.divider()
