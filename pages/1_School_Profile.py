@@ -1284,7 +1284,8 @@ if not _acc.empty:
     _lehs_acc = _acc[(_acc["ORG_CODE"] == LEHS_SCHOOL_CODE) & (_acc["ORG_TYPE"] == "School")]
     _dist_acc = _acc[(_acc["ORG_CODE"] == LYNN_DISTRICT_CODE) & (_acc["ORG_TYPE"] == "District")]
     if not _lehs_acc.empty:
-        _row = _lehs_acc.iloc[0]
+        _lehs_acc = _lehs_acc.sort_values("SY")
+        _row = _lehs_acc.iloc[-1]
         _sy = _row["SY"]
         _classif = _row["CLASSIFICATION"]
         _reason = _row["REASON"]
@@ -1305,7 +1306,7 @@ if not _acc.empty:
 
         _district_blurb = ""
         if not _dist_acc.empty:
-            _drow = _dist_acc.iloc[0]
+            _drow = _dist_acc.sort_values("SY").iloc[-1]
             _district_blurb = (
                 f"  \n_Lynn district overall:_ **{_drow['CLASSIFICATION']}** "
                 f"({_drow['REASON'].lower()})."

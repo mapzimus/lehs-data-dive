@@ -750,8 +750,8 @@ with _tab_1:
     enr_latest = _latest_slice(enroll)
     enr_year = int(enr_latest["SY"].max()) if not enr_latest.empty else None
 
-    # Accountability determinations: keep the newest SY present. Full 2026
-    # determinations were still unpublished as of Sep 2026 (SY2025 latest).
+    # Accountability determinations: newest SY in the file. The September
+    # 22, 2026 release is SY2026.
     if not acct.empty and "SY" in acct.columns:
         acct = acct[acct["SY"] == acct["SY"].max()]
     acct_sub = acct[acct["ORG_CODE"].astype(str).isin(SCHOOLS)].copy() if not acct.empty else pd.DataFrame()

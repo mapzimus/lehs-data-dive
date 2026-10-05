@@ -76,11 +76,27 @@ def _fmt_val(v, unit) -> str:
 # Load
 # ---------------------------------------------------------------------------
 
-summary = load_dataset("accountability_summary")
-indicators = load_dataset("accountability_indicators")
+def _current_year(df: pd.DataFrame) -> pd.DataFrame:
+    """Keep the newest determination year in a stacked accountability file.
+
+    DESE leaves the prior workbook online next to the new release, and the
+    build stores both. The sections below describe the current report card.
+    Mixing years doubles bars and breaks the state comparison.
+    """
+    if df.empty or "SY" not in df.columns:
+        return df
+    years = pd.to_numeric(df["SY"], errors="coerce")
+    latest = years.max()
+    if pd.isna(latest):
+        return df
+    return df.loc[years == latest].copy()
+
+
+summary = _current_year(load_dataset("accountability_summary"))
+indicators = _current_year(load_dataset("accountability_indicators"))
 targets = load_dataset("accountability_targets")
 pctl = load_dataset("accountability_percentiles")
-bench = load_dataset("accountability_benchmarks")
+bench = _current_year(load_dataset("accountability_benchmarks"))
 
 # Targets workbooks can stack multiple release years (thick research file +
 # thin next-cycle file). Charts/tables want one row per indicator×group, so
@@ -112,10 +128,18 @@ if lehs.empty or lehs_ind.empty:
     st.info("No accountability rows for Lynn English High in the current build.")
     st.stop()
 
-row = lehs.iloc[-1]
+row = lehs.sort_values("SY").iloc[-1]
 sy = int(row["SY"])
 sy_lbl = sy_label(sy)
 ind_order = list(dict.fromkeys(lehs_ind["INDICATOR"]))
+# Indicator-level percentile research files lag the determination release.
+# When the current year's file is not posted, use the newest one we have.
+pctl_year = sy
+if not pctl.empty and "COMPONENT_YEAR" in pctl.columns:
+    _component_years = pd.to_numeric(pctl["COMPONENT_YEAR"], errors="coerce")
+    if not (_component_years == sy).any() and _component_years.notna().any():
+        pctl_year = int(_component_years.max())
+pctl_lbl = sy_label(pctl_year)
 
 # ---------------------------------------------------------------------------
 # 2. Headline determination
@@ -229,7 +253,7 @@ if pctl.empty:
     st.info("Percentile data not built — run scripts/19 + 16.")
 else:
     lehs_p = pctl[(pctl["ORG_CODE"] == LEHS_SCHOOL_CODE) & (pctl["SOURCE"] == "school")
-                  & (pctl["COMPONENT_YEAR"] == sy)].copy()
+                  & (pctl["COMPONENT_YEAR"] == pctl_year)].copy()
     bars = lehs_p[lehs_p["INDICATOR"].isin(ind_order)].dropna(subset=["PERCENTILE"]).copy()
     if not bars.empty:
         bars["INDICATOR"] = pd.Categorical(bars["INDICATOR"], categories=ind_order, ordered=True)
@@ -242,12 +266,20 @@ else:
         fig.add_vline(x=50, line_dash="dash", line_color="gray",
                       annotation_text="State median (50)", annotation_position="top",
                       annotation_font=dict(size=11, color="gray"))
-        fig.update_layout(**DEFAULT_LAYOUT, title=f"LEHS statewide percentile by indicator (SY {sy_lbl})",
+        fig.update_layout(**DEFAULT_LAYOUT, title=f"LEHS statewide percentile by indicator (SY {pctl_lbl})",
                           xaxis=dict(title="Percentile (1 = lowest, 99 = highest)", range=[0, 100]),
                           yaxis=dict(autorange="reversed"))
         st.plotly_chart(fig, width="stretch")
+        _pctl_lag = ""
+        if pctl_year != sy:
+            _pctl_lag = (
+                f"DESE has not posted the {sy} percentile research file, so this "
+                f"chart is the SY {pctl_lbl} build. The headline percentile above "
+                f"is from the {sy} determination. "
+            )
         st.caption(
-            "Percentiles are built on a **3-year weighted average** (15% two years "
+            _pctl_lag
+            + "Percentiles are built on a **3-year weighted average** (15% two years "
             "ago / 25% last year / 60% this year), so they lag a single year's swing. "
             "The story: LEHS sits near the **statewide floor on achievement** yet "
             "**markedly higher on growth** — students arrive far behind but gain "
@@ -255,6 +287,7 @@ else:
         )
     # Subgroup overall percentiles
     sub_p = pctl[(pctl["ORG_CODE"] == LEHS_SCHOOL_CODE) & (pctl["SOURCE"] == "student_group")
+                 & (pctl["COMPONENT_YEAR"] == pctl_year)
                  & (pctl["INDICATOR"] == "Overall (weighted)")].dropna(subset=["PERCENTILE"])
     if not sub_p.empty:
         show = sub_p[["GROUP", "PERCENTILE"]].copy()
@@ -473,7 +506,7 @@ gd = lehs_ind[lehs_ind["GROUP"] == group_pick].copy()
 # Benchmarks for this group
 state_b = bench[(bench["ORG_TYPE"] == "State") & (bench["GROUP"] == group_pick)] if not bench.empty else pd.DataFrame()
 dist_b = bench[(bench["ORG_CODE"] == LYNN_DISTRICT_CODE) & (bench["GROUP"] == group_pick)] if not bench.empty else pd.DataFrame()
-pctl_g = pctl[(pctl["ORG_CODE"] == LEHS_SCHOOL_CODE) & (pctl["COMPONENT_YEAR"] == sy)
+pctl_g = pctl[(pctl["ORG_CODE"] == LEHS_SCHOOL_CODE) & (pctl["COMPONENT_YEAR"] == pctl_year)
               & (pctl["GROUP"] == group_pick)] if not pctl.empty else pd.DataFrame()
 
 
@@ -647,10 +680,8 @@ if not strip.empty:
                       xaxis=dict(title="Percentile (1–99)", range=[0, 100]), legend_title="",
                       height=320)
     st.plotly_chart(fig, width="stretch")
-    _pctl_sy = int(pctl["SY"].max()) if not pctl.empty and "SY" in pctl.columns else None
-    _pctl_label = f"{_pctl_sy} " if _pctl_sy else ""
     st.caption(
-        f"Every peer school in the dataset, plotted by its {_pctl_label}"
+        f"Every peer school in the dataset, plotted by its {sy} "
         "accountability percentile."
     )
 

@@ -147,9 +147,11 @@ The **this-year** progress figure is the share of possible points
 earned. The **multi-year** figure is 40% last year + 60% this year.
 **75% or higher** is "meeting targets."
 
-A few limits: DESE hides groups smaller than 10 students; some
-measures (graduation, dropout) are a year behind the rating year; and
-the newest targets file landed **July 31, 2026**.
+A few limits: DESE hides groups smaller than 10 students, and some
+measures (graduation, dropout) are a year behind the rating year. The
+current report card is the **September 22, 2026** release. DESE has not
+posted that year's percentile research file, so the rank-by-indicator
+chart still uses the 2025 build. The headline percentile is from 2026.
 """
     )
 

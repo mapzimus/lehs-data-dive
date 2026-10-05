@@ -120,7 +120,10 @@ E2C_DATASETS = {
 # ---------------------------------------------------------------------------
 
 CURRENT_SCHOOL_YEAR = 2026   # latest complete DESE data year (SY2025-26).
-                              # SY2026-27 (2027) Oct-1 enrollment is not public as of Sep 2026.
+                              # Spring 2026 MCAS and the 2026 accountability
+                              # determinations are in. Class of 2026 graduation
+                              # rates and SY2026-27 (2027) Oct-1 enrollment
+                              # are not public as of Oct 2026.
 EARLIEST_YEAR = 2017          # most datasets start here
 ENROLLMENT_EARLIEST = 1994    # demographic file goes back furthest
 

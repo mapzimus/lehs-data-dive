@@ -2,6 +2,10 @@
 
 Updates to the dashboard, newest first.
 
+### 2026-10-05 — Spring 2026 MCAS and the 2026 report card are in
+
+DESE's September 22 release is now on the dashboard. Lynn English's grade-10 English average scaled score rose from 472.9 to 477.5, and the school earned full credit on that indicator. The state rating is unchanged: requiring assistance, percentile 1, cumulative progress 36% (up from 29%). End-of-year attendance for 2025–26 is in (chronic absenteeism 53.4%), as is advanced-course completion (48.8%). Class of 2026 graduation rates and October 2026 enrollment are not public yet. The 2026 percentile research file is not posted, so indicator ranks still use the 2025 build.
+
 ### 2026-09-13 — Clearer language on Home, About, and Stories
 
 Visitor-facing copy is shorter and more everyday. Home, About the Data, Stories, and page intros drop analyst jargon. Stories links now point at the merged pages. The Corrections tab is labeled Corrections (it had said Methodology). Data 101's sample enrollment table matches the recent drop instead of a rising trend.
