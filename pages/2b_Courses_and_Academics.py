@@ -158,7 +158,11 @@ else:
                 ("Massachusetts", g9_state),
             ]:
                 if not d.empty:
-                    t = with_year_gaps(d[["SY", "PASS_PCT"]].dropna(subset=["PASS_PCT"]), "PASS_PCT")
+                    t = with_year_gaps(
+                        d[["SY", "PASS_PCT"]].dropna(subset=["PASS_PCT"]),
+                        "PASS_PCT",
+                        years=span_years(d),
+                    )
                     t["Series"] = name
                     frames.append(t)
             if frames:

@@ -232,7 +232,7 @@ def peer_dot_scatter(
 # an explicit member so the line BREAKS (NaN) at the COVID waiver rather than
 # drawing straight across it. `with_year_gaps()` reindexes to this tuple, so
 # the span MUST cover the full history or early years are silently dropped.
-MCAS_YEARS = (2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025)
+MCAS_YEARS = (2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026)
 
 
 def with_year_gaps(
