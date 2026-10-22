@@ -3,7 +3,8 @@ Download + parse federal CRDC (Civil Rights Data Collection) data for Lynn.
 
 CRDC is a biennial collection from the U.S. Department of Education's Office for
 Civil Rights (civilrightsdata.ed.gov). The most recent **public-use** release is
-the **2021-22** school year. It provides school-level data that state datasets
+the **2023-24** school year (~100 MB ZIP, same LEA/ + SCH/ layout as 2021-22,
+plus "_X" nonbinary count columns). It provides school-level data that state datasets
 don't carry, including:
   - In-school + out-of-school suspensions, expulsions, school-based arrests,
     referrals to law enforcement, restraint and seclusion (each disaggregated
@@ -66,12 +67,13 @@ CRDC_RAW.mkdir(parents=True, exist_ok=True)
 
 # Most recent public-use release. Topical CSVs inside the ZIP live under LEA/
 # and SCH/ (e.g. "SCH/Suspensions.csv").
-RELEASE = "2021-22"
-RELEASE_LABEL = "2021-22"
-BULK_URL = "https://civilrightsdata.ed.gov/assets/ocr/docs/2021-22-crdc-data.zip"
+RELEASE = "2023-24"
+RELEASE_LABEL = "2023-24"
+BULK_URL = "https://civilrightsdata.ed.gov/assets/ocr/docs/2023-24-crdc-data.zip"
 
-LYNN_LEAID = "2507110"   # NCES LEAID for Lynn (MA) in the 2021-22 CRDC; verified
-                         # against the file (25 schools incl. Lynn English High).
+LYNN_LEAID = "2507110"   # NCES LEAID for Lynn (MA); verified in the 2021-22 file
+                         # (25 schools) and the 2023-24 file (27 schools), both
+                         # incl. Lynn English High.
                          # Earlier scaffolding used 2515480, which is absent here.
 
 HEADERS = {"User-Agent": "lehs-data-dive/0.3 (https://github.com/mapzimus/lehs-data-dive)"}
@@ -257,8 +259,13 @@ def _count_offered(series: pd.Series) -> pd.Series:
 # Discipline
 # ---------------------------------------------------------------------------
 
+# Sex suffixes on every count column. 2023-24 added "_X" (nonbinary); older
+# releases lack those columns and _sum_cols skips names that aren't present.
+SEX_SUFFIXES = ("_M", "_F", "_X")
+
+
 def _disc_group_cols(prefix_wo: str, prefix_widea: str | None,
-                     suffix_m: str = "_M", suffix_f: str = "_F") -> dict[str, list[str]]:
+                     suffixes: tuple[str, ...] = SEX_SUFFIXES) -> dict[str, list[str]]:
     """Build {group_key: [contributing columns]} for total / race / ell / SwD.
 
     prefix_wo    -> the "without disability" stem, e.g. SCH_DISCWODIS_ISS
@@ -268,17 +275,17 @@ def _disc_group_cols(prefix_wo: str, prefix_widea: str | None,
     The All-Students total and SwD total use the TOT_* roll-up columns.
     """
     groups: dict[str, list[str]] = {}
-    tot_wo = [f"TOT{prefix_wo[3:]}{suffix_m}", f"TOT{prefix_wo[3:]}{suffix_f}"]
+    tot_wo = [f"TOT{prefix_wo[3:]}{s}" for s in suffixes]
     tot_idea: list[str] = []
     if prefix_widea:
-        tot_idea = [f"TOT{prefix_widea[3:]}{suffix_m}", f"TOT{prefix_widea[3:]}{suffix_f}"]
+        tot_idea = [f"TOT{prefix_widea[3:]}{s}" for s in suffixes]
     groups["__total__"] = tot_wo + tot_idea
     for code, label in RACE_SUFFIXES.items():
-        cols = [f"{prefix_wo}_{code}{suffix_m}", f"{prefix_wo}_{code}{suffix_f}"]
+        cols = [f"{prefix_wo}_{code}{s}" for s in suffixes]
         if prefix_widea:
-            cols += [f"{prefix_widea}_{code}{suffix_m}", f"{prefix_widea}_{code}{suffix_f}"]
+            cols += [f"{prefix_widea}_{code}{s}" for s in suffixes]
         groups[label] = cols
-    groups["English Learner"] = [f"{prefix_wo}_EL{suffix_m}", f"{prefix_wo}_EL{suffix_f}"]
+    groups["English Learner"] = [f"{prefix_wo}_EL{s}" for s in suffixes]
     if prefix_widea:
         groups["Students w/ Disabilities"] = tot_idea
     return groups
@@ -289,7 +296,10 @@ def build_discipline(release_dir: Path) -> pd.DataFrame:
     susp = filter_lynn(_read_csv(release_dir, "SCH/Suspensions.csv"))
     exp = filter_lynn(_read_csv(release_dir, "SCH/Expulsions.csv"))
     ref = filter_lynn(_read_csv(release_dir, "SCH/Referrals and Arrests.csv"))
-    rs = filter_lynn(_read_csv(release_dir, "SCH/Restraint and Seclusion.csv"))
+    # Renamed "Restraints and Seclusion.csv" in 2023-24.
+    rs = filter_lynn(_read_csv(release_dir, "SCH/Restraints and Seclusion.csv"))
+    if rs.empty:
+        rs = filter_lynn(_read_csv(release_dir, "SCH/Restraint and Seclusion.csv"))
 
     if susp.empty:
         return empty_schema("discipline")
@@ -323,12 +333,12 @@ def build_discipline(release_dir: Path) -> pd.DataFrame:
     phys_spec = combine(
         _disc_group_cols("SCH_RS_NONIDEA_PHYS", None),
         _disc_group_cols("SCH_RS_IDEA_PHYS", None),
-        {"Students w/ Disabilities": ["TOT_RS_IDEA_PHYS_M", "TOT_RS_IDEA_PHYS_F"]},
+        {"Students w/ Disabilities": [f"TOT_RS_IDEA_PHYS{s}" for s in SEX_SUFFIXES]},
     )
     secl_spec = combine(
         _disc_group_cols("SCH_RS_NONIDEA_SECL", None),
         _disc_group_cols("SCH_RS_IDEA_SECL", None),
-        {"Students w/ Disabilities": ["TOT_RS_IDEA_SECL_M", "TOT_RS_IDEA_SECL_F"]},
+        {"Students w/ Disabilities": [f"TOT_RS_IDEA_SECL{s}" for s in SEX_SUFFIXES]},
     )
 
     # (output column, source frame, group-spec)
@@ -411,8 +421,10 @@ def build_offerings(release_dir: Path) -> pd.DataFrame:
 
     out["AP_OFFERED"] = joined(ap, _ind_yesno(ap["SCH_APENR_IND"]))
     out["AP_COURSE_COUNT"] = joined(ap, _num(ap["SCH_APCOURSES"]))
-    out["AP_ENROLLED_TOTAL"] = joined(ap, _sum_cols(ap, ["TOT_APENR_M", "TOT_APENR_F"]))
-    out["IB_OFFERED"] = (joined(ib, _ind_yesno(ib["SCH_IBENR_IND"]))
+    out["AP_ENROLLED_TOTAL"] = joined(ap, _sum_cols(ap, [f"TOT_APENR{s}" for s in SEX_SUFFIXES]))
+    # 2023-24 records only "Yes" (~1,000 US schools, the IB Diploma count);
+    # every other school carries -9, so read -9 as "No" for this flag.
+    out["IB_OFFERED"] = (joined(ib, _ind_yesno(ib["SCH_IBENR_IND"].replace("-9", "No")))
                          if not ib.empty else pd.NA)
     out["CALC_OFFERED"] = (joined(calc, _count_offered(calc["SCH_MATHCLASSES_CALC"]))
                            if not calc.empty else pd.NA)
@@ -501,6 +513,11 @@ def empty_schema(kind: str) -> pd.DataFrame:
 def _attach_lynn_codes(df: pd.DataFrame) -> pd.DataFrame:
     """Prepend the Lynn DESE district code/name so these join to data/processed."""
     df = df.copy()
+    # 2023-24 ships names in ALL CAPS ("LYNN ENGLISH HIGH"); pages match the
+    # 2021-22 casing ("Lynn English High"), so title-case all-caps names.
+    if "SCHOOL_NAME" in df.columns:
+        names = df["SCHOOL_NAME"].astype(str)
+        df["SCHOOL_NAME"] = names.where(~names.str.isupper(), names.str.title())
     df.insert(0, "DIST_CODE", LYNN_DISTRICT_CODE)
     df.insert(1, "DIST_NAME", LYNN_DISTRICT_NAME)
     return df

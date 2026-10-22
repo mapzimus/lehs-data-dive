@@ -228,8 +228,11 @@ def build_discipline_disproportionality(disagg: pd.DataFrame) -> pd.DataFrame:
             .rename(columns={"VALUE": "ALL_RATE"}))
     grp = d[d["DIM"] != "all"].merge(base, on=["SY", "ORG_CODE", "INDICATOR"], how="left")
     grp = grp.rename(columns={"VALUE": "GROUP_RATE"})
+    # An all-students rate that rounds to 0 (e.g. expulsions) makes the ratio
+    # infinite; leave it blank instead.
+    all_rate = pd.to_numeric(grp["ALL_RATE"], errors="coerce")
     grp["RISK_RATIO"] = (pd.to_numeric(grp["GROUP_RATE"], errors="coerce")
-                         / pd.to_numeric(grp["ALL_RATE"], errors="coerce")).round(3)
+                         / all_rate.where(all_rate > 0)).round(3)
     return grp[["SY", "ORG_CODE", "ORG_NAME", "DIM", "GROUP",
                 "INDICATOR", "GROUP_RATE", "ALL_RATE", "RISK_RATIO"]]
 

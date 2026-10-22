@@ -140,8 +140,10 @@ def build_disproportionality(disagg: pd.DataFrame) -> pd.DataFrame:
     grouped = disagg[disagg["DIM"] != "all"].copy()
     out = grouped.merge(base, on=["SY", "ORG_CODE", "INDICATOR"], how="left")
     out = out.rename(columns={"VALUE": "GROUP_RATE"})
+    # A 0 all-students rate would make the ratio infinite; leave it blank.
+    all_rate = pd.to_numeric(out["ALL_RATE"], errors="coerce")
     out["RISK_RATIO"] = pd.to_numeric(out["GROUP_RATE"], errors="coerce") / \
-                       pd.to_numeric(out["ALL_RATE"], errors="coerce")
+                       all_rate.where(all_rate > 0)
     return out[["SY", "ORG_CODE", "ORG_NAME", "DIM", "GROUP",
                 "INDICATOR", "GROUP_RATE", "ALL_RATE", "RISK_RATIO"]]
 

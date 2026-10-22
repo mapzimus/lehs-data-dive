@@ -2,6 +2,10 @@
 
 Updates to the dashboard, newest first.
 
+### 2026-10-21 — 2026 percentile ranks, 2023–24 civil-rights data, and data fixes
+
+The rank-by-indicator chart on State Accountability now uses DESE's 2026 percentile file. Lynn English is at the 53rd percentile for English growth and in the single digits for achievement. Federal civil-rights data moves from 2021–22 to 2023–24: discipline by group, AP access (15 AP courses, 181 students enrolled), and support-staff ratios. College-enrollment trends no longer show two different values for 2022 and 2024, and about 2,300 duplicate state rows are gone. The School Profile photo caption now gives the right address, 50 Goodridge Street.
+
 ### 2026-10-05 — Spring 2026 MCAS and the 2026 report card are in
 
 DESE's September 22 release is now on the dashboard. Lynn English's grade-10 English average scaled score rose from 472.9 to 477.5, and the school earned full credit on that indicator. The state rating is unchanged: requiring assistance, percentile 1, cumulative progress 36% (up from 29%). End-of-year attendance for 2025–26 is in (chronic absenteeism 53.4%), as is advanced-course completion (48.8%). Class of 2026 graduation rates and October 2026 enrollment are not public yet. The 2026 percentile research file is not posted, so indicator ranks still use the 2025 build.

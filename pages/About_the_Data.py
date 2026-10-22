@@ -149,9 +149,9 @@ earned. The **multi-year** figure is 40% last year + 60% this year.
 
 A few limits: DESE hides groups smaller than 10 students, and some
 measures (graduation, dropout) are a year behind the rating year. The
-current report card is the **September 22, 2026** release. DESE has not
-posted that year's percentile research file, so the rank-by-indicator
-chart still uses the 2025 build. The headline percentile is from 2026.
+current report card is the **September 22, 2026** release, and the
+rank-by-indicator chart uses that year's percentile file. In 2026 DESE
+merged its two percentile workbooks into one, `percentile-2026.xlsx`.
 """
     )
 
@@ -167,7 +167,8 @@ processed by `scripts/16_process_dese_profiles.py`:
    `accountability_benchmarks.parquet` (state and district)
 3. `accountability-targets-{year}.xlsx` → `accountability_targets.parquet`
 4. `school-percentile-{year}.xlsx` and
-   `student-group-percentile-{year}.xlsx` →
+   `student-group-percentile-{year}.xlsx` (through 2025), or
+   `percentile-{year}.xlsx` (2026 on) →
    `accountability_percentiles.parquet`
 """
         )
@@ -265,7 +266,7 @@ pages:
   attendance area. That area is roughly the eastern half of the city;
   exact boundaries are not published.
 - **Federal civil-rights data is every two years.** The latest public
-  file is **2021–22**, a pandemic-recovery year. Staffing ratios are on
+  file is **2023–24**. Staffing ratios are on
   [Teachers & Workforce](/Teachers_and_Workforce?embed=true), advanced
   courses on [Courses & Academics](/Courses_and_Academics?embed=true),
   and discipline detail on
@@ -924,7 +925,7 @@ Not every series is current, and a few are frozen:
   a Massachusetts public college. The figures shown are the last ones
   published.
 - **Federal civil-rights data — every two years.** The latest public
-  file is **2021–22**, a pandemic-recovery year. Counts are also
+  file is **2023–24**. Counts are
   slightly scrambled to protect privacy, so they are approximate.
 - **Some numbers are a year behind.** Graduation, dropout, and a few
   others lag the rating year. A "latest" chart may be last year's
@@ -981,7 +982,7 @@ isn't.
              "DESE blanks groups under 10 students",
              "Treat blanks as hidden, not zero"),
             ("Older or paused series",
-             "Earnings paused 2025; civil-rights file is 2021–22",
+             "Earnings paused 2025; civil-rights file is 2023–24",
              "Latest published year, flagged on the chart"),
             ("Neighborhood environment (EJScreen)",
              "File is empty in the current build",

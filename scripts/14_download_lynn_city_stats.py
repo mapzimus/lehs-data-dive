@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -78,75 +79,132 @@ def _to_dict(rows: list[list]) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Census label -> variable code resolution
+# ---------------------------------------------------------------------------
+# ACS variable codes are renumbered between vintages whenever Census inserts
+# rows into a table (DP05 gained detailed ancestry rows in 2023 and more in
+# 2024, so "DP05_0038E" went from Black-alone to "White!!Egyptian"). Every
+# table below is keyed by its Census *label* instead, and the codes are looked
+# up from that vintage's groups/{TABLE}.json at run time. A label Census has
+# reworded fails loudly rather than silently pulling a neighbouring row.
+
+_GROUP_CACHE: dict[str, dict] = {}
+
+
+def _norm_label(label: str) -> str:
+    # Income labels carry the vintage ("IN 2024 INFLATION-ADJUSTED DOLLARS")
+    # and detail-table labels end each level with ":" — drop both.
+    label = re.sub(r"\(IN \d{4} INFLATION-ADJUSTED DOLLARS\)",
+                   "(IN INFLATION-ADJUSTED DOLLARS)", label)
+    return label.replace(":!!", "!!").rstrip(":")
+
+
+def resolve(base: str, table: str, labels: dict[str, str]) -> dict[str, str]:
+    """Map {Census label: our name} to {variable code: our name} for this vintage."""
+    if table not in _GROUP_CACHE:
+        r = requests.get(f"{base}/groups/{table}.json", headers=HEADERS, timeout=TIMEOUT)
+        r.raise_for_status()
+        _GROUP_CACHE[table] = r.json()["variables"]
+    # Estimate codes end in "E", percent codes in "PE"; skip annotation/MOE codes.
+    index = {_norm_label(v["label"]): code
+             for code, v in _GROUP_CACHE[table].items() if code.endswith("E")}
+    out, missing = {}, []
+    for label, name in labels.items():
+        code = index.get(_norm_label(label))
+        if code is None:
+            missing.append(label)
+        else:
+            out[code] = name
+    if missing:
+        raise SystemExit(
+            f"ACS {ACS_YEAR} {table}: no variable with label(s) {missing}. "
+            f"Census reworded the table — check {base}/groups/{table}.json "
+            f"and update the label map."
+        )
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Headline city stats from the Profile tables (one-stop) + selected detail
 # ---------------------------------------------------------------------------
 
-DP_VARS = {
+_INC = "Estimate!!INCOME AND BENEFITS (IN 2024 INFLATION-ADJUSTED DOLLARS)"
+_POV = "Percent!!PERCENTAGE OF FAMILIES AND PEOPLE WHOSE INCOME IN THE PAST 12 MONTHS IS BELOW THE POVERTY LEVEL"
+_BUILT = "Estimate!!YEAR STRUCTURE BUILT!!Total housing units"
+
+DP_LABELS = {
     # DP05 — Demographics
-    # NOTE: race/ethnicity codes are the 2023 ACS DP05 schema. The table was
-    # restructured between 2019 and 2023 (more detailed tribal/ancestry rows
-    # inserted), so most race codes shifted. White/Black/AIAN-alone kept their
-    # 2019 numbers, everything else moved. Verify against
-    # https://api.census.gov/data/2023/acs/acs5/profile/variables.json before
-    # bumping to a future ACS vintage.
-    "DP05_0001E": "pop_total",
-    "DP05_0002E": "pop_male",
-    "DP05_0003E": "pop_female",
-    "DP05_0018E": "median_age",
-    "DP05_0037E": "white_alone",
-    "DP05_0038E": "black_alone",
-    "DP05_0039E": "amerindian_alone",
-    "DP05_0047E": "asian_alone",
-    "DP05_0055E": "nhpi_alone",
-    "DP05_0035E": "two_or_more",
-    "DP05_0076E": "hispanic_any_race",
-    "DP05_0082E": "white_alone_nh",
+    "DP05": {
+        "Estimate!!SEX AND AGE!!Total population": "pop_total",
+        "Estimate!!SEX AND AGE!!Total population!!Male": "pop_male",
+        "Estimate!!SEX AND AGE!!Total population!!Female": "pop_female",
+        "Estimate!!SEX AND AGE!!Total population!!Median age (years)": "median_age",
+        "Estimate!!RACE!!Total population!!One race!!White": "white_alone",
+        "Estimate!!RACE!!Total population!!One race!!Black or African American": "black_alone",
+        "Estimate!!RACE!!Total population!!One race!!American Indian and Alaska Native": "amerindian_alone",
+        "Estimate!!RACE!!Total population!!One race!!Asian": "asian_alone",
+        "Estimate!!RACE!!Total population!!One race!!Native Hawaiian and Other Pacific Islander": "nhpi_alone",
+        "Estimate!!RACE!!Total population!!One race!!Some Other Race": "other_alone",
+        "Estimate!!RACE!!Total population!!Two or More Races": "two_or_more",
+        "Estimate!!HISPANIC OR LATINO AND RACE!!Total population!!Hispanic or Latino (of any race)": "hispanic_any_race",
+        "Estimate!!HISPANIC OR LATINO AND RACE!!Total population!!Not Hispanic or Latino!!White alone": "white_alone_nh",
+    },
     # DP02 — Social
-    "DP02_0001E": "households_total",
-    "DP02_0006E": "married_couple_fam",
-    "DP02_0010E": "single_mom_family",
-    "DP02_0016E": "avg_household_size",
-    "DP02_0066E": "bachelors_or_higher_pct",
-    "DP02_0068E": "graduate_degree_pct",
-    "DP02_0095E": "foreign_born_total",
-    "DP02_0096E": "foreign_born_naturalized",
-    "DP02_0114E": "lang_other_than_english_pct",  # % age 5+ speaking lang other than english
-    "DP02_0116E": "spanish_pct",
+    "DP02": {
+        "Estimate!!HOUSEHOLDS BY TYPE!!Total households": "households_total",
+        "Estimate!!HOUSEHOLDS BY TYPE!!Total households!!Married-couple household": "married_couple_fam",
+        "Estimate!!HOUSEHOLDS BY TYPE!!Total households!!Female householder, no spouse/partner present": "single_mom_family",
+        "Estimate!!HOUSEHOLDS BY TYPE!!Total households!!Average household size": "avg_household_size",
+        "Percent!!EDUCATIONAL ATTAINMENT!!Population 25 years and over!!Bachelor's degree or higher": "bachelors_or_higher_pct",
+        "Percent!!EDUCATIONAL ATTAINMENT!!Population 25 years and over!!Graduate or professional degree": "graduate_degree_pct",
+        "Estimate!!U.S. CITIZENSHIP STATUS!!Foreign-born population": "foreign_born_total",
+        "Estimate!!U.S. CITIZENSHIP STATUS!!Foreign-born population!!Naturalized U.S. citizen": "foreign_born_naturalized",
+        "Percent!!LANGUAGE SPOKEN AT HOME!!Population 5 years and over!!Language other than English": "lang_other_than_english_pct",
+        "Percent!!LANGUAGE SPOKEN AT HOME!!Population 5 years and over!!Spanish": "spanish_pct",
+    },
     # DP03 — Economic
-    "DP03_0001E": "pop_16plus",
-    "DP03_0002E": "labor_force",
-    "DP03_0005E": "unemployed",
-    "DP03_0009PE": "unemployment_rate",   # percent
-    "DP03_0062E": "median_household_income",
-    "DP03_0063E": "mean_household_income",
-    "DP03_0086E": "per_capita_income",
-    "DP03_0096PE": "with_health_insurance_pct",
-    "DP03_0119PE": "pov_rate_all_pct",
-    "DP03_0128PE": "pov_rate_kids_under_18_pct",
-    # DP04 — Housing
-    "DP04_0001E": "housing_units_total",
-    "DP04_0002E": "occupied_housing_units",
-    "DP04_0003E": "vacant_housing_units",
-    "DP04_0046E": "owner_occupied",
-    "DP04_0047E": "renter_occupied",
-    "DP04_0089E": "median_home_value",
-    "DP04_0134E": "median_gross_rent",
-    "DP04_0017E": "built_2014_or_later",
-    "DP04_0018E": "built_2010_to_2013",
-    "DP04_0019E": "built_2000_to_2009",
-    "DP04_0020E": "built_1990_to_1999",
-    "DP04_0021E": "built_1980_to_1989",
-    "DP04_0022E": "built_1970_to_1979",
-    "DP04_0023E": "built_1960_to_1969",
-    "DP04_0024E": "built_1950_to_1959",
-    "DP04_0025E": "built_1940_to_1949",
-    "DP04_0026E": "built_1939_or_earlier",
+    "DP03": {
+        "Estimate!!EMPLOYMENT STATUS!!Population 16 years and over": "pop_16plus",
+        "Estimate!!EMPLOYMENT STATUS!!Population 16 years and over!!In labor force": "labor_force",
+        "Estimate!!EMPLOYMENT STATUS!!Population 16 years and over!!In labor force!!Civilian labor force!!Unemployed": "unemployed",
+        "Percent!!EMPLOYMENT STATUS!!Civilian labor force!!Unemployment Rate": "unemployment_rate",
+        f"{_INC}!!Total households!!Median household income (dollars)": "median_household_income",
+        f"{_INC}!!Total households!!Mean household income (dollars)": "mean_household_income",
+        f"{_INC}!!Per capita income (dollars)": "per_capita_income",
+        "Percent!!HEALTH INSURANCE COVERAGE!!Civilian noninstitutionalized population!!With health insurance coverage": "with_health_insurance_pct",
+        f"{_POV}!!All people": "pov_rate_all_pct",
+        f"{_POV}!!All people!!Under 18 years": "pov_rate_kids_under_18_pct",
+    },
+    # DP04 — Housing. The year-built bins are the 2024 schema (2020+, 2010-19);
+    # Census re-bins these as new decades start, so Lynn_City.py reads the same names.
+    "DP04": {
+        "Estimate!!HOUSING OCCUPANCY!!Total housing units": "housing_units_total",
+        "Estimate!!HOUSING OCCUPANCY!!Total housing units!!Occupied housing units": "occupied_housing_units",
+        "Estimate!!HOUSING OCCUPANCY!!Total housing units!!Vacant housing units": "vacant_housing_units",
+        "Estimate!!HOUSING TENURE!!Occupied housing units!!Owner-occupied": "owner_occupied",
+        "Estimate!!HOUSING TENURE!!Occupied housing units!!Renter-occupied": "renter_occupied",
+        "Estimate!!VALUE!!Owner-occupied units!!Median (dollars)": "median_home_value",
+        "Estimate!!GROSS RENT!!Occupied units paying rent!!Median (dollars)": "median_gross_rent",
+        f"{_BUILT}!!Built 2020 or later": "built_2020_or_later",
+        f"{_BUILT}!!Built 2010 to 2019": "built_2010_to_2019",
+        f"{_BUILT}!!Built 2000 to 2009": "built_2000_to_2009",
+        f"{_BUILT}!!Built 1990 to 1999": "built_1990_to_1999",
+        f"{_BUILT}!!Built 1980 to 1989": "built_1980_to_1989",
+        f"{_BUILT}!!Built 1970 to 1979": "built_1970_to_1979",
+        f"{_BUILT}!!Built 1960 to 1969": "built_1960_to_1969",
+        f"{_BUILT}!!Built 1950 to 1959": "built_1950_to_1959",
+        f"{_BUILT}!!Built 1940 to 1949": "built_1940_to_1949",
+        f"{_BUILT}!!Built 1939 or earlier": "built_1939_or_earlier",
+    },
 }
 
 
 def fetch_headline() -> pd.DataFrame:
+    dp_vars: dict[str, str] = {}
+    for table, labels in DP_LABELS.items():
+        dp_vars.update(resolve(PROFILE_BASE, table, labels))
     # Census API caps `get` at 50 variables; chunk into batches.
-    all_keys = list(DP_VARS.keys())
+    all_keys = list(dp_vars.keys())
     chunks = [all_keys[i:i + 40] for i in range(0, len(all_keys), 40)]
     merged: dict = {}
     name_val = None
@@ -159,7 +217,7 @@ def fetch_headline() -> pd.DataFrame:
         merged.update({k: v for k, v in d.items() if k != "NAME"})
     if not merged:
         return pd.DataFrame()
-    out = {alias: merged.get(var) for var, alias in DP_VARS.items()}
+    out = {alias: merged.get(var) for var, alias in dp_vars.items()}
     out["place_name"] = name_val
     out["acs_year"] = ACS_YEAR
     for k in list(out):
@@ -173,67 +231,68 @@ def fetch_headline() -> pd.DataFrame:
 # Birthplaces (B05006) — top countries for foreign-born population
 # ---------------------------------------------------------------------------
 
-# B05006 — Place of birth for foreign-born population (verified against the
-# 2023 ACS variables.json endpoint). Numbering shifts between vintages so
-# don't copy-paste from older docs.
-B05006_VARS = {
-    "B05006_001E": "Foreign-born total",
-    # Regional rolls (parent categories — useful for headline split)
-    "B05006_002E": "Europe (total)",
-    "B05006_047E": "Asia (total)",
-    "B05006_095E": "Africa (total)",
-    "B05006_130E": "Oceania (total)",
-    "B05006_133E": "Americas (total)",
-    "B05006_139E": "Latin America (total)",
-    "B05006_140E": "  Caribbean (total)",
-    "B05006_154E": "  Central America (total)",
-    "B05006_164E": "  South America (total)",
+_FB = "Estimate!!Total"
+_LA = f"{_FB}!!Americas!!Latin America"
+
+# Rows whose name contains "total" are regional roll-ups; Lynn_City.py keeps
+# them out of the country chart by that substring.
+B05006_LABELS = {
+    _FB: "Foreign-born total",
+    f"{_FB}!!Europe": "Europe (total)",
+    f"{_FB}!!Asia": "Asia (total)",
+    f"{_FB}!!Africa": "Africa (total)",
+    f"{_FB}!!Oceania": "Oceania (total)",
+    f"{_FB}!!Americas": "Americas (total)",
+    _LA: "Latin America (total)",
+    f"{_LA}!!Caribbean": "  Caribbean (total)",
+    f"{_LA}!!Central America": "  Central America (total)",
+    f"{_LA}!!South America": "  South America (total)",
     # Caribbean specific
-    "B05006_141E": "Bahamas",
-    "B05006_142E": "Barbados",
-    "B05006_143E": "Cuba",
-    "B05006_145E": "Dominican Republic",
-    "B05006_147E": "Haiti",
-    "B05006_148E": "Jamaica",
+    f"{_LA}!!Caribbean!!Bahamas": "Bahamas",
+    f"{_LA}!!Caribbean!!Barbados": "Barbados",
+    f"{_LA}!!Caribbean!!Cuba": "Cuba",
+    f"{_LA}!!Caribbean!!Dominican Republic": "Dominican Republic",
+    f"{_LA}!!Caribbean!!Haiti": "Haiti",
+    f"{_LA}!!Caribbean!!Jamaica": "Jamaica",
     # Central America specific
-    "B05006_155E": "Belize",
-    "B05006_156E": "Costa Rica",
-    "B05006_157E": "El Salvador",
-    "B05006_158E": "Guatemala",
-    "B05006_159E": "Honduras",
-    "B05006_160E": "Mexico",
-    "B05006_161E": "Nicaragua",
-    "B05006_162E": "Panama",
+    f"{_LA}!!Central America!!Belize": "Belize",
+    f"{_LA}!!Central America!!Costa Rica": "Costa Rica",
+    f"{_LA}!!Central America!!El Salvador": "El Salvador",
+    f"{_LA}!!Central America!!Guatemala": "Guatemala",
+    f"{_LA}!!Central America!!Honduras": "Honduras",
+    f"{_LA}!!Central America!!Mexico": "Mexico",
+    f"{_LA}!!Central America!!Nicaragua": "Nicaragua",
+    f"{_LA}!!Central America!!Panama": "Panama",
     # South America specific
-    "B05006_165E": "Argentina",
-    "B05006_167E": "Brazil",
-    "B05006_168E": "Chile",
-    "B05006_169E": "Colombia",
-    "B05006_170E": "Ecuador",
-    "B05006_172E": "Peru",
+    f"{_LA}!!South America!!Argentina": "Argentina",
+    f"{_LA}!!South America!!Brazil": "Brazil",
+    f"{_LA}!!South America!!Chile": "Chile",
+    f"{_LA}!!South America!!Colombia": "Colombia",
+    f"{_LA}!!South America!!Ecuador": "Ecuador",
+    f"{_LA}!!South America!!Peru": "Peru",
     # Asia — major Lynn communities
-    "B05006_049E": "China (incl. HK + Taiwan)",
-    "B05006_060E": "India",
-    "B05006_070E": "Cambodia",
-    "B05006_074E": "Philippines",
-    "B05006_077E": "Vietnam",
+    f"{_FB}!!Asia!!Eastern Asia!!China": "China (incl. HK + Taiwan)",
+    f"{_FB}!!Asia!!South Central Asia!!India": "India",
+    f"{_FB}!!Asia!!South Eastern Asia!!Cambodia": "Cambodia",
+    f"{_FB}!!Asia!!South Eastern Asia!!Philippines": "Philippines",
+    f"{_FB}!!Asia!!South Eastern Asia!!Vietnam": "Vietnam",
     # Africa — specific (Lynn has a notable Western Africa community)
-    "B05006_120E": "Cabo Verde",
-    "B05006_121E": "Ghana",
-    "B05006_124E": "Nigeria",
-    "B05006_098E": "Ethiopia",
-    "B05006_100E": "Somalia",
+    f"{_FB}!!Africa!!Western Africa!!Cabo Verde": "Cabo Verde",
+    f"{_FB}!!Africa!!Western Africa!!Ghana": "Ghana",
+    f"{_FB}!!Africa!!Western Africa!!Nigeria": "Nigeria",
+    f"{_FB}!!Africa!!Eastern Africa!!Ethiopia": "Ethiopia",
+    f"{_FB}!!Africa!!Eastern Africa!!Somalia": "Somalia",
 }
 
 
 def fetch_birthplaces() -> pd.DataFrame:
-    vars_list = sorted(set(B05006_VARS.keys()))
-    rows = fetch(API_BASE, vars_list, "B05006 — place of birth detail")
+    b05006_vars = resolve(API_BASE, "B05006", B05006_LABELS)
+    rows = fetch(API_BASE, sorted(b05006_vars), "B05006 — place of birth detail")
     d = _to_dict(rows)
     if not d:
         return pd.DataFrame(columns=["country", "count"])
     records = []
-    for var, label in B05006_VARS.items():
+    for var, label in b05006_vars.items():
         v = d.get(var)
         if v is None:
             continue
@@ -251,32 +310,33 @@ def fetch_birthplaces() -> pd.DataFrame:
 # Detailed languages (C16001 — collapsed but more detail than DP02)
 # ---------------------------------------------------------------------------
 
+# Lynn_City.py finds the total row by "Total" and English by "English".
 C16001_LABELS = {
-    "C16001_001E": "Total (pop 5+)",
-    "C16001_002E": "Speak only English",
-    "C16001_003E": "Spanish",
-    "C16001_006E": "French (incl. Cajun)",
-    "C16001_009E": "Haitian",
-    "C16001_012E": "German",
-    "C16001_015E": "Russian, Polish, or other Slavic",
-    "C16001_018E": "Other Indo-European",
-    "C16001_021E": "Korean",
-    "C16001_024E": "Chinese (incl. Mandarin, Cantonese)",
-    "C16001_027E": "Vietnamese",
-    "C16001_030E": "Tagalog (incl. Filipino)",
-    "C16001_033E": "Other Asian or Pacific Island",
-    "C16001_036E": "Arabic",
-    # C16001_039 doesn't exist in 2023 ACS; "Other and unspecified" is implicit
+    "Estimate!!Total": "Total (pop 5+)",
+    "Estimate!!Total!!Speak only English": "Speak only English",
+    "Estimate!!Total!!Spanish": "Spanish",
+    "Estimate!!Total!!French, Haitian, or Cajun": "French, Haitian Creole, or Cajun",
+    "Estimate!!Total!!German or other West Germanic languages": "German or other West Germanic",
+    "Estimate!!Total!!Russian, Polish, or other Slavic languages": "Russian, Polish, or other Slavic",
+    "Estimate!!Total!!Other Indo-European languages": "Other Indo-European",
+    "Estimate!!Total!!Korean": "Korean",
+    "Estimate!!Total!!Chinese (incl. Mandarin, Cantonese)": "Chinese (incl. Mandarin, Cantonese)",
+    "Estimate!!Total!!Vietnamese": "Vietnamese",
+    "Estimate!!Total!!Tagalog (incl. Filipino)": "Tagalog (incl. Filipino)",
+    "Estimate!!Total!!Other Asian and Pacific Island languages": "Other Asian or Pacific Island",
+    "Estimate!!Total!!Arabic": "Arabic",
+    "Estimate!!Total!!Other and unspecified languages": "Other and unspecified",
 }
 
 
 def fetch_languages() -> pd.DataFrame:
-    rows = fetch(API_BASE, list(C16001_LABELS.keys()), "C16001 — language spoken at home")
+    c16001_vars = resolve(API_BASE, "C16001", C16001_LABELS)
+    rows = fetch(API_BASE, list(c16001_vars), "C16001 — language spoken at home")
     d = _to_dict(rows)
     if not d:
         return pd.DataFrame(columns=["language", "count"])
     records = []
-    for var, lbl in C16001_LABELS.items():
+    for var, lbl in c16001_vars.items():
         v = d.get(var)
         if v is None:
             continue
@@ -292,31 +352,36 @@ def fetch_languages() -> pd.DataFrame:
 # Industries (S2403) and commute (S0801)
 # ---------------------------------------------------------------------------
 
+_EMP = "Estimate!!Total!!Civilian employed population 16 years and over"
+
+# Top-level industry rows only; the table also nests sub-industries under
+# several of these, which must not be summed alongside their parents.
 S2403_LABELS = {
-    "S2403_C01_002E": "Agriculture, forestry, fishing, hunting, mining",
-    "S2403_C01_003E": "Construction",
-    "S2403_C01_004E": "Manufacturing",
-    "S2403_C01_005E": "Wholesale trade",
-    "S2403_C01_006E": "Retail trade",
-    "S2403_C01_007E": "Transportation, warehousing, utilities",
-    "S2403_C01_008E": "Information",
-    "S2403_C01_009E": "Finance, insurance, real estate",
-    "S2403_C01_010E": "Professional, scientific, mgmt, admin, waste mgmt",
-    "S2403_C01_011E": "Educational services, healthcare, social assistance",
-    "S2403_C01_012E": "Arts, entertainment, accommodation, food services",
-    "S2403_C01_013E": "Other services (except public administration)",
-    "S2403_C01_014E": "Public administration",
+    f"{_EMP}!!Agriculture, forestry, fishing and hunting, and mining": "Agriculture, forestry, fishing, hunting, mining",
+    f"{_EMP}!!Construction": "Construction",
+    f"{_EMP}!!Manufacturing": "Manufacturing",
+    f"{_EMP}!!Wholesale trade": "Wholesale trade",
+    f"{_EMP}!!Retail trade": "Retail trade",
+    f"{_EMP}!!Transportation and warehousing, and utilities": "Transportation, warehousing, utilities",
+    f"{_EMP}!!Information": "Information",
+    f"{_EMP}!!Finance and insurance, and real estate and rental and leasing": "Finance, insurance, real estate",
+    f"{_EMP}!!Professional, scientific, and management, and administrative and waste management services": "Professional, scientific, mgmt, admin, waste mgmt",
+    f"{_EMP}!!Educational services, and health care and social assistance": "Educational services, healthcare, social assistance",
+    f"{_EMP}!!Arts, entertainment, and recreation, and accommodation and food services": "Arts, entertainment, accommodation, food services",
+    f"{_EMP}!!Other services, except public administration": "Other services (except public administration)",
+    f"{_EMP}!!Public administration": "Public administration",
 }
 
 
 def fetch_industries() -> pd.DataFrame:
-    rows = fetch(SUBJECT_BASE, list(S2403_LABELS.keys()),
+    s2403_vars = resolve(SUBJECT_BASE, "S2403", S2403_LABELS)
+    rows = fetch(SUBJECT_BASE, list(s2403_vars),
                   "S2403 — civilian employed by industry")
     d = _to_dict(rows)
     if not d:
         return pd.DataFrame(columns=["industry", "employed"])
     recs = []
-    for var, lbl in S2403_LABELS.items():
+    for var, lbl in s2403_vars.items():
         v = d.get(var)
         if v is None:
             continue
@@ -328,25 +393,31 @@ def fetch_industries() -> pd.DataFrame:
     return pd.DataFrame(recs).sort_values("employed", ascending=False).reset_index(drop=True)
 
 
+_MODE = "Estimate!!Total!!Workers 16 years and over!!MEANS OF TRANSPORTATION TO WORK"
+
+# Mutually exclusive modes (they sum to ~100%); "Car, truck, or van" itself is
+# the parent of drove-alone + carpooled and is left out.
 S0801_LABELS = {
-    "S0801_C01_002E": "Drove alone (car/truck/van)",
-    "S0801_C01_003E": "Carpooled",
-    "S0801_C01_009E": "Public transportation",
-    "S0801_C01_010E": "Walked",
-    "S0801_C01_011E": "Bicycle / other means",
-    "S0801_C01_013E": "Worked from home",
-    "S0801_C01_046E": "Mean travel time to work (min)",
+    f"{_MODE}!!Car, truck, or van!!Drove alone": "Drove alone (car/truck/van)",
+    f"{_MODE}!!Car, truck, or van!!Carpooled": "Carpooled",
+    f"{_MODE}!!Public transportation": "Public transportation",
+    f"{_MODE}!!Walked": "Walked",
+    f"{_MODE}!!Bicycle": "Bicycle",
+    f"{_MODE}!!Taxi or ride-hailing services, motorcycle, or other means": "Taxi, ride-hailing, motorcycle, other",
+    f"{_MODE}!!Worked from home": "Worked from home",
+    "Estimate!!Total!!Workers 16 years and over who did not work from home!!TRAVEL TIME TO WORK!!Mean travel time to work (minutes)": "Mean travel time to work (min)",
 }
 
 
 def fetch_commute() -> pd.DataFrame:
-    rows = fetch(SUBJECT_BASE, list(S0801_LABELS.keys()),
+    s0801_vars = resolve(SUBJECT_BASE, "S0801", S0801_LABELS)
+    rows = fetch(SUBJECT_BASE, list(s0801_vars),
                   "S0801 — commute to work")
     d = _to_dict(rows)
     if not d:
         return pd.DataFrame(columns=["mode", "pct_or_min"])
     recs = []
-    for var, lbl in S0801_LABELS.items():
+    for var, lbl in s0801_vars.items():
         v = d.get(var)
         if v is None:
             continue

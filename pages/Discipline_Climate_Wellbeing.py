@@ -784,9 +784,14 @@ with _tab_0:
     # ---------------------------------------------------------------------------
 
     st.header("Discipline, disaggregated (federal CRDC)")
+    crdc = load_dataset("crdc_discipline")
+    # Release label ("2023-24") and the matching DESE school year (2024).
+    _crdc_rel = (str(crdc["RELEASE"].iloc[0])
+                 if not crdc.empty and "RELEASE" in crdc.columns else "2023-24")
+    _crdc_sy = int(_crdc_rel[:4]) + 1
     st.caption(
         "Out-of-school suspension counts at Lynn English High by student group, "
-    "from the 2021-22 federal CRDC (U.S. Dept. of Education, Office for Civil "
+    f"from the {_crdc_rel} federal CRDC (U.S. Dept. of Education, Office for Civil "
     "Rights — civilrightsdata.ed.gov). The federal collection's signature "
     "feature is its race / disability / English-learner breakdown, and it "
     "captures measures DESE does not — school-based arrests, law-enforcement "
@@ -796,7 +801,6 @@ with _tab_0:
     "are approximate and may not sum exactly to totals."
     )
 
-    crdc = load_dataset("crdc_discipline")
     if crdc.empty:
         st.info("Discipline (CRDC) data is unavailable in the current build.")
     else:
@@ -821,7 +825,7 @@ with _tab_0:
                                  x=race["OSS_MULTIPLE_COUNT"], y=race["GROUP"],
                                  orientation="h", marker_color=LEHS_GOLD))
             fig.update_layout(**DEFAULT_LAYOUT, barmode="stack",
-                              title="LEHS out-of-school suspensions by race/ethnicity (2021-22)",
+                              title=f"LEHS out-of-school suspensions by race/ethnicity ({_crdc_rel})",
                               xaxis_title="Students")
             st.plotly_chart(fig, width="stretch")
 
@@ -844,7 +848,7 @@ with _tab_0:
 
         # --- Disparate-impact check ------------------------------------------
         # CRDC publishes suspension COUNTS only, so rate denominators come from
-        # the DESE enrollment file for the same school year (SY 2022 = 2021-22).
+        # the DESE enrollment file for the same school year (SY 2024 = 2023-24).
         # Estimated subgroup enrollment = DESE share × total enrollment, so the
         # resulting rates and ratios are approximate (see the perturbation
         # caveat at the top of the page). Flag any group whose out-of-school
@@ -867,7 +871,7 @@ with _tab_0:
         if not _enr22.empty and {"ORG_CODE", "SY"} <= set(_enr22.columns):
             _lehs_enr22 = _enr22[
                 (_enr22["ORG_CODE"].astype(str) == LEHS_SCHOOL_CODE)
-                & (pd.to_numeric(_enr22["SY"], errors="coerce") == 2022)
+                & (pd.to_numeric(_enr22["SY"], errors="coerce") == _crdc_sy)
             ]
 
         _oss_cols_ok = {"OSS_SINGLE_COUNT", "OSS_MULTIPLE_COUNT"} <= set(disc.columns)
@@ -912,7 +916,7 @@ with _tab_0:
                         )
                 if _flags:
                     st.warning(
-                        "**Disparate-impact check (2021-22).** The school-wide "
+                        f"**Disparate-impact check ({_crdc_rel}).** The school-wide "
                     f"out-of-school suspension rate was ≈{_school_rate:.1%} "
                     f"({int(_tot_oss)} of {int(_total_n):,} students). The "
                     "following group(s) were suspended at **2× or more** that "
@@ -923,7 +927,7 @@ with _tab_0:
                     )
                 elif _checked:
                     st.caption(
-                        f"Disparate-impact check (2021-22): no student group's "
+                        f"Disparate-impact check ({_crdc_rel}): no student group's "
                     f"out-of-school suspension rate exceeds 2× the school-wide "
                     f"rate of ≈{_school_rate:.1%} in this snapshot "
                     f"(groups with fewer than {_MIN_GROUP_N} estimated "
@@ -1403,6 +1407,8 @@ with _tab_1:
     )
 
     staffing = load_dataset("crdc_staffing")
+    _staff_rel = (str(staffing["RELEASE"].iloc[0])
+                  if not staffing.empty and "RELEASE" in staffing.columns else "2023-24")
     ratio_df = pd.DataFrame()
     counselor_ratio = None
     if not staffing.empty:
@@ -1463,9 +1469,9 @@ with _tab_1:
             st.plotly_chart(fig, width="stretch")
 
         st.caption(
-            "Source: CRDC 2021-22 public-use file. That was a pandemic-recovery "
-        "year, and CRDC counts are statistically perturbed in the public file "
-        "to protect privacy, so treat these ratios as approximate. The ASCA "
+            f"Source: CRDC {_staff_rel} public-use file. CRDC counts are "
+        "statistically perturbed in the public file to protect privacy, so "
+        "treat these ratios as approximate. The ASCA "
         "benchmark applies to counselors specifically."
         )
     else:
@@ -1546,7 +1552,7 @@ with _tab_1:
 
     data_downloads_panel({
         "Chronic absenteeism (LEHS, all students)": abs_lehs,
-        "Support-staff ratios (CRDC 2021-22)": ratio_df,
+        f"Support-staff ratios (CRDC {_staff_rel})": ratio_df,
         "Community health context (CDC PLACES, adult)": places_avg,
     })
 
