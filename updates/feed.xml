@@ -3,60 +3,67 @@
 <title>LEHS Data Dive — What's New</title>
 <link>https://maxwellhowegis.com/Lynn-data-dive</link>
 <description>Updates to the Lynn English High School data dashboard.</description>
-<lastBuildDate>Wed, 21 Oct 2026 17:54:25 +0000</lastBuildDate>
+<lastBuildDate>Fri, 23 Oct 2026 14:32:44 +0000</lastBuildDate>
+<item>
+<title>Lynn City numbers corrected and moved to the 2020–24 Census</title>
+<link>https://maxwellhowegis.com/Lynn-data-dive</link>
+<guid isPermaLink="false">https://maxwellhowegis.com/Lynn-data-dive#2026-10-23-50466827</guid>
+<pubDate>Fri, 23 Oct 2026 00:00:00 +0000</pubDate>
+<description>Several Lynn City figures were reading the wrong Census rows. Per-capita income is $35,598 (it had shown median family income, $86,600), the poverty rate is 13.8% for all residents and 17.9% for children (the two had been mislabeled), and the language, industry, and commute charts now line up with their categories. The Neighborhoods tab now has tract maps of income, education, language, and rent burden, and "severely rent-burdened" now means paying 50% or more of income on rent (33.5% of Lynn renters). Massachusetts comparison values are from the same 2024 Census release.</description>
+</item>
 <item>
 <title>2026 percentile ranks, 2023–24 civil-rights data, and data fixes</title>
 <link>https://maxwellhowegis.com/Lynn-data-dive</link>
-<guid isPermaLink="false">https://maxwellhowegis.com/Lynn-data-dive#2026-10-21-27532423</guid>
+<guid isPermaLink="false">https://maxwellhowegis.com/Lynn-data-dive#2026-10-21-77712688</guid>
 <pubDate>Wed, 21 Oct 2026 00:00:00 +0000</pubDate>
 <description>The rank-by-indicator chart on State Accountability now uses DESE's 2026 percentile file. Lynn English is at the 53rd percentile for English growth and in the single digits for achievement. Federal civil-rights data moves from 2021–22 to 2023–24: discipline by group, AP access (15 AP courses, 181 students enrolled), and support-staff ratios. College-enrollment trends no longer show two different values for 2022 and 2024, and about 2,300 duplicate state rows are gone. The School Profile photo caption now gives the right address, 50 Goodridge Street.</description>
 </item>
 <item>
 <title>Spring 2026 MCAS and the 2026 report card are in</title>
 <link>https://maxwellhowegis.com/Lynn-data-dive</link>
-<guid isPermaLink="false">https://maxwellhowegis.com/Lynn-data-dive#2026-10-05-59987033</guid>
+<guid isPermaLink="false">https://maxwellhowegis.com/Lynn-data-dive#2026-10-05-73649477</guid>
 <pubDate>Mon, 05 Oct 2026 00:00:00 +0000</pubDate>
 <description>DESE's September 22 release is now on the dashboard. Lynn English's grade-10 English average scaled score rose from 472.9 to 477.5, and the school earned full credit on that indicator. The state rating is unchanged: requiring assistance, percentile 1, cumulative progress 36% (up from 29%). End-of-year attendance for 2025–26 is in (chronic absenteeism 53.4%), as is advanced-course completion (48.8%). Class of 2026 graduation rates and October 2026 enrollment are not public yet. The 2026 percentile research file is not posted, so indicator ranks still use the 2025 build.</description>
 </item>
 <item>
 <title>Clearer language on Home, About, and Stories</title>
 <link>https://maxwellhowegis.com/Lynn-data-dive</link>
-<guid isPermaLink="false">https://maxwellhowegis.com/Lynn-data-dive#2026-09-13-3555388</guid>
+<guid isPermaLink="false">https://maxwellhowegis.com/Lynn-data-dive#2026-09-13-72642141</guid>
 <pubDate>Sun, 13 Sep 2026 00:00:00 +0000</pubDate>
 <description>Visitor-facing copy is shorter and more everyday. Home, About the Data, Stories, and page intros drop analyst jargon. Stories links now point at the merged pages. The Corrections tab is labeled Corrections (it had said Methodology). Data 101's sample enrollment table matches the recent drop instead of a rising trend.</description>
 </item>
 <item>
 <title>FY2025 spending and mid-2026 housing now in</title>
 <link>https://maxwellhowegis.com/Lynn-data-dive</link>
-<guid isPermaLink="false">https://maxwellhowegis.com/Lynn-data-dive#2026-09-12-22480505</guid>
+<guid isPermaLink="false">https://maxwellhowegis.com/Lynn-data-dive#2026-09-12-7504250</guid>
 <pubDate>Sat, 12 Sep 2026 00:00:00 +0000</pubDate>
 <description>School and district expenditure files now include FY2025 (LEHS per-pupil spending is in the dashboard through that year), and the Lynn housing series is refreshed through July 2026. Year labels on MCAS, English Learners, Teachers, and About the Data now follow the latest year in each dataset, so the next DESE release will show up without a copy edit. Spring 2026 MCAS, 2026 graduation rates, and 2026–27 October enrollment are not public yet.</description>
 </item>
 <item>
 <title>2026 accountability targets now live</title>
 <link>https://maxwellhowegis.com/Lynn-data-dive</link>
-<guid isPermaLink="false">https://maxwellhowegis.com/Lynn-data-dive#2026-08-02-60556017</guid>
+<guid isPermaLink="false">https://maxwellhowegis.com/Lynn-data-dive#2026-08-02-46720303</guid>
 <pubDate>Sun, 02 Aug 2026 00:00:00 +0000</pubDate>
 <description>SY2025-26 is closed. DESE's July 31 release of the 2026 Accountability Targets and 2027 Increments workbook is now in the dashboard — the State Accountability page shows the newest baselines and next-year steps for each indicator and student group.</description>
 </item>
 <item>
 <title>New pages: Lynn HS Options, Wellbeing, Feeder Schools, and more</title>
 <link>https://maxwellhowegis.com/Lynn-data-dive</link>
-<guid isPermaLink="false">https://maxwellhowegis.com/Lynn-data-dive#2026-06-13-67666468</guid>
+<guid isPermaLink="false">https://maxwellhowegis.com/Lynn-data-dive#2026-06-13-17643250</guid>
 <pubDate>Sat, 13 Jun 2026 00:00:00 +0000</pubDate>
 <description>A big additions release: a side-by-side of Lynn's public high schools, a student &amp; community wellbeing page, feeder-middle-school profiles with an enrollment projection, a "what changed this year" overview, a data-gaps and corrections log, Stories, and a housing-affordability section.</description>
 </item>
 <item>
 <title>Accessibility &amp; convenience: dark mode, Spanish switcher, search, shareable links</title>
 <link>https://maxwellhowegis.com/Lynn-data-dive</link>
-<guid isPermaLink="false">https://maxwellhowegis.com/Lynn-data-dive#2026-06-13-79164842</guid>
+<guid isPermaLink="false">https://maxwellhowegis.com/Lynn-data-dive#2026-06-13-58536990</guid>
 <pubDate>Sat, 13 Jun 2026 00:00:00 +0000</pubDate>
 <description>The dashboard now has a dark theme, a Spanish/English language switcher, site-wide search, shareable URLs that remember your filter selections, and a one-click School Committee PDF briefing.</description>
 </item>
 <item>
 <title>State Accountability deep-dive</title>
 <link>https://maxwellhowegis.com/Lynn-data-dive</link>
-<guid isPermaLink="false">https://maxwellhowegis.com/Lynn-data-dive#2026-06-12-15517075</guid>
+<guid isPermaLink="false">https://maxwellhowegis.com/Lynn-data-dive#2026-06-12-38477685</guid>
 <pubDate>Fri, 12 Jun 2026 00:00:00 +0000</pubDate>
 <description>The State Accountability page now breaks down how the determination is built, where LEHS sits statewide by percentile, what next year's targets require, and the long-run trend behind each indicator.</description>
 </item>

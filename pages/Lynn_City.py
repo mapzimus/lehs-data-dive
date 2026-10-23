@@ -49,26 +49,29 @@ st.markdown(
 # follow a data refresh.
 # ---------------------------------------------------------------------------
 
-MA_ACS_YEAR = 2023
+MA_ACS_YEAR = 2024
 MA_ACS_SPAN = f"{MA_ACS_YEAR - 4}–{MA_ACS_YEAR}"
 MA_ACS_VINTAGE = f"ACS {MA_ACS_YEAR} 5-yr"
+# Pulled from api.census.gov (state:25) by Census label on 2026-10-23.
 MA_BENCHMARKS = {
-    "median_household_income": {"value": 99_858, "table": "DP03",
+    "median_household_income": {"value": 103_960, "table": "DP03",
                                 "label": "Median household income"},
-    "poverty_rate_pct":        {"value": 10.4,   "table": "S1701",
+    "poverty_rate_pct":        {"value": 10.0,    "table": "S1701",
                                 "label": "Poverty rate"},
-    "median_age":              {"value": 39.9,   "table": "DP05",
+    "median_age":              {"value": 40.0,    "table": "DP05",
                                 "label": "Median age"},
-    "foreign_born_pct":        {"value": 18.1,   "table": "DP02",
+    "foreign_born_pct":        {"value": 18.0,    "table": "DP02",
                                 "label": "% foreign-born"},
-    "bachelors_plus_pct":      {"value": 46.6,   "table": "S1501",
+    "bachelors_plus_pct":      {"value": 47.3,    "table": "DP02",
                                 "label": "% bachelor's or higher (age 25+)"},
-    "median_gross_rent":       {"value": 1_667,  "table": "B25064",
+    "median_gross_rent":       {"value": 1_762,   "table": "B25064",
                                 "label": "Median gross rent"},
-    "renter_occupied_pct":     {"value": 37.8,   "table": "B25003",
+    "renter_occupied_pct":     {"value": 37.5,    "table": "B25003",
                                 "label": "% renter-occupied"},
-    "unemployment_rate_pct":   {"value": 4.9,    "table": "DP03",
+    "unemployment_rate_pct":   {"value": 5.2,     "table": "DP03",
                                 "label": "Unemployment rate"},
+    "non_english_pct":         {"value": 25.1,    "table": "DP02",
+                                "label": "% non-English at home (age 5+)"},
 }
 
 
@@ -898,8 +901,11 @@ with tab_nbhds:
                     st.metric("Avg % non-English at home", f"{nm:.0%}")
 
             st.caption(
-                "**Massachusetts state averages for comparison**: median household income "
-                "~$96,500 · foreign-born ~17% · bachelor's+ ~46% · non-English at home ~26%. "
+                f"**Massachusetts state averages for comparison** ({MA_ACS_VINTAGE}): "
+                f"median household income ${_ma_value('median_household_income'):,.0f} · "
+                f"foreign-born {_ma_value('foreign_born_pct'):.0f}% · "
+                f"bachelor's+ {_ma_value('bachelors_plus_pct'):.0f}% · "
+                f"non-English at home {_ma_value('non_english_pct'):.0f}%. "
                 "Lynn's tracts skew significantly lower-income and more foreign-born, with "
                 "substantially higher non-English-at-home share."
             )
@@ -923,10 +929,10 @@ with tab_nbhds:
             # state-average figures cited in the caption just above. No
             # published MA figure for severe rent-burden, so it gets no line.
             ma_tract_ref = {
-                "median_household_income": 96_500,
-                "foreign_born_pct":        0.17,
-                "non_english_pct":         0.26,
-                "bachelors_or_higher_pct": 0.46,
+                "median_household_income": _ma_value("median_household_income"),
+                "foreign_born_pct":        _ma_value("foreign_born_pct") / 100,
+                "non_english_pct":         _ma_value("non_english_pct") / 100,
+                "bachelors_or_higher_pct": _ma_value("bachelors_plus_pct") / 100,
             }
 
             for col, label, fmt, palette in metrics:

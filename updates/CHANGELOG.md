@@ -2,6 +2,10 @@
 
 Updates to the dashboard, newest first.
 
+### 2026-10-23 — Lynn City numbers corrected and moved to the 2020–24 Census
+
+Several Lynn City figures were reading the wrong Census rows. Per-capita income is $35,598 (it had shown median family income, $86,600), the poverty rate is 13.8% for all residents and 17.9% for children (the two had been mislabeled), and the language, industry, and commute charts now line up with their categories. The Neighborhoods tab now has tract maps of income, education, language, and rent burden, and "severely rent-burdened" now means paying 50% or more of income on rent (33.5% of Lynn renters). Massachusetts comparison values are from the same 2024 Census release.
+
 ### 2026-10-21 — 2026 percentile ranks, 2023–24 civil-rights data, and data fixes
 
 The rank-by-indicator chart on State Accountability now uses DESE's 2026 percentile file. Lynn English is at the 53rd percentile for English growth and in the single digits for achievement. Federal civil-rights data moves from 2021–22 to 2023–24: discipline by group, AP access (15 AP courses, 181 students enrolled), and support-staff ratios. College-enrollment trends no longer show two different values for 2022 and 2024, and about 2,300 duplicate state rows are gone. The School Profile photo caption now gives the right address, 50 Goodridge Street.

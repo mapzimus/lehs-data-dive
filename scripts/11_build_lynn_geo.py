@@ -161,11 +161,11 @@ def join_acs_to_tracts(tracts: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     # Housing burden
     hb = _load_acs_table("housing_burden")
     if not hb.empty:
-        hb["severe_burden_pct"] = (
-            (hb["rent_burden_30_35"] + hb["rent_burden_35_40"]
-             + hb["rent_burden_40_50"] + hb["rent_burden_50plus"])
-            / hb["renter_total"].replace(0, pd.NA)
-        )
+        # HUD definitions: cost-burdened = 30%+ of income on rent, severely
+        # cost-burdened = 50%+. Pages label severe_burden_pct "severely", so it
+        # is the 50%+ share, of renters whose burden could be computed.
+        computed = hb["renter_total"] - hb.get("rent_burden_not_computed", 0)
+        hb["severe_burden_pct"] = hb["rent_burden_50plus"] / computed.replace(0, pd.NA)
         out = out.merge(hb[["GEOID", "renter_total", "severe_burden_pct"]],
                         on="GEOID", how="left")
 

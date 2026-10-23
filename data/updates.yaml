@@ -7,6 +7,18 @@
 #   title:  short headline
 #   body:   one or two sentences, plain language
 updates:
+  - date: 2026-10-23
+    title: "Lynn City numbers corrected and moved to the 2020–24 Census"
+    body: >
+      Several Lynn City figures were reading the wrong Census rows. Per-capita
+      income is $35,598 (it had shown median family income, $86,600), the
+      poverty rate is 13.8% for all residents and 17.9% for children (the two
+      had been mislabeled), and the language, industry, and commute charts now
+      line up with their categories. The Neighborhoods tab now has tract maps
+      of income, education, language, and rent burden, and "severely
+      rent-burdened" now means paying 50% or more of income on rent (33.5% of
+      Lynn renters). Massachusetts comparison values are from the same 2024
+      Census release.
   - date: 2026-10-21
     title: "2026 percentile ranks, 2023–24 civil-rights data, and data fixes"
     body: >
