@@ -677,9 +677,12 @@ st.divider()
 # ---------------------------------------------------------------------------
 
 st.header("Support-staff ratios")
+crdc_staff = load_dataset("crdc_staffing")
+_crdc_rel = (str(crdc_staff["RELEASE"].iloc[0])
+             if not crdc_staff.empty and "RELEASE" in crdc_staff.columns else "2023-24")
 st.caption(
     "Full-time-equivalent (FTE) school counselors, nurses, social workers, and "
-    "psychologists, from the 2021-22 federal CRDC (U.S. Dept. of Education, "
+    f"psychologists, from the {_crdc_rel} federal CRDC (U.S. Dept. of Education, "
     "Office for Civil Rights — civilrightsdata.ed.gov). The American School "
     "Counselor Association recommends one counselor for every 250 students. "
     "**Caveat:** the CRDC public-use file applies small random perturbations "
@@ -687,7 +690,6 @@ st.caption(
     "approximate."
 )
 
-crdc_staff = load_dataset("crdc_staffing")
 if crdc_staff.empty:
     st.info("Support-staff (CRDC) data is unavailable in the current build.")
 else:

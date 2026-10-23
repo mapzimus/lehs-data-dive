@@ -54,7 +54,7 @@ with _b_c:
     st.image(
         str(IMAGES_DIR / "lehs-building.jpg"),
         width=240,
-        caption="Main entrance, O'Callaghan Way",
+        caption="Main entrance, 50 Goodridge Street",
     )
 
 # DESE ESSA accountability classification was previously rendered at

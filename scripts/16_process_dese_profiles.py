@@ -248,12 +248,14 @@ def _targets_catalog_for_columns(cols: set[str]) -> list[dict] | None:
                 return None
     return catalog
 
-# {school,student-group}-percentile-{year}.xlsx, sheet "HS " (trailing space).
+# {school,student-group}-percentile-{year}.xlsx (through 2025) or the combined
+# percentile-{year}.xlsx (2026+), sheet "HS" (sometimes with a trailing space).
 # 143 positional columns: 0-7 ID block, three 44-col year blocks (base offsets
-# below), col 140 weighted mean, 141 school percentile, 142 notes. Within a year
-# block, each indicator's value/percentile sit at fixed offsets (verified
-# identical across the three blocks).
-_PCTL_BLOCKS = {2023: 8, 2024: 52, 2025: 96}
+# below, oldest first: sy-2, sy-1, sy), col 140 weighted mean, 141 school
+# percentile, 142 notes. Within a year block, each indicator's value/percentile
+# sit at fixed offsets (verified identical across the three blocks, and
+# unchanged between the 2025 and 2026 files).
+_PCTL_BLOCK_OFFSETS = (8, 52, 96)
 _PCTL_LAYOUT: list[tuple[int, int, str]] = [
     # (value_offset, percentile_offset, INDICATOR)
     (0, 1, "ELA Achievement"),
@@ -779,14 +781,18 @@ def process_accountability_percentiles() -> None:
     """Statewide percentile build-up by indicator -> one parquet.
 
     Sources: school-percentile-{year}.xlsx (All Students) and
-    student-group-percentile-{year}.xlsx (per group), sheet "HS " (trailing
-    space). 143 positional columns; parsed via _PCTL_BLOCKS + _PCTL_LAYOUT.
-    Tells the "low achievement but middling growth" story behind the 1st-
-    percentile headline.
+    student-group-percentile-{year}.xlsx (per group) through 2025; from 2026
+    DESE ships one percentile-{year}.xlsx holding every group, with All
+    Students as the "T" row. Sheet "HS" (sometimes "HS "). 143 positional
+    columns; parsed via _PCTL_BLOCK_OFFSETS + _PCTL_LAYOUT. Tells the "low
+    achievement but middling growth" story behind the 1st-percentile headline.
     """
+    # source=None -> combined file: All Students rows become "school", the
+    # rest "student_group", so pages filtering on SOURCE see both eras alike.
     specs = [
         ("school-percentile-*.xlsx", "school", True),
         ("student-group-percentile-*.xlsx", "student_group", False),
+        ("percentile-*.xlsx", None, False),
     ]
     frames = []
     keep = _peer_school_codes()
@@ -808,17 +814,19 @@ def process_accountability_percentiles() -> None:
             data = raw.iloc[2:].reset_index(drop=True)
             org = data[0].astype(str).str[:8].str.zfill(8)
             data = data[org.isin(keep)].reset_index(drop=True)
+            blocks = dict(zip((sy - 2, sy - 1, sy), _PCTL_BLOCK_OFFSETS))
             for _, row in data.iterrows():
+                group = "All Students" if force_all else row[7]
                 base_meta = {
                     "SY": sy,
                     "ORG_CODE": str(row[0])[:8].zfill(8),
                     "ORG_NAME": row[2],
                     "DIST_NAME": row[1],
-                    "GROUP": ("All Students" if force_all else row[7]),
-                    "SOURCE": source,
+                    "GROUP": group,
+                    "SOURCE": source or ("school" if group == "All Students" else "student_group"),
                     "WEIGHT_SCHEME": row[6],
                 }
-                for block_year, b in _PCTL_BLOCKS.items():
+                for block_year, b in blocks.items():
                     for v_off, p_off, indicator in _PCTL_LAYOUT:
                         vh = headers[b + v_off]
                         data_yr = (re.findall(r"\d{4}", vh) or [str(block_year)])[-1]
@@ -838,7 +846,7 @@ def process_accountability_percentiles() -> None:
                     "DATA_YEAR": sy, "VALUE": _num(row[140]),
                     "PERCENTILE": _num(row[141]), "NOTES": row[142],
                 })
-            print(f"  {path.name}: SY{sy} {source} -> processed")
+            print(f"  {path.name}: SY{sy} {source or 'combined'} -> processed")
     if not frames:
         print("  [SKIP] accountability percentiles — no parseable file")
         return

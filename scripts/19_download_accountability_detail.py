@@ -52,8 +52,9 @@ STEMS = [
     "criterion-referenced-percentage",
     # Research files — the layer beneath the determination:
     "accountability-targets",          # per-school x group baselines + 2026/27 targets & increments
-    "school-percentile",               # statewide percentile build-up (All Students)
-    "student-group-percentile",        # statewide percentile build-up, per student group
+    "school-percentile",               # statewide percentile build-up (All Students), through 2025
+    "student-group-percentile",        # statewide percentile build-up, per student group, through 2025
+    "percentile",                      # 2026+: both of the above merged into one workbook
 ]
 
 # Determination years to attempt, newest first. A 404 just means that year is

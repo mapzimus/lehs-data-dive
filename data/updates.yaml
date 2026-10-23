@@ -7,6 +7,18 @@
 #   title:  short headline
 #   body:   one or two sentences, plain language
 updates:
+  - date: 2026-10-21
+    title: "2026 percentile ranks, 2023–24 civil-rights data, and data fixes"
+    body: >
+      The rank-by-indicator chart on State Accountability now uses DESE's
+      2026 percentile file. Lynn English is at the 53rd percentile for
+      English growth and in the single digits for achievement. Federal
+      civil-rights data moves from 2021–22 to 2023–24: discipline by group,
+      AP access (15 AP courses, 181 students enrolled), and support-staff
+      ratios. College-enrollment trends no longer show two different values
+      for 2022 and 2024, and about 2,300 duplicate state rows are gone. The
+      School Profile photo caption now gives the right address, 50
+      Goodridge Street.
   - date: 2026-10-05
     title: "Spring 2026 MCAS and the 2026 report card are in"
     body: >

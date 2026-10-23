@@ -889,9 +889,12 @@ st.divider()
 # ---------------------------------------------------------------------------
 
 st.header("Advanced course offerings & access")
+crdc_offerings = load_dataset("crdc_offerings")
+_crdc_rel = (str(crdc_offerings["RELEASE"].iloc[0])
+             if not crdc_offerings.empty and "RELEASE" in crdc_offerings.columns else "2023-24")
 st.caption(
     "Whether each Lynn school offers AP, IB, and gatekeeper advanced courses, "
-    "plus how many students are enrolled in AP, from the 2021-22 federal CRDC "
+    f"plus how many students are enrolled in AP, from the {_crdc_rel} federal CRDC "
     "(U.S. Dept. of Education, Office for Civil Rights — civilrightsdata.ed.gov). "
     "What a school *offers* is a civil-rights measure of equitable access to "
     "college-level coursework. **Caveat:** the CRDC public-use file applies "
@@ -899,7 +902,6 @@ st.caption(
     "student privacy, so counts are approximate."
 )
 
-crdc_offerings = load_dataset("crdc_offerings")
 if crdc_offerings.empty:
     st.info("Course-offering (CRDC) data is unavailable in the current build.")
 else:
@@ -938,7 +940,7 @@ else:
             textposition="auto",
         ))
         fig.update_layout(**DEFAULT_LAYOUT,
-                          title="Students enrolled in AP — Lynn high schools (2021-22)",
+                          title=f"Students enrolled in AP — Lynn high schools ({_crdc_rel})",
                           xaxis_title="AP-enrolled students")
         st.plotly_chart(fig, width="stretch")
 

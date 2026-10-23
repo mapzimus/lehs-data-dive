@@ -536,8 +536,8 @@ with tab_city:
         )
 
         year_cols = [
-            ("Built 2014 or later",    _num("built_2014_or_later")),
-            ("Built 2010–2013",        _num("built_2010_to_2013")),
+            ("Built 2020 or later",    _num("built_2020_or_later")),
+            ("Built 2010–2019",        _num("built_2010_to_2019")),
             ("Built 2000–2009",        _num("built_2000_to_2009")),
             ("Built 1990–1999",        _num("built_1990_to_1999")),
             ("Built 1980–1989",        _num("built_1980_to_1989")),

@@ -41,6 +41,9 @@ STEPS = [
     ("21_download_myrbs.py",               "Download MA youth mental-health (YRBS, statewide)"),
     ("19_download_accountability_detail.py", "Download DESE detailed accountability workbooks"),
     ("16_process_dese_profiles.py",        "Build accountability summary + indicator parquets"),
+    # Last data step: drops duplicate / ghost rows the sources ship. Must run
+    # before the report and feed so they read the cleaned files.
+    ("clean_processed.py",                 "Drop duplicate and broken rows from processed data"),
     ("13_build_annual_report.py",          "Build the State of LEHS PDF report"),
     ("23_build_updates_feed.py",           "Build the What's-New RSS feed + changelog"),
 ]
