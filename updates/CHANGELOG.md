@@ -2,6 +2,10 @@
 
 Updates to the dashboard, newest first.
 
+### 2026-11-06 — Sharper AP, teacher-retention, and staff-diversity numbers
+
+Three state files had been saved rounded to the nearest 10 points, so charts showed steps like 50% or 90% instead of the real value. They now carry DESE's full figures: Lynn English's AP pass rate (scores of 3–5) for 2024–25 is 53.6% (it had shown 50%), and its 2025–26 teacher retention is 87.5% (it had shown 90%). Staff race and gender shares are fixed the same way. Lynn housing prices and rents now run through September 2026, and DESE's revised 2026 rating for Hood Elementary (no longer requiring assistance) is in. Class of 2026 graduation rates and October 2026 enrollment are not public yet.
+
 ### 2026-10-23 — Lynn City numbers corrected and moved to the 2020–24 Census
 
 Several Lynn City figures were reading the wrong Census rows. Per-capita income is $35,598 (it had shown median family income, $86,600), the poverty rate is 13.8% for all residents and 17.9% for children (the two had been mislabeled), and the language, industry, and commute charts now line up with their categories. The Neighborhoods tab now has tract maps of income, education, language, and rent burden, and "severely rent-burdened" now means paying 50% or more of income on rent (33.5% of Lynn renters). Massachusetts comparison values are from the same 2024 Census release.
