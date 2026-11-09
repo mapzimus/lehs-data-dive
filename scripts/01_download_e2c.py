@@ -136,16 +136,35 @@ def best_match(results: list[dict], target_title: str) -> dict | None:
 
 
 def download_csv(dataset_id: str, out_path: Path) -> int:
-    """Download the full CSV for a Socrata dataset. Returns bytes written."""
-    url = f"https://{E2C_DOMAIN}/api/views/{dataset_id}/rows.csv?accessType=DOWNLOAD"
-    with requests.get(url, headers=HEADERS, stream=True, timeout=300) as r:
-        r.raise_for_status()
-        bytes_written = 0
-        with out_path.open("wb") as f:
-            for chunk in r.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
-                    bytes_written += len(chunk)
+    """Download the full CSV for a Socrata dataset. Returns bytes written.
+
+    Uses the SODA API endpoint (/resource/{id}.csv), paged, NOT the bulk
+    export (/api/views/{id}/rows.csv). The bulk export writes numbers at the
+    portal's display precision, which for several datasets is one decimal:
+    a staff retention rate of 0.741 comes out as 0.7, AP 3-5 rates and staff
+    race shares land on 10-point steps. The SODA endpoint returns the stored
+    value. Its header is lowercase, so it is uppercased to match the column
+    names the rest of the pipeline expects.
+    """
+    url = f"https://{E2C_DOMAIN}/resource/{dataset_id}.csv"
+    page = 50_000
+    offset = 0
+    bytes_written = 0
+    with out_path.open("wb") as f:
+        while True:
+            params = {"$limit": page, "$offset": offset, "$order": ":id"}
+            r = requests.get(url, params=params, headers=HEADERS, timeout=300)
+            r.raise_for_status()
+            header, _, body = r.content.partition(b"\n")
+            if offset == 0:
+                f.write(header.upper() + b"\n")
+                bytes_written += len(header) + 1
+            f.write(body)
+            bytes_written += len(body)
+            rows = body.count(b"\n")
+            if rows < page:
+                break
+            offset += page
     return bytes_written
 
 

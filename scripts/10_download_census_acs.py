@@ -142,14 +142,17 @@ TABLES = {
     },
     "housing_burden": {
         # B25070 — gross rent as % of household income (renter households)
-        # _001E total, _007E = 30-34.9%, _008E = 35-39.9%, _009E = 40-49.9%, _010E = 50%+
-        "vars": ["B25070_001E", "B25070_007E", "B25070_008E", "B25070_009E", "B25070_010E"],
+        # _001E total, _007E = 30-34.9%, _008E = 35-39.9%, _009E = 40-49.9%, _010E = 50%+,
+        # _011E = not computed (no cash rent / no income), excluded from the denominator
+        "vars": ["B25070_001E", "B25070_007E", "B25070_008E", "B25070_009E", "B25070_010E",
+                 "B25070_011E"],
         "alias_map": {
             "B25070_001E": "renter_total",
             "B25070_007E": "rent_burden_30_35",
             "B25070_008E": "rent_burden_35_40",
             "B25070_009E": "rent_burden_40_50",
             "B25070_010E": "rent_burden_50plus",
+            "B25070_011E": "rent_burden_not_computed",
         },
     },
 }

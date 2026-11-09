@@ -7,6 +7,18 @@
 #   reason:  why (source update, parsing bug, definition change, etc.)
 #   source:  optional citation/PR link
 corrections:
+  - date: 2026-11-06
+    page: Courses & Academics / Teachers & Workforce / College, Career & Beyond / Gateway Cities / Cross-Topic Explorer
+    change: "AP performance (share scoring 3–5), staff retention rates, and staff race/gender shares had been stored rounded to one decimal place (0.536 → 0.5, 0.875 → 0.9), so every chart of them moved in 10-point steps. All three now carry DESE's full-precision values; for example Lynn English's 2024–25 AP 3–5 rate is 53.6% (was 50%) and 2025–26 teacher retention is 87.5% (was 90%). Twelve DART success-after-high-school values were fixed the same way, and the 2026 statewide enrollment total is 900,487 after DESE's October revision (was 900,490)."
+    reason: "The E2C download step used Socrata's bulk export, which writes numbers at the portal's display precision. It now pages through the SODA API, which returns stored values. Every DESE file was then checked cell-by-cell against the live API for Lynn English, Lynn district, and the state."
+    source: "scripts/01_download_e2c.py"
+
+  - date: 2026-11-06
+    page: State Accountability / Lynn District
+    change: "Hood Elementary's 2026 classification is now 'Not requiring assistance or intervention — substantial progress toward targets'; it had shown 'Requiring assistance' with a low-participation flag."
+    reason: "DESE revised the 2026 accountability-data workbook after the September release."
+    source: "doe.mass.edu/accountability/lists-tools"
+
   - date: 2026-09-13
     page: Stories / About the Data / Maps
     change: "Rewrote visitor-facing explanations in plainer language. Fixed Stories links that still pointed at pages merged into Where Students Come From and Lynn Schools. Fixed the Corrections tab title (it had said Methodology). Pointed the Maps Data 101 link at About the Data. Replaced a Data 101 sample table that showed enrollment rising when recent years show a drop."

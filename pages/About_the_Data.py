@@ -650,7 +650,7 @@ you sort everything from low to high.
 
 When a few extreme values are pulling the mean around, the median
 gives you a fairer picture. Classic example: median household income
-in Lynn is **\\$74,715**. The *mean* would be higher, because a small
+in Lynn is **\\$75,043**. The *mean* is \\$97,909, because a small
 number of very-wealthy households pull the average up while the typical
 Lynn household sits at the median.
 
